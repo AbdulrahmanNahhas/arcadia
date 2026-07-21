@@ -1,6 +1,5 @@
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
-import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
-import { TanStackDevtools } from "@tanstack/react-devtools"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 import appCss from "../styles.css?url"
 
@@ -15,7 +14,12 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "TanStack Start Starter",
+        title: "Arcadia — your media, remembered",
+      },
+      {
+        name: "description",
+        content:
+          "A private, local-first knowledge base for every story you keep.",
       },
     ],
     links: [
@@ -35,24 +39,15 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const restorePreferences = `(function(){try{var r=document.documentElement,t=localStorage.getItem('arcadia:theme');if(t==='dark')r.classList.add('dark');r.dataset.sidebarOpen=localStorage.getItem('arcadia:sidebar-open')==='false'?'false':'true';r.dataset.focusMode=localStorage.getItem('arcadia:focus-mode')==='true'?'true':'false';r.style.colorScheme=t==='dark'?'dark':'light'}catch(e){}})()`
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: restorePreferences }} />
         <HeadContent />
       </head>
       <body>
-        {children}
-        <TanStackDevtools
-          config={{
-            position: "bottom-right",
-          }}
-          plugins={[
-            {
-              name: "Tanstack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
+        <TooltipProvider>{children}</TooltipProvider>
         <Scripts />
       </body>
     </html>

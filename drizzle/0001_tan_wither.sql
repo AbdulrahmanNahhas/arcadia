@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `work_relations_pair_type_uq` ON `work_relations` (`source_work_id`,`target_work_id`,`relation_type`);
