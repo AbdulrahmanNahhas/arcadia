@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from "react"
+import { useMemo, useState, type FormEvent } from "react"
 import { Link } from "@tanstack/react-router"
 import {
   useMutation,
@@ -10,13 +10,14 @@ import {
   BracketsCurlyIcon,
   CheckIcon,
   DatabaseIcon,
-  FloppyDiskIcon,
+  DotsThreeVerticalIcon,
   MagnifyingGlassIcon,
   NotePencilIcon,
   PlusIcon,
   RowsPlusBottomIcon,
   SelectionAllIcon,
   SparkleIcon,
+  StarIcon,
   XIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
@@ -30,15 +31,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
 import { AdvancedFilter } from "@/features/library/filter-sheet"
 import {
   buildFacetOptions,
@@ -49,21 +41,22 @@ import {
   type WorkFilterState,
 } from "@/features/library/filtering"
 import {
-  adminWorkUpdateSchema,
   workKinds,
-  type AdminWorkUpdate,
   type Work,
-  type WorkCredit,
   type WorkKind,
-  type WorkRelation,
 } from "@/features/library/model"
 import {
   addWorksBulk,
-  editWorksBulk,
   getWorks,
-  saveWork,
 } from "@/server/library.functions"
 import { cn } from "@/lib/utils"
+import { Separator } from "@/components/ui/separator"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {  WorkEditor } from "./components/editor-form"
+import { JsonEditorDialog } from "./components/json-editor"
+import { BulkEditDialog } from "./components/bulk-edit"
 
 function createDefaultFilters(): WorkFilterState {
   return {
@@ -103,6 +96,7 @@ export function AdminApp() {
     queryKey: ["works"],
     queryFn: () => getWorks(),
   })
+
   const [search, setSearch] = useState("")
   const [filters, setFilters] = useState<WorkFilterState>(createDefaultFilters)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -127,6 +121,7 @@ export function AdminApp() {
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["works"] })
   }
+
   const toggleSelected = (id: string) => {
     setSelectedIds((current) => {
       const next = new Set(current)
@@ -135,6 +130,7 @@ export function AdminApp() {
       return next
     })
   }
+
   const toggleAllVisible = () => {
     setSelectedIds((current) => {
       const next = new Set(current)
@@ -145,191 +141,332 @@ export function AdminApp() {
   }
 
   return (
-    <main className="admin-page">
-      <header className="admin-topbar">
-        <div className="admin-brand">
-          <span>
-            <DatabaseIcon weight="duotone" />
-          </span>
-          <div>
-            <strong>Arcadia admin</strong>
-            <small>Local database workspace</small>
+  /* FIXED: Added 'h-screen overflow-y-auto' so the page always scrolls vertically */
+  <div className="h-screen overflow-y-auto bg-background text-foreground antialiased pb-12">
+    {/* Top Navigation Bar */}
+    <header className="sticky top-0 z-30 border-b border-border/40 bg-background/95 backdrop-blur-md">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex h-14 items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <DatabaseIcon className="size-4" weight="duotone" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold leading-none tracking-tight">Arcadia Admin</span>
+            <span className="text-[10px] text-muted-foreground leading-none mt-1">Local database workspace</span>
           </div>
         </div>
-        <Button variant="ghost" render={<Link to="/" />}>
-          <ArrowLeftIcon /> Back to library
-        </Button>
-      </header>
 
-      <section className="admin-heading">
-        <div>
-          <p>
-            <SparkleIcon /> database maintenance
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+          render={
+            <Link to="/">
+              <ArrowLeftIcon className="size-3.5" />
+              <span>Back to library</span>
+            </Link>
+          }
+        />
+      </div>
+    </header>
+
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-0">
+      {/* Page Heading Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 bg-card border border-border/50 rounded-xl p-5 shadow-2xs">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+            <SparkleIcon className="size-3.5" />
+            <span>Database Maintenance</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Manage Works</h1>
+          <p className="text-xs text-muted-foreground">
+            Edit metadata and personal state without changing the browsing experience.
           </p>
-          <h1>Manage works</h1>
-          <span>
-            Edit metadata and personal state without changing the browsing
-            experience.
-          </span>
         </div>
-        <div className="admin-heading-actions">
-          <Button variant="outline" onClick={() => setJsonEditorOpen(true)}>
-            <BracketsCurlyIcon /> JSON editor
-          </Button>
-          <Button variant="outline" onClick={() => setBulkAddOpen(true)}>
-            <RowsPlusBottomIcon /> Bulk add
-          </Button>
-          <Button onClick={() => setBulkAddOpen(true)}>
-            <PlusIcon /> Add works
-          </Button>
-        </div>
-      </section>
 
-      <section className="admin-toolbar">
-        <label className="admin-search">
-          <MagnifyingGlassIcon />
+        {/* Heading Actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setJsonEditorOpen(true)}
+            className="h-9 text-xs gap-1.5 border-border/60"
+          >
+            <BracketsCurlyIcon className="size-3.5 text-muted-foreground" />
+            <span>JSON Editor</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBulkAddOpen(true)}
+            className="h-9 text-xs gap-1.5 border-border/60"
+          >
+            <RowsPlusBottomIcon className="size-3.5 text-muted-foreground" />
+            <span>Bulk Add</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setBulkAddOpen(true)}
+            className="h-9 text-xs gap-1.5 shadow-xs"
+          >
+            <PlusIcon className="size-3.5" />
+            <span>Add Works</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Floating Bulk Selection Toolbar */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-14 z-20 w-[90%] mx-auto flex items-center justify-between gap-4 rounded-b-lg bg-primary text-primary-foreground px-4 py-2 shadow-lg border border-primary/20 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 text-xs font-medium">
+            <span className="flex size-5 items-center justify-center rounded-full bg-primary-foreground/20 text-primary-foreground">
+              <CheckIcon className="size-3 stroke-[3]" />
+            </span>
+            <span><strong>{selectedIds.size}</strong> work{selectedIds.size > 1 ? "s" : ""} selected</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+              className="h-7 text-xs text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10"
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setBulkEditOpen(true)}
+              className="h-7 text-xs gap-1.5 shadow-2xs"
+            >
+              <NotePencilIcon className="size-3.5" />
+              <span>Edit Selected</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Filter and Search Controls Toolbar */}
+      <div className="flex flex-col my-2 sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card p-3 rounded-xl border border-border/50 shadow-2xs">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search titles, aliases, genres, tags, contributors…"
+            className="pl-9 pr-8 h-9 text-xs"
             aria-label="Search admin records"
           />
-          {search ? (
+          {search && (
             <button
               type="button"
               onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-sm"
               aria-label="Clear search"
             >
-              <XIcon />
+              <XIcon className="size-3.5" />
             </button>
-          ) : null}
-        </label>
-        <AdvancedFilter
-          filters={filters}
-          facetOptions={facetOptions}
-          onChange={setFilters}
-          matchingCount={visibleWorks.length}
-          title="Filter admin records"
-          triggerLabel="Advanced filters"
-        />
-        <Button
-          variant="outline"
-          onClick={toggleAllVisible}
-          disabled={!visibleWorks.length}
-        >
-          <SelectionAllIcon />{" "}
-          {allVisibleSelected ? "Deselect visible" : "Select visible"}
-        </Button>
-        <span className="admin-result-count">
-          {visibleWorks.length} of {works.length}
-        </span>
-      </section>
+          )}
+        </div>
 
-      {selectedIds.size ? (
-        <section className="admin-selection-bar">
-          <div>
-            <CheckIcon /> <strong>{selectedIds.size}</strong> selected
-          </div>
-          <div>
-            <Button variant="ghost" onClick={() => setSelectedIds(new Set())}>
-              Clear
-            </Button>
-            <Button onClick={() => setBulkEditOpen(true)}>
-              <NotePencilIcon /> Edit selected
-            </Button>
-          </div>
-        </section>
-      ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <AdvancedFilter
+            filters={filters}
+            facetOptions={facetOptions}
+            onChange={setFilters}
+            matchingCount={visibleWorks.length}
+            title="Filter Admin Records"
+            triggerLabel="Advanced Filters"
+          />
 
-      <section className="admin-table-frame">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th aria-label="Select">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleAllVisible}
+            disabled={!visibleWorks.length}
+            className="h-9 text-xs gap-1.5 border-border/60"
+          >
+            <SelectionAllIcon className="size-3.5 text-muted-foreground" />
+            <span>{allVisibleSelected ? "Deselect Visible" : "Select Visible"}</span>
+          </Button>
+
+          <Separator orientation="vertical" className="h-6 hidden sm:block bg-border/60" />
+
+          <div className="text-xs text-muted-foreground font-mono px-1">
+            <span className="font-semibold text-foreground">{visibleWorks.length}</span> / {works.length}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Data Table Section */}
+      {/* FIXED: Replaced 'overflow-hidden' with 'overflow-x-auto' */}
+      <div className="rounded-xl border border-border/50 bg-card overflow-x-auto shadow-2xs">
+        <Table>
+          <TableHeader className="bg-muted/30">
+            <TableRow className="hover:bg-transparent border-border/50">
+              <TableHead className="w-12 text-center">
                 <Checkbox
                   checked={allVisibleSelected}
                   onCheckedChange={toggleAllVisible}
+                  aria-label="Select all visible works"
                 />
-              </th>
-              <th>Work</th>
-              <th>Type</th>
-              <th>Release</th>
-              <th>Genres</th>
-              <th>Status</th>
-              <th>Rating</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {visibleWorks.map((work) => (
-              <tr
-                key={work.id}
-                className={cn(selectedIds.has(work.id) && "selected")}
-              >
-                <td>
-                  <Checkbox
-                    checked={selectedIds.has(work.id)}
-                    onCheckedChange={() => toggleSelected(work.id)}
-                    aria-label={`Select ${work.title}`}
-                  />
-                </td>
-                <td>
-                  <button
-                    className="admin-work-cell"
-                    type="button"
-                    onClick={() => setEditingWork(work)}
-                  >
-                    {work.imagePath ? (
-                      <img src={work.imagePath} alt="" />
-                    ) : (
-                      <span className="admin-poster-fallback">
-                        {work.title.slice(0, 1)}
-                      </span>
-                    )}
-                    <span>
-                      <strong>{work.title}</strong>
-                      <small>{work.studios[0] ?? work.creator}</small>
-                    </span>
-                  </button>
-                </td>
-                <td>
-                  <span className="admin-kind">{kindLabels[work.kind]}</span>
-                </td>
-                <td>{work.year ?? "—"}</td>
-                <td>
-                  <div className="admin-tags">
-                    {work.genres.slice(0, 3).map((genre) => (
-                      <span key={genre}>{genre}</span>
-                    ))}
-                  </div>
-                </td>
-                <td>
-                  <span className={`status-dot status-${work.status}`} />{" "}
-                  {work.status.replace("-", " ")}
-                </td>
-                <td>{work.rating === null ? "—" : work.rating.toFixed(1)}</td>
-                <td>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingWork(work)}
-                  >
-                    Edit
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!visibleWorks.length ? (
-          <div className="admin-empty">
-            <DatabaseIcon />
-            <strong>No matching works</strong>
-            <span>Clear the search or change the filter rules.</span>
-          </div>
-        ) : null}
-      </section>
+              </TableHead>
+              <TableHead className="min-w-[220px]">Work</TableHead>
+              <TableHead className="w-[100px]">Type</TableHead>
+              <TableHead className="w-[90px]">Release</TableHead>
+              <TableHead className="min-w-[180px]">Genres</TableHead>
+              <TableHead className="w-[130px]">Status</TableHead>
+              <TableHead className="w-[90px]">Rating</TableHead>
+              <TableHead className="w-[80px] text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visibleWorks.map((work) => {
+              const isSelected = selectedIds.has(work.id)
+              return (
+                <TableRow
+                  key={work.id}
+                  className={cn(
+                    "transition-colors border-border/40",
+                    isSelected && "bg-primary/5 hover:bg-primary/10"
+                  )}
+                >
+                  {/* Checkbox */}
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleSelected(work.id)}
+                      aria-label={`Select ${work.title}`}
+                    />
+                  </TableCell>
 
+                  {/* Work Info Cell */}
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => setEditingWork(work)}
+                      className="flex items-center gap-3 text-left group focus-visible:outline-none"
+                    >
+                      {work.imagePath ? (
+                        <img
+                          src={work.imagePath}
+                          alt=""
+                          className="size-10 rounded-md object-cover bg-muted shrink-0 border border-border/40 group-hover:opacity-80 transition-opacity"
+                        />
+                      ) : (
+                        <div className="size-10 rounded-md bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0 border border-border/40 group-hover:bg-muted/80">
+                          {work.title.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-0.5 max-w-[240px] truncate">
+                        <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                          {work.title}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground truncate">
+                          {work.studios[0] ?? work.creator ?? "—"}
+                        </span>
+                      </div>
+                    </button>
+                  </TableCell>
+
+                  {/* Type Badge */}
+                  <TableCell>
+                    <Badge variant="outline" className="text-[10px] font-medium border-border/60 capitalize">
+                      {kindLabels[work.kind] ?? work.kind}
+                    </Badge>
+                  </TableCell>
+
+                  {/* Release Year */}
+                  <TableCell className="text-xs font-mono text-muted-foreground">
+                    {work.year ?? "—"}
+                  </TableCell>
+
+                  {/* Genres */}
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {work.genres.slice(0, 2).map((genre) => (
+                        <Badge
+                          key={genre}
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0 font-normal bg-muted/60 text-muted-foreground"
+                        >
+                          {genre}
+                        </Badge>
+                      ))}
+                      {work.genres.length > 2 && (
+                        <span className="text-[10px] text-muted-foreground/70 font-mono self-center">
+                          +{work.genres.length - 2}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+
+                  {/* Status Indicator Badge */}
+                  <TableCell>
+                    <StatusBadge status={work.status} />
+                  </TableCell>
+
+                  {/* Rating */}
+                  <TableCell>
+                    {work.rating !== null ? (
+                      <div className="inline-flex items-center gap-1 text-xs font-mono font-medium text-amber-600 dark:text-amber-400">
+                        <StarIcon className="size-3 fill-current" />
+                        <span>{work.rating.toFixed(1)}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground font-mono">—</span>
+                    )}
+                  </TableCell>
+
+                  {/* Row Actions */}
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger render={
+                        <Button variant="ghost" size="icon" className="size-7">
+                          <DotsThreeVerticalIcon className="size-4" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      }/>
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem onClick={() => setEditingWork(work)}>
+                          <NotePencilIcon className="size-3.5 mr-2" />
+                          Edit details
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+
+        {/* Empty Table State */}
+        {!visibleWorks.length && (
+          <div className="flex flex-col items-center justify-center p-12 text-center my-4">
+            <div className="flex size-12 items-center justify-center rounded-full bg-muted/50 mb-3 text-muted-foreground">
+              <DatabaseIcon className="size-6" weight="duotone" />
+            </div>
+            <p className="text-sm font-semibold text-foreground">No matching works</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+              Try clearing your search query or modifying the current filter definitions.
+            </p>
+            {(search || countFiltersActive(filters)) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSearch("")}
+                className="mt-4 h-8 text-xs"
+              >
+                Clear search query
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </main>
+
+      {/* Editor & Action Dialog Component Mounts */}
       <WorkEditor
         work={editingWork}
         works={works}
@@ -353,7 +490,7 @@ export function AdminApp() {
           await refresh()
         }}
       />
-      {jsonEditorOpen ? (
+      {jsonEditorOpen && (
         <JsonEditorDialog
           open={jsonEditorOpen}
           onOpenChange={setJsonEditorOpen}
@@ -362,915 +499,46 @@ export function AdminApp() {
           selectedIds={selectedIds}
           onSaved={refresh}
         />
-      ) : null}
-    </main>
+      )}
+    </div>
   )
 }
 
-type JsonScope = "all" | "visible" | "selected"
-
-function toEditableWork(work: Work): AdminWorkUpdate {
-  const { addedAt: _addedAt, palette: _palette, relations, ...editable } = work
-  return {
-    ...editable,
-    relations: relations.map(({ workId, relationType, direction, notes }) => ({
-      workId,
-      relationType,
-      direction,
-      notes,
-    })),
-  }
-}
-
-function displayJsonValue(value: unknown) {
-  if (typeof value === "string") return value || "Empty string"
-  return JSON.stringify(value, null, 2) ?? "undefined"
-}
-
-function JsonEditorDialog({
-  open,
-  onOpenChange,
-  works,
-  visibleWorks,
-  selectedIds,
-  onSaved,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  works: Work[]
-  visibleWorks: Work[]
-  selectedIds: Set<string>
-  onSaved: () => Promise<void>
-}) {
-  const [scope, setScope] = useState<JsonScope>("all")
-  const [sourceWorks, setSourceWorks] = useState<Work[]>(works)
-  const [json, setJson] = useState(() =>
-    JSON.stringify(works.map(toEditableWork), null, 2)
-  )
-  const [parsedWorks, setParsedWorks] = useState<AdminWorkUpdate[] | null>(null)
-  const [error, setError] = useState("")
-
-  const resetEditor = (nextScope: JsonScope = scope) => {
-    const nextWorks =
-      nextScope === "visible"
-        ? visibleWorks
-        : nextScope === "selected"
-          ? works.filter((work) => selectedIds.has(work.id))
-          : works
-    setSourceWorks(nextWorks)
-    setJson(JSON.stringify(nextWorks.map(toEditableWork), null, 2))
-    setParsedWorks(null)
-    setError("")
-  }
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) resetEditor()
-    onOpenChange(nextOpen)
-  }
-
-  const selectScope = (nextScope: JsonScope) => {
-    setScope(nextScope)
-    resetEditor(nextScope)
-  }
-
-  const review = () => {
-    try {
-      const raw: unknown = JSON.parse(json)
-      const result = adminWorkUpdateSchema.array().safeParse(raw)
-      if (!result.success) {
-        const issue = result.error.issues[0]
-        setError(
-          `${issue.path.length ? issue.path.join(".") + ": " : ""}${issue.message}`
-        )
-        return
-      }
-      const originalIds = sourceWorks.map(({ id }) => id).sort()
-      const nextIds = result.data.map(({ id }) => id).sort()
-      if (
-        new Set(nextIds).size !== nextIds.length ||
-        JSON.stringify(originalIds) !== JSON.stringify(nextIds)
-      ) {
-        setError(
-          "Keep exactly the same work IDs in this scope. Add, remove, and ID changes are blocked in the JSON editor."
-        )
-        return
-      }
-      setError("")
-      setParsedWorks(result.data)
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Invalid JSON")
-    }
-  }
-
-  const changes = useMemo(() => {
-    if (!parsedWorks) return []
-    const originals = new Map(
-      sourceWorks.map((work) => [work.id, toEditableWork(work)])
-    )
-    return parsedWorks.flatMap((work) => {
-      const original = originals.get(work.id)
-      if (!original) return []
-      const fields = Object.keys(work).filter(
-        (field) =>
-          JSON.stringify(original[field as keyof AdminWorkUpdate]) !==
-          JSON.stringify(work[field as keyof AdminWorkUpdate])
-      )
-      return fields.length ? [{ work, original, fields }] : []
-    })
-  }, [parsedWorks, sourceWorks])
-
-  const mutation = useMutation({
-    mutationFn: async (updates: AdminWorkUpdate[]) => {
-      for (const data of updates) await saveWork({ data })
-    },
-    onSuccess: async () => {
-      await onSaved()
-      onOpenChange(false)
-    },
-  })
+/**
+ * Status Badge Component
+ */
+function StatusBadge({ status }: { status: string }) {
+  const formattedStatus = status.replace("-", " ")
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="admin-json-dialog" showCloseButton>
-        <DialogHeader className="admin-json-header">
-          <div className="admin-json-title">
-            <span>
-              <BracketsCurlyIcon />
-            </span>
-            <div>
-              <DialogTitle>Works JSON editor</DialogTitle>
-              <DialogDescription>
-                {parsedWorks
-                  ? "Review every field change before the database is updated."
-                  : "Inspect and edit complete work records in a controlled scope."}
-              </DialogDescription>
-            </div>
-          </div>
-          <div className="admin-json-steps" aria-label="Editor progress">
-            <span className={cn(!parsedWorks && "active")}>1 · Edit JSON</span>
-            <span className={cn(parsedWorks && "active")}>
-              2 · Review changes
-            </span>
-          </div>
-        </DialogHeader>
-
-        {parsedWorks ? (
-          <div className="admin-json-review">
-            <div className="admin-json-review-summary">
-              <strong>
-                {changes.length} {changes.length === 1 ? "work" : "works"}{" "}
-                changed
-              </strong>
-              <span>
-                {changes.reduce(
-                  (total, change) => total + change.fields.length,
-                  0
-                )}{" "}
-                field updates · unchanged records will not be saved
-              </span>
-            </div>
-            {changes.length ? (
-              <div className="admin-json-change-list">
-                {changes.map(({ work, original, fields }) => (
-                  <section key={work.id} className="admin-json-change-card">
-                    <header>
-                      <strong>{work.title}</strong>
-                      <code>{work.id}</code>
-                    </header>
-                    <div>
-                      {fields.map((field) => (
-                        <article key={field}>
-                          <h3>{field}</h3>
-                          <div className="admin-json-diff before">
-                            <span>Before</span>
-                            <pre>
-                              {displayJsonValue(
-                                original[field as keyof AdminWorkUpdate]
-                              )}
-                            </pre>
-                          </div>
-                          <div className="admin-json-diff after">
-                            <span>After</span>
-                            <pre>
-                              {displayJsonValue(
-                                work[field as keyof AdminWorkUpdate]
-                              )}
-                            </pre>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            ) : (
-              <div className="admin-json-no-changes">
-                <CheckIcon />
-                <strong>No changes found</strong>
-                <span>
-                  The edited JSON matches the current database values.
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="admin-json-workspace">
-            <aside>
-              <strong>Records to show</strong>
-              <button
-                className={cn(scope === "all" && "active")}
-                type="button"
-                onClick={() => selectScope("all")}
-              >
-                <span>All works</span>
-                <small>{works.length}</small>
-              </button>
-              <button
-                className={cn(scope === "visible" && "active")}
-                type="button"
-                onClick={() => selectScope("visible")}
-              >
-                <span>Current results</span>
-                <small>{visibleWorks.length}</small>
-              </button>
-              <button
-                className={cn(scope === "selected" && "active")}
-                type="button"
-                onClick={() => selectScope("selected")}
-                disabled={!selectedIds.size}
-              >
-                <span>Selected works</span>
-                <small>{selectedIds.size}</small>
-              </button>
-              <p>
-                Readonly database fields are omitted. Work IDs and the records
-                in this scope cannot be changed.
-              </p>
-            </aside>
-            <div className="admin-json-code">
-              <div>
-                <span>{sourceWorks.length} records</span>
-                <code>application/json</code>
-              </div>
-              <textarea
-                value={json}
-                onChange={(event) => setJson(event.target.value)}
-                spellCheck={false}
-                aria-label="Works JSON"
-              />
-            </div>
-          </div>
+    <div className="inline-flex items-center gap-1.5 text-xs capitalize text-muted-foreground font-medium">
+      <span
+        className={cn(
+          "size-1.5 rounded-full",
+          status === "completed" && "bg-emerald-500",
+          status === "in-progress" && "bg-sky-500",
+          status === "planned" && "bg-amber-500",
+          status === "dropped" && "bg-rose-500",
+          status === "on-hold" && "bg-purple-500"
         )}
-
-        {(error || mutation.error) && (
-          <p className="admin-form-error admin-json-error">
-            {error || mutation.error?.message}
-          </p>
-        )}
-        <DialogFooter className="admin-json-footer">
-          {parsedWorks ? (
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setParsedWorks(null)}
-                disabled={mutation.isPending}
-              >
-                Back to editor
-              </Button>
-              <Button
-                type="button"
-                onClick={() => mutation.mutate(changes.map(({ work }) => work))}
-                disabled={!changes.length || mutation.isPending}
-              >
-                <FloppyDiskIcon />{" "}
-                {mutation.isPending
-                  ? "Saving…"
-                  : `Save ${changes.length} changed ${changes.length === 1 ? "work" : "works"}`}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={review}
-                disabled={!sourceWorks.length}
-              >
-                Review changes
-              </Button>
-            </>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      />
+      <span>{formattedStatus}</span>
+    </div>
   )
 }
 
-function WorkEditor({
-  work,
-  works,
-  onOpenChange,
-  onSaved,
-}: {
-  work: Work | null
-  works: Work[]
-  onOpenChange: (open: boolean) => void
-  onSaved: () => Promise<void>
-}) {
-  return (
-    <Sheet open={Boolean(work)} onOpenChange={onOpenChange}>
-      {work ? (
-        <WorkEditorForm
-          key={work.id}
-          work={work}
-          works={works}
-          onSaved={onSaved}
-        />
-      ) : null}
-    </Sheet>
+function countFiltersActive(filters: WorkFilterState): boolean {
+  return Boolean(
+    filters.kinds.length ||
+      filters.excludedKinds.length ||
+      filters.statuses.length ||
+      filters.excludedStatuses.length ||
+      filters.favoriteOnly ||
+      filters.minRating > 0
   )
 }
 
-function WorkEditorForm({
-  work,
-  works,
-  onSaved,
-}: {
-  work: Work
-  works: Work[]
-  onSaved: () => Promise<void>
-}) {
-  const [draft, setDraft] = useState<Work>(() => structuredClone(work))
-  const [links, setLinks] = useState(() =>
-    work.externalLinks
-      .map((link) => `${link.provider} | ${link.label} | ${link.url}`)
-      .join("\n")
-  )
-  const mutation = useMutation({
-    mutationFn: saveWork,
-    onSuccess: onSaved,
-  })
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    const {
-      addedAt: _addedAt,
-      palette: _palette,
-      relations,
-      ...editable
-    } = draft
-    const externalLinks = links
-      .split("\n")
-      .map((line) => line.split("|").map((value) => value.trim()))
-      .filter((parts) => parts.length >= 3 && parts[2])
-      .map(([provider, label, ...url]) => ({
-        provider,
-        label,
-        url: url.join("|"),
-      }))
-    mutation.mutate({
-      data: {
-        ...editable,
-        externalLinks,
-        relations: relations.map(
-          ({ workId, relationType, direction, notes }) => ({
-            workId,
-            relationType,
-            direction,
-            notes,
-          })
-        ),
-      } as AdminWorkUpdate,
-    })
-  }
-
-  return (
-    <SheetContent side="right" className="admin-editor-sheet">
-      <SheetHeader className="admin-editor-header">
-        <SheetTitle>Edit {work.title}</SheetTitle>
-        <SheetDescription>
-          Objective metadata, personal state, guidance, links, and local assets.
-        </SheetDescription>
-      </SheetHeader>
-      <form className="admin-editor-form" onSubmit={submit}>
-        <EditorSection
-          title="Identity"
-          description="Core fields used everywhere in Arcadia."
-        >
-          <Field label="Title">
-            <Input
-              value={draft.title}
-              required
-              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            />
-          </Field>
-          <Field label="Subtitle">
-            <Input
-              value={draft.subtitle}
-              onChange={(e) => setDraft({ ...draft, subtitle: e.target.value })}
-            />
-          </Field>
-          <Field label="Type">
-            <select
-              value={draft.kind}
-              onChange={(e) =>
-                setDraft({ ...draft, kind: e.target.value as WorkKind })
-              }
-            >
-              {workKinds.map((kind) => (
-                <option key={kind} value={kind}>
-                  {kindLabels[kind]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Release year">
-            <Input
-              type="number"
-              value={draft.year ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  year: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-            />
-          </Field>
-          <Field label="Release status">
-            <select
-              value={draft.releaseStatus}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  releaseStatus: event.target.value as Work["releaseStatus"],
-                })
-              }
-            >
-              {["announced", "releasing", "released", "ended", "unknown"].map(
-                (status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                )
-              )}
-            </select>
-          </Field>
-          <Field label="Creator">
-            <Input
-              value={draft.creator}
-              onChange={(e) => setDraft({ ...draft, creator: e.target.value })}
-            />
-          </Field>
-          <ArrayField
-            label="Aliases"
-            value={draft.aliases}
-            onChange={(aliases) => setDraft({ ...draft, aliases })}
-          />
-          <Field label="Summary" wide>
-            <textarea
-              rows={6}
-              value={draft.summary}
-              onChange={(e) => setDraft({ ...draft, summary: e.target.value })}
-            />
-          </Field>
-        </EditorSection>
-
-        <EditorSection
-          title="Classification"
-          description="Comma-separated values become searchable facets."
-        >
-          <ArrayField
-            label="Genres"
-            value={draft.genres}
-            onChange={(genres) => setDraft({ ...draft, genres })}
-          />
-          <ArrayField
-            label="Tags & themes"
-            value={draft.tags}
-            onChange={(tags) => setDraft({ ...draft, tags })}
-          />
-          <ArrayField
-            label="Studios"
-            value={draft.studios}
-            onChange={(studios) => setDraft({ ...draft, studios })}
-          />
-          <ArrayField
-            label="Tone"
-            value={draft.tone}
-            onChange={(tone) => setDraft({ ...draft, tone })}
-          />
-          <ArrayField
-            label="Countries"
-            value={draft.country}
-            onChange={(country) => setDraft({ ...draft, country })}
-          />
-          <ArrayField
-            label="Audience"
-            value={draft.audience}
-            onChange={(audience) => setDraft({ ...draft, audience })}
-          />
-          <ArrayField
-            label="Shared with"
-            value={draft.sharedWith}
-            onChange={(sharedWith) => setDraft({ ...draft, sharedWith })}
-          />
-          <ArrayField
-            label="Favorite characters"
-            value={draft.favoriteCharacters}
-            onChange={(favoriteCharacters) =>
-              setDraft({ ...draft, favoriteCharacters })
-            }
-          />
-          <CreditField
-            value={draft.credits}
-            onChange={(credits) => setDraft({ ...draft, credits })}
-          />
-        </EditorSection>
-
-        <EditorSection
-          title="Personal state"
-          description="Your private relationship with this work."
-        >
-          <Field label="Status">
-            <select
-              value={draft.status}
-              onChange={(e) =>
-                setDraft({ ...draft, status: e.target.value as Work["status"] })
-              }
-            >
-              {personalStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status.replace("-", " ")}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Rating">
-            <Input
-              type="number"
-              min="0"
-              max="10"
-              step="0.1"
-              value={draft.rating ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  rating: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-            />
-          </Field>
-          {draft.kind !== "manga" && draft.kind !== "novel" ? (
-            <>
-              <Field label="Progress">
-                <Input
-                  type="number"
-                  min="0"
-                  value={draft.progress}
-                  onChange={(e) =>
-                    setDraft({ ...draft, progress: Number(e.target.value) })
-                  }
-                />
-              </Field>
-              <Field label="Progress total">
-                <Input
-                  type="number"
-                  min="0"
-                  value={draft.progressTotal ?? ""}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      progressTotal: e.target.value
-                        ? Number(e.target.value)
-                        : null,
-                    })
-                  }
-                />
-              </Field>
-              <Field label="Progress unit">
-                <Input
-                  value={draft.progressUnit}
-                  onChange={(e) =>
-                    setDraft({ ...draft, progressUnit: e.target.value })
-                  }
-                />
-              </Field>
-            </>
-          ) : null}
-          <Field label="Personal notes" wide>
-            <textarea
-              rows={4}
-              value={draft.notes}
-              onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-            />
-          </Field>
-          <label className="admin-check-field">
-            <Checkbox
-              checked={draft.favorite}
-              onCheckedChange={(favorite) => setDraft({ ...draft, favorite })}
-            />{" "}
-            Favorite
-          </label>
-        </EditorSection>
-
-        <EditorSection
-          title="Guidance & analysis"
-          description="Content guidance stays distinct from objective metadata."
-        >
-          <Field label="Sexuality risk">
-            <RiskSelect
-              value={draft.riskProfile?.sexuality ?? "unknown"}
-              onChange={(sexuality) =>
-                setDraft({
-                  ...draft,
-                  riskProfile: {
-                    sexuality,
-                    fanService: draft.riskProfile?.fanService ?? null,
-                    behavioral: draft.riskProfile?.behavioral ?? "unknown",
-                    theology: draft.riskProfile?.theology ?? "unknown",
-                  },
-                })
-              }
-            />
-          </Field>
-          <Field label="Behavioral risk">
-            <RiskSelect
-              value={draft.riskProfile?.behavioral ?? "unknown"}
-              onChange={(behavioral) =>
-                setDraft({
-                  ...draft,
-                  riskProfile: {
-                    sexuality: draft.riskProfile?.sexuality ?? "unknown",
-                    fanService: draft.riskProfile?.fanService ?? null,
-                    behavioral,
-                    theology: draft.riskProfile?.theology ?? "unknown",
-                  },
-                })
-              }
-            />
-          </Field>
-          <Field label="Theology risk">
-            <RiskSelect
-              value={draft.riskProfile?.theology ?? "unknown"}
-              onChange={(theology) =>
-                setDraft({
-                  ...draft,
-                  riskProfile: {
-                    sexuality: draft.riskProfile?.sexuality ?? "unknown",
-                    fanService: draft.riskProfile?.fanService ?? null,
-                    behavioral: draft.riskProfile?.behavioral ?? "unknown",
-                    theology,
-                  },
-                })
-              }
-            />
-          </Field>
-          <Field label="Fan-service level">
-            <Input
-              type="number"
-              min="0"
-              max="10"
-              value={draft.riskProfile?.fanService ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  riskProfile: {
-                    sexuality: draft.riskProfile?.sexuality ?? "unknown",
-                    fanService: e.target.value ? Number(e.target.value) : null,
-                    behavioral: draft.riskProfile?.behavioral ?? "unknown",
-                    theology: draft.riskProfile?.theology ?? "unknown",
-                  },
-                })
-              }
-            />
-          </Field>
-          <Field label="Content warnings" wide>
-            <textarea
-              rows={3}
-              value={draft.contentWarnings ?? ""}
-              onChange={(e) =>
-                setDraft({ ...draft, contentWarnings: e.target.value || null })
-              }
-            />
-          </Field>
-          <Field label="Analysis notes" wide>
-            <textarea
-              rows={5}
-              value={draft.analysisNotes ?? ""}
-              onChange={(e) =>
-                setDraft({ ...draft, analysisNotes: e.target.value || null })
-              }
-            />
-          </Field>
-        </EditorSection>
-
-        <EditorSection
-          title="Dates, source & links"
-          description="Publishing context and destinations outside Arcadia."
-        >
-          <Field label="Release start">
-            <Input
-              type="date"
-              value={draft.releaseStart ?? ""}
-              onChange={(e) =>
-                setDraft({ ...draft, releaseStart: e.target.value || null })
-              }
-            />
-          </Field>
-          <Field label="Release end">
-            <Input
-              type="date"
-              value={draft.releaseEnd ?? ""}
-              onChange={(e) =>
-                setDraft({ ...draft, releaseEnd: e.target.value || null })
-              }
-            />
-          </Field>
-          <Field label="Source type">
-            <Input
-              value={draft.sourceMaterial?.type ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  sourceMaterial: {
-                    type: e.target.value,
-                    started: draft.sourceMaterial?.started ?? null,
-                    finished: draft.sourceMaterial?.finished ?? null,
-                    serialization: draft.sourceMaterial?.serialization ?? [],
-                    publication: draft.sourceMaterial?.publication ?? null,
-                  },
-                })
-              }
-            />
-          </Field>
-          <Field label="Source publication">
-            <Input
-              value={draft.sourceMaterial?.publication ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  sourceMaterial: {
-                    type: draft.sourceMaterial?.type ?? "",
-                    started: draft.sourceMaterial?.started ?? null,
-                    finished: draft.sourceMaterial?.finished ?? null,
-                    serialization: draft.sourceMaterial?.serialization ?? [],
-                    publication: e.target.value || null,
-                  },
-                })
-              }
-            />
-          </Field>
-          <Field label="Publication format">
-            <Input
-              value={draft.publication?.format ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  publication: {
-                    format: e.target.value || null,
-                    publisher: draft.publication?.publisher ?? null,
-                    imprint: draft.publication?.imprint ?? null,
-                    serialization: draft.publication?.serialization ?? [],
-                    demographic: draft.publication?.demographic ?? null,
-                    contents: draft.publication?.contents ?? [],
-                  },
-                })
-              }
-            />
-          </Field>
-          <Field label="Publisher / imprint">
-            <Input
-              value={draft.publication?.publisher ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  publication: {
-                    format: draft.publication?.format ?? null,
-                    publisher: e.target.value || null,
-                    imprint: draft.publication?.imprint ?? null,
-                    serialization: draft.publication?.serialization ?? [],
-                    demographic: draft.publication?.demographic ?? null,
-                    contents: draft.publication?.contents ?? [],
-                  },
-                })
-              }
-            />
-          </Field>
-          <Field label="External links" wide>
-            <textarea
-              rows={6}
-              value={links}
-              onChange={(e) => setLinks(e.target.value)}
-              placeholder="AniList | AniList | https://…"
-            />
-            <small>One per line: provider | label | URL</small>
-          </Field>
-        </EditorSection>
-
-        <EditorSection
-          title="Related works"
-          description="Link adaptations, sequels, and other media records."
-        >
-          <RelationshipEditor
-            work={draft}
-            works={works}
-            onChange={(relations) => setDraft({ ...draft, relations })}
-          />
-        </EditorSection>
-
-        <EditorSection
-          title="Local artwork"
-          description="Paths are served locally; clearing one removes its database asset reference."
-        >
-          <Field label="Poster path">
-            <Input
-              value={draft.imagePath ?? ""}
-              onChange={(e) =>
-                setDraft({ ...draft, imagePath: e.target.value || null })
-              }
-            />
-          </Field>
-          <Field label="Banner path">
-            <Input
-              value={draft.bannerPath ?? ""}
-              onChange={(e) =>
-                setDraft({ ...draft, bannerPath: e.target.value || null })
-              }
-            />
-          </Field>
-          <Field label="Logo path">
-            <Input
-              value={draft.logoPath ?? ""}
-              onChange={(e) =>
-                setDraft({ ...draft, logoPath: e.target.value || null })
-              }
-            />
-          </Field>
-        </EditorSection>
-
-        {mutation.error ? (
-          <p className="admin-form-error">{mutation.error.message}</p>
-        ) : null}
-        <SheetFooter className="admin-editor-footer">
-          <SheetClose render={<Button type="button" variant="ghost" />}>
-            Cancel
-          </SheetClose>
-          <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? "Saving…" : "Save changes"}
-          </Button>
-        </SheetFooter>
-      </form>
-      <p>{JSON.stringify(work)}</p>
-      {/*
-       */}
-    </SheetContent>
-  )
-}
-
-function EditorSection({
-  title,
-  description,
-  children,
-}: {
-  title: string
-  description: string
-  children: ReactNode
-}) {
-  return (
-    <section className="admin-editor-section">
-      <header>
-        <strong>{title}</strong>
-        <span>{description}</span>
-      </header>
-      <div>{children}</div>
-    </section>
-  )
-}
-
-function Field({
-  label,
-  wide,
-  children,
-}: {
-  label: string
-  wide?: boolean
-  children: ReactNode
-}) {
-  return (
-    <label className={cn("admin-field", wide && "wide")}>
-      <span>{label}</span>
-      {children}
-    </label>
-  )
-}
-
-function parseList(value: string) {
+export function parseList(value: string) {
   return [
     ...new Set(
       value
@@ -1279,205 +547,6 @@ function parseList(value: string) {
         .filter(Boolean)
     ),
   ]
-}
-
-function ArrayField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string[]
-  onChange: (value: string[]) => void
-}) {
-  return (
-    <Field label={label}>
-      <Input
-        value={value.join(", ")}
-        onChange={(e) => onChange(parseList(e.target.value))}
-      />
-    </Field>
-  )
-}
-
-function CreditField({
-  value,
-  onChange,
-}: {
-  value: WorkCredit[]
-  onChange: (value: WorkCredit[]) => void
-}) {
-  const text = value
-    .map((credit) => `${credit.name} | ${credit.entityType} | ${credit.role}`)
-    .join("\n")
-  return (
-    <Field label="Contributors" wide>
-      <textarea
-        rows={4}
-        value={text}
-        placeholder="Naoki Urasawa | person | writer"
-        onChange={(event) =>
-          onChange(
-            event.target.value
-              .split("\n")
-              .map((line) => line.split("|").map((part) => part.trim()))
-              .filter(([name, entityType, role]) => name && entityType && role)
-              .map(([name, entityType, role]) => ({
-                entityId: `${entityType}:${name}`,
-                name,
-                entityType,
-                role,
-              }))
-          )
-        }
-      />
-      <small>One per line: name | type | role</small>
-    </Field>
-  )
-}
-
-function RelationshipEditor({
-  work,
-  works,
-  onChange,
-}: {
-  work: Work
-  works: Work[]
-  onChange: (relations: WorkRelation[]) => void
-}) {
-  const candidates = works.filter((candidate) => candidate.id !== work.id)
-  const addRelation = () => {
-    const candidate = candidates[0]
-    if (!candidate) return
-    onChange([
-      ...work.relations,
-      {
-        id: crypto.randomUUID(),
-        workId: candidate.id,
-        relationType: "related",
-        direction: "outgoing",
-        notes: "",
-        work: {
-          id: candidate.id,
-          title: candidate.title,
-          kind: candidate.kind,
-          year: candidate.year,
-          releaseStatus: candidate.releaseStatus,
-          imagePath: candidate.imagePath,
-        },
-      },
-    ])
-  }
-  const update = (index: number, patch: Partial<WorkRelation>) => {
-    onChange(
-      work.relations.map((relation, current) => {
-        if (current !== index) return relation
-        const candidate = patch.workId
-          ? works.find((item) => item.id === patch.workId)
-          : undefined
-        return {
-          ...relation,
-          ...patch,
-          ...(candidate
-            ? {
-                work: {
-                  id: candidate.id,
-                  title: candidate.title,
-                  kind: candidate.kind,
-                  year: candidate.year,
-                  releaseStatus: candidate.releaseStatus,
-                  imagePath: candidate.imagePath,
-                },
-              }
-            : {}),
-        }
-      })
-    )
-  }
-  return (
-    <div className="admin-relationship-editor">
-      {work.relations.map((relation, index) => (
-        <div key={relation.id} className="admin-relationship-row">
-          <select
-            value={relation.workId}
-            onChange={(event) => update(index, { workId: event.target.value })}
-          >
-            {candidates.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {candidate.title}
-              </option>
-            ))}
-          </select>
-          <select
-            value={relation.relationType}
-            onChange={(event) =>
-              update(index, {
-                relationType: event.target
-                  .value as WorkRelation["relationType"],
-              })
-            }
-          >
-            {["adaptation", "sequel", "prequel", "spin-off", "related"].map(
-              (type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              )
-            )}
-          </select>
-          <select
-            value={relation.direction}
-            onChange={(event) =>
-              update(index, {
-                direction: event.target.value as WorkRelation["direction"],
-              })
-            }
-          >
-            <option value="outgoing">This work → selected work</option>
-            <option value="incoming">Selected work → this work</option>
-          </select>
-          <Input
-            value={relation.notes}
-            placeholder="Optional note"
-            onChange={(event) => update(index, { notes: event.target.value })}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() =>
-              onChange(work.relations.filter((_, current) => current !== index))
-            }
-          >
-            Remove
-          </Button>
-        </div>
-      ))}
-      <Button type="button" variant="outline" size="sm" onClick={addRelation}>
-        <PlusIcon /> Add relationship
-      </Button>
-    </div>
-  )
-}
-
-type RiskLevel = "none" | "low" | "medium" | "high" | "unknown"
-function RiskSelect({
-  value,
-  onChange,
-}: {
-  value: RiskLevel
-  onChange: (value: RiskLevel) => void
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as RiskLevel)}
-    >
-      {["unknown", "none", "low", "medium", "high"].map((risk) => (
-        <option key={risk}>{risk}</option>
-      ))}
-    </select>
-  )
 }
 
 const bulkExample = `Frieren: Beyond Journey's End | anime | 2023 | planned | Adventure, Fantasy | Madhouse
@@ -1587,146 +656,6 @@ function BulkAddDialog({
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
               <PlusIcon /> {mutation.isPending ? "Adding…" : "Add rows"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function BulkEditDialog({
-  open,
-  onOpenChange,
-  workIds,
-  onUpdated,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  workIds: string[]
-  onUpdated: () => Promise<void>
-}) {
-  const [kind, setKind] = useState("")
-  const [status, setStatus] = useState("")
-  const [rating, setRating] = useState("")
-  const [favorite, setFavorite] = useState("")
-  const [addGenres, setAddGenres] = useState("")
-  const [removeGenres, setRemoveGenres] = useState("")
-  const [addTags, setAddTags] = useState("")
-  const [removeTags, setRemoveTags] = useState("")
-  const mutation = useMutation({
-    mutationFn: editWorksBulk,
-    onSuccess: async () => {
-      onOpenChange(false)
-      await onUpdated()
-    },
-  })
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    mutation.mutate({
-      data: {
-        workIds,
-        ...(kind ? { kind: kind as WorkKind } : {}),
-        ...(status ? { status: status as Work["status"] } : {}),
-        ...(rating ? { rating: Number(rating) } : {}),
-        ...(favorite ? { favorite: favorite === "true" } : {}),
-        addGenres: parseList(addGenres),
-        removeGenres: parseList(removeGenres),
-        addTags: parseList(addTags),
-        removeTags: parseList(removeTags),
-      },
-    })
-  }
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="admin-bulk-dialog">
-        <DialogHeader>
-          <DialogTitle>Edit {workIds.length} selected works</DialogTitle>
-          <DialogDescription>
-            Only configured fields are changed. Add/remove operations preserve
-            every other value.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="bulk-edit-grid">
-          <Field label="Set type">
-            <select value={kind} onChange={(e) => setKind(e.target.value)}>
-              <option value="">Keep unchanged</option>
-              {workKinds.map((item) => (
-                <option key={item} value={item}>
-                  {kindLabels[item]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Set status">
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="">Keep unchanged</option>
-              {personalStatuses.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Set rating">
-            <Input
-              type="number"
-              min="0"
-              max="10"
-              step="0.1"
-              value={rating}
-              onChange={(e) => setRating(e.target.value)}
-              placeholder="Keep unchanged"
-            />
-          </Field>
-          <Field label="Set favorite">
-            <select
-              value={favorite}
-              onChange={(e) => setFavorite(e.target.value)}
-            >
-              <option value="">Keep unchanged</option>
-              <option value="true">Favorite</option>
-              <option value="false">Not favorite</option>
-            </select>
-          </Field>
-          <Field label="Add genres">
-            <Input
-              value={addGenres}
-              onChange={(e) => setAddGenres(e.target.value)}
-              placeholder="Drama, Classic"
-            />
-          </Field>
-          <Field label="Remove genres">
-            <Input
-              value={removeGenres}
-              onChange={(e) => setRemoveGenres(e.target.value)}
-              placeholder="Ecchi"
-            />
-          </Field>
-          <Field label="Add tags">
-            <Input
-              value={addTags}
-              onChange={(e) => setAddTags(e.target.value)}
-            />
-          </Field>
-          <Field label="Remove tags">
-            <Input
-              value={removeTags}
-              onChange={(e) => setRemoveTags(e.target.value)}
-            />
-          </Field>
-          {mutation.error ? (
-            <p className="admin-form-error">{mutation.error.message}</p>
-          ) : null}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              <NotePencilIcon />{" "}
-              {mutation.isPending ? "Updating…" : "Apply changes"}
             </Button>
           </DialogFooter>
         </form>

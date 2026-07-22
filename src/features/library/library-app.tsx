@@ -86,7 +86,6 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { addWork, getWorks, setWorkFavorite } from "@/server/library.functions"
@@ -539,7 +538,7 @@ export function LibraryApp() {
         <SidebarInset className="flex flex-col flex-1 h-screen overflow-hidden bg-background">
 
           {/* --- STICKY UNIFIED HEADER --- */}
-          <header className="flex flex-col border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 shrink-0">
+          <header className="flex flex-col border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
           {/* Level 1: Breadcrumbs & App Status Bar */}
           {!focusMode && (
             <div className="flex h-12 items-center justify-between px-4 border-b border-border/40 text-xs">
@@ -558,7 +557,6 @@ export function LibraryApp() {
                   local · WAL
                 </div>
 
-                <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger render={
                       <Button
@@ -575,7 +573,6 @@ export function LibraryApp() {
                       {theme === "light" ? "Dark mode" : "Light mode"}
                     </TooltipContent>
                   </Tooltip>
-                </TooltipProvider>
 
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px] border border-primary/20">
                   AV
@@ -648,9 +645,9 @@ export function LibraryApp() {
                   onTimelineOrderChange={setTimelineNewestFirst}
                 />
 
-                <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger asChild>
+                    <TooltipTrigger render={
+
                       <Button
                         variant={inspectorOpen ? "secondary" : "ghost"}
                         size="icon"
@@ -660,13 +657,13 @@ export function LibraryApp() {
                       >
                         <RowsIcon className="h-4 w-4" />
                       </Button>
-                    </TooltipTrigger>
+                    }/>
                     <TooltipContent>Toggle details</TooltipContent>
                   </Tooltip>
 
                   {!focusMode && (
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger render={
                         <Button
                           variant="ghost"
                           size="icon"
@@ -676,11 +673,10 @@ export function LibraryApp() {
                         >
                           <CornersOutIcon className="h-4 w-4" />
                         </Button>
-                      </TooltipTrigger>
+                      }/>
                       <TooltipContent>Focus canvas</TooltipContent>
                     </Tooltip>
                   )}
-                </TooltipProvider>
               </div>
             </div>
 
@@ -695,12 +691,12 @@ export function LibraryApp() {
                 />
 
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger render={
                     <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 font-normal border-border/60">
                       <ArrowsDownUpIcon className="h-3.5 w-3.5 text-muted-foreground" />
                       Sort: <span className="font-medium capitalize">{sort}</span>
                     </Button>
-                  </DropdownMenuTrigger>
+                  }/>
                   <DropdownMenuContent align="start" className="w-48">
                     <DropdownMenuGroup>
                       <DropdownMenuLabel className="text-xs">Sort works by</DropdownMenuLabel>
@@ -790,7 +786,7 @@ export function LibraryApp() {
           </header>
 
           {/* --- MAIN CONTENT & INSPECTOR --- */}
-          <div className="flex flex-1 overflow-hidden relative">
+          <div className="flex flex-1 overflow-hidden relative z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <main className="flex-1 overflow-y-auto p-4 md:p-6">
               <div className="mx-auto max-w-7xl">
                 {filteredWorks.length === 0 ? (
@@ -885,17 +881,30 @@ function AppSidebar({
   onSavedViewDelete: (id: string) => void
 }) {
   return (
-    <ShadcnSidebar collapsible="icon" className="arcadia-sidebar">
-      <SidebarHeader className="brand-row max-h-14">
-        <div className="brand-mark" title="Arcadia">
-          <BooksIcon weight="duotone" />
-        </div>
-        <div className="brand-copy group-data-[collapsible=icon]:hidden">
-          <strong>arcadia</strong>
-          <small>local library</small>
-        </div>
+    <ShadcnSidebar variant="inset" collapsible="icon">
+      {/* Brand Header */}
+      <SidebarHeader className="border-b border-sidebar-border/50 pb-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              tooltip="Arcadia Library"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                <BooksIcon className="size-4" weight="duotone" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold text-sidebar-foreground">Arcadia</span>
+                <span className="truncate text-xs text-muted-foreground">Local Library</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
+
       <SidebarContent>
+        {/* Navigation Group */}
         <SidebarGroup>
           <SidebarGroupLabel>Library</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -908,17 +917,21 @@ function AppSidebar({
                     isActive={!activeCollection && activeView === item.id}
                     onClick={() => onViewChange(item.id)}
                   >
-                    <item.icon />
+                    <item.icon className="h-4 w-4" />
                     <span>{item.label}</span>
                   </SidebarMenuButton>
-                  {item.id === "all" ? (
-                    <SidebarMenuBadge>{total}</SidebarMenuBadge>
-                  ) : null}
+                  {item.id === "all" && (
+                    <SidebarMenuBadge className="font-mono text-[10px]">
+                      {total}
+                    </SidebarMenuBadge>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Media Groups */}
         <SidebarGroup>
           <SidebarGroupLabel>Media groups</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -930,7 +943,7 @@ function AppSidebar({
                   isActive={activeCollection === "books"}
                   onClick={() => onCollectionChange("books")}
                 >
-                  <BooksIcon />
+                  <BooksIcon className="h-4 w-4" />
                   <span>Books & comics</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -941,72 +954,64 @@ function AppSidebar({
                   isActive={activeCollection === "screen"}
                   onClick={() => onCollectionChange("screen")}
                 >
-                  <SquaresFourIcon />
+                  <SquaresFourIcon className="h-4 w-4" />
                   <span>Screen & play</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup className="saved-sidebar-group">
-          <SidebarGroupLabel>
-            Saved views
-            {savedViews.length ? <span>{savedViews.length}</span> : null}
+
+        {/* Saved Views */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="flex items-center justify-between w-full">
+            <span>Saved views</span>
+            {savedViews.length > 0 && (
+              <span className="ml-auto font-mono text-[10px] text-sidebar-foreground/60">
+                {savedViews.length}
+              </span>
+            )}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            {savedViews.length ? (
+            {savedViews.length > 0 ? (
               <SidebarMenu>
                 {savedViews.map((view) => (
-                  <SidebarMenuItem key={view.id} className="saved-sidebar-item">
+                  <SidebarMenuItem key={view.id} className="group/item relative">
                     <SidebarMenuButton
                       type="button"
                       tooltip={view.name}
                       isActive={activeSavedViewId === view.id}
                       onClick={() => onSavedViewChange(view)}
+                      className="pr-8"
                     >
                       <BookmarkSimpleIcon
-                        weight={
-                          activeSavedViewId === view.id ? "fill" : "regular"
-                        }
+                        className="h-4 w-4"
+                        weight={activeSavedViewId === view.id ? "fill" : "regular"}
                       />
-                      <span>{view.name}</span>
+                      <span className="truncate">{view.name}</span>
                     </SidebarMenuButton>
                     <button
                       type="button"
-                      className="saved-sidebar-delete group-data-[collapsible=icon]:hidden"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 rounded-md flex items-center justify-center text-sidebar-foreground/50 opacity-0 group-hover/item:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all group-data-[collapsible=icon]:hidden"
                       onClick={() => onSavedViewDelete(view.id)}
                       aria-label={`Delete ${view.name}`}
                     >
-                      <XIcon />
+                      <XIcon className="h-3.5 w-3.5" />
                     </button>
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
             ) : (
-              <p className="saved-sidebar-empty group-data-[collapsible=icon]:hidden">
+              <p className="px-2 py-1.5 text-xs text-sidebar-foreground/50 leading-relaxed group-data-[collapsible=icon]:hidden">
                 Save a filtered layout and it will stay one click away here.
               </p>
             )}
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Manage</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link to="/admin" />}
-                  tooltip="Database admin"
-                >
-                  <GearSixIcon />
-                  <span>Database admin</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="arcadia-sidebar-footer">
+
+      {/* Footer */}
+      <SidebarFooter className="border-t border-sidebar-border/50">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -1014,7 +1019,7 @@ function AppSidebar({
               render={<Link to="/admin" />}
               tooltip="Database admin"
             >
-              <GearSixIcon />
+              <GearSixIcon className="h-4 w-4" />
               <span>Database admin</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

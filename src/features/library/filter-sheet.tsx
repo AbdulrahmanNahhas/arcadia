@@ -5,6 +5,7 @@ import {
   MagnifyingGlassIcon,
   MinusIcon,
 } from "@phosphor-icons/react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
@@ -66,6 +67,7 @@ export function AdvancedFilter({
       excludedKinds: next.exclude,
     })
   }
+
   const toggleStatus = (status: Work["status"]) => {
     const next = cycleCategoricalValue(
       filters.statuses,
@@ -78,6 +80,7 @@ export function AdvancedFilter({
       excludedStatuses: next.exclude,
     })
   }
+
   const toggleFacet = (key: keyof FacetFilters, value: string) => {
     onChange({
       ...filters,
@@ -87,6 +90,7 @@ export function AdvancedFilter({
       },
     })
   }
+
   const clear = () =>
     onChange({
       kinds: [],
@@ -102,87 +106,113 @@ export function AdvancedFilter({
 
   return (
     <Sheet>
-      <SheetTrigger
-        render={<Button variant={activeCount ? "secondary" : "outline"} />}
-      >
-        <FunnelSimpleIcon /> {triggerLabel}{" "}
-        {activeCount ? (
-          <span className="filter-count">{activeCount}</span>
-        ) : null}
-      </SheetTrigger>
-      <SheetContent side="right" className="filter-sheet">
-        <SheetHeader className="filter-sheet-header">
-          <SheetTitle>{title}</SheetTitle>
-          <SheetDescription>
+      <SheetTrigger render={
+        <Button
+          variant={activeCount ? "secondary" : "outline"}
+          size="sm"
+          className="h-8 text-xs gap-1.5 border-border/60"
+        >
+          <FunnelSimpleIcon className="size-3.5 text-muted-foreground" />
+          <span>{triggerLabel}</span>
+          {activeCount > 0 && (
+            <Badge variant="default" className="ml-0.5 h-4 px-1 font-mono text-[10px] leading-none">
+              {activeCount}
+            </Badge>
+          )}
+        </Button>
+      }/>
+
+      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col h-full gap-0">
+        {/* Fixed Header */}
+        <SheetHeader className="p-5 pb-4 border-b border-border/40 text-left space-y-1">
+          <SheetTitle className="text-base font-semibold">{title}</SheetTitle>
+          <SheetDescription className="text-xs leading-normal">
             Click once to include, twice to exclude, and a third time to clear.
-            Categories combine with AND; included values within one category use
-            OR.
           </SheetDescription>
         </SheetHeader>
-        <div className="filter-sheet-scroll">
-          <div className="filter-legend" aria-label="Filter state legend">
-            <span>
-              <i className="include">
-                <CheckIcon />
-              </i>{" "}
+
+        {/* Scrollable Main Area */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Legend Pill */}
+          <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-xs border border-border/40">
+            <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="flex size-4 items-center justify-center rounded bg-emerald-500/15">
+                <CheckIcon className="size-3 stroke-[3]" />
+              </span>
               Include
             </span>
-            <span>
-              <i className="exclude">
-                <MinusIcon />
-              </i>{" "}
+            <span className="flex items-center gap-1.5 font-medium text-rose-600 dark:text-rose-400">
+              <span className="flex size-4 items-center justify-center rounded bg-rose-500/15">
+                <MinusIcon className="size-3 stroke-[3]" />
+              </span>
               Exclude
             </span>
-            <span>
-              <i /> Neutral
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <span className="size-4 rounded border border-dashed border-border" />
+              Neutral
             </span>
           </div>
-          <label className="facet-search">
-            <MagnifyingGlassIcon />
+
+          {/* Facet Search */}
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
             <Input
               value={facetSearch}
               onChange={(event) => setFacetSearch(event.target.value)}
               placeholder="Find a genre, tag, studio, country…"
+              className="pl-9 h-9 text-xs"
               aria-label="Search filter values"
             />
-          </label>
-          <div className="filter-group-title">
-            <span>Type</span>
-            <em>include or exclude</em>
           </div>
-          <div className="kind-options">
-            {workKinds.map((kind) => (
-              <TriStateButton
-                key={kind}
-                label={kindLabels[kind]}
-                state={getState(filters.kinds, filters.excludedKinds, kind)}
-                onClick={() => toggleKind(kind)}
-              />
-            ))}
+
+          {/* Filter Group: Type */}
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</span>
+              <span className="text-[11px] text-muted-foreground/70 italic">include or exclude</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {workKinds.map((kind) => (
+                <TriStateButton
+                  key={kind}
+                  label={kindLabels[kind]}
+                  state={getState(filters.kinds, filters.excludedKinds, kind)}
+                  onClick={() => toggleKind(kind)}
+                />
+              ))}
+            </div>
           </div>
-          <Separator />
-          <div className="filter-group-title">
-            <span>Status</span>
-            <em>include or exclude</em>
+
+          <Separator className="bg-border/40" />
+
+          {/* Filter Group: Status */}
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</span>
+              <span className="text-[11px] text-muted-foreground/70 italic">include or exclude</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {personalStatuses.map((status) => (
+                <TriStateButton
+                  key={status}
+                  label={status.replace("-", " ")}
+                  state={getState(
+                    filters.statuses,
+                    filters.excludedStatuses,
+                    status
+                  )}
+                  onClick={() => toggleStatus(status)}
+                />
+              ))}
+            </div>
           </div>
-          <div className="status-options">
-            {personalStatuses.map((status) => (
-              <TriStateButton
-                key={status}
-                label={status.replace("-", " ")}
-                state={getState(
-                  filters.statuses,
-                  filters.excludedStatuses,
-                  status
-                )}
-                onClick={() => toggleStatus(status)}
-              />
-            ))}
-          </div>
-          <Separator />
-          <div className="filter-number-row">
-            <label>
-              <span>Minimum rating</span>
+
+          <Separator className="bg-border/40" />
+
+          {/* Numeric Filters Grid */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-foreground">Min rating</label>
               <select
                 value={filters.minRating}
                 onChange={(event) =>
@@ -191,18 +221,21 @@ export function AdvancedFilter({
                     minRating: Number(event.target.value),
                   })
                 }
+                className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="0">Any rating</option>
                 <option value="7">7+</option>
                 <option value="8">8+</option>
                 <option value="9">9+</option>
               </select>
-            </label>
-            <label>
-              <span>Release from</span>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-foreground">Release from</label>
               <Input
                 type="number"
                 placeholder="Any"
+                className="h-9 text-xs"
                 value={filters.yearFrom ?? ""}
                 onChange={(event) =>
                   onChange({
@@ -213,12 +246,14 @@ export function AdvancedFilter({
                   })
                 }
               />
-            </label>
-            <label>
-              <span>Release to</span>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-foreground">Release to</label>
               <Input
                 type="number"
                 placeholder="Any"
+                className="h-9 text-xs"
                 value={filters.yearTo ?? ""}
                 onChange={(event) =>
                   onChange({
@@ -229,21 +264,25 @@ export function AdvancedFilter({
                   })
                 }
               />
-            </label>
+            </div>
           </div>
-          <label className="filter-switch-row">
-            <span>
-              <strong>Favorites only</strong>
-              <small>Only show works marked as favorite</small>
-            </span>
+
+          {/* Favorites Switch */}
+          <div className="flex items-center justify-between rounded-lg border border-border/60 p-3 bg-muted/20">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-medium text-foreground">Favorites only</span>
+              <span className="text-[11px] text-muted-foreground">Only show works marked as favorite</span>
+            </div>
             <Switch
               checked={filters.favoriteOnly}
               onCheckedChange={(favoriteOnly) =>
                 onChange({ ...filters, favoriteOnly })
               }
             />
-          </label>
-          <div className="facet-groups">
+          </div>
+
+          {/* Facets Sections */}
+          <div className="space-y-3 pt-2">
             {facetDefinitions.map((definition) => (
               <FacetSection
                 key={definition.key}
@@ -256,21 +295,34 @@ export function AdvancedFilter({
               />
             ))}
           </div>
-          <p className="filter-hint">
-            Exclusions are saved with the view and use the same behavior in the
-            library and admin workspace.
+
+          <p className="text-[11px] text-muted-foreground/80 leading-relaxed italic">
+            Exclusions are saved with the view and apply across the library.
           </p>
         </div>
-        <SheetFooter className="filter-sheet-footer">
-          <div>
-            <strong>{matchingCount}</strong>
-            <span> matching works</span>
+
+        {/* Fixed Footer */}
+        <SheetFooter className="border-t border-border/40 p-4 bg-background/95 backdrop-blur flex flex-row items-center justify-between gap-2 sm:justify-between">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground font-mono text-sm">{matchingCount}</span>
+            <span>matching works</span>
           </div>
-          <div>
-            <Button variant="ghost" onClick={clear} disabled={!activeCount}>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+              onClick={clear}
+              disabled={!activeCount}
+            >
               Clear all
             </Button>
-            <SheetClose render={<Button />}>Done</SheetClose>
+            <SheetClose render={
+
+              <Button size="sm" className="h-8 text-xs">
+                Done
+              </Button>
+            }/>
           </div>
         </SheetFooter>
       </SheetContent>
@@ -304,19 +356,19 @@ function TriStateButton({
       type="button"
       onClick={onClick}
       className={cn(
-        state === "include" && "checked",
-        state === "exclude" && "excluded"
+        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring capitalize",
+        state === "include" &&
+          "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs",
+        state === "exclude" &&
+          "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs",
+        state === "neutral" &&
+          "border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
       aria-label={`${label}: ${state}`}
     >
-      <i>
-        {state === "include" ? (
-          <CheckIcon />
-        ) : state === "exclude" ? (
-          <MinusIcon />
-        ) : null}
-      </i>
-      {label}
+      {state === "include" && <CheckIcon className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400 stroke-[3]" />}
+      {state === "exclude" && <MinusIcon className="size-3 shrink-0 text-rose-600 dark:text-rose-400 stroke-[3]" />}
+      <span>{label}</span>
     </button>
   )
 }
@@ -344,20 +396,24 @@ function FacetSection({
   )
   const selectedCount = selection.include.length + selection.exclude.length
   if (!visible.length && !selectedCount) return null
+
   return (
     <details
-      className="facet-section"
+      className="group rounded-lg border border-border/50 bg-background overflow-hidden transition-all [&[open]]:shadow-xs"
       open={defaultOpen || Boolean(normalizedSearch)}
     >
-      <summary>
-        <span>{label}</span>
-        <em>
-          {selectedCount
-            ? `${selectedCount} active`
-            : `${options.length} values`}
-        </em>
+      <summary className="flex items-center justify-between p-3 text-xs font-medium cursor-pointer select-none bg-muted/20 hover:bg-muted/40 transition-colors list-none [&::-webkit-details-marker]:hidden">
+        <span className="font-semibold text-foreground">{label}</span>
+        <span className="text-[11px] text-muted-foreground font-mono">
+          {selectedCount ? (
+            <span className="text-primary font-semibold">{selectedCount} active</span>
+          ) : (
+            `${options.length} values`
+          )}
+        </span>
       </summary>
-      <div className="facet-options">
+
+      <div className="p-3 border-t border-border/40 flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
         {visible.map((option) => {
           const state = getState(
             selection.include,
@@ -369,21 +425,21 @@ function FacetSection({
               key={option.value}
               type="button"
               className={cn(
-                state === "include" && "selected",
-                state === "exclude" && "excluded"
+                "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                state === "include" &&
+                  "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium",
+                state === "exclude" &&
+                  "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 font-medium",
+                state === "neutral" &&
+                  "border-border/40 bg-muted/30 text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               onClick={() => onToggle(option.value)}
               aria-label={`${option.value}: ${state}`}
             >
-              <i>
-                {state === "include" ? (
-                  <CheckIcon />
-                ) : state === "exclude" ? (
-                  <MinusIcon />
-                ) : null}
-              </i>
+              {state === "include" && <CheckIcon className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400 stroke-[3]" />}
+              {state === "exclude" && <MinusIcon className="size-3 shrink-0 text-rose-600 dark:text-rose-400 stroke-[3]" />}
               <span>{option.value}</span>
-              <em>{option.count}</em>
+              <span className="text-[10px] opacity-60 font-mono">({option.count})</span>
             </button>
           )
         })}
