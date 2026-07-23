@@ -63,7 +63,7 @@ export function CreditField({
               placeholder="Name (e.g. Naoki Urasawa)"
               value={credit.name}
               onChange={(e) => handleUpdate(index, "name", e.target.value)}
-              className="h-8 flex-[2] bg-background text-xs"
+              className="h-8 flex-2 bg-background text-xs"
             />
 
             {/* Entity Type Selector */}

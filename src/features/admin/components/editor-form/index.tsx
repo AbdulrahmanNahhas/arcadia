@@ -6,9 +6,7 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import { InfoIcon, CodeIcon, CheckIcon } from "@phosphor-icons/react"
 
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -47,8 +45,6 @@ import type {
   WorkStructure,
 } from "@/features/library/model"
 import { getWorkStructure, saveWork } from "@/server/library.functions"
-import { TrackingForm } from "@/features/library/components/tracking-form"
-
 import { RelationshipEditor } from "./relationship"
 import { Field } from "./fields/field"
 import { ArrayField } from "./fields/array-field"

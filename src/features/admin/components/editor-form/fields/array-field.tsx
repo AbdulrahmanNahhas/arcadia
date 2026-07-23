@@ -42,7 +42,7 @@ export function ArrayField({
 
   return (
     <Field label={label}>
-      <div className="flex min-h-[40px] flex-wrap items-center gap-1.5 rounded-md border border-input bg-background p-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+      <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-input bg-background p-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
         {value.map((tag, index) => (
           <Badge
             key={`${tag}-${index}`}
@@ -68,7 +68,7 @@ export function ArrayField({
           onKeyDown={handleKeyDown}
           onBlur={() => inputValue && addTag(inputValue)}
           placeholder={value.length === 0 ? "Type and press Enter..." : ""}
-          className="min-w-[120px] flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+          className="min-w-30 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
         />
         {options && (
           <datalist id={listId}>
