@@ -123,22 +123,24 @@ export function TrackingForm({
         })
       }}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold">Track progress</h3>
-            <Badge variant="secondary">{statusLabels[work.status]}</Badge>
+      {compact && (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold">Track progress</h3>
+              <Badge variant="secondary">{statusLabels[work.status]}</Badge>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Save an absolute checkpoint for any calendar date.
+            </p>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Save an absolute checkpoint for any calendar date.
-          </p>
+          {total ? (
+            <Badge variant="outline">
+              {numericProgress} / {total} {work.progressUnit}
+            </Badge>
+          ) : null}
         </div>
-        {total ? (
-          <Badge variant="outline">
-            {numericProgress} / {total} {work.progressUnit}
-          </Badge>
-        ) : null}
-      </div>
+      )}
 
       {total ? (
         <Progress value={percentage}>

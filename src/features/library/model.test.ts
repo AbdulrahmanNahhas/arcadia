@@ -9,7 +9,6 @@ describe("literature model", () => {
         publisher: "Tor Books",
         imprint: null,
         serialization: [],
-        demographic: null,
         contents: [
           "Mistborn: The Final Empire",
           "The Well of Ascension",

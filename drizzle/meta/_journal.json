@@ -50,6 +50,13 @@
       "when": 1784802262140,
       "tag": "0006_elite_surge",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1784805701090,
+      "tag": "0007_amazing_lucky_pierre",
+      "breakpoints": true
     }
   ]
 }

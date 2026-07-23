@@ -37,7 +37,6 @@ type WorkDetails = Partial<
     Work,
     | "subtitle"
     | "palette"
-    | "favoriteCharacters"
     | "audience"
     | "sharedWith"
     | "contentWarnings"
@@ -58,6 +57,7 @@ const forbiddenDetailKeys = [
   "aliases",
   "creator",
   "externalLinks",
+  "favoriteCharacters",
   "genres",
   "studios",
   "tags",
@@ -69,6 +69,11 @@ function normalizedDetails(
 ): WorkDetails {
   const next = { ...(details ?? {}) }
   for (const key of forbiddenDetailKeys) delete next[key]
+  if (next.publication && typeof next.publication === "object") {
+    const publication = { ...next.publication } as Record<string, unknown>
+    delete publication.demographic
+    next.publication = publication
+  }
   return next
 }
 
@@ -316,7 +321,6 @@ export function listWorks(): Work[] {
       releaseStatus: work.status as Work["releaseStatus"],
       runtimeMinutes: work.runtimeMinutes,
       pageCount: work.pageCount,
-      primaryPlatform: work.primaryPlatform,
       episodeCount: work.episodeCount,
       chapterCount: work.chapterCount,
       status: (personal?.status ?? "planned") as Work["status"],
@@ -325,8 +329,6 @@ export function listWorks(): Work[] {
       progressUnit: metric.unit,
       rating: personal?.rating ?? null,
       favorite: personal?.favorite ?? false,
-      owned: personal?.owned ?? false,
-      wishlist: personal?.wishlist ?? false,
       completedAt: personal?.completedAt ?? null,
       trackedOn: latestTrackingByWork.get(work.id) ?? null,
       summary: work.summary,
@@ -334,7 +336,6 @@ export function listWorks(): Work[] {
       genres: taxonomy?.get("genre") ?? [],
       aliases: aliasesByWork.get(work.id) ?? [],
       studios,
-      favoriteCharacters: details.favoriteCharacters ?? [],
       audience: taxonomy?.get("audience") ?? details.audience ?? [],
       sharedWith: details.sharedWith ?? [],
       tone: taxonomy?.get("tone") ?? [],
@@ -352,7 +353,6 @@ export function listWorks(): Work[] {
       curation: details.curation ?? null,
       credits,
       relations: relationsByWork.get(work.id) ?? [],
-      notes: personal?.notes ?? "",
       creator:
         creatorNames.join(" · ") || studios.join(" · ") || "Unknown creator",
       imagePath: media?.get("poster") ?? null,
@@ -425,7 +425,6 @@ export function updateWork(input: AdminWorkUpdate): Work {
     ...normalizedDetails(existing.work.metadata),
     subtitle: input.subtitle,
     palette: normalizedDetails(existing.work.metadata).palette,
-    favoriteCharacters: input.favoriteCharacters,
     audience: undefined,
     sharedWith: input.sharedWith,
     contentWarnings: input.contentWarnings,
@@ -452,7 +451,6 @@ export function updateWork(input: AdminWorkUpdate): Work {
         status: input.releaseStatus,
         runtimeMinutes: input.runtimeMinutes,
         pageCount: input.pageCount,
-        primaryPlatform: input.primaryPlatform,
         episodeCount: input.episodeCount,
         chapterCount: input.chapterCount,
         metadata: details,
@@ -702,18 +700,12 @@ export function updateWork(input: AdminWorkUpdate): Work {
       .values({
         workId: input.id,
         favorite: input.favorite,
-        owned: input.owned,
-        wishlist: input.wishlist,
-        notes: input.notes,
         updatedAt: now,
       })
       .onConflictDoUpdate({
         target: personalState.workId,
         set: {
           favorite: input.favorite,
-          owned: input.owned,
-          wishlist: input.wishlist,
-          notes: input.notes,
           updatedAt: now,
         },
       })

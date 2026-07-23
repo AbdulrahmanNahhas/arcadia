@@ -36,6 +36,8 @@ export const genres = [
   "Thriller",
 ] as const
 
+export const audiences = ["Adult", "Young Adult", "Teen", "General"] as const
+
 export const tones = [
   "Wholesome",
   "Emotional",
@@ -137,7 +139,6 @@ export const publicationSchema = z.object({
   publisher: z.string().nullable(),
   imprint: z.string().nullable(),
   serialization: z.array(z.string()),
-  demographic: z.string().nullable(),
   contents: z.array(z.string()),
 })
 
@@ -190,7 +191,6 @@ export const workSchema = z.object({
   ]),
   runtimeMinutes: z.number().int().min(0).nullable(),
   pageCount: z.number().int().min(0).nullable(),
-  primaryPlatform: z.string().nullable(),
   episodeCount: z.number().int().min(0).nullable(),
   chapterCount: z.number().int().min(0).nullable(),
   status: personalStatusSchema,
@@ -199,8 +199,6 @@ export const workSchema = z.object({
   progressUnit: z.string(),
   rating: z.number().min(0).max(10).nullable(),
   favorite: z.boolean(),
-  owned: z.boolean(),
-  wishlist: z.boolean(),
   completedAt: z.number().int().nullable(),
   trackedOn: dateOnlySchema.nullable(),
   summary: z.string(),
@@ -208,8 +206,7 @@ export const workSchema = z.object({
   genres: z.array(z.string()),
   aliases: z.array(z.string()),
   studios: z.array(z.string()),
-  favoriteCharacters: z.array(z.string()),
-  audience: z.array(z.string()),
+  audience: z.array(z.string()).max(1),
   sharedWith: z.array(z.string()),
   tone: z.array(z.string()),
   contentWarnings: z.string().nullable(),
@@ -259,7 +256,6 @@ export const workSchema = z.object({
     .nullable(),
   credits: z.array(workCreditSchema),
   relations: z.array(workRelationSchema),
-  notes: z.string(),
   creator: z.string(),
   imagePath: z.string().nullable(),
   bannerPath: z.string().nullable(),

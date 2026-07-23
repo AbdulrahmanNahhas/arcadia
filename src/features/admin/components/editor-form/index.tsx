@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -38,7 +39,7 @@ import {
 } from "@/components/ui/drawer"
 
 import { kindLabels } from "@/features/library/filtering"
-import { genres, tones, workKinds } from "@/features/library/model"
+import { audiences, genres, tones, workKinds } from "@/features/library/model"
 import type {
   AdminWorkUpdate,
   Work,
@@ -52,6 +53,7 @@ import { RelationshipEditor } from "./relationship"
 import { Field } from "./fields/field"
 import { ArrayField } from "./fields/array-field"
 import { CreditField } from "./fields/credit-field"
+import { ContentField } from "./fields/content-field"
 import { RiskSelect } from "./fields/risk-select"
 import { cn } from "@/lib/utils"
 import { useMediaQuery } from "@/hooks/use-media-query"
@@ -264,6 +266,63 @@ function WorkEditorFormFields({
   structure?: WorkStructure
   submit: (e: FormEvent) => void
 }) {
+  const showRuntime = ["movie", "game", "visual-novel"].includes(draft.kind)
+  const showPages = ["manga", "comic", "novel"].includes(draft.kind)
+  const showEpisodes = ["series", "anime"].includes(draft.kind)
+  const showChapters = ["manga", "comic"].includes(draft.kind)
+  const showPublication = ["manga", "comic", "novel"].includes(draft.kind)
+  const showSerialization = ["manga", "comic"].includes(draft.kind)
+
+  const emptyPublication: NonNullable<Work["publication"]> = {
+    format: null,
+    publisher: null,
+    imprint: null,
+    serialization: [],
+    contents: [],
+  }
+
+  const updatePublication = (
+    changes: Partial<NonNullable<Work["publication"]>>
+  ) => {
+    setDraft({
+      ...draft,
+      publication: { ...(draft.publication ?? emptyPublication), ...changes },
+    })
+  }
+
+  const changeKind = (kind: WorkKind) => {
+    setDraft({
+      ...draft,
+      kind,
+      runtimeMinutes: ["movie", "game", "visual-novel"].includes(kind)
+        ? draft.runtimeMinutes
+        : null,
+      pageCount: ["manga", "comic", "novel"].includes(kind)
+        ? draft.pageCount
+        : null,
+      episodeCount: ["series", "anime"].includes(kind)
+        ? draft.episodeCount
+        : null,
+      chapterCount: ["manga", "comic"].includes(kind)
+        ? draft.chapterCount
+        : null,
+      publication: ["manga", "comic", "novel"].includes(kind)
+        ? {
+            ...(draft.publication ?? {
+              format: null,
+              publisher: null,
+              imprint: null,
+              serialization: [],
+              contents: [],
+            }),
+            serialization: ["manga", "comic"].includes(kind)
+              ? (draft.publication?.serialization ?? [])
+              : [],
+          }
+        : null,
+    })
+  }
+
   return (
     <form
       id="admin-editor-form"
@@ -275,71 +334,72 @@ function WorkEditorFormFields({
           title="Structure & tracking"
           description="Canonical work metrics and the normalized season/unit ledger. Progress is stored against these stable units."
         >
-          <Field label="Runtime (minutes)">
-            <Input
-              type="number"
-              min="0"
-              value={draft.runtimeMinutes ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  runtimeMinutes: e.target.value
-                    ? Number(e.target.value)
-                    : null,
-                })
-              }
-            />
-          </Field>
-          <Field label="Page count">
-            <Input
-              type="number"
-              min="0"
-              value={draft.pageCount ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  pageCount: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-            />
-          </Field>
-          <Field label="Primary platform">
-            <Input
-              value={draft.primaryPlatform ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  primaryPlatform: e.target.value || null,
-                })
-              }
-            />
-          </Field>
-          <Field label="Episode count">
-            <Input
-              type="number"
-              min="0"
-              value={draft.episodeCount ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  episodeCount: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-            />
-          </Field>
-          <Field label="Chapter count">
-            <Input
-              type="number"
-              min="0"
-              value={draft.chapterCount ?? ""}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  chapterCount: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-            />
-          </Field>
+          {showRuntime && (
+            <Field label="Runtime (minutes)">
+              <Input
+                type="number"
+                min="0"
+                value={draft.runtimeMinutes ?? ""}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    runtimeMinutes: e.target.value
+                      ? Number(e.target.value)
+                      : null,
+                  })
+                }
+              />
+            </Field>
+          )}
+          {showPages && (
+            <Field label="Page count">
+              <Input
+                type="number"
+                min="0"
+                value={draft.pageCount ?? ""}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    pageCount: e.target.value ? Number(e.target.value) : null,
+                  })
+                }
+              />
+            </Field>
+          )}
+          {showEpisodes && (
+            <Field label="Episode count">
+              <Input
+                type="number"
+                min="0"
+                value={draft.episodeCount ?? ""}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    episodeCount: e.target.value
+                      ? Number(e.target.value)
+                      : null,
+                  })
+                }
+              />
+            </Field>
+          )}
+          {showChapters && (
+            <Field label="Chapter count">
+              <Input
+                type="number"
+                min="0"
+                value={draft.chapterCount ?? ""}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    chapterCount: e.target.value
+                      ? Number(e.target.value)
+                      : null,
+                  })
+                }
+              />
+            </Field>
+          )}
           <StructureSummary structure={structure} />
         </EditorSection>
       </div>
@@ -367,19 +427,19 @@ function WorkEditorFormFields({
         <Field label="Type">
           <Select
             value={draft.kind}
-            onValueChange={(value) =>
-              setDraft({ ...draft, kind: value as WorkKind })
-            }
+            onValueChange={(value) => changeKind(value as WorkKind)}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
-              {workKinds.map((kind) => (
-                <SelectItem key={kind} value={kind}>
-                  {kindLabels[kind]}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {workKinds.map((kind) => (
+                  <SelectItem key={kind} value={kind}>
+                    {kindLabels[kind]}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </Field>
@@ -411,17 +471,19 @@ function WorkEditorFormFields({
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent>
-              {["announced", "releasing", "released", "ended", "unknown"].map(
-                (status) => (
-                  <SelectItem
-                    key={status}
-                    value={status}
-                    className="capitalize"
-                  >
-                    {status}
-                  </SelectItem>
-                )
-              )}
+              <SelectGroup>
+                {["announced", "releasing", "released", "ended", "unknown"].map(
+                  (status) => (
+                    <SelectItem
+                      key={status}
+                      value={status}
+                      className="capitalize"
+                    >
+                      {status}
+                    </SelectItem>
+                  )
+                )}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </Field>
@@ -454,17 +516,9 @@ function WorkEditorFormFields({
       </div>
 
       <EditorSection
-        title="Personal preferences"
-        description="Private flags and notes that are separate from tracking history."
+        title="Favorite"
+        description="Keep this work highlighted in your personal library."
       >
-        <Field label="Personal notes" wide>
-          <Textarea
-            rows={4}
-            value={draft.notes}
-            onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-            className="resize-y"
-          />
-        </Field>
         <div className="flex items-center gap-2 pt-2">
           <Checkbox
             id="favorite-toggle"
@@ -478,30 +532,6 @@ function WorkEditorFormFields({
             className="cursor-pointer text-sm font-medium"
           >
             Favorite
-          </Label>
-        </div>
-        <div className="flex items-center gap-2 pt-2">
-          <Checkbox
-            id="owned-toggle"
-            checked={draft.owned}
-            onCheckedChange={(owned) =>
-              setDraft({ ...draft, owned: Boolean(owned) })
-            }
-          />
-          <Label htmlFor="owned-toggle" className="cursor-pointer text-sm">
-            Owned
-          </Label>
-        </div>
-        <div className="flex items-center gap-2 pt-2">
-          <Checkbox
-            id="wishlist-toggle"
-            checked={draft.wishlist}
-            onCheckedChange={(wishlist) =>
-              setDraft({ ...draft, wishlist: Boolean(wishlist) })
-            }
-          />
-          <Label htmlFor="wishlist-toggle" className="cursor-pointer text-sm">
-            Wishlist
           </Label>
         </div>
       </EditorSection>
@@ -535,11 +565,27 @@ function WorkEditorFormFields({
           value={draft.country}
           onChange={(country: string[]) => setDraft({ ...draft, country })}
         />
-        <ArrayField
-          label="Audience"
-          value={draft.audience}
-          onChange={(audience: string[]) => setDraft({ ...draft, audience })}
-        />
+        <Field label="Audience">
+          <Select
+            value={draft.audience[0] ?? null}
+            onValueChange={(audience) =>
+              audience && setDraft({ ...draft, audience: [audience] })
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select audience" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {audiences.map((audience) => (
+                  <SelectItem key={audience} value={audience}>
+                    {audience}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
         <ArrayField
           label="Shared with"
           value={draft.sharedWith}
@@ -547,13 +593,7 @@ function WorkEditorFormFields({
             setDraft({ ...draft, sharedWith })
           }
         />
-        <ArrayField
-          label="Favorite characters"
-          value={draft.favoriteCharacters}
-          onChange={(favoriteCharacters: string[]) =>
-            setDraft({ ...draft, favoriteCharacters })
-          }
-        />
+
         <CreditField
           value={draft.credits}
           onChange={(credits: any) => setDraft({ ...draft, credits })}
@@ -773,117 +813,47 @@ function WorkEditorFormFields({
           }
         />
 
-        <Field label="Publication format">
-          <Input
-            value={draft.publication?.format ?? ""}
-            onChange={(e) =>
-              setDraft({
-                ...draft,
-                publication: {
-                  format: e.target.value || null,
-                  publisher: draft.publication?.publisher ?? null,
-                  imprint: draft.publication?.imprint ?? null,
-                  serialization: draft.publication?.serialization ?? [],
-                  demographic: draft.publication?.demographic ?? null,
-                  contents: draft.publication?.contents ?? [],
-                },
-              })
-            }
-          />
-        </Field>
-
-        <Field label="Publisher">
-          <Input
-            value={draft.publication?.publisher ?? ""}
-            onChange={(e) =>
-              setDraft({
-                ...draft,
-                publication: {
-                  format: draft.publication?.format ?? null,
-                  publisher: e.target.value || null,
-                  imprint: draft.publication?.imprint ?? null,
-                  serialization: draft.publication?.serialization ?? [],
-                  demographic: draft.publication?.demographic ?? null,
-                  contents: draft.publication?.contents ?? [],
-                },
-              })
-            }
-          />
-        </Field>
-
-        <Field label="Imprint">
-          <Input
-            value={draft.publication?.imprint ?? ""}
-            onChange={(e) =>
-              setDraft({
-                ...draft,
-                publication: {
-                  format: draft.publication?.format ?? null,
-                  publisher: draft.publication?.publisher ?? null,
-                  imprint: e.target.value || null,
-                  serialization: draft.publication?.serialization ?? [],
-                  demographic: draft.publication?.demographic ?? null,
-                  contents: draft.publication?.contents ?? [],
-                },
-              })
-            }
-          />
-        </Field>
-
-        <Field label="Demographic">
-          <Input
-            value={draft.publication?.demographic ?? ""}
-            onChange={(e) =>
-              setDraft({
-                ...draft,
-                publication: {
-                  format: draft.publication?.format ?? null,
-                  publisher: draft.publication?.publisher ?? null,
-                  imprint: draft.publication?.imprint ?? null,
-                  serialization: draft.publication?.serialization ?? [],
-                  demographic: e.target.value || null,
-                  contents: draft.publication?.contents ?? [],
-                },
-              })
-            }
-          />
-        </Field>
-
-        <ArrayField
-          label="Serialization"
-          value={draft.publication?.serialization ?? []}
-          onChange={(serialization: string[]) =>
-            setDraft({
-              ...draft,
-              publication: {
-                format: draft.publication?.format ?? null,
-                publisher: draft.publication?.publisher ?? null,
-                imprint: draft.publication?.imprint ?? null,
-                serialization,
-                demographic: draft.publication?.demographic ?? null,
-                contents: draft.publication?.contents ?? [],
-              },
-            })
-          }
-        />
-
-        <ArrayField
-          label="Contents"
-          value={draft.publication?.contents ?? []}
-          onChange={(contents: string[]) =>
-            setDraft({
-              ...draft,
-              publication: {
-                format: draft.publication?.format ?? null,
-                publisher: draft.publication?.publisher ?? null,
-                imprint: draft.publication?.imprint ?? null,
-                serialization: draft.publication?.serialization ?? [],
-                demographic: draft.publication?.demographic ?? null,
-                contents,
-              },
-            })
-          }
-        />
+        {showPublication && (
+          <>
+            <Field label="Publication format">
+              <Input
+                value={draft.publication?.format ?? ""}
+                onChange={(event) =>
+                  updatePublication({ format: event.target.value || null })
+                }
+              />
+            </Field>
+            <Field label="Publisher">
+              <Input
+                value={draft.publication?.publisher ?? ""}
+                onChange={(event) =>
+                  updatePublication({ publisher: event.target.value || null })
+                }
+              />
+            </Field>
+            <Field label="Imprint">
+              <Input
+                value={draft.publication?.imprint ?? ""}
+                onChange={(event) =>
+                  updatePublication({ imprint: event.target.value || null })
+                }
+              />
+            </Field>
+            {showSerialization && (
+              <ArrayField
+                label="Serialization"
+                value={draft.publication?.serialization ?? []}
+                onChange={(serialization: string[]) =>
+                  updatePublication({ serialization })
+                }
+              />
+            )}
+            <ContentField
+              value={draft.publication?.contents ?? []}
+              onChange={(contents) => updatePublication({ contents })}
+            />
+          </>
+        )}
 
         <Field label="External links" wide>
           <Textarea

@@ -360,7 +360,6 @@ export function LibraryApp() {
           ...work.aliases,
           ...work.studios,
           ...work.credits.map(({ name, role }) => `${name} ${role}`),
-          ...work.favoriteCharacters,
           ...work.tone,
         ]
           .join(" ")
@@ -2627,14 +2626,6 @@ function WorkDetailDialog({
               </div>
             )}
 
-            {/* Personal Notes */}
-            {work.notes && (
-              <div className="detail-panel detail-notes-panel">
-                <h2>ملاحظات شخصية</h2>
-                <p dir="auto">{work.notes}</p>
-              </div>
-            )}
-
             {/* Summary */}
             <div className="detail-panel detail-summary-panel">
               <h2>القصة والملخص</h2>
@@ -2723,21 +2714,6 @@ function WorkDetailDialog({
               <div className="detail-panel detail-analysis-panel">
                 <h2>تحذيرات المحتوى</h2>
                 <p dir="auto">{work.contentWarnings}</p>
-              </div>
-            )}
-
-            {/* Favorite Characters */}
-            {!!work.favoriteCharacters.length && (
-              <div className="detail-panel detail-characters-panel">
-                <h2>الشخصيات المفضلة</h2>
-                <div className="character-list">
-                  {work.favoriteCharacters.map((character) => (
-                    <span key={character}>
-                      <i>{character.charAt(0)}</i>
-                      {character}
-                    </span>
-                  ))}
-                </div>
               </div>
             )}
 

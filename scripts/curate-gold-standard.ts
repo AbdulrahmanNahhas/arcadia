@@ -58,7 +58,6 @@ type GoldWork = {
   originalReleaseAt: number
   runtimeMinutes?: number
   pageCount?: number
-  primaryPlatform?: string
   episodeCount?: number
   chapterCount?: number
   metadata: Record<string, unknown>
@@ -114,7 +113,6 @@ const goldWorks: GoldWork[] = [
     summary:
       "Decades after defeating the Demon King, the near-immortal elven mage Frieren retraces the heroes' journey. Traveling with a new generation, she slowly learns how brief human lives give memory, grief, and companionship their meaning.",
     originalReleaseAt: epoch("2023-09-29"),
-    primaryPlatform: "Television",
     episodeCount: 38,
     genres: ["Adventure", "Drama", "Fantasy"],
     tones: ["Reflective", "Emotional", "Atmospheric", "Epic", "Wholesome"],
@@ -263,7 +261,6 @@ const goldWorks: GoldWork[] = [
     summary:
       "Humanity survives behind enormous walls until a catastrophic breach sends Eren Yeager into a war against the Titans. The struggle expands into a political and moral conflict over inherited violence, freedom, identity, and the history hidden beyond the walls.",
     originalReleaseAt: epoch("2013-04-07"),
-    primaryPlatform: "Television",
     episodeCount: 94,
     genres: [
       "Action",
@@ -480,7 +477,6 @@ const goldWorks: GoldWork[] = [
         publisher: "Dragonsteel Entertainment",
         imprint: null,
         serialization: [],
-        demographic: "Adult",
         contents: ["41 chapters", "2 epilogues"],
       },
       contentWarnings:
@@ -579,7 +575,6 @@ const goldWorks: GoldWork[] = [
         publisher: "Secker & Warburg",
         imprint: null,
         serialization: [],
-        demographic: "Adult",
         contents: ["Part One", "Part Two", "Part Three"],
       },
       contentWarnings:
@@ -702,7 +697,6 @@ const goldWorks: GoldWork[] = [
         publisher: "Shueisha",
         imprint: "Jump Comics",
         serialization: ["Weekly Shōnen Jump"],
-        demographic: "Shōnen",
         contents: ["250 chapters", "28 volumes"],
       },
       contentWarnings:
@@ -813,7 +807,6 @@ const goldWorks: GoldWork[] = [
         publisher: "Shueisha",
         imprint: "Jump Comics+",
         serialization: ["Shōnen Jump+"],
-        demographic: "Seinen",
         contents: ["18 chapters", "3 volumes"],
       },
       contentWarnings:
@@ -862,14 +855,12 @@ function curateWork(spec: GoldWork) {
         originalReleaseAt: spec.originalReleaseAt,
         runtimeMinutes: spec.runtimeMinutes ?? null,
         pageCount: spec.pageCount ?? null,
-        primaryPlatform: spec.primaryPlatform ?? null,
         episodeCount: spec.episodeCount ?? null,
         chapterCount: spec.chapterCount ?? null,
         status: spec.releaseStatus,
         metadata: {
           ...spec.metadata,
           palette: currentMetadata.palette,
-          favoriteCharacters: currentMetadata.favoriteCharacters ?? [],
           sharedWith: currentMetadata.sharedWith ?? [],
           scoreBreakdown: currentMetadata.scoreBreakdown ?? {},
           watchDates: currentMetadata.watchDates ?? null,

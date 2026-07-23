@@ -48,6 +48,272 @@ const completeRecordSchema = z.object({
 
 type CompleteRecordDocument = z.infer<typeof completeRecordSchema>
 type CompleteRecord = CompleteRecordDocument["records"][number]
+type DiffKind = "added" | "removed" | "changed"
+type FieldDiff = {
+  kind: DiffKind
+  path: string
+  oldValue?: unknown
+  newValue?: unknown
+}
+
+type JsonObject = Record<string, unknown>
+
+function isObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function isPrimitive(value: unknown) {
+  return value === null || (typeof value !== "object" && value !== undefined)
+}
+
+function valuesEqual(left: unknown, right: unknown) {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function objectPath(path: string, key: string) {
+  return /^[A-Za-z_$][\w$]*$/.test(key)
+    ? `${path}.${key}`
+    : `${path}[${JSON.stringify(key)}]`
+}
+
+function collectValueDiffs(
+  value: unknown,
+  path: string,
+  kind: "added" | "removed"
+): FieldDiff[] {
+  if (Array.isArray(value)) {
+    if (!value.length) {
+      return [
+        kind === "added"
+          ? { kind, path, newValue: value }
+          : { kind, path, oldValue: value },
+      ]
+    }
+    return value.flatMap((item, index) =>
+      collectValueDiffs(item, `${path}[${index}]`, kind)
+    )
+  }
+  if (isObject(value)) {
+    const entries = Object.entries(value).filter(
+      ([, child]) => child !== undefined
+    )
+    if (!entries.length) {
+      return [
+        kind === "added"
+          ? { kind, path, newValue: value }
+          : { kind, path, oldValue: value },
+      ]
+    }
+    return entries.flatMap(([key, child]) =>
+      collectValueDiffs(child, objectPath(path, key), kind)
+    )
+  }
+  return [
+    kind === "added"
+      ? { kind, path, newValue: value }
+      : { kind, path, oldValue: value },
+  ]
+}
+
+function findArrayIdentityKey(left: unknown[], right: unknown[]) {
+  if (
+    !left.length ||
+    !right.length ||
+    !left.every(isObject) ||
+    !right.every(isObject)
+  ) {
+    return null
+  }
+
+  const keys = Object.keys(left[0]).filter((key) =>
+    [...left, ...right].every((item) => key in item && isPrimitive(item[key]))
+  )
+
+  return (
+    keys
+      .map((key) => {
+        const leftValues = left.map((item) => JSON.stringify(item[key]))
+        const rightValues = right.map((item) => JSON.stringify(item[key]))
+        const rightSet = new Set(rightValues)
+        return {
+          key,
+          overlap: leftValues.filter((value) => rightSet.has(value)).length,
+          unique:
+            new Set(leftValues).size === leftValues.length &&
+            new Set(rightValues).size === rightValues.length,
+        }
+      })
+      .filter(({ overlap, unique }) => overlap > 0 && unique)
+      .sort((a, b) => b.overlap - a.overlap || a.key.localeCompare(b.key))[0]
+      ?.key ?? null
+  )
+}
+
+function diffArrays(
+  left: unknown[],
+  right: unknown[],
+  path: string
+): FieldDiff[] {
+  const identityKey = findArrayIdentityKey(left, right)
+  if (identityKey) {
+    const identity = (item: JsonObject) => JSON.stringify(item[identityKey])
+    const leftByIdentity = new Map(
+      left.map((item, index) => [identity(item as JsonObject), { item, index }])
+    )
+    const rightByIdentity = new Map(
+      right.map((item, index) => [
+        identity(item as JsonObject),
+        { item, index },
+      ])
+    )
+    const commonLeft = left
+      .map((item) => identity(item as JsonObject))
+      .filter((value) => rightByIdentity.has(value))
+    const commonRight = right
+      .map((item) => identity(item as JsonObject))
+      .filter((value) => leftByIdentity.has(value))
+    const leftPosition = new Map(
+      commonLeft.map((value, index) => [value, index])
+    )
+    const rightPosition = new Map(
+      commonRight.map((value, index) => [value, index])
+    )
+    const diffs: FieldDiff[] = []
+
+    for (const [value, previous] of leftByIdentity) {
+      const next = rightByIdentity.get(value)
+      if (!next) {
+        diffs.push(
+          ...collectValueDiffs(
+            previous.item,
+            `${path}[${previous.index}]`,
+            "removed"
+          )
+        )
+        continue
+      }
+      const selector = `${path}[${identityKey}=${value}]`
+      diffs.push(...diffValues(previous.item, next.item, selector))
+      if (leftPosition.get(value) !== rightPosition.get(value)) {
+        diffs.push({
+          kind: "changed",
+          path: `${selector}.[array position]`,
+          oldValue: previous.index,
+          newValue: next.index,
+        })
+      }
+    }
+    for (const [value, next] of rightByIdentity) {
+      if (!leftByIdentity.has(value)) {
+        diffs.push(
+          ...collectValueDiffs(next.item, `${path}[${next.index}]`, "added")
+        )
+      }
+    }
+    return diffs
+  }
+
+  if (left.length === right.length) {
+    return left.flatMap((value, index) =>
+      diffValues(value, right[index], `${path}[${index}]`)
+    )
+  }
+
+  const matches = Array.from({ length: left.length + 1 }, () =>
+    Array<number>(right.length + 1).fill(0)
+  )
+  for (let leftIndex = left.length - 1; leftIndex >= 0; leftIndex--) {
+    for (let rightIndex = right.length - 1; rightIndex >= 0; rightIndex--) {
+      matches[leftIndex][rightIndex] = valuesEqual(
+        left[leftIndex],
+        right[rightIndex]
+      )
+        ? matches[leftIndex + 1][rightIndex + 1] + 1
+        : Math.max(
+            matches[leftIndex + 1][rightIndex],
+            matches[leftIndex][rightIndex + 1]
+          )
+    }
+  }
+
+  const diffs: FieldDiff[] = []
+  let leftIndex = 0
+  let rightIndex = 0
+  while (leftIndex < left.length || rightIndex < right.length) {
+    if (
+      leftIndex < left.length &&
+      rightIndex < right.length &&
+      valuesEqual(left[leftIndex], right[rightIndex])
+    ) {
+      leftIndex++
+      rightIndex++
+    } else if (
+      rightIndex < right.length &&
+      (leftIndex === left.length ||
+        matches[leftIndex][rightIndex + 1] >=
+          matches[leftIndex + 1][rightIndex])
+    ) {
+      diffs.push(
+        ...collectValueDiffs(
+          right[rightIndex],
+          `${path}[${rightIndex}]`,
+          "added"
+        )
+      )
+      rightIndex++
+    } else {
+      diffs.push(
+        ...collectValueDiffs(
+          left[leftIndex],
+          `${path}[${leftIndex}]`,
+          "removed"
+        )
+      )
+      leftIndex++
+    }
+  }
+  return diffs
+}
+
+function diffValues(left: unknown, right: unknown, path: string): FieldDiff[] {
+  if (valuesEqual(left, right)) return []
+
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return diffArrays(left, right, path)
+  }
+  if (isObject(left) && isObject(right)) {
+    const keys = new Set([
+      ...Object.keys(left).filter((key) => left[key] !== undefined),
+      ...Object.keys(right).filter((key) => right[key] !== undefined),
+    ])
+    return [...keys].flatMap((key) => {
+      const hasLeft = key in left && left[key] !== undefined
+      const hasRight = key in right && right[key] !== undefined
+      const childPath = objectPath(path, key)
+      if (!hasLeft) return collectValueDiffs(right[key], childPath, "added")
+      if (!hasRight) return collectValueDiffs(left[key], childPath, "removed")
+      return diffValues(left[key], right[key], childPath)
+    })
+  }
+  if (
+    isObject(left) ||
+    Array.isArray(left) ||
+    isObject(right) ||
+    Array.isArray(right)
+  ) {
+    return [
+      ...collectValueDiffs(left, path, "removed"),
+      ...collectValueDiffs(right, path, "added"),
+    ]
+  }
+  return [{ kind: "changed", path, oldValue: left, newValue: right }]
+}
+
+function formatDiffValue(value: unknown, present: boolean) {
+  if (!present) return "Not present"
+  if (value === undefined) return "undefined"
+  return JSON.stringify(value, null, 2)
+}
 
 function toEditableWork(work: Work): AdminWorkUpdate {
   const {
@@ -133,8 +399,14 @@ export function JsonEditorDialog({
         JSON.stringify(original.work) !== JSON.stringify(record.work)
       const structureChanged =
         JSON.stringify(original.structure) !== JSON.stringify(record.structure)
+      const fieldDiffs = [
+        ...(workChanged ? diffValues(original.work, record.work, "work") : []),
+        ...(structureChanged
+          ? diffValues(original.structure, record.structure, "structure")
+          : []),
+      ]
       return workChanged || structureChanged
-        ? [{ record, workChanged, structureChanged }]
+        ? [{ record, workChanged, structureChanged, fieldDiffs }]
         : []
     })
   }, [reviewed, sourceDocument])
@@ -248,40 +520,117 @@ export function JsonEditorDialog({
 
         {reviewed ? (
           <div className="min-h-0 flex-1 overflow-y-auto p-5">
-            <div className="mb-4 flex items-center justify-between rounded-lg border bg-muted/20 p-4">
+            <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border bg-muted/20 p-4">
               <div>
                 <strong className="block text-sm">
                   {changes.length} records changed
                 </strong>
                 <span className="text-xs text-muted-foreground">
-                  Review each database domain before saving.
+                  {changes.reduce(
+                    (total, change) => total + change.fieldDiffs.length,
+                    0
+                  )}{" "}
+                  field changes are ready to save.
                 </span>
               </div>
               <Badge>{changes.length} pending</Badge>
             </div>
             {changes.length ? (
-              <div className="space-y-3">
-                {changes.map(({ record, workChanged, structureChanged }) => (
-                  <section
-                    key={record.work.id}
-                    className="rounded-lg border bg-card p-4"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <strong className="text-sm">{record.work.title}</strong>
-                        <code className="mt-1 block text-[10px] text-muted-foreground">
-                          {record.work.id}
-                        </code>
-                      </div>
-                      <div className="flex flex-wrap justify-end gap-1.5">
-                        {workChanged && <Badge>Work & personal</Badge>}
-                        {structureChanged && (
-                          <Badge variant="secondary">Structure</Badge>
-                        )}
-                      </div>
-                    </div>
-                  </section>
-                ))}
+              <div className="flex flex-col gap-4">
+                {changes.map(
+                  ({ record, workChanged, structureChanged, fieldDiffs }) => {
+                    const headingId = `json-review-${record.work.id}`
+                    return (
+                      <section
+                        key={record.work.id}
+                        aria-labelledby={headingId}
+                        className="overflow-hidden rounded-lg border bg-card"
+                      >
+                        <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+                          <div>
+                            <h3
+                              id={headingId}
+                              className="text-sm font-semibold"
+                            >
+                              Work record
+                            </h3>
+                            <code className="mt-1 block text-[10px] text-muted-foreground">
+                              {record.work.id}
+                            </code>
+                          </div>
+                          <div className="flex flex-wrap justify-end gap-1.5">
+                            <Badge variant="outline">
+                              {fieldDiffs.length} field
+                              {fieldDiffs.length === 1 ? "" : "s"}
+                            </Badge>
+                            {workChanged && <Badge>Work & personal</Badge>}
+                            {structureChanged && (
+                              <Badge variant="secondary">Structure</Badge>
+                            )}
+                          </div>
+                        </header>
+                        <dl className="divide-y">
+                          {fieldDiffs.map((diff, index) => {
+                            const hasOldValue = diff.kind !== "added"
+                            const hasNewValue = diff.kind !== "removed"
+                            return (
+                              <div
+                                key={`${diff.kind}-${diff.path}-${index}`}
+                                className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(12rem,0.7fr)_minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-start"
+                              >
+                                <dt className="flex min-w-0 flex-col items-start gap-1.5">
+                                  <Badge
+                                    variant={
+                                      diff.kind === "removed"
+                                        ? "destructive"
+                                        : diff.kind === "changed"
+                                          ? "secondary"
+                                          : "default"
+                                    }
+                                  >
+                                    {diff.kind}
+                                  </Badge>
+                                  <code className="text-[11px] break-all text-muted-foreground">
+                                    {diff.path}
+                                  </code>
+                                </dt>
+                                <dd className="min-w-0 rounded-md border bg-muted/20 p-3">
+                                  <span className="mb-1 block text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                                    Old value
+                                  </span>
+                                  <pre className="font-mono text-xs break-all whitespace-pre-wrap">
+                                    {formatDiffValue(
+                                      diff.oldValue,
+                                      hasOldValue
+                                    )}
+                                  </pre>
+                                </dd>
+                                <span
+                                  aria-hidden="true"
+                                  className="hidden pt-7 text-muted-foreground lg:block"
+                                >
+                                  →
+                                </span>
+                                <span className="sr-only">changed to</span>
+                                <dd className="min-w-0 rounded-md border bg-muted/20 p-3">
+                                  <span className="mb-1 block text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                                    New value
+                                  </span>
+                                  <pre className="font-mono text-xs break-all whitespace-pre-wrap">
+                                    {formatDiffValue(
+                                      diff.newValue,
+                                      hasNewValue
+                                    )}
+                                  </pre>
+                                </dd>
+                              </div>
+                            )
+                          })}
+                        </dl>
+                      </section>
+                    )
+                  }
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center rounded-lg border border-dashed p-12 text-center">

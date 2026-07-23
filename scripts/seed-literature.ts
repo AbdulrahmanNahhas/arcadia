@@ -35,7 +35,6 @@ type LiteratureWork = {
     publisher: string
     imprint?: string
     serialization?: string[]
-    demographic?: string
     contents?: string[]
   }
   links: Array<{ provider: string; label: string; url: string }>
@@ -76,7 +75,6 @@ const literature: LiteratureWork[] = [
       publisher: "Shueisha",
       imprint: "Jump Comics",
       serialization: ["Weekly Shōnen Jump"],
-      demographic: "Shōnen",
     },
     links: [
       {
@@ -113,7 +111,6 @@ const literature: LiteratureWork[] = [
       publisher: "Shueisha",
       imprint: "Jump Comics",
       serialization: ["Shōnen Jump+"],
-      demographic: "Shōnen",
     },
     links: [
       {
@@ -203,7 +200,6 @@ const literature: LiteratureWork[] = [
       format: "Manga adaptation",
       publisher: "Shueisha",
       serialization: ["Shōnen Jump+"],
-      demographic: "Seinen",
     },
     links: [
       {
@@ -250,7 +246,6 @@ const literature: LiteratureWork[] = [
       publisher: "Shueisha",
       imprint: "Jump Comics",
       serialization: ["Weekly Shōnen Jump"],
-      demographic: "Shōnen",
     },
     links: [
       {
@@ -287,7 +282,6 @@ const literature: LiteratureWork[] = [
       publisher: "Shueisha",
       imprint: "Jump Comics",
       serialization: ["Shōnen Jump+"],
-      demographic: "Shōnen",
     },
     links: [
       {
@@ -421,7 +415,6 @@ db.transaction((tx) => {
             publisher: item.publication.publisher,
             imprint: item.publication.imprint ?? null,
             serialization: item.publication.serialization ?? [],
-            demographic: item.publication.demographic ?? null,
             contents: item.publication.contents ?? [],
           },
           sourceMaterial: item.sourceMaterial ?? null,
@@ -453,7 +446,6 @@ db.transaction((tx) => {
               publisher: item.publication.publisher,
               imprint: item.publication.imprint ?? null,
               serialization: item.publication.serialization ?? [],
-              demographic: item.publication.demographic ?? null,
               contents: item.publication.contents ?? [],
             },
             sourceMaterial: item.sourceMaterial ?? null,

@@ -52,7 +52,6 @@ type PreparedWork = {
   aliases: string[]
   studios: string[]
   producers: string[]
-  favoriteCharacters: string[]
   genres: string[]
   tags: string[]
   audience: string[]
@@ -505,7 +504,6 @@ const prepared: PreparedWork[] = noteFiles.map(({ folder, filePath }) => {
     aliases,
     studios: list(data.studio),
     producers: list(data.producer),
-    favoriteCharacters: list(data.favoriteCharacters),
     genres: taxonomy.genres,
     tags: taxonomy.tags,
     audience: list(data.audience),
@@ -633,7 +631,6 @@ db.transaction((tx) => {
         status: objectiveStatus,
         metadata: {
           subtitle,
-          favoriteCharacters: item.favoriteCharacters,
           sharedWith: item.sharedWith,
           contentWarnings: stringValue(data.contentWarnings),
           analysisNotes: stringValue(data.theologicalAnalysis),

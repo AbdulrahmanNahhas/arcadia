@@ -32,7 +32,6 @@ export const works = sqliteTable(
     originalReleaseAt: integer("original_release_at"),
     runtimeMinutes: integer("runtime_minutes"),
     pageCount: integer("page_count"),
-    primaryPlatform: text("primary_platform"),
     episodeCount: integer("episode_count"),
     chapterCount: integer("chapter_count"),
     status: text("status").notNull().default("released"),
@@ -284,13 +283,10 @@ export const personalState = sqliteTable(
     status: text("status").notNull().default("planned"),
     rating: real("rating"),
     favorite: integer("favorite", { mode: "boolean" }).notNull().default(false),
-    owned: integer("owned", { mode: "boolean" }).notNull().default(false),
-    wishlist: integer("wishlist", { mode: "boolean" }).notNull().default(false),
     progress: real("progress").notNull().default(0),
     progressTotal: real("progress_total"),
     progressUnit: text("progress_unit").notNull().default("unit"),
     completedAt: integer("completed_at"),
-    notes: text("notes").notNull().default(""),
     privateMetadata: text("private_metadata", { mode: "json" })
       .$type<Record<string, unknown>>()
       .notNull()

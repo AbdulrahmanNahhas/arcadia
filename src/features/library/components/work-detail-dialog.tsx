@@ -5,12 +5,23 @@ import {
   ArrowsInIcon,
   ArrowsOutIcon,
   ArrowSquareOutIcon,
+  CaretDownIcon,
   HeartIcon,
   XIcon,
 } from "@phosphor-icons/react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import {
+  Progress,
+  ProgressLabel,
+  ProgressValue,
+} from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import {
   getWorkStructure,
@@ -169,9 +180,6 @@ export function WorkDetailDialog({
                 <Property label="Country">
                   {work.country.join(", ") || "—"}
                 </Property>
-                {work.primaryPlatform && (
-                  <Property label="Platform">{work.primaryPlatform}</Property>
-                )}
                 {work.runtimeMinutes !== null && (
                   <Property label="Runtime">
                     {formatMinutes(work.runtimeMinutes)}
@@ -231,14 +239,6 @@ export function WorkDetailDialog({
                   {work.trackedOn ? formatDateString(work.trackedOn) : "Never"}
                 </Property>
               </dl>
-              {work.notes && (
-                <p
-                  dir="auto"
-                  className="mt-4 border-t pt-4 text-sm leading-6 text-foreground/80"
-                >
-                  {work.notes}
-                </p>
-              )}
             </Panel>
 
             {(work.genres.length > 0 ||
@@ -316,22 +316,23 @@ export function WorkDetailDialog({
                   </div>
                 )}
                 {work.riskProfile && (
-                  <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t pt-4 text-xs">
+                  <div className="mt-4 grid gap-2 border-t pt-4 sm:grid-cols-2">
                     <Risk
                       label="Sexuality"
-                      value={work.riskProfile.sexuality}
+                      level={work.riskProfile.sexuality}
                     />
                     <Risk
                       label="Behavioral"
-                      value={work.riskProfile.behavioral}
+                      level={work.riskProfile.behavioral}
                     />
-                    <Risk label="Theology" value={work.riskProfile.theology} />
+                    <Risk label="Theology" level={work.riskProfile.theology} />
                     <Risk
                       label="Fan service"
+                      level={fanServiceLevel(work.riskProfile.fanService)}
                       value={
                         work.riskProfile.fanService === null
-                          ? "unknown"
-                          : `${work.riskProfile.fanService}/10`
+                          ? "Unknown"
+                          : `${work.riskProfile.fanService} / 10`
                       }
                     />
                   </div>
@@ -341,7 +342,7 @@ export function WorkDetailDialog({
 
             {activityQuery.data && activityQuery.data.length > 0 && (
               <Panel title="Activity ledger">
-                <ol className="space-y-3">
+                <ol className="flex flex-col gap-3">
                   {activityQuery.data.map((event) => (
                     <li
                       key={event.id}
@@ -366,7 +367,7 @@ export function WorkDetailDialog({
 
             {work.relations.length > 0 && (
               <Panel title="Related works">
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   {work.relations.map((relation) => (
                     <button
                       key={relation.id}
@@ -430,36 +431,83 @@ function TrackerLedger({
   work: Work
   structure?: WorkStructure
 }) {
+  const total = structure?.totalUnits || work.progressTotal
+  const percentage = total
+    ? Math.min(100, Math.round((work.progress / total) * 100))
+    : 0
+
   return (
-    <section className="rounded-xl border bg-card p-5 shadow-xs sm:col-span-2">
-      <TrackingForm work={work} structure={structure} />
-      {structure?.seasons.length ? (
-        <div className="mt-5 grid gap-2 border-t pt-5 sm:grid-cols-2 lg:grid-cols-3">
-          {structure.seasons.map((season) => {
-            const completed = season.units.filter(
-              (unit) => unit.progress
-            ).length
-            const total = season.units.length || season.unitCount || 0
-            return (
-              <div
-                key={season.id}
-                className="flex items-center justify-between gap-3 rounded-lg border p-3"
-              >
-                <span className="truncate text-sm font-medium">
-                  {season.title}
-                </span>
-                <Badge
-                  variant={
-                    total > 0 && completed === total ? "default" : "outline"
-                  }
-                >
-                  {completed} / {total || "—"}
-                </Badge>
-              </div>
-            )
-          })}
+    <section className="rounded-xl border bg-card p-5 pb-0! shadow-xs sm:col-span-2">
+      <Collapsible className="flex flex-col gap-0">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <h2 className="font-semibold">Track progress</h2>
+              <p className="text-sm text-muted-foreground">
+                Your current checkpoint for this work.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">{statusLabel(work.status)}</Badge>
+              <Badge variant="outline">{progressText(work)}</Badge>
+            </div>
+          </div>
+
+          <Progress value={percentage}>
+            <ProgressLabel>Overall progress</ProgressLabel>
+            <ProgressValue>{() => `${percentage}%`}</ProgressValue>
+          </Progress>
+
+          <CollapsibleTrigger
+            render={
+              <Button
+                variant="outline"
+                size="sm"
+                className="group mx-auto w-full rounded-t-md! rounded-b-none! border-b-0 sm:w-fit"
+              />
+            }
+          >
+            Update progress
+            <CaretDownIcon
+              data-icon="inline-end"
+              className="transition-transform group-data-[state=open]:rotate-180!"
+            />
+          </CollapsibleTrigger>
         </div>
-      ) : null}
+
+        <CollapsibleContent className="mt-0 flex flex-col gap-5 border-t py-5">
+          <TrackingForm work={work} structure={structure} />
+          {structure?.seasons.length ? (
+            <div className="grid gap-2 border-t pt-5 sm:grid-cols-2 lg:grid-cols-3">
+              {structure.seasons.map((season) => {
+                const completed = season.units.filter(
+                  (unit) => unit.progress
+                ).length
+                const seasonTotal = season.units.length || season.unitCount || 0
+                return (
+                  <div
+                    key={season.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                  >
+                    <span className="truncate text-sm font-medium">
+                      {season.title}
+                    </span>
+                    <Badge
+                      variant={
+                        seasonTotal > 0 && completed === seasonTotal
+                          ? "default"
+                          : "outline"
+                      }
+                    >
+                      {completed} / {seasonTotal || "—"}
+                    </Badge>
+                  </div>
+                )
+              })}
+            </div>
+          ) : null}
+        </CollapsibleContent>
+      </Collapsible>
     </section>
   )
 }
@@ -514,13 +562,67 @@ function TaxonomyRow({
   )
 }
 
-function Risk({ label, value }: { label: string; value: string }) {
+type RiskLevel = "none" | "low" | "medium" | "high" | "unknown"
+
+const riskConfig: Record<
+  RiskLevel,
+  { label: string; dotColor: string; textColor: string }
+> = {
+  none: {
+    label: "None",
+    dotColor: "bg-emerald-500",
+    textColor: "text-emerald-600 dark:text-emerald-400",
+  },
+  low: {
+    label: "Low",
+    dotColor: "bg-sky-500",
+    textColor: "text-sky-600 dark:text-sky-400",
+  },
+  medium: {
+    label: "Medium",
+    dotColor: "bg-amber-500",
+    textColor: "text-amber-600 dark:text-amber-400",
+  },
+  high: {
+    label: "High",
+    dotColor: "bg-rose-500",
+    textColor: "text-rose-600 dark:text-rose-400",
+  },
+  unknown: {
+    label: "Unknown",
+    dotColor: "bg-slate-400",
+    textColor: "text-muted-foreground",
+  },
+}
+
+function Risk({
+  label,
+  level,
+  value,
+}: {
+  label: string
+  level: RiskLevel
+  value?: string
+}) {
+  const config = riskConfig[level]
+
   return (
-    <span className="flex justify-between gap-2">
-      <span className="text-muted-foreground">{label}</span>
-      <strong className="font-medium capitalize">{value}</strong>
-    </span>
+    <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 px-3 py-2.5">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <Badge variant="outline" className={config.textColor}>
+        <span className={cn("size-1.5 rounded-full", config.dotColor)} />
+        {value ?? config.label}
+      </Badge>
+    </div>
   )
+}
+
+function fanServiceLevel(value: number | null): RiskLevel {
+  if (value === null) return "unknown"
+  if (value === 0) return "none"
+  if (value <= 3) return "low"
+  if (value <= 6) return "medium"
+  return "high"
 }
 
 function formatDateString(value: string | null) {
