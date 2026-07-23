@@ -504,6 +504,7 @@ function WorkEditorFormFields({
         </Field>
       </EditorSection>
 
+      {/* Hidden - do not delete or edit for now
       <div className="lg:col-span-1">
         <EditorSection
           title="Current tracking"
@@ -515,26 +516,8 @@ function WorkEditorFormFields({
         </EditorSection>
       </div>
 
-      <EditorSection
-        title="Favorite"
-        description="Keep this work highlighted in your personal library."
-      >
-        <div className="flex items-center gap-2 pt-2">
-          <Checkbox
-            id="favorite-toggle"
-            checked={draft.favorite}
-            onCheckedChange={(favorite) =>
-              setDraft({ ...draft, favorite: Boolean(favorite) })
-            }
-          />
-          <Label
-            htmlFor="favorite-toggle"
-            className="cursor-pointer text-sm font-medium"
-          >
-            Favorite
-          </Label>
-        </div>
-      </EditorSection>
+      // Note: Favorite is only on the work dialog
+        */}
 
       {/* Classification Section */}
       <EditorSection
