@@ -18,7 +18,7 @@ export function Field({
   return (
     <div
       className={cn(
-        "space-y-1.5 flex flex-col justify-start",
+        "flex flex-col justify-start space-y-1.5",
         wide && "sm:col-span-2",
         className
       )}

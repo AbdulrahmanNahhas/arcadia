@@ -72,7 +72,7 @@ const positionalArguments = process.argv
   .slice(2)
   .filter((argument) => argument !== "--" && !argument.startsWith("--"))
 const sourceRoot = resolve(
-  positionalArguments[0] ??
+  positionalArguments.at(0) ??
     process.env.OBSIDIAN_ANIMATION_PATH ??
     "/home/aqua/Documents/Obsidian/database/Animation"
 )
@@ -124,7 +124,7 @@ function wikilinkLabel(value: unknown): string | null {
   if (!raw) return null
   const match = raw.match(/^\[\[(.*?)(?:\|([^\]]+))?\]\]$/)
   if (!match) return raw
-  return (match[2] ?? basename(match[1])).trim()
+  return (match.at(2) ?? basename(match.at(1) ?? "")).trim()
 }
 
 function list(value: unknown): string[] {
@@ -584,7 +584,7 @@ db.transaction((tx) => {
   prepared.forEach((item, position) => {
     const data = item.data
     const scores = scoreBreakdown(data)
-    const sourceType = list(data.sourceType)[0]
+    const sourceType = list(data.sourceType).at(0)
     const sourceStarted = numberValue(data.sourceStarted)
     const sourceFinished = numberValue(data.sourceFinished)
     const sourceSerialization = list(data.sourceSerialization)
@@ -633,23 +633,12 @@ db.transaction((tx) => {
         status: objectiveStatus,
         metadata: {
           subtitle,
-          aliases: item.aliases,
-          genres: item.genres,
-          tags: item.tags,
-          studios: item.studios,
           favoriteCharacters: item.favoriteCharacters,
-          audience: item.audience,
           sharedWith: item.sharedWith,
-          tone: item.tone,
           contentWarnings: stringValue(data.contentWarnings),
           analysisNotes: stringValue(data.theologicalAnalysis),
           riskProfile,
           scoreBreakdown: scores,
-          externalLinks: item.links.map(({ provider, label, url }) => ({
-            provider,
-            label,
-            url,
-          })),
           releaseStart: item.releaseStart,
           releaseEnd: item.releaseEnd,
           watchDates: {
@@ -659,12 +648,8 @@ db.transaction((tx) => {
               dateValue(data.lastWatchedAt) ?? dateValue(data.watchedAt),
             completedAt: dateValue(data.completedAt),
           },
-          country: item.country,
           sourceMaterial,
-          creator:
-            item.studios.join(" · ") ||
-            item.producers.join(" · ") ||
-            "Creator not recorded",
+          productionNotes: { producers: item.producers },
           palette: item.kind === "anime" ? "anime" : item.kind,
           category: stringValue(data.category),
           era: item.era,
@@ -690,7 +675,6 @@ db.transaction((tx) => {
         progressTotal: null,
         progressUnit: "",
         completedAt: epoch(dateValue(data.completedAt)),
-        replayCount: numberValue(data.rewatchCount) ?? 0,
         privateMetadata: {
           sharedWith: item.sharedWith,
           firstWatchedAt:
@@ -760,15 +744,7 @@ db.transaction((tx) => {
 
     const credits: Array<[string, string, string]> = [
       ...item.studios.map(
-        (name) =>
-          ["studio", name, "animation-studio"] as [string, string, string]
-      ),
-      ...item.producers.map(
-        (name) => ["producer", name, "producer"] as [string, string, string]
-      ),
-      ...item.favoriteCharacters.map(
-        (name) =>
-          ["character", name, "favorite-character"] as [string, string, string]
+        (name) => ["studio", name, "main-studio"] as [string, string, string]
       ),
     ]
     for (const [entityType, name, role] of credits) {
@@ -830,9 +806,9 @@ db.transaction((tx) => {
           ownerType: "work",
           ownerId: item.id,
           provider: external.provider,
+          label: external.label,
           url: external.url,
           externalId: external.externalId,
-          metadata: { label: external.label },
         })
         .run()
     }

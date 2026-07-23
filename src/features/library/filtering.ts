@@ -16,6 +16,10 @@ export type FacetKey =
   | "sexualityRisks"
   | "behavioralRisks"
   | "theologyRisks"
+  | "curationStatuses"
+  | "creatorRoles"
+  | "externalProviders"
+  | "structureStates"
 
 export type FacetSelection = {
   include: string[]
@@ -58,6 +62,10 @@ export const facetDefinitions: Array<{
   { key: "sexualityRisks", label: "Sexual-content guidance" },
   { key: "behavioralRisks", label: "Violence & distress" },
   { key: "theologyRisks", label: "Religious / occult themes" },
+  { key: "curationStatuses", label: "Curation status" },
+  { key: "creatorRoles", label: "Creator roles" },
+  { key: "externalProviders", label: "External providers" },
+  { key: "structureStates", label: "Tracking structure" },
 ]
 
 export const kindLabels: Record<WorkKind, string> = {
@@ -151,7 +159,14 @@ export function getWorkFacetValues(work: Work, key: FacetKey): string[] {
   if (key === "studios") return work.studios
   if (key === "contributors") return work.credits.map(({ name }) => name)
   if (key === "publishers")
-    return work.publication?.publisher ? [work.publication.publisher] : []
+    return [
+      ...new Set([
+        ...(work.publication?.publisher ? [work.publication.publisher] : []),
+        ...work.credits
+          .filter(({ role }) => role === "publisher")
+          .map(({ name }) => name),
+      ]),
+    ]
   if (key === "publicationFormats")
     return work.publication?.format ? [work.publication.format] : []
   if (key === "releaseStatuses") return [work.releaseStatus]
@@ -164,7 +179,18 @@ export function getWorkFacetValues(work: Work, key: FacetKey): string[] {
     return work.riskProfile ? [work.riskProfile.sexuality] : []
   if (key === "behavioralRisks")
     return work.riskProfile ? [work.riskProfile.behavioral] : []
-  return work.riskProfile ? [work.riskProfile.theology] : []
+  if (key === "theologyRisks")
+    return work.riskProfile ? [work.riskProfile.theology] : []
+  if (key === "curationStatuses") return [work.curation?.status ?? "unreviewed"]
+  if (key === "creatorRoles")
+    return [...new Set(work.credits.map(({ role }) => role))]
+  if (key === "externalProviders")
+    return [...new Set(work.externalLinks.map(({ provider }) => provider))]
+  return [
+    work.episodeCount !== null || work.chapterCount !== null
+      ? "structured"
+      : "unstructured",
+  ]
 }
 
 function matchesSelection(selection: FacetSelection, values: string[]) {

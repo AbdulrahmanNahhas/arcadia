@@ -12,9 +12,23 @@ export default [
       "@typescript-eslint/array-type": "off",
       "@typescript-eslint/require-await": "off",
       "pnpm/json-enforce-catalog": "off",
+      eqeqeq: ["error", "always", { null: "ignore" }],
+      "no-alert": "error",
+      "no-debugger": "error",
+      "prefer-const": "error",
+    },
+    linterOptions: {
+      reportUnusedDisableDirectives: "error",
     },
   },
   {
-    ignores: ["eslint.config.js", ".prettierrc"],
+    ignores: [
+      "eslint.config.js",
+      ".prettierrc",
+      "src/routeTree.gen.ts",
+      "dist/**",
+      "data/**",
+      "drizzle/meta/**",
+    ],
   },
 ]

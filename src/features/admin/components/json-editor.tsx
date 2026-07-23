@@ -1,16 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { useMutation } from "@tanstack/react-query"
+import { useEffect, useMemo, useState } from "react"
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { z } from "zod"
 import {
   BracketsCurlyIcon,
   CheckIcon,
   FloppyDiskIcon,
 } from "@phosphor-icons/react"
-
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -21,17 +21,44 @@ import {
 } from "@/components/ui/dialog"
 import {
   adminWorkUpdateSchema,
-  type AdminWorkUpdate,
-  type Work,
+  editableWorkStructureSchema,
 } from "@/features/library/model"
-import { saveWork } from "@/server/library.functions"
+import type { AdminWorkUpdate, Work } from "@/features/library/model"
+import {
+  getAdminRecordBundles,
+  saveWork,
+  saveWorkStructure,
+} from "@/server/library.functions"
 import { cn } from "@/lib/utils"
 
 type JsonScope = "all" | "visible" | "selected"
 
+const completeRecordSchema = z.object({
+  schemaVersion: z.literal(1),
+  records: z.array(
+    z.object({
+      work: adminWorkUpdateSchema,
+      structure: editableWorkStructureSchema,
+      tracking: z.object({
+        existing: z.array(z.unknown()),
+      }),
+    })
+  ),
+})
+
+type CompleteRecordDocument = z.infer<typeof completeRecordSchema>
+type CompleteRecord = CompleteRecordDocument["records"][number]
+
 function toEditableWork(work: Work): AdminWorkUpdate {
-  const { addedAt: _addedAt, palette: _palette, relations, ...editable } = work
-  return {
+  const {
+    addedAt: _addedAt,
+    catalogUpdatedAt: _catalogUpdatedAt,
+    personalUpdatedAt: _personalUpdatedAt,
+    palette: _palette,
+    relations,
+    ...editable
+  } = work
+  return adminWorkUpdateSchema.parse({
     ...editable,
     relations: relations.map(({ workId, relationType, direction, notes }) => ({
       workId,
@@ -39,12 +66,7 @@ function toEditableWork(work: Work): AdminWorkUpdate {
       direction,
       notes,
     })),
-  }
-}
-
-function displayJsonValue(value: unknown) {
-  if (typeof value === "string") return value || "Empty string"
-  return JSON.stringify(value, null, 2) ?? "undefined"
+  })
 }
 
 export function JsonEditorDialog({
@@ -63,85 +85,132 @@ export function JsonEditorDialog({
   onSaved: () => Promise<void>
 }) {
   const [scope, setScope] = useState<JsonScope>("all")
-  const [sourceWorks, setSourceWorks] = useState<Work[]>(works)
-  const [json, setJson] = useState(() =>
-    JSON.stringify(works.map(toEditableWork), null, 2)
-  )
-  const [parsedWorks, setParsedWorks] = useState<AdminWorkUpdate[] | null>(null)
+  const [json, setJson] = useState("")
+  const [reviewed, setReviewed] = useState<CompleteRecordDocument | null>(null)
   const [error, setError] = useState("")
+  const sourceWorks =
+    scope === "visible"
+      ? visibleWorks
+      : scope === "selected"
+        ? works.filter(({ id }) => selectedIds.has(id))
+        : works
+  const sourceIds = sourceWorks.map(({ id }) => id)
+  const bundlesQuery = useQuery({
+    queryKey: ["admin-record-bundles", sourceIds],
+    queryFn: () => getAdminRecordBundles({ data: { workIds: sourceIds } }),
+    enabled: open && sourceIds.length > 0,
+  })
+  const sourceDocument = useMemo<CompleteRecordDocument | null>(() => {
+    if (!bundlesQuery.data) return null
+    return {
+      schemaVersion: 1,
+      records: bundlesQuery.data.map((bundle) => ({
+        work: toEditableWork(bundle.work),
+        structure: bundle.structure,
+        tracking: {
+          existing: bundle.tracking,
+        },
+      })),
+    }
+  }, [bundlesQuery.data])
 
-  const resetEditor = (nextScope: JsonScope = scope) => {
-    const nextWorks =
-      nextScope === "visible"
-        ? visibleWorks
-        : nextScope === "selected"
-          ? works.filter((work) => selectedIds.has(work.id))
-          : works
-    setSourceWorks(nextWorks)
-    setJson(JSON.stringify(nextWorks.map(toEditableWork), null, 2))
-    setParsedWorks(null)
+  useEffect(() => {
+    if (!open || !sourceDocument) return
+    setJson(JSON.stringify(sourceDocument, null, 2))
+    setReviewed(null)
     setError("")
-  }
+  }, [open, scope, sourceDocument])
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) resetEditor()
-    onOpenChange(nextOpen)
-  }
-
-  const selectScope = (nextScope: JsonScope) => {
-    setScope(nextScope)
-    resetEditor(nextScope)
-  }
+  const changes = useMemo(() => {
+    if (!reviewed || !sourceDocument) return []
+    const originals = new Map(
+      sourceDocument.records.map((record) => [record.work.id, record])
+    )
+    return reviewed.records.flatMap((record) => {
+      const original = originals.get(record.work.id)
+      if (!original) return []
+      const workChanged =
+        JSON.stringify(original.work) !== JSON.stringify(record.work)
+      const structureChanged =
+        JSON.stringify(original.structure) !== JSON.stringify(record.structure)
+      return workChanged || structureChanged
+        ? [{ record, workChanged, structureChanged }]
+        : []
+    })
+  }, [reviewed, sourceDocument])
 
   const review = () => {
     try {
       const raw: unknown = JSON.parse(json)
-      const result = adminWorkUpdateSchema.array().safeParse(raw)
+      const result = completeRecordSchema.safeParse(raw)
       if (!result.success) {
         const issue = result.error.issues[0]
         setError(
-          `${issue.path.length ? issue.path.join(".") + ": " : ""}${issue.message}`
+          `${issue.path.length ? `${issue.path.join(".")}: ` : ""}${issue.message}`
         )
         return
       }
-      const originalIds = sourceWorks.map(({ id }) => id).sort()
-      const nextIds = result.data.map(({ id }) => id).sort()
+      if (!sourceDocument) {
+        setError("The source records have not loaded yet.")
+        return
+      }
+      const originalIds = sourceDocument.records
+        .map(({ work }) => work.id)
+        .sort()
+      const nextIds = result.data.records.map(({ work }) => work.id).sort()
       if (
         new Set(nextIds).size !== nextIds.length ||
         JSON.stringify(originalIds) !== JSON.stringify(nextIds)
       ) {
         setError(
-          "Keep exactly the same work IDs in this scope. Add, remove, and ID changes are blocked in the JSON editor."
+          "Keep exactly the same work IDs in this scope. Add and remove works through the dedicated admin actions."
         )
         return
       }
+      for (const record of result.data.records) {
+        if (record.structure.workId !== record.work.id) {
+          setError(
+            `${record.work.id}: structure.workId must match the work ID.`
+          )
+          return
+        }
+        const original = sourceDocument.records.find(
+          ({ work }) => work.id === record.work.id
+        )
+        if (
+          !original ||
+          JSON.stringify(original.tracking.existing) !==
+            JSON.stringify(record.tracking.existing)
+        ) {
+          setError(
+            `${record.work.id}: tracking.existing is immutable. Add checkpoints through the tracking form.`
+          )
+          return
+        }
+      }
       setError("")
-      setParsedWorks(result.data)
+      setReviewed(result.data)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Invalid JSON")
     }
   }
 
-  const changes = useMemo(() => {
-    if (!parsedWorks) return []
-    const originals = new Map(
-      sourceWorks.map((work) => [work.id, toEditableWork(work)])
-    )
-    return parsedWorks.flatMap((work) => {
-      const original = originals.get(work.id)
-      if (!original) return []
-      const fields = Object.keys(work).filter(
-        (field) =>
-          JSON.stringify(original[field as keyof AdminWorkUpdate]) !==
-          JSON.stringify(work[field as keyof AdminWorkUpdate])
-      )
-      return fields.length ? [{ work, original, fields }] : []
-    })
-  }, [parsedWorks, sourceWorks])
-
   const mutation = useMutation({
-    mutationFn: async (updates: AdminWorkUpdate[]) => {
-      for (const data of updates) await saveWork({ data })
+    mutationFn: async (
+      updates: Array<{
+        record: CompleteRecord
+        workChanged: boolean
+        structureChanged: boolean
+      }>
+    ) => {
+      for (const update of updates) {
+        if (update.workChanged) {
+          await saveWork({ data: update.record.work })
+        }
+        if (update.structureChanged) {
+          await saveWorkStructure({ data: update.record.structure })
+        }
+      }
     },
     onSuccess: async () => {
       await onSaved()
@@ -149,292 +218,186 @@ export function JsonEditorDialog({
     },
   })
 
+  const selectScope = (nextScope: JsonScope) => {
+    setScope(nextScope)
+    setReviewed(null)
+    setError("")
+  }
+
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-5xl h-[85vh] flex flex-col p-0 gap-0 bg-background text-foreground overflow-hidden border-border/60">
-        {/* Header */}
-        <DialogHeader className="p-6 border-b border-border/60 shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4 text-left">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
+        <DialogHeader className="flex shrink-0 flex-col justify-between gap-4 border-b border-l-4 border-l-amber-500 p-5 text-left md:flex-row md:items-center">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg border border-border/80 bg-muted/50 text-foreground">
+            <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/50">
               <BracketsCurlyIcon className="size-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold tracking-tight">
-                Works JSON editor
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                {parsedWorks
-                  ? "Review every field change before the database is updated."
-                  : "Inspect and edit complete work records in a controlled scope."}
+              <DialogTitle>Complete record JSON editor</DialogTitle>
+              <DialogDescription>
+                Edit catalog metadata and structure together. Tracking
+                checkpoints are read-only here and use the dated tracking form.
               </DialogDescription>
             </div>
           </div>
-
-          <div
-            className="flex items-center gap-2 self-start md:self-auto"
-            aria-label="Editor progress"
-          >
-            <span
-              className={cn(
-                "px-2.5 py-1 rounded-full border text-xs font-medium transition-colors",
-                !parsedWorks
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-muted/50 text-muted-foreground border-border/60"
-              )}
-            >
-              1 · Edit JSON
-            </span>
-            <span
-              className={cn(
-                "px-2.5 py-1 rounded-full border text-xs font-medium transition-colors",
-                parsedWorks
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-muted/50 text-muted-foreground border-border/60"
-              )}
-            >
-              2 · Review changes
-            </span>
+          <div className="flex gap-1 font-mono text-[10px]">
+            <Badge variant={reviewed ? "outline" : "default"}>1 · Edit</Badge>
+            <Badge variant={reviewed ? "default" : "outline"}>2 · Review</Badge>
           </div>
         </DialogHeader>
 
-        {/* Content Body */}
-        {parsedWorks ? (
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            <div className="flex items-center justify-between p-4 rounded-lg border border-border/60 bg-muted/20">
+        {reviewed ? (
+          <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            <div className="mb-4 flex items-center justify-between rounded-lg border bg-muted/20 p-4">
               <div>
-                <strong className="text-sm font-semibold block text-foreground">
-                  {changes.length} {changes.length === 1 ? "work" : "works"}{" "}
-                  changed
+                <strong className="block text-sm">
+                  {changes.length} records changed
                 </strong>
                 <span className="text-xs text-muted-foreground">
-                  {changes.reduce(
-                    (total, change) => total + change.fields.length,
-                    0
-                  )}{" "}
-                  field updates · unchanged records will not be saved
+                  Review each database domain before saving.
                 </span>
               </div>
-              <Badge variant="outline" className="font-mono text-xs">
-                {changes.length} pending
-              </Badge>
+              <Badge>{changes.length} pending</Badge>
             </div>
-
             {changes.length ? (
-              <div className="space-y-4">
-                {changes.map(({ work, original, fields }) => (
+              <div className="space-y-3">
+                {changes.map(({ record, workChanged, structureChanged }) => (
                   <section
-                    key={work.id}
-                    className="rounded-lg border border-border/60 bg-card p-4 space-y-4"
+                    key={record.work.id}
+                    className="rounded-lg border bg-card p-4"
                   >
-                    <header className="flex items-center justify-between pb-3 border-b border-border/50">
-                      <strong className="text-sm font-medium">
-                        {work.title}
-                      </strong>
-                      <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono text-muted-foreground">
-                        {work.id}
-                      </code>
-                    </header>
-
-                    <div className="space-y-4">
-                      {fields.map((field) => (
-                        <article key={field} className="space-y-2">
-                          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
-                            {field}
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-xs">
-                            <div className="rounded-md border border-rose-500/20 bg-rose-500/5 p-3 space-y-1">
-                              <span className="text-[10px] font-semibold tracking-wider text-rose-500 uppercase block">
-                                Before
-                              </span>
-                              <pre className="whitespace-pre-wrap break-all text-muted-foreground leading-relaxed">
-                                {displayJsonValue(
-                                  original[field as keyof AdminWorkUpdate]
-                                )}
-                              </pre>
-                            </div>
-                            <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-1">
-                              <span className="text-[10px] font-semibold tracking-wider text-emerald-500 uppercase block">
-                                After
-                              </span>
-                              <pre className="whitespace-pre-wrap break-all text-foreground leading-relaxed">
-                                {displayJsonValue(
-                                  work[field as keyof AdminWorkUpdate]
-                                )}
-                              </pre>
-                            </div>
-                          </div>
-                        </article>
-                      ))}
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <strong className="text-sm">{record.work.title}</strong>
+                        <code className="mt-1 block text-[10px] text-muted-foreground">
+                          {record.work.id}
+                        </code>
+                      </div>
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        {workChanged && <Badge>Work & personal</Badge>}
+                        {structureChanged && (
+                          <Badge variant="secondary">Structure</Badge>
+                        )}
+                      </div>
                     </div>
                   </section>
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center p-12 text-center border border-dashed border-border/80 rounded-lg bg-card/40 space-y-3">
-                <div className="flex size-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
-                  <CheckIcon className="size-6" />
-                </div>
-                <div className="space-y-1">
-                  <strong className="text-base font-semibold block">
-                    No changes found
-                  </strong>
-                  <p className="text-xs text-muted-foreground max-w-sm">
-                    The edited JSON matches the current database values.
-                  </p>
-                </div>
+              <div className="flex flex-col items-center rounded-lg border border-dashed p-12 text-center">
+                <CheckIcon className="mb-3 size-8 text-emerald-500" />
+                <strong>No changes found</strong>
               </div>
             )}
           </div>
         ) : (
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-[240px_1fr] overflow-hidden min-h-0">
-            {/* Sidebar Scope Selector */}
-            <aside className="p-4 border-r border-border/60 bg-muted/20 space-y-4 overflow-y-auto text-xs">
-              <strong className="font-semibold text-foreground block">
-                Records to show
-              </strong>
-              <div className="space-y-1.5">
-                <button
-                  type="button"
-                  onClick={() => selectScope("all")}
-                  className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 rounded-md border text-left transition-colors font-medium",
-                    scope === "all"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-transparent bg-background/50 hover:bg-muted text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <span>All works</span>
-                  <Badge
-                    variant={scope === "all" ? "default" : "secondary"}
-                    className="text-[10px] px-1.5 py-0 h-5"
-                  >
-                    {works.length}
-                  </Badge>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => selectScope("visible")}
-                  className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 rounded-md border text-left transition-colors font-medium",
-                    scope === "visible"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-transparent bg-background/50 hover:bg-muted text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <span>Current results</span>
-                  <Badge
-                    variant={scope === "visible" ? "default" : "secondary"}
-                    className="text-[10px] px-1.5 py-0 h-5"
-                  >
-                    {visibleWorks.length}
-                  </Badge>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => selectScope("selected")}
-                  disabled={!selectedIds.size}
-                  className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 rounded-md border text-left transition-colors font-medium",
-                    scope === "selected"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-transparent bg-background/50 hover:bg-muted text-muted-foreground hover:text-foreground",
-                    !selectedIds.size &&
-                      "opacity-50 cursor-not-allowed hover:bg-background/50"
-                  )}
-                >
-                  <span>Selected works</span>
-                  <Badge
-                    variant={scope === "selected" ? "default" : "secondary"}
-                    className="text-[10px] px-1.5 py-0 h-5"
-                  >
-                    {selectedIds.size}
-                  </Badge>
-                </button>
+          <div className="grid min-h-0 flex-1 md:grid-cols-[250px_1fr]">
+            <aside className="space-y-4 overflow-y-auto border-r bg-muted/20 p-4">
+              <div>
+                <p className="mb-2 text-xs font-semibold">Records to show</p>
+                <div className="space-y-1">
+                  {(
+                    [
+                      ["all", "All works", works.length],
+                      ["visible", "Current results", visibleWorks.length],
+                      ["selected", "Selected works", selectedIds.size],
+                    ] as const
+                  ).map(([value, label, count]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={value === "selected" && !selectedIds.size}
+                      onClick={() => selectScope(value)}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs",
+                        scope === value
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-transparent bg-background hover:border-border",
+                        value === "selected" &&
+                          !selectedIds.size &&
+                          "opacity-40"
+                      )}
+                    >
+                      {label}
+                      <span className="font-mono">{count}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-
-              <p className="p-3 rounded-md bg-muted/50 border border-border/50 text-[11px] text-muted-foreground leading-relaxed">
-                Readonly database fields are omitted. Work IDs and the records
-                in this scope cannot be changed.
-              </p>
+              <div className="space-y-2 rounded-lg border bg-background p-3 text-[11px] leading-5 text-muted-foreground">
+                <strong className="block text-foreground">
+                  Document structure
+                </strong>
+                <code>work</code> — catalog fields and preferences.
+                <br />
+                <code>structure</code> — seasons and atomic units. Keep IDs
+                referenced by tracking.
+                <br />
+                <code>tracking.existing</code> — read-only dated checkpoints.
+              </div>
             </aside>
-
-            {/* Code Textarea Area */}
-            <div className="flex flex-col h-full min-h-0 bg-background">
-              <div className="flex items-center justify-between px-4 py-2 border-b border-border/60 text-xs font-mono text-muted-foreground bg-muted/30 shrink-0">
-                <span>{sourceWorks.length} records</span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-muted border border-border/50">
-                  application/json
-                </span>
+            <div className="flex min-h-0 flex-col">
+              <div className="flex h-9 shrink-0 items-center justify-between border-b bg-muted/20 px-4 font-mono text-[10px] text-muted-foreground">
+                <span>{sourceWorks.length} complete records</span>
+                <span>schemaVersion 1 · application/json</span>
               </div>
-              <textarea
-                value={json}
-                onChange={(event) => setJson(event.target.value)}
-                spellCheck={false}
-                aria-label="Works JSON"
-                className="flex-1 w-full h-full p-4 font-mono text-xs bg-transparent border-0 focus:outline-none resize-none overflow-auto leading-relaxed text-foreground selection:bg-primary/20"
-              />
+              {bundlesQuery.isPending ? (
+                <div className="grid flex-1 place-items-center text-sm text-muted-foreground">
+                  Loading normalized records…
+                </div>
+              ) : (
+                <textarea
+                  value={json}
+                  onChange={(event) => setJson(event.target.value)}
+                  spellCheck={false}
+                  aria-label="Complete records JSON"
+                  className="min-h-0 flex-1 resize-none border-0 bg-transparent p-4 font-mono text-xs leading-5 outline-none"
+                />
+              )}
             </div>
           </div>
         )}
 
-        {/* Errors */}
-        {(error || mutation.error) && (
-          <div className="px-6 py-2 shrink-0 border-t border-border/60 bg-destructive/10">
-            <Alert
-              variant="destructive"
-              className="py-2 border-0 bg-transparent text-xs font-medium"
-            >
+        {(error || mutation.error || bundlesQuery.error) && (
+          <div className="shrink-0 border-t bg-destructive/5 px-5 py-2">
+            <Alert variant="destructive" className="border-0 bg-transparent">
               <AlertDescription>
-                {error || mutation.error?.message}
+                {error ||
+                  mutation.error?.message ||
+                  bundlesQuery.error?.message}
               </AlertDescription>
             </Alert>
           </div>
         )}
 
-        {/* Footer */}
-        <DialogFooter className="p-4 border-t border-border/60 bg-background shrink-0 flex flex-row items-center justify-end gap-2">
-          {parsedWorks ? (
+        <DialogFooter className="flex-row justify-end border-t p-4">
+          {reviewed ? (
             <>
               <Button
-                type="button"
                 variant="outline"
-                size="sm"
-                onClick={() => setParsedWorks(null)}
+                onClick={() => setReviewed(null)}
                 disabled={mutation.isPending}
               >
                 Back to editor
               </Button>
               <Button
-                type="button"
-                size="sm"
-                onClick={() =>
-                  mutation.mutate(changes.map(({ work }) => work))
-                }
+                onClick={() => mutation.mutate(changes)}
                 disabled={!changes.length || mutation.isPending}
               >
-                <FloppyDiskIcon className="size-4 mr-1.5" />
+                <FloppyDiskIcon />
                 {mutation.isPending
                   ? "Saving…"
-                  : `Save ${changes.length} changed ${changes.length === 1 ? "work" : "works"}`}
+                  : `Save ${changes.length} records`}
               </Button>
             </>
           ) : (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => onOpenChange(false)}
-              >
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
               <Button
-                type="button"
-                size="sm"
                 onClick={review}
-                disabled={!sourceWorks.length}
+                disabled={!sourceDocument || bundlesQuery.isPending}
               >
                 Review changes
               </Button>

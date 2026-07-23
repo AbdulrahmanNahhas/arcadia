@@ -1,10 +1,5 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-  type FormEvent,
-} from "react"
+import { useEffect, useMemo, useState } from "react"
+import type { CSSProperties } from "react"
 import { Link } from "@tanstack/react-router"
 import {
   useMutation,
@@ -40,15 +35,7 @@ import {
   MinusIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,7 +50,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -88,7 +74,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { addWork, getWorks, setWorkFavorite } from "@/server/library.functions"
+import {
+  addSavedView,
+  getSavedViews,
+  getWorks,
+  removeSavedView,
+  setWorkFavorite,
+} from "@/server/library.functions"
 import { cn } from "@/lib/utils"
 import { AdvancedFilter } from "./filter-sheet"
 import {
@@ -98,11 +90,19 @@ import {
   kindLabels,
   normalizeFacetFilters,
   workMatchesFilters,
-  type FacetFilters,
-  type WorkFilterState,
 } from "./filtering"
-import { workKinds, type Work, type WorkKind } from "./model"
+import type { FacetFilters, WorkFilterState } from "./filtering"
+import type { Work, WorkKind } from "./model"
 import { Badge } from "@/components/ui/badge"
+import { AddWorkDialog as LibraryAddWorkDialog } from "./components/add-work-dialog"
+import { EmptyState as LibraryEmptyState } from "./components/empty-state"
+import { Gallery as LibraryGallery } from "./components/gallery"
+import { Inspector as LibraryInspector } from "./components/inspector"
+import { Statistics as LibraryStatistics } from "./components/statistics"
+import { Timeline as LibraryTimeline } from "./components/timeline"
+import { WorkTable as LibraryWorkTable } from "./components/work-table"
+import { WorkArtwork } from "./components/work-artwork"
+import { WorkDetailDialog as LibraryWorkDetailDialog } from "./components/work-detail-dialog"
 
 type Layout = "gallery" | "table" | "timeline" | "statistics"
 type SavedView = "all" | "progress" | "favorites" | "recent"
@@ -132,6 +132,10 @@ type SavedUserView = {
   cardSize: number
   gallery: GalleryOptions
   facets?: FacetFilters
+  sortDirection: "asc" | "desc"
+  search: string
+  visibleColumns: string[]
+  isPinned: boolean
 }
 
 const defaultGalleryOptions: GalleryOptions = {
@@ -195,6 +199,10 @@ export function LibraryApp() {
     queryKey: ["works"],
     queryFn: () => getWorks(),
   })
+  const { data: savedViews } = useSuspenseQuery({
+    queryKey: ["saved-views"],
+    queryFn: () => getSavedViews(),
+  })
   const [search, setSearch] = useState("")
   const [activeView, setActiveView] = useState<SavedView>("all")
   const [layout, setLayout] = useState<Layout>("gallery")
@@ -227,7 +235,6 @@ export function LibraryApp() {
     "rating",
   ])
   const [timelineNewestFirst, setTimelineNewestFirst] = useState(true)
-  const [savedViews, setSavedViews] = useState<SavedUserView[]>([])
   const [activeSavedViewId, setActiveSavedViewId] = useState<string | null>(
     null
   )
@@ -250,10 +257,6 @@ export function LibraryApp() {
     )
     setFocusMode(window.localStorage.getItem("arcadia:focus-mode") === "true")
     try {
-      const storedViews = JSON.parse(
-        window.localStorage.getItem("arcadia:saved-views") ?? "[]"
-      ) as SavedUserView[]
-      setSavedViews(storedViews)
       const storedGallery = JSON.parse(
         window.localStorage.getItem("arcadia:gallery-options") ?? "null"
       ) as GalleryOptions | null
@@ -384,7 +387,7 @@ export function LibraryApp() {
   const facetOptions = useMemo(() => buildFacetOptions(works), [works])
 
   const selectedWork =
-    works.find((work) => work.id === selectedId) ?? filteredWorks[0] ?? null
+    works.find((work) => work.id === selectedId) ?? filteredWorks.at(0) ?? null
 
   const activeSavedView = savedViews.find(
     (view) => view.id === activeSavedViewId
@@ -431,11 +434,11 @@ export function LibraryApp() {
   }
 
   function saveCurrentView(name: string) {
-    const next: SavedUserView = {
-      id: crypto.randomUUID(),
+    const next: Omit<SavedUserView, "id"> = {
       name,
       layout,
       sort,
+      sortDirection: sort === "title" ? "asc" : "desc",
       kinds: kindFilter,
       excludedKinds: excludedKindFilter,
       statuses: statusFilter,
@@ -447,10 +450,11 @@ export function LibraryApp() {
       cardSize,
       gallery: galleryOptions,
       facets: facetFilters,
+      search,
+      visibleColumns: tableColumns,
+      isPinned: false,
     }
-    const updated = [...savedViews, next]
-    setSavedViews(updated)
-    window.localStorage.setItem("arcadia:saved-views", JSON.stringify(updated))
+    savedViewMutation.mutate({ data: next })
   }
 
   function applySavedView(view: SavedUserView) {
@@ -470,13 +474,12 @@ export function LibraryApp() {
     setFacetFilters(normalizeFacetFilters(view.facets))
     setActiveView("all")
     setActiveCollection(null)
-    setSearch("")
+    setSearch(view.search)
+    setTableColumns(view.visibleColumns)
   }
 
   function deleteSavedView(id: string) {
-    const updated = savedViews.filter((view) => view.id !== id)
-    setSavedViews(updated)
-    window.localStorage.setItem("arcadia:saved-views", JSON.stringify(updated))
+    deleteSavedViewMutation.mutate({ data: { id } })
     if (activeSavedViewId === id) setActiveSavedViewId(null)
   }
 
@@ -503,62 +506,89 @@ export function LibraryApp() {
       queryClient.invalidateQueries({ queryKey: ["works"] }),
   })
 
+  const savedViewMutation = useMutation({
+    mutationFn: addSavedView,
+    onSuccess: async () =>
+      queryClient.invalidateQueries({ queryKey: ["saved-views"] }),
+  })
+
+  const deleteSavedViewMutation = useMutation({
+    mutationFn: removeSavedView,
+    onSuccess: async () =>
+      queryClient.invalidateQueries({ queryKey: ["saved-views"] }),
+  })
+
   async function handleCreated() {
     await queryClient.invalidateQueries({ queryKey: ["works"] })
   }
 
   return (
-      <SidebarProvider
-        className={cn("min-h-screen bg-background font-sans antialiased", focusMode && "focus-mode")}
-        style={
-          {
-            "--sidebar-width": "248px",
-            "--sidebar-width-icon": "56px",
-          } as CSSProperties
-        }
-        open={sidebarOpen}
-        onOpenChange={changeSidebarOpen}
-      >
-        {/* --- SIDEBAR --- */}
-        {!focusMode && (
-          <AppSidebar
-            activeView={activeView}
-            activeCollection={activeCollection}
-            total={works.length}
-            savedViews={savedViews}
-            activeSavedViewId={activeSavedViewId}
-            onViewChange={chooseView}
-            onCollectionChange={chooseCollection}
-            onSavedViewChange={applySavedView}
-            onSavedViewDelete={deleteSavedView}
-          />
-        )}
+    <SidebarProvider
+      className={cn(
+        "min-h-screen bg-background font-sans antialiased",
+        focusMode && "focus-mode"
+      )}
+      style={
+        {
+          "--sidebar-width": "248px",
+          "--sidebar-width-icon": "56px",
+        } as CSSProperties
+      }
+      open={sidebarOpen}
+      onOpenChange={changeSidebarOpen}
+    >
+      {/* --- SIDEBAR --- */}
+      {!focusMode && (
+        <AppSidebar
+          activeView={activeView}
+          activeCollection={activeCollection}
+          total={works.length}
+          savedViews={savedViews}
+          activeSavedViewId={activeSavedViewId}
+          onViewChange={chooseView}
+          onCollectionChange={chooseCollection}
+          onSavedViewChange={applySavedView}
+          onSavedViewDelete={deleteSavedView}
+        />
+      )}
 
-        {/* --- MAIN WORKSPACE INSET --- */}
-        <SidebarInset className="flex flex-col flex-1 h-screen overflow-hidden bg-background">
-
-          {/* --- STICKY UNIFIED HEADER --- */}
-          <header className="flex flex-col border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
+      {/* --- MAIN WORKSPACE INSET --- */}
+      <SidebarInset className="flex h-screen flex-1 flex-col overflow-hidden bg-background">
+        {/* --- STICKY UNIFIED HEADER --- */}
+        <header className="z-10 flex flex-col border-b border-border/60 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
           {/* Level 1: Breadcrumbs & App Status Bar */}
           {!focusMode && (
-            <div className="flex h-12 items-center justify-between px-4 border-b border-border/40 text-xs">
+            <div className="flex h-12 items-center justify-between gap-1 border-b border-border/40 px-4 text-xs">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <SidebarTrigger className="-ml-1 h-7 w-7" />
                 <div className="flex items-center gap-1.5 font-medium">
                   <span>Library</span>
                   <span className="text-muted-foreground/40">/</span>
-                  <span className="text-foreground font-semibold">{displayTitle}</span>
+                  <span className="font-semibold text-foreground">
+                    {displayTitle}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium text-[11px]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  local · WAL
-                </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  nativeButton={false}
+                  className="h-7 text-xs"
+                  render={<Link to="/feed">Feed</Link>}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  nativeButton={false}
+                  className="h-7 text-xs"
+                  render={<Link to="/admin">Admin</Link>}
+                />
 
-                  <Tooltip>
-                    <TooltipTrigger render={
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
                       <Button
                         variant="ghost"
                         size="icon"
@@ -566,297 +596,323 @@ export function LibraryApp() {
                         onClick={toggleTheme}
                         aria-label={`Use ${theme === "light" ? "dark" : "light"} mode`}
                       >
-                        {theme === "light" ? <MoonIcon className="h-3.5 w-3.5" /> : <SunIcon className="h-3.5 w-3.5" />}
+                        {theme === "light" ? (
+                          <MoonIcon className="h-3.5 w-3.5" />
+                        ) : (
+                          <SunIcon className="h-3.5 w-3.5" />
+                        )}
                       </Button>
-                    }/>
-                    <TooltipContent>
-                      {theme === "light" ? "Dark mode" : "Light mode"}
-                    </TooltipContent>
-                  </Tooltip>
-
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[10px] border border-primary/20">
-                  AV
-                </div>
+                    }
+                  />
+                  <TooltipContent>
+                    {theme === "light" ? "Dark mode" : "Light mode"}
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
           )}
 
-            {/* Level 2: Layout Switcher, Search Bar & Actions */}
-            <div className="flex items-center justify-between gap-3 p-3 border-b border-border/40">
-              {/* Layout Segmented Control */}
-              <div className="flex items-center bg-muted/60 p-1 rounded-lg border border-border/50">
-                {layoutItems.map((item) => {
-                  const Icon = item.icon
-                  const isActive = layout === item.id
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setLayout(item.id)}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all",
-                        isActive
-                          ? "bg-background text-foreground shadow-sm font-semibold"
-                          : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      {item.label}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Global Search */}
-              <div className="relative flex-1 max-w-md">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search titles, tags, people…"
-                  aria-label="Search library"
-                  className="pl-9 pr-8 h-8 text-xs bg-muted/30 border-border/60 focus-visible:bg-background transition-colors"
-                />
-                {search && (
+          {/* Level 2: Layout Switcher, Search Bar & Actions */}
+          <div className="flex items-center justify-between gap-3 border-b border-border/40 p-3">
+            {/* Layout Segmented Control */}
+            <div className="flex items-center rounded-lg border border-border/50 bg-muted/60 p-1">
+              {layoutItems.map((item) => {
+                const Icon = item.icon
+                const isActive = layout === item.id
+                return (
                   <button
+                    key={item.id}
                     type="button"
-                    onClick={() => setSearch("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-sm"
-                    aria-label="Clear search"
+                    onClick={() => setLayout(item.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all",
+                      isActive
+                        ? "bg-background font-semibold text-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-background/40 hover:text-foreground"
+                    )}
                   >
-                    <XIcon className="h-3 w-3" />
+                    <Icon className="h-3.5 w-3.5" />
+                    {item.label}
                   </button>
-                )}
-              </div>
-
-              {/* View Actions Toolbar */}
-              <div className="flex items-center gap-1.5">
-                <AddWorkDialog onCreated={handleCreated} />
-
-                <ViewSettings
-                  layout={layout}
-                  gallery={galleryOptions}
-                  onGalleryChange={changeGalleryOptions}
-                  cardSize={cardSize}
-                  onCardSizeChange={changeCardSize}
-                  tableColumns={tableColumns}
-                  onTableColumnsChange={setTableColumns}
-                  timelineNewestFirst={timelineNewestFirst}
-                  onTimelineOrderChange={setTimelineNewestFirst}
-                />
-
-                  <Tooltip>
-                    <TooltipTrigger render={
-
-                      <Button
-                        variant={inspectorOpen ? "secondary" : "ghost"}
-                        size="icon"
-                        className="h-8 w-8"
-                        aria-label="Toggle inspector"
-                        onClick={() => setInspectorOpen((value) => !value)}
-                      >
-                        <RowsIcon className="h-4 w-4" />
-                      </Button>
-                    }/>
-                    <TooltipContent>Toggle details</TooltipContent>
-                  </Tooltip>
-
-                  {!focusMode && (
-                    <Tooltip>
-                      <TooltipTrigger render={
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => changeFocusMode(true)}
-                          aria-label="Expand view"
-                        >
-                          <CornersOutIcon className="h-4 w-4" />
-                        </Button>
-                      }/>
-                      <TooltipContent>Focus canvas</TooltipContent>
-                    </Tooltip>
-                  )}
-              </div>
+                )
+              })}
             </div>
 
-            {/* Level 3: Filters, Sort Dropdown & Active Badges */}
-            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs bg-muted/20">
-              <div className="flex flex-wrap items-center gap-2 flex-1">
-                <AdvancedFilter
-                  filters={filterState}
-                  facetOptions={facetOptions}
-                  onChange={changeFilters}
-                  matchingCount={filteredWorks.length}
-                />
+            {/* Global Search */}
+            <div className="relative max-w-md flex-1">
+              <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search titles, tags, people…"
+                aria-label="Search library"
+                className="h-8 border-border/60 bg-muted/30 pr-8 pl-9 text-xs transition-colors focus-visible:bg-background"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <XIcon className="h-3 w-3" />
+                </button>
+              )}
+            </div>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger render={
-                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 font-normal border-border/60">
-                      <ArrowsDownUpIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                      Sort: <span className="font-medium capitalize">{sort}</span>
+            {/* View Actions Toolbar */}
+            <div className="flex items-center gap-1.5">
+              <LibraryAddWorkDialog onCreated={handleCreated} />
+
+              <ViewSettings
+                layout={layout}
+                gallery={galleryOptions}
+                onGalleryChange={changeGalleryOptions}
+                cardSize={cardSize}
+                onCardSizeChange={changeCardSize}
+                tableColumns={tableColumns}
+                onTableColumnsChange={setTableColumns}
+                timelineNewestFirst={timelineNewestFirst}
+                onTimelineOrderChange={setTimelineNewestFirst}
+              />
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant={inspectorOpen ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-8 w-8"
+                      aria-label="Toggle inspector"
+                      onClick={() => setInspectorOpen((value) => !value)}
+                    >
+                      <RowsIcon className="h-4 w-4" />
                     </Button>
-                  }/>
-                  <DropdownMenuContent align="start" className="w-48">
-                    <DropdownMenuGroup>
-                      <DropdownMenuLabel className="text-xs">Sort works by</DropdownMenuLabel>
-                      {(["title", "rating", "recent", "year"] as const).map((option) => (
+                  }
+                />
+                <TooltipContent>Toggle details</TooltipContent>
+              </Tooltip>
+
+              {!focusMode && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => changeFocusMode(true)}
+                        aria-label="Expand view"
+                      >
+                        <CornersOutIcon className="h-4 w-4" />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>Focus canvas</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </div>
+
+          {/* Level 3: Filters, Sort Dropdown & Active Badges */}
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-muted/20 px-3 py-2 text-xs">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <AdvancedFilter
+                filters={filterState}
+                facetOptions={facetOptions}
+                onChange={changeFilters}
+                matchingCount={filteredWorks.length}
+              />
+
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 border-border/60 text-xs font-normal"
+                    >
+                      <ArrowsDownUpIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                      Sort:{" "}
+                      <span className="font-medium capitalize">{sort}</span>
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="text-xs">
+                      Sort works by
+                    </DropdownMenuLabel>
+                    {(["title", "rating", "recent", "year"] as const).map(
+                      (option) => (
                         <DropdownMenuItem
                           key={option}
                           onClick={() => setSort(option)}
-                          className="text-xs justify-between"
+                          className="justify-between text-xs"
                         >
                           <span className="capitalize">{option}</span>
-                          {sort === option && <CheckIcon className="h-3.5 w-3.5 text-primary" />}
+                          {sort === option && (
+                            <CheckIcon className="h-3.5 w-3.5 text-primary" />
+                          )}
                         </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      )
+                    )}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-                {layout === "gallery" && (
-                  <CardSizeControl value={cardSize} onChange={changeCardSize} />
-                )}
+              {layout === "gallery" && (
+                <CardSizeControl value={cardSize} onChange={changeCardSize} />
+              )}
 
-                <SavedViewsControl
-                  views={savedViews}
-                  onSave={saveCurrentView}
-                  onApply={applySavedView}
-                  onDelete={deleteSavedView}
-                />
+              <SavedViewsControl
+                views={savedViews}
+                onSave={saveCurrentView}
+                onApply={applySavedView}
+                onDelete={deleteSavedView}
+              />
 
-                {/* Active Filter Badges */}
-                {(kindFilter.length > 0 || excludedKindFilter.length > 0) && (
-                  <div className="flex flex-wrap items-center gap-1.5 ml-1 border-l border-border/60 pl-2">
-                    {kindFilter.map((kind) => (
-                      <Badge
-                        key={kind}
-                        variant="secondary"
-                        className="gap-1 pr-1 font-normal text-xs transition-colors hover:bg-secondary/80"
+              {/* Active Filter Badges */}
+              {(kindFilter.length > 0 || excludedKindFilter.length > 0) && (
+                <div className="ml-1 flex flex-wrap items-center gap-1.5 border-l border-border/60 pl-2">
+                  {kindFilter.map((kind) => (
+                    <Badge
+                      key={kind}
+                      variant="secondary"
+                      className="gap-1 pr-1 text-xs font-normal transition-colors hover:bg-secondary/80"
+                    >
+                      {kindLabels[kind]}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setKindFilter((items) =>
+                            items.filter((item) => item !== kind)
+                          )
+                        }
+                        className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                       >
-                        {kindLabels[kind]}
-                        <button
-                          type="button"
-                          onClick={() => setKindFilter((items) => items.filter((item) => item !== kind))}
-                          className="rounded-full p-0.5 hover:bg-muted text-muted-foreground hover:text-foreground"
-                        >
-                          <XIcon className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
+                        <XIcon className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
 
-                    {excludedKindFilter.map((kind) => (
-                      <Badge
-                        key={`not-${kind}`}
-                        variant="outline"
-                        className="gap-1 pr-1 font-normal text-xs bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20"
+                  {excludedKindFilter.map((kind) => (
+                    <Badge
+                      key={`not-${kind}`}
+                      variant="outline"
+                      className="gap-1 border-destructive/20 bg-destructive/10 pr-1 text-xs font-normal text-destructive hover:bg-destructive/20"
+                    >
+                      not {kindLabels[kind]}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExcludedKindFilter((items) =>
+                            items.filter((item) => item !== kind)
+                          )
+                        }
+                        className="rounded-full p-0.5 hover:bg-destructive/20"
                       >
-                        not {kindLabels[kind]}
-                        <button
-                          type="button"
-                          onClick={() => setExcludedKindFilter((items) => items.filter((item) => item !== kind))}
-                          className="rounded-full p-0.5 hover:bg-destructive/20"
-                        >
-                          <XIcon className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Results Count & Focus Exit Action */}
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="text-muted-foreground text-xs font-mono">
-                  {filteredWorks.length} {filteredWorks.length === 1 ? "item" : "items"}
-                </span>
-
-                {focusMode && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs gap-1.5 border-border/60"
-                    onClick={() => changeFocusMode(false)}
-                  >
-                    <CornersInIcon className="h-3.5 w-3.5" /> Exit focus
-                  </Button>
-                )}
-              </div>
+                        <XIcon className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
-          </header>
 
-          {/* --- MAIN CONTENT & INSPECTOR --- */}
-          <div className="flex flex-1 overflow-hidden relative z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <main className="flex-1 overflow-y-auto p-4 md:p-6">
-              <div className="mx-auto max-w-7xl">
-                {filteredWorks.length === 0 ? (
-                  <EmptyState
-                    clear={() => {
-                      setSearch("")
-                      setKindFilter([])
-                      setExcludedKindFilter([])
-                      setStatusFilter([])
-                      setExcludedStatusFilter([])
-                      setFacetFilters(createEmptyFacetFilters())
-                      setActiveView("all")
-                    }}
-                  />
-                ) : layout === "gallery" ? (
-                  <Gallery
-                    works={filteredWorks}
-                    selectedId={selectedWork?.id ?? null}
-                    onSelect={setSelectedId}
-                    onOpen={openWork}
-                    cardSize={cardSize}
-                    options={galleryOptions}
-                  />
-                ) : layout === "table" ? (
-                  <WorkTable
-                    works={filteredWorks}
-                    selectedId={selectedWork?.id ?? null}
-                    onOpen={openWork}
-                    columns={tableColumns}
-                  />
-                ) : layout === "timeline" ? (
-                  <Timeline
-                    works={filteredWorks}
-                    onOpen={openWork}
-                    newestFirst={timelineNewestFirst}
-                  />
-                ) : (
-                  <Statistics works={filteredWorks} />
-                )}
-              </div>
-            </main>
+            {/* Results Count & Focus Exit Action */}
+            <div className="flex shrink-0 items-center gap-3">
+              <span className="font-mono text-xs text-muted-foreground">
+                {filteredWorks.length}{" "}
+                {filteredWorks.length === 1 ? "item" : "items"}
+              </span>
 
-            {/* Inspector Panel Drawer */}
-            {inspectorOpen && selectedWork && (
-              <aside className="w-80 border-l border-border/60 bg-card/60 backdrop-blur-sm overflow-y-auto shrink-0 shadow-sm transition-all animate-in slide-in-from-right-5 duration-200">
-                <Inspector
-                  work={selectedWork}
-                  close={() => setInspectorOpen(false)}
-                  open={() => openWork(selectedWork.id)}
-                />
-              </aside>
-            )}
+              {focusMode && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5 border-border/60 text-xs"
+                  onClick={() => changeFocusMode(false)}
+                >
+                  <CornersInIcon className="h-3.5 w-3.5" /> Exit focus
+                </Button>
+              )}
+            </div>
           </div>
+        </header>
 
-          {/* --- WORK DETAIL DIALOG --- */}
-          <WorkDetailDialog
-            work={selectedWork}
-            open={detailOpen}
-            onOpenChange={changeDetailOpen}
-            toggleFavorite={(work) =>
-              favoriteMutation.mutate({
-                data: { workId: work.id, favorite: !work.favorite },
-              })
-            }
-            favoritePending={favoriteMutation.isPending}
-            openRelated={openWork}
-          />
-        </SidebarInset>
-      </SidebarProvider>
-    )
+        {/* --- MAIN CONTENT & INSPECTOR --- */}
+        <div className="relative z-10 flex flex-1 overflow-hidden bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+            <div className="mx-auto max-w-7xl">
+              {filteredWorks.length === 0 ? (
+                <LibraryEmptyState
+                  clear={() => {
+                    setSearch("")
+                    setKindFilter([])
+                    setExcludedKindFilter([])
+                    setStatusFilter([])
+                    setExcludedStatusFilter([])
+                    setFacetFilters(createEmptyFacetFilters())
+                    setActiveView("all")
+                  }}
+                />
+              ) : layout === "gallery" ? (
+                <LibraryGallery
+                  works={filteredWorks}
+                  selectedId={selectedWork?.id ?? null}
+                  onSelect={setSelectedId}
+                  onOpen={openWork}
+                  cardSize={cardSize}
+                  options={galleryOptions}
+                />
+              ) : layout === "table" ? (
+                <LibraryWorkTable
+                  works={filteredWorks}
+                  selectedId={selectedWork?.id ?? null}
+                  onOpen={openWork}
+                  columns={tableColumns}
+                />
+              ) : layout === "timeline" ? (
+                <LibraryTimeline
+                  works={filteredWorks}
+                  onOpen={openWork}
+                  newestFirst={timelineNewestFirst}
+                />
+              ) : (
+                <LibraryStatistics works={filteredWorks} />
+              )}
+            </div>
+          </main>
+
+          {/* Inspector Panel Drawer */}
+          {inspectorOpen && selectedWork && (
+            <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-border/60 bg-card/60 shadow-sm backdrop-blur-sm lg:block">
+              <LibraryInspector
+                work={selectedWork}
+                close={() => setInspectorOpen(false)}
+                open={() => openWork(selectedWork.id)}
+              />
+            </aside>
+          )}
+        </div>
+
+        {/* --- WORK DETAIL DIALOG --- */}
+        <LibraryWorkDetailDialog
+          work={selectedWork}
+          open={detailOpen}
+          onOpenChange={changeDetailOpen}
+          toggleFavorite={(work) =>
+            favoriteMutation.mutate({
+              data: { workId: work.id, favorite: !work.favorite },
+            })
+          }
+          favoritePending={favoriteMutation.isPending}
+          openRelated={openWork}
+        />
+      </SidebarInset>
+    </SidebarProvider>
+  )
 }
 
 function AppSidebar({
@@ -895,8 +951,12 @@ function AppSidebar({
                 <BooksIcon className="size-4" weight="duotone" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold text-sidebar-foreground">Arcadia</span>
-                <span className="truncate text-xs text-muted-foreground">Local Library</span>
+                <span className="truncate font-semibold text-sidebar-foreground">
+                  Arcadia
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  Local Library
+                </span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -964,7 +1024,7 @@ function AppSidebar({
 
         {/* Saved Views */}
         <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center justify-between w-full">
+          <SidebarGroupLabel className="flex w-full items-center justify-between">
             <span>Saved views</span>
             {savedViews.length > 0 && (
               <span className="ml-auto font-mono text-[10px] text-sidebar-foreground/60">
@@ -976,7 +1036,10 @@ function AppSidebar({
             {savedViews.length > 0 ? (
               <SidebarMenu>
                 {savedViews.map((view) => (
-                  <SidebarMenuItem key={view.id} className="group/item relative">
+                  <SidebarMenuItem
+                    key={view.id}
+                    className="group/item relative"
+                  >
                     <SidebarMenuButton
                       type="button"
                       tooltip={view.name}
@@ -986,13 +1049,15 @@ function AppSidebar({
                     >
                       <BookmarkSimpleIcon
                         className="h-4 w-4"
-                        weight={activeSavedViewId === view.id ? "fill" : "regular"}
+                        weight={
+                          activeSavedViewId === view.id ? "fill" : "regular"
+                        }
                       />
                       <span className="truncate">{view.name}</span>
                     </SidebarMenuButton>
                     <button
                       type="button"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 rounded-md flex items-center justify-center text-sidebar-foreground/50 opacity-0 group-hover/item:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all group-data-[collapsible=icon]:hidden"
+                      className="absolute top-1/2 right-1 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-sidebar-foreground/50 opacity-0 transition-all group-hover/item:opacity-100 group-data-[collapsible=icon]:hidden hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => onSavedViewDelete(view.id)}
                       aria-label={`Delete ${view.name}`}
                     >
@@ -1002,7 +1067,7 @@ function AppSidebar({
                 ))}
               </SidebarMenu>
             ) : (
-              <p className="px-2 py-1.5 text-xs text-sidebar-foreground/50 leading-relaxed group-data-[collapsible=icon]:hidden">
+              <p className="px-2 py-1.5 text-xs leading-relaxed text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
                 Save a filtered layout and it will stay one click away here.
               </p>
             )}
@@ -1039,21 +1104,27 @@ function CardSizeControl({
 }) {
   return (
     <Popover>
-      <PopoverTrigger render={
-        <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 border-border/60">
-          <GridFourIcon className="h-3.5 w-3.5 text-muted-foreground" />
-          Size
-        </Button>
-      }/>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 border-border/60 text-xs"
+          >
+            <GridFourIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            Size
+          </Button>
+        }
+      />
       <PopoverContent align="start" className="w-64 p-4">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <span className="text-sm font-medium">Gallery card size</span>
-          <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
+          <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
             {value}px
           </span>
         </div>
 
-        <div className="flex items-center gap-3 mb-4">
+        <div className="mb-4 flex items-center gap-3">
           <Button
             variant="outline"
             size="icon"
@@ -1070,7 +1141,13 @@ function CardSizeControl({
             max={220}
             step={2}
             className="flex-1 cursor-grab active:cursor-grabbing"
-            onValueChange={(nextValue) => onChange(nextValue[0] ?? value)}
+            onValueChange={(nextValue) =>
+              onChange(
+                typeof nextValue === "number"
+                  ? nextValue
+                  : (nextValue[0] ?? value)
+              )
+            }
           />
 
           <Button
@@ -1131,127 +1208,152 @@ function ViewSettings({
       >
         <FadersHorizontalIcon />
       </PopoverTrigger>
-      <PopoverContent align="end" className="view-settings-popover">
-        <div className="view-settings-head">
-          <strong>{layout} settings</strong>
-          <span>Saved with custom views</span>
+      <PopoverContent align="end" className="w-80 overflow-hidden p-0">
+        <div className="border-b bg-muted/30 px-4 py-3">
+          <strong className="block text-sm font-semibold capitalize">
+            {layout} settings
+          </strong>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            Saved with custom views
+          </span>
         </div>
-        {layout === "gallery" ? (
-          <>
-            <div className="setting-block">
-              <label>Card content</label>
-              <div className="segmented-control">
-                {(["cover", "title", "full"] as const).map((mode) => (
+        <div className="space-y-5 p-4">
+          {layout === "gallery" ? (
+            <>
+              <div className="space-y-2">
+                <label className="text-xs font-medium">Card content</label>
+                <div className="grid grid-cols-3 rounded-lg bg-muted p-1">
+                  {(["cover", "title", "full"] as const).map((mode) => (
+                    <button
+                      type="button"
+                      key={mode}
+                      className={cn(
+                        "rounded-md px-2 py-1.5 text-[11px] text-muted-foreground transition",
+                        gallery.mode === mode &&
+                          "bg-background font-medium text-foreground shadow-sm"
+                      )}
+                      onClick={() => onGalleryChange({ ...gallery, mode })}
+                    >
+                      {mode === "cover"
+                        ? "Cover only"
+                        : mode === "title"
+                          ? "Cover + title"
+                          : "Full"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium">Artwork</label>
+                <div className="grid grid-cols-2 rounded-lg bg-muted p-1">
                   <button
                     type="button"
-                    key={mode}
-                    className={cn(gallery.mode === mode && "active")}
-                    onClick={() => onGalleryChange({ ...gallery, mode })}
+                    className={cn(
+                      "rounded-md px-3 py-1.5 text-xs text-muted-foreground transition",
+                      gallery.imageType === "poster" &&
+                        "bg-background font-medium text-foreground shadow-sm"
+                    )}
+                    onClick={() =>
+                      onGalleryChange({ ...gallery, imageType: "poster" })
+                    }
                   >
-                    {mode === "cover"
-                      ? "Cover only"
-                      : mode === "title"
-                        ? "Cover + title"
-                        : "Full"}
+                    Poster
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    className={cn(
+                      "rounded-md px-3 py-1.5 text-xs text-muted-foreground transition",
+                      gallery.imageType === "logo" &&
+                        "bg-background font-medium text-foreground shadow-sm"
+                    )}
+                    onClick={() =>
+                      onGalleryChange({ ...gallery, imageType: "logo" })
+                    }
+                  >
+                    Logo
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="setting-block">
-              <label>Cover shape</label>
-              <div className="segmented-control">
-                <button
-                  type="button"
-                  className={cn(gallery.imageType === "poster" && "active")}
-                  onClick={() =>
-                    onGalleryChange({ ...gallery, imageType: "poster" })
+              <label className="flex items-center justify-between gap-3 text-xs">
+                <span className="font-medium">Type badge</span>
+                <Switch
+                  checked={gallery.showType}
+                  onCheckedChange={(showType) =>
+                    onGalleryChange({ ...gallery, showType })
                   }
-                >
-                  Poster
-                </button>
-                <button
-                  type="button"
-                  className={cn(gallery.imageType === "logo" && "active")}
-                  onClick={() =>
-                    onGalleryChange({ ...gallery, imageType: "logo" })
-                  }
-                >
-                  Logo
-                </button>
-              </div>
-            </div>
-            <label className="setting-switch">
-              <span>Type badge</span>
-              <Switch
-                checked={gallery.showType}
-                onCheckedChange={(showType) =>
-                  onGalleryChange({ ...gallery, showType })
-                }
-              />
-            </label>
-            <label className="setting-switch">
-              <span>Rating badge</span>
-              <Switch
-                checked={gallery.showRating}
-                onCheckedChange={(showRating) =>
-                  onGalleryChange({ ...gallery, showRating })
-                }
-              />
-            </label>
-            <div className="setting-block">
-              <label>
-                Card size <em>{cardSize}px</em>
+                />
               </label>
-              <Slider
-                value={cardSize}
-                min={110}
-                max={220}
-                step={2}
-                onValueChange={(value) =>
-                  onCardSizeChange(
-                    Array.isArray(value) ? (value[0] ?? cardSize) : value
+              <label className="flex items-center justify-between gap-3 text-xs">
+                <span className="font-medium">Rating badge</span>
+                <Switch
+                  checked={gallery.showRating}
+                  onCheckedChange={(showRating) =>
+                    onGalleryChange({ ...gallery, showRating })
+                  }
+                />
+              </label>
+              <div className="space-y-3 border-t pt-4">
+                <label className="flex items-center justify-between text-xs font-medium">
+                  Card size{" "}
+                  <em className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground not-italic">
+                    {cardSize}px
+                  </em>
+                </label>
+                <Slider
+                  value={cardSize}
+                  min={110}
+                  max={220}
+                  step={2}
+                  onValueChange={(value) =>
+                    onCardSizeChange(
+                      typeof value === "number" ? value : (value[0] ?? cardSize)
+                    )
+                  }
+                />
+              </div>
+            </>
+          ) : null}
+          {layout === "table" ? (
+            <div className="space-y-3">
+              <label className="text-xs font-medium">Visible columns</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {["type", "year", "status", "genres", "progress", "rating"].map(
+                  (column) => (
+                    <button
+                      type="button"
+                      key={column}
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs text-muted-foreground capitalize transition hover:bg-accent/40",
+                        tableColumns.includes(column) &&
+                          "border-primary/30 bg-primary/5 font-medium text-foreground"
+                      )}
+                      onClick={() => toggleColumn(column)}
+                    >
+                      <i className="flex size-4 items-center justify-center rounded border bg-background">
+                        {tableColumns.includes(column) ? <CheckIcon /> : null}
+                      </i>
+                      <span>{column}</span>
+                    </button>
                   )
-                }
+                )}
+              </div>
+            </div>
+          ) : null}
+          {layout === "timeline" ? (
+            <label className="flex items-center justify-between gap-3 text-xs">
+              <span className="font-medium">Newest years first</span>
+              <Switch
+                checked={timelineNewestFirst}
+                onCheckedChange={onTimelineOrderChange}
               />
-            </div>
-          </>
-        ) : null}
-        {layout === "table" ? (
-          <div className="setting-block">
-            <label>Visible columns</label>
-            <div className="column-options">
-              {["type", "year", "status", "genres", "progress", "rating"].map(
-                (column) => (
-                  <button
-                    type="button"
-                    key={column}
-                    className={cn(tableColumns.includes(column) && "active")}
-                    onClick={() => toggleColumn(column)}
-                  >
-                    <i>
-                      {tableColumns.includes(column) ? <CheckIcon /> : null}
-                    </i>
-                    <span>{column}</span>
-                  </button>
-                )
-              )}
-            </div>
-          </div>
-        ) : null}
-        {layout === "timeline" ? (
-          <label className="setting-switch">
-            <span>Newest years first</span>
-            <Switch
-              checked={timelineNewestFirst}
-              onCheckedChange={onTimelineOrderChange}
-            />
-          </label>
-        ) : null}
-        {layout === "statistics" ? (
-          <p className="settings-note">
-            Statistics automatically reflect the current search and filters.
-          </p>
-        ) : null}
+            </label>
+          ) : null}
+          {layout === "statistics" ? (
+            <p className="text-xs leading-5 text-muted-foreground">
+              Statistics automatically reflect the current search and filters.
+            </p>
+          ) : null}
+        </div>
       </PopoverContent>
     </Popover>
   )
@@ -1279,24 +1381,37 @@ function SavedViewsControl({
 
   return (
     <Popover>
-      <PopoverTrigger render={
-        <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 border-border/60">
-          <FloppyDiskIcon className="h-3.5 w-3.5 text-muted-foreground" />
-          Views
-          {views.length > 0 && (
-            <Badge variant="secondary" className="ml-0.5 px-1 font-mono text-[10px] h-4">
-              {views.length}
-            </Badge>
-          )}
-        </Button>
-      }/>
-      <PopoverContent align="start" className="w-80 p-0 overflow-hidden">
-        <div className="p-3 bg-muted/30 border-b border-border/40">
-          <strong className="block text-sm font-medium mb-0.5">Saved views</strong>
-          <span className="block text-xs text-muted-foreground">Store the complete query and layout</span>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 border-border/60 text-xs"
+          >
+            <FloppyDiskIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            Views
+            {views.length > 0 && (
+              <Badge
+                variant="secondary"
+                className="ml-0.5 h-4 px-1 font-mono text-[10px]"
+              >
+                {views.length}
+              </Badge>
+            )}
+          </Button>
+        }
+      />
+      <PopoverContent align="start" className="w-80 overflow-hidden p-0">
+        <div className="border-b border-border/40 bg-muted/30 p-3">
+          <strong className="mb-0.5 block text-sm font-medium">
+            Saved views
+          </strong>
+          <span className="block text-xs text-muted-foreground">
+            Store the complete query and layout
+          </span>
         </div>
 
-        <div className="flex items-center gap-2 p-3 border-b border-border/40">
+        <div className="flex items-center gap-2 border-b border-border/40 p-3">
           <Input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -1306,38 +1421,47 @@ function SavedViewsControl({
             placeholder="Name your view..."
             className="h-8 text-xs"
           />
-          <Button size="sm" className="h-8 text-xs" onClick={save} disabled={!name.trim()}>
+          <Button
+            size="sm"
+            className="h-8 text-xs"
+            onClick={save}
+            disabled={!name.trim()}
+          >
             Save
           </Button>
         </div>
 
         {views.length > 0 ? (
-          <div className="max-h-60 overflow-y-auto p-1.5 flex flex-col gap-0.5">
+          <div className="flex max-h-60 flex-col gap-0.5 overflow-y-auto p-1.5">
             {views.map((view) => (
               <div
                 key={view.id}
-                className="group flex items-center justify-between rounded-md p-1.5 hover:bg-muted/60 transition-colors"
+                className="group flex items-center justify-between rounded-md p-1.5 transition-colors hover:bg-muted/60"
               >
                 <button
                   type="button"
                   onClick={() => onApply(view)}
-                  className="flex flex-col items-start flex-1 text-left px-1"
+                  className="flex flex-1 flex-col items-start px-1 text-left"
                 >
-                  <span className="text-sm font-medium text-foreground">{view.name}</span>
-                  <span className="text-[11px] text-muted-foreground mt-0.5">
+                  <span className="text-sm font-medium text-foreground">
+                    {view.name}
+                  </span>
+                  <span className="mt-0.5 text-[11px] text-muted-foreground">
                     <span className="capitalize">{view.layout}</span> layout ·{" "}
                     {view.kinds.length +
                       (view.excludedKinds?.length ?? 0) +
                       view.statuses.length +
                       (view.excludedStatuses?.length ?? 0) +
-                      countFacetFilters(normalizeFacetFilters(view.facets))}{" "}
+                      countFacetFilters(
+                        normalizeFacetFilters(view.facets)
+                      )}{" "}
                     filters
                   </span>
                 </button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
+                  className="h-7 w-7 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
                   onClick={() => onDelete(view.id)}
                   aria-label={`Delete ${view.name}`}
                 >
@@ -1741,7 +1865,10 @@ function FacetSection({
   )
 }
 
-*/
+The legacy gallery, inspector, table, timeline, and statistics implementations
+also lived here and depended on the removed global CSS. Their active replacements
+are colocated in ./components and use Tailwind plus shared shadcn primitives.
+
 function Gallery({
   works,
   selectedId,
@@ -1845,9 +1972,10 @@ function Poster({
         <PosterArt palette={work.palette} />
       )}
 
-      {image === "poster" || (image === "logo" && !work.logoPath)  && (
-        <div className="poster-shade" />
-      )}
+      {image === "poster" ||
+        (image === "logo" && !work.logoPath && (
+          <div className="poster-shade" />
+        ))}
       {showType ? (
         <span className="kind-pill">{kindLabels[work.kind]}</span>
       ) : null}
@@ -1856,7 +1984,8 @@ function Poster({
           <StarIcon weight="fill" /> {work.rating.toFixed(1)}
         </span>
       ) : null}
-      {(image === "poster" && !work.imagePath) || (image === "logo" && !work.logoPath) ? (
+      {(image === "poster" && !work.imagePath) ||
+      (image === "logo" && !work.logoPath) ? (
         <div className="poster-title">
           <small>{work.creator}</small>
           <strong>{work.title}</strong>
@@ -2219,6 +2348,8 @@ function Statistics({ works }: { works: Work[] }) {
   )
 }
 
+*/
+
 function WorkDetailDialog({
   work,
   open,
@@ -2244,469 +2375,481 @@ function WorkDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent
-      showCloseButton={false}
-      className={cn("work-detail-dialog rtl", fullScreen && "full-screen")}
-      dir="rtl"
-    >
-      <div className="work-detail-toolbar">
-        <span>
-          سجل محلي · {work.id}
-          {work.curation ? ` · ${work.curation.status}` : ""}
-        </span>
-        <div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setFullScreen((value) => !value)}
-            aria-label={fullScreen ? "الخروج من الشاشة الكاملة" : "ملء الشاشة"}
-          >
-            <ArrowsOutIcon />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => onOpenChange(false)}
-            aria-label="إغلاق التفاصيل"
-          >
-            <XIcon />
-          </Button>
-        </div>
-      </div>
-
-      <div className="work-detail-scroll">
-        {/* Hero Section */}
-        <section className="work-detail-hero">
-          {work.bannerPath && (
-            <div className="detail-banner" aria-hidden="true">
-              <img src={work.bannerPath} alt="" />
-            </div>
-          )}
-          <div className="detail-poster-wrap">
-            <Poster work={work} />
-          </div>
-          <div className="detail-hero-copy">
-            <div className="detail-kickers">
-              <span>{kindLabels[work.kind]}</span>
-              <span>{work.year ?? "غير معروض"}</span>
-              <span className={cn(`status-${work.status}`)}>
-                <i />
-                {work.status.replace("-", " ")}
-              </span>
-            </div>
-
-            {work.logoPath && (
-              <img
-                className="detail-title-logo"
-                src={work.logoPath}
-                alt={work.title}
-              />
-            )}
-            <h1 className={cn(work.logoPath && "sr-only")}>{work.title}</h1>
-            <p className="detail-subtitle">{work.subtitle}</p>
-            <p className="detail-summary">{work.summary}</p>
-
-            <div className="detail-primary-meta">
-              <div>
-                <span>المنشئ</span>
-                <strong>{work.creator}</strong>
-              </div>
-              <div>
-                <span>التقييم</span>
-                <strong>
-                  <StarIcon weight="fill" />
-                  {work.rating?.toFixed(1) ?? "غير مقيّم"}
-                </strong>
-              </div>
-              {usesProgress(work) && (
-                <div>
-                  <span>التقدم</span>
-                  <strong>{progressText(work)}</strong>
-                </div>
-              )}
-            </div>
-
+      <DialogContent
+        showCloseButton={false}
+        className={cn("work-detail-dialog rtl", fullScreen && "full-screen")}
+        dir="rtl"
+      >
+        <div className="work-detail-toolbar">
+          <span>
+            سجل محلي · {work.id}
+            {work.curation ? ` · ${work.curation.status}` : ""}
+          </span>
+          <div>
             <Button
               type="button"
-              variant={work.favorite ? "secondary" : "outline"}
-              onClick={() => toggleFavorite(work)}
-              disabled={favoritePending}
-              className="detail-favorite"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setFullScreen((value) => !value)}
+              aria-label={
+                fullScreen ? "الخروج من الشاشة الكاملة" : "ملء الشاشة"
+              }
             >
-              <HeartIcon weight={work.favorite ? "fill" : "regular"} />
-              {work.favorite ? "في المفضلة" : "إضافة إلى المفضلة"}
+              <ArrowsOutIcon />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => onOpenChange(false)}
+              aria-label="إغلاق التفاصيل"
+            >
+              <XIcon />
             </Button>
           </div>
-        </section>
+        </div>
 
-        {/* Detail Grid */}
-        <section className="detail-grid">
-          {/* Metadata Panel */}
-          <div className="detail-panel">
-            <h2>البيانات الوصفية</h2>
-            <dl>
-              <div>
-                <dt>العنوان الأصلي</dt>
-                <dd>{work.title}</dd>
-              </div>
-              <div>
-                <dt>نوع الوسائط</dt>
-                <dd>{kindLabels[work.kind]}</dd>
-              </div>
-              <div>
-                <dt>سنة الإصدار</dt>
-                <dd>{work.year ?? "غير معروف"}</dd>
-              </div>
-              <div>
-                <dt>حالة الإصدار</dt>
-                <dd className="capitalize">{work.releaseStatus}</dd>
-              </div>
-              <div>
-                <dt>المنشئ الرئيسي</dt>
-                <dd>{work.creator}</dd>
-              </div>
-              {!!work.studios.length &&
-                work.kind !== "manga" &&
-                work.kind !== "novel" && (
-                  <div>
-                    <dt>استوديوهات الإنتاج</dt>
-                    <dd>{work.studios.join(" · ")}</dd>
-                  </div>
-                )}
-              {!!work.aliases.length && (
-                <div>
-                  <dt>العناوين البديلة</dt>
-                  <dd>{work.aliases.join(" · ")}</dd>
-                </div>
-              )}
-              {!!work.country.length && (
-                <div>
-                  <dt>الدولة</dt>
-                  <dd>{work.country.join("، ")}</dd>
-                </div>
-              )}
-              {work.releaseStart && (
-                <div>
-                  <dt>فترة العرض الأصلية</dt>
-                  <dd>
-                    {work.releaseStart} ← {work.releaseEnd ?? "حتى الآن"}
-                  </dd>
-                </div>
-              )}
-              <div>
-                <dt>الحالة الشخصية</dt>
-                <dd className="capitalize">{work.status.replace("-", " ")}</dd>
-              </div>
-              <div>
-                <dt>تاريخ الإضافة محلياً</dt>
-                <dd>{new Date(work.addedAt * 1000).toLocaleDateString("ar-EG")}</dd>
-              </div>
-            </dl>
-          </div>
-
-          {/* Personal Record Panel */}
-          <div className="detail-panel">
-            <h2>السجل الشخصي</h2>
-            <dl>
-              <div>
-                <dt>التقييم</dt>
-                <dd>
-                  {work.rating ? `${work.rating.toFixed(1)} / 10` : "غير مقيّم"}
-                </dd>
-              </div>
-              <div>
-                <dt>المفضلة</dt>
-                <dd>{work.favorite ? "نعم" : "لا"}</dd>
-              </div>
-              {usesProgress(work) && (
-                <div>
-                  <dt>التقدم</dt>
-                  <dd>{progressText(work)}</dd>
-                </div>
-              )}
-              {usesProgress(work) && !!work.progressTotal && (
-                <div>
-                  <dt>نسبة الإكمال</dt>
-                  <dd>{progressPercent(work)}%</dd>
-                </div>
-              )}
-              {work.watchDates?.firstWatchedAt && (
-                <div>
-                  <dt>أول مشاهدة</dt>
-                  <dd>{work.watchDates.firstWatchedAt}</dd>
-                </div>
-              )}
-              {work.watchDates?.completedAt && (
-                <div>
-                  <dt>تاريخ الإكمال</dt>
-                  <dd>{work.watchDates.completedAt}</dd>
-                </div>
-              )}
-              {!!work.sharedWith.length && (
-                <div>
-                  <dt>مشارك مع</dt>
-                  <dd>{work.sharedWith.join(" · ")}</dd>
-                </div>
-              )}
-            </dl>
-            {usesProgress(work) && !!work.progressTotal && (
-              <div className="detail-progress">
-                <i style={{ width: `${progressPercent(work)}%` }} />
+        <div className="work-detail-scroll">
+          {/* Hero Section */}
+          <section className="work-detail-hero">
+            {work.bannerPath && (
+              <div className="detail-banner" aria-hidden="true">
+                <img src={work.bannerPath} alt="" />
               </div>
             )}
-          </div>
-
-          {/* Genres and Tags */}
-          <div className="detail-panel detail-tags-panel">
-            <h2>الأنواع، الطابع والتصنيفات</h2>
-            <div className="detail-tags genres">
-              {work.genres.map((genre) => (
-                <span key={genre}>{genre}</span>
-              ))}
+            <div className="detail-poster-wrap">
+              <WorkArtwork work={work} />
             </div>
-            <div className="detail-tags">
-              {[...work.tone, ...work.tags].map((tag) => (
-                <span key={tag}>{tag}</span>
-              ))}
-            </div>
-          </div>
-
-          {/* Contributors */}
-          {!!work.credits.length && (
-            <div className="detail-panel detail-credits-panel">
-              <h2>فريق العمل والمساهمون</h2>
-              <dl>
-                {work.credits.map((credit) => (
-                  <div key={`${credit.entityId}:${credit.role}`}>
-                    <dt>{credit.role.replaceAll("-", " ")}</dt>
-                    <dd>{credit.name}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          )}
-
-          {/* Personal Notes */}
-          {work.notes && (
-            <div className="detail-panel detail-notes-panel">
-              <h2>ملاحظات شخصية</h2>
-              <p dir="auto">{work.notes}</p>
-            </div>
-          )}
-
-          {/* Summary */}
-          <div className="detail-panel detail-summary-panel">
-            <h2>القصة والملخص</h2>
-            <p dir="auto">{work.summary}</p>
-          </div>
-
-          {/* Score Breakdown */}
-          {!!Object.keys(work.scoreBreakdown).length && (
-            <div className="detail-panel detail-score-panel">
-              <h2>تفاصيل التقييم</h2>
-              <div className="score-breakdown">
-                {Object.entries(work.scoreBreakdown).map(([label, score]) => (
-                  <div key={label}>
-                    <span>{label}</span>
-                    <i>
-                      <b style={{ width: `${score * 10}%` }} />
-                    </i>
-                    <strong>{score}</strong>
-                  </div>
-                ))}
+            <div className="detail-hero-copy">
+              <div className="detail-kickers">
+                <span>{kindLabels[work.kind]}</span>
+                <span>{work.year ?? "غير معروض"}</span>
+                <span className={cn(`status-${work.status}`)}>
+                  <i />
+                  {work.status.replace("-", " ")}
+                </span>
               </div>
-            </div>
-          )}
 
-          {/* Content Guidance / Risk Profile */}
-          {work.riskProfile && (
-            <div className="detail-panel detail-risk-panel">
-              <h2>إرشادات المحتوى</h2>
-              <div className="risk-grid">
-                <div>
-                  <span>المحتوى الجنسي</span>
-                  <strong data-risk={work.riskProfile.sexuality}>
-                    {work.riskProfile.sexuality}
-                  </strong>
-                </div>
-                <div>
-                  <span>مستوى Fan Service</span>
-                  <strong
-                    data-risk={
-                      work.riskProfile.fanService === null
-                        ? "unknown"
-                        : work.riskProfile.fanService === 0
-                        ? "none"
-                        : work.riskProfile.fanService < 4
-                        ? "low"
-                        : work.riskProfile.fanService < 7
-                        ? "medium"
-                        : "high"
-                    }
-                  >
-                    {work.riskProfile.fanService === null
-                      ? "غير معروف"
-                      : `${work.riskProfile.fanService} / 10`}
-                  </strong>
-                </div>
-                <div>
-                  <span>العنف والمشاهد المزعجة</span>
-                  <strong data-risk={work.riskProfile.behavioral}>
-                    {work.riskProfile.behavioral}
-                  </strong>
-                </div>
-                <div>
-                  <span>المواضيع العقدية</span>
-                  <strong data-risk={work.riskProfile.theology}>
-                    {work.riskProfile.theology}
-                  </strong>
-                </div>
-              </div>
-              {work.analysisNotes && (
-                <div className="guidance-note">
-                  <span>تحليل عقدي</span>
-                  <p dir="auto">{work.analysisNotes}</p>
-                </div>
+              {work.logoPath && (
+                <img
+                  className="detail-title-logo"
+                  src={work.logoPath}
+                  alt={work.title}
+                />
               )}
-              {work.curation?.notes && (
-                <div className="guidance-note neutral">
-                  <span>حالة التدقيق</span>
-                  <p>{work.curation.notes}</p>
-                </div>
-              )}
-            </div>
-          )}
+              <h1 className={cn(work.logoPath && "sr-only")}>{work.title}</h1>
+              <p className="detail-subtitle">{work.subtitle}</p>
+              <p className="detail-summary">{work.summary}</p>
 
-          {/* Content Warnings */}
-          {work.contentWarnings && (
-            <div className="detail-panel detail-analysis-panel">
-              <h2>تحذيرات المحتوى</h2>
-              <p dir="auto">{work.contentWarnings}</p>
-            </div>
-          )}
-
-          {/* Favorite Characters */}
-          {!!work.favoriteCharacters.length && (
-            <div className="detail-panel detail-characters-panel">
-              <h2>الشخصيات المفضلة</h2>
-              <div className="character-list">
-                {work.favoriteCharacters.map((character) => (
-                  <span key={character}>
-                    <i>{character.charAt(0)}</i>
-                    {character}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Source Material */}
-          {work.sourceMaterial && (
-            <div className="detail-panel detail-source-panel">
-              <h2>المصدر الأصلي</h2>
-              <dl>
+              <div className="detail-primary-meta">
                 <div>
-                  <dt>النوع</dt>
-                  <dd>{work.sourceMaterial.type}</dd>
+                  <span>المنشئ</span>
+                  <strong>{work.creator}</strong>
                 </div>
                 <div>
-                  <dt>جهة النشر</dt>
-                  <dd>{work.sourceMaterial.publication ?? "غير معروف"}</dd>
+                  <span>التقييم</span>
+                  <strong>
+                    <StarIcon weight="fill" />
+                    {work.rating?.toFixed(1) ?? "غير مقيّم"}
+                  </strong>
                 </div>
-                {!!work.sourceMaterial.serialization.length && (
+                {usesProgress(work) && (
                   <div>
-                    <dt>تسلسل النشر</dt>
-                    <dd>{work.sourceMaterial.serialization.join("، ")}</dd>
+                    <span>التقدم</span>
+                    <strong>{progressText(work)}</strong>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                type="button"
+                variant={work.favorite ? "secondary" : "outline"}
+                onClick={() => toggleFavorite(work)}
+                disabled={favoritePending}
+                className="detail-favorite"
+              >
+                <HeartIcon weight={work.favorite ? "fill" : "regular"} />
+                {work.favorite ? "في المفضلة" : "إضافة إلى المفضلة"}
+              </Button>
+            </div>
+          </section>
+
+          {/* Detail Grid */}
+          <section className="detail-grid">
+            {/* Metadata Panel */}
+            <div className="detail-panel">
+              <h2>البيانات الوصفية</h2>
+              <dl>
+                <div>
+                  <dt>العنوان الأصلي</dt>
+                  <dd>{work.title}</dd>
+                </div>
+                <div>
+                  <dt>نوع الوسائط</dt>
+                  <dd>{kindLabels[work.kind]}</dd>
+                </div>
+                <div>
+                  <dt>سنة الإصدار</dt>
+                  <dd>{work.year ?? "غير معروف"}</dd>
+                </div>
+                <div>
+                  <dt>حالة الإصدار</dt>
+                  <dd className="capitalize">{work.releaseStatus}</dd>
+                </div>
+                <div>
+                  <dt>المنشئ الرئيسي</dt>
+                  <dd>{work.creator}</dd>
+                </div>
+                {!!work.studios.length &&
+                  work.kind !== "manga" &&
+                  work.kind !== "novel" && (
+                    <div>
+                      <dt>استوديوهات الإنتاج</dt>
+                      <dd>{work.studios.join(" · ")}</dd>
+                    </div>
+                  )}
+                {!!work.aliases.length && (
+                  <div>
+                    <dt>العناوين البديلة</dt>
+                    <dd>{work.aliases.join(" · ")}</dd>
+                  </div>
+                )}
+                {!!work.country.length && (
+                  <div>
+                    <dt>الدولة</dt>
+                    <dd>{work.country.join("، ")}</dd>
+                  </div>
+                )}
+                {work.releaseStart && (
+                  <div>
+                    <dt>فترة العرض الأصلية</dt>
+                    <dd>
+                      {work.releaseStart} ← {work.releaseEnd ?? "حتى الآن"}
+                    </dd>
                   </div>
                 )}
                 <div>
-                  <dt>فترة العرض الأصلي</dt>
+                  <dt>الحالة الشخصية</dt>
+                  <dd className="capitalize">
+                    {work.status.replace("-", " ")}
+                  </dd>
+                </div>
+                <div>
+                  <dt>تاريخ الإضافة محلياً</dt>
                   <dd>
-                    {work.sourceMaterial.started ?? "؟"} ←{" "}
-                    {work.sourceMaterial.finished ?? "حتى الآن"}
+                    {new Date(work.addedAt * 1000).toLocaleDateString("ar-EG")}
                   </dd>
                 </div>
               </dl>
             </div>
-          )}
 
-          {/* Publication */}
-          {work.publication && (
-            <div className="detail-panel detail-source-panel">
-              <h2>تفاصيل النشر</h2>
+            {/* Personal Record Panel */}
+            <div className="detail-panel">
+              <h2>السجل الشخصي</h2>
               <dl>
                 <div>
-                  <dt>الصيغة</dt>
-                  <dd>{work.publication.format ?? "غير معروف"}</dd>
+                  <dt>التقييم</dt>
+                  <dd>
+                    {work.rating
+                      ? `${work.rating.toFixed(1)} / 10`
+                      : "غير مقيّم"}
+                  </dd>
                 </div>
                 <div>
-                  <dt>الناشر</dt>
-                  <dd>{work.publication.publisher ?? "غير معروف"}</dd>
+                  <dt>المفضلة</dt>
+                  <dd>{work.favorite ? "نعم" : "لا"}</dd>
                 </div>
-                {!!work.publication.serialization.length && (
+                {usesProgress(work) && (
                   <div>
-                    <dt>مجلة النشر / التسلسل</dt>
-                    <dd>{work.publication.serialization.join("، ")}</dd>
+                    <dt>التقدم</dt>
+                    <dd>{progressText(work)}</dd>
                   </div>
                 )}
-                {!!work.publication.contents.length && (
+                {usesProgress(work) && !!work.progressTotal && (
                   <div>
-                    <dt>المحتويات</dt>
-                    <dd>{work.publication.contents.join(" · ")}</dd>
+                    <dt>نسبة الإكمال</dt>
+                    <dd>{progressPercent(work)}%</dd>
+                  </div>
+                )}
+                {work.watchDates?.firstWatchedAt && (
+                  <div>
+                    <dt>أول مشاهدة</dt>
+                    <dd>{work.watchDates.firstWatchedAt}</dd>
+                  </div>
+                )}
+                {work.watchDates?.completedAt && (
+                  <div>
+                    <dt>تاريخ الإكمال</dt>
+                    <dd>{work.watchDates.completedAt}</dd>
+                  </div>
+                )}
+                {!!work.sharedWith.length && (
+                  <div>
+                    <dt>مشارك مع</dt>
+                    <dd>{work.sharedWith.join(" · ")}</dd>
                   </div>
                 )}
               </dl>
+              {usesProgress(work) && !!work.progressTotal && (
+                <div className="detail-progress">
+                  <i style={{ width: `${progressPercent(work)}%` }} />
+                </div>
+              )}
             </div>
-          )}
 
-          {/* Relations */}
-          {!!work.relations.length && (
-            <div className="detail-panel detail-relations-panel">
-              <h2>أعمال ذات صلة</h2>
-              <div className="related-work-list">
-                {work.relations.map((relation) => (
-                  <button
-                    key={relation.id}
-                    type="button"
-                    onClick={() => openRelated(relation.workId)}
-                  >
-                    <span>{relationLabel(relation)}</span>
-                    <strong>{relation.work.title}</strong>
-                    <small>{kindLabels[relation.work.kind]}</small>
-                  </button>
+            {/* Genres and Tags */}
+            <div className="detail-panel detail-tags-panel">
+              <h2>الأنواع، الطابع والتصنيفات</h2>
+              <div className="detail-tags genres">
+                {work.genres.map((genre) => (
+                  <span key={genre}>{genre}</span>
+                ))}
+              </div>
+              <div className="detail-tags">
+                {[...work.tone, ...work.tags].map((tag) => (
+                  <span key={tag}>{tag}</span>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* External Links */}
-          {!!work.externalLinks.length && (
-            <div className="detail-panel detail-links-panel">
-              <h2>روابط خارجية</h2>
-              <div className="external-links">
-                {work.externalLinks.map((link) => (
-                  <a
-                    key={link.url}
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <span>{link.label}</span>
-                    <strong>↖</strong>
-                  </a>
-                ))}
+            {/* Contributors */}
+            {!!work.credits.length && (
+              <div className="detail-panel detail-credits-panel">
+                <h2>فريق العمل والمساهمون</h2>
+                <dl>
+                  {work.credits.map((credit) => (
+                    <div key={`${credit.entityId}:${credit.role}`}>
+                      <dt>{credit.role.replaceAll("-", " ")}</dt>
+                      <dd>{credit.name}</dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
+            )}
+
+            {/* Personal Notes */}
+            {work.notes && (
+              <div className="detail-panel detail-notes-panel">
+                <h2>ملاحظات شخصية</h2>
+                <p dir="auto">{work.notes}</p>
+              </div>
+            )}
+
+            {/* Summary */}
+            <div className="detail-panel detail-summary-panel">
+              <h2>القصة والملخص</h2>
+              <p dir="auto">{work.summary}</p>
             </div>
-          )}
-        </section>
-      </div>
-    </DialogContent>
+
+            {/* Score Breakdown */}
+            {!!Object.keys(work.scoreBreakdown).length && (
+              <div className="detail-panel detail-score-panel">
+                <h2>تفاصيل التقييم</h2>
+                <div className="score-breakdown">
+                  {Object.entries(work.scoreBreakdown).map(([label, score]) => (
+                    <div key={label}>
+                      <span>{label}</span>
+                      <i>
+                        <b style={{ width: `${score * 10}%` }} />
+                      </i>
+                      <strong>{score}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Content Guidance / Risk Profile */}
+            {work.riskProfile && (
+              <div className="detail-panel detail-risk-panel">
+                <h2>إرشادات المحتوى</h2>
+                <div className="risk-grid">
+                  <div>
+                    <span>المحتوى الجنسي</span>
+                    <strong data-risk={work.riskProfile.sexuality}>
+                      {work.riskProfile.sexuality}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>مستوى Fan Service</span>
+                    <strong
+                      data-risk={
+                        work.riskProfile.fanService === null
+                          ? "unknown"
+                          : work.riskProfile.fanService === 0
+                            ? "none"
+                            : work.riskProfile.fanService < 4
+                              ? "low"
+                              : work.riskProfile.fanService < 7
+                                ? "medium"
+                                : "high"
+                      }
+                    >
+                      {work.riskProfile.fanService === null
+                        ? "غير معروف"
+                        : `${work.riskProfile.fanService} / 10`}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>العنف والمشاهد المزعجة</span>
+                    <strong data-risk={work.riskProfile.behavioral}>
+                      {work.riskProfile.behavioral}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>المواضيع العقدية</span>
+                    <strong data-risk={work.riskProfile.theology}>
+                      {work.riskProfile.theology}
+                    </strong>
+                  </div>
+                </div>
+                {work.analysisNotes && (
+                  <div className="guidance-note">
+                    <span>تحليل عقدي</span>
+                    <p dir="auto">{work.analysisNotes}</p>
+                  </div>
+                )}
+                {work.curation?.notes && (
+                  <div className="guidance-note neutral">
+                    <span>حالة التدقيق</span>
+                    <p>{work.curation.notes}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Content Warnings */}
+            {work.contentWarnings && (
+              <div className="detail-panel detail-analysis-panel">
+                <h2>تحذيرات المحتوى</h2>
+                <p dir="auto">{work.contentWarnings}</p>
+              </div>
+            )}
+
+            {/* Favorite Characters */}
+            {!!work.favoriteCharacters.length && (
+              <div className="detail-panel detail-characters-panel">
+                <h2>الشخصيات المفضلة</h2>
+                <div className="character-list">
+                  {work.favoriteCharacters.map((character) => (
+                    <span key={character}>
+                      <i>{character.charAt(0)}</i>
+                      {character}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Source Material */}
+            {work.sourceMaterial && (
+              <div className="detail-panel detail-source-panel">
+                <h2>المصدر الأصلي</h2>
+                <dl>
+                  <div>
+                    <dt>النوع</dt>
+                    <dd>{work.sourceMaterial.type}</dd>
+                  </div>
+                  <div>
+                    <dt>جهة النشر</dt>
+                    <dd>{work.sourceMaterial.publication ?? "غير معروف"}</dd>
+                  </div>
+                  {!!work.sourceMaterial.serialization.length && (
+                    <div>
+                      <dt>تسلسل النشر</dt>
+                      <dd>{work.sourceMaterial.serialization.join("، ")}</dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt>فترة العرض الأصلي</dt>
+                    <dd>
+                      {work.sourceMaterial.started ?? "؟"} ←{" "}
+                      {work.sourceMaterial.finished ?? "حتى الآن"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            )}
+
+            {/* Publication */}
+            {work.publication && (
+              <div className="detail-panel detail-source-panel">
+                <h2>تفاصيل النشر</h2>
+                <dl>
+                  <div>
+                    <dt>الصيغة</dt>
+                    <dd>{work.publication.format ?? "غير معروف"}</dd>
+                  </div>
+                  <div>
+                    <dt>الناشر</dt>
+                    <dd>{work.publication.publisher ?? "غير معروف"}</dd>
+                  </div>
+                  {!!work.publication.serialization.length && (
+                    <div>
+                      <dt>مجلة النشر / التسلسل</dt>
+                      <dd>{work.publication.serialization.join("، ")}</dd>
+                    </div>
+                  )}
+                  {!!work.publication.contents.length && (
+                    <div>
+                      <dt>المحتويات</dt>
+                      <dd>{work.publication.contents.join(" · ")}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            )}
+
+            {/* Relations */}
+            {!!work.relations.length && (
+              <div className="detail-panel detail-relations-panel">
+                <h2>أعمال ذات صلة</h2>
+                <div className="related-work-list">
+                  {work.relations.map((relation) => (
+                    <button
+                      key={relation.id}
+                      type="button"
+                      onClick={() => openRelated(relation.workId)}
+                    >
+                      <span>{relationLabel(relation)}</span>
+                      <strong>{relation.work.title}</strong>
+                      <small>{kindLabels[relation.work.kind]}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* External Links */}
+            {!!work.externalLinks.length && (
+              <div className="detail-panel detail-links-panel">
+                <h2>روابط خارجية</h2>
+                <div className="external-links">
+                  {work.externalLinks.map((link) => (
+                    <a
+                      key={link.url}
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span>{link.label}</span>
+                      <strong>↖</strong>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      </DialogContent>
     </Dialog>
   )
 }
 
+// Kept temporarily as a reference while the extracted detail component settles.
+void WorkDetailDialog
+
+/* Replaced by ./components/add-work-dialog.tsx.
 function AddWorkDialog({ onCreated }: { onCreated: () => Promise<void> }) {
   const [open, setOpen] = useState(false)
   const mutation = useMutation({
@@ -2797,7 +2940,9 @@ function AddWorkDialog({ onCreated }: { onCreated: () => Promise<void> }) {
     </Dialog>
   )
 }
+*/
 
+/* Replaced by ./components/empty-state.tsx.
 function EmptyState({ clear }: { clear: () => void }) {
   return (
     <div className="empty-state">
@@ -2812,3 +2957,4 @@ function EmptyState({ clear }: { clear: () => void }) {
     </div>
   )
 }
+*/

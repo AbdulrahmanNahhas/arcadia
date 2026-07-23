@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto"
-import { eq, inArray } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { db } from "@/db/client"
-import { terms, workTerms, works } from "@/db/schema"
+import {
+  externalLinks as externalLinksTable,
+  terms,
+  workTerms,
+  works,
+} from "@/db/schema"
 import { normalizeTaxonomy } from "@/features/library/taxonomy"
 
 type Metadata = Record<string, unknown> & {
@@ -362,29 +367,58 @@ function inferredTags(title: string, summary: string) {
 
 function fallbackTone(genres: string[]) {
   if (genres.includes("Horror")) return ["Dark", "Tense"]
-  if (genres.includes("Comedy")) return ["Comedic", "Lighthearted"]
-  if (genres.includes("Thriller")) return ["Tense", "Intense"]
-  if (genres.includes("Action")) return ["Energetic", "Intense"]
-  if (genres.includes("Romance")) return ["Warm", "Emotional"]
-  if (genres.includes("Drama")) return ["Dramatic", "Emotional"]
-  if (genres.includes("Adventure")) return ["Adventurous"]
+  if (genres.includes("Comedy")) return ["Wholesome"]
+  if (genres.includes("Thriller")) return ["Tense"]
+  if (genres.includes("Action")) return ["Hype / Energetic"]
+  if (genres.includes("Romance")) return ["Emotional"]
+  if (genres.includes("Drama")) return ["Emotional"]
+  if (genres.includes("Adventure")) return ["Hype / Energetic"]
   return ["Atmospheric"]
 }
 
 const rows = db.select().from(works).all()
+const currentTermRows = db
+  .select({
+    workId: workTerms.workId,
+    vocabulary: terms.vocabulary,
+    name: terms.name,
+  })
+  .from(workTerms)
+  .innerJoin(terms, eq(workTerms.termId, terms.id))
+  .all()
+const currentTermsByWork = new Map<string, Map<string, string[]>>()
+for (const row of currentTermRows) {
+  const vocabularies =
+    currentTermsByWork.get(row.workId) ?? new Map<string, string[]>()
+  const values = vocabularies.get(row.vocabulary) ?? []
+  values.push(row.name)
+  vocabularies.set(row.vocabulary, values)
+  currentTermsByWork.set(row.workId, vocabularies)
+}
+const currentLinksByWork = new Map<
+  string,
+  Array<{ provider: string; label: string; url: string }>
+>()
+for (const link of db.select().from(externalLinksTable).all()) {
+  if (link.ownerType !== "work") continue
+  const values = currentLinksByWork.get(link.ownerId) ?? []
+  values.push({ provider: link.provider, label: link.label, url: link.url })
+  currentLinksByWork.set(link.ownerId, values)
+}
 
 db.transaction((tx) => {
   for (const work of rows) {
-    const metadata = (work.metadata ?? {}) as Metadata
+    const metadata = work.metadata as Metadata
+    const currentTerms = currentTermsByWork.get(work.id)
     const override =
       overrides.get(work.canonicalTitle) ??
       [...overrides.values()].find(
         (candidate) => candidate.title === work.canonicalTitle
       )
     const initial = normalizeTaxonomy({
-      genres: override?.genres ?? metadata.genres ?? [],
-      tags: [...(metadata.tags ?? []), ...(override?.tags ?? [])],
-      tone: [...(metadata.tone ?? []), ...(override?.tone ?? [])],
+      genres: override?.genres ?? currentTerms?.get("genre") ?? [],
+      tags: [...(currentTerms?.get("tag") ?? []), ...(override?.tags ?? [])],
+      tone: [...(currentTerms?.get("tone") ?? []), ...(override?.tone ?? [])],
     })
     const finalTaxonomy = normalizeTaxonomy({
       genres: initial.genres,
@@ -402,9 +436,10 @@ db.transaction((tx) => {
       ? finalTaxonomy.tone
       : fallbackTone(finalTaxonomy.genres)
     const externalLinks = new Map(
-      [...(metadata.externalLinks ?? []), ...(override?.links ?? [])].map(
-        (link) => [link.url, link]
-      )
+      [
+        ...(currentLinksByWork.get(work.id) ?? []),
+        ...(override?.links ?? []),
+      ].map((link) => [link.url, link])
     )
     const releaseStart = override?.releaseStart ?? metadata.releaseStart ?? null
     const releaseEnd = override?.releaseEnd ?? metadata.releaseEnd ?? null
@@ -426,6 +461,13 @@ db.transaction((tx) => {
         ? "Release details and content guidance will be reviewed again when the work premieres."
         : null)
 
+    const {
+      genres: _genres,
+      tags: _tags,
+      tone: _tone,
+      externalLinks: _externalLinks,
+      ...preservedMetadata
+    } = metadata
     tx.update(works)
       .set({
         canonicalTitle: override?.title ?? work.canonicalTitle,
@@ -434,11 +476,7 @@ db.transaction((tx) => {
         releaseYear,
         status: releaseStatus,
         metadata: {
-          ...metadata,
-          genres: finalTaxonomy.genres,
-          tags,
-          tone,
-          externalLinks: [...externalLinks.values()],
+          ...preservedMetadata,
           releaseStart,
           releaseEnd,
           releaseWindow:
@@ -457,34 +495,29 @@ db.transaction((tx) => {
       })
       .where(eq(works.id, work.id))
       .run()
-  }
 
-  const taxonomyTerms = tx
-    .select({ id: terms.id })
-    .from(terms)
-    .where(inArray(terms.vocabulary, ["genre", "tag", "tone"]))
-    .all()
-  if (taxonomyTerms.length) {
-    tx.delete(workTerms)
-      .where(
-        inArray(
-          workTerms.termId,
-          taxonomyTerms.map(({ id }) => id)
-        )
-      )
-      .run()
-    tx.delete(terms)
+    const taxonomyTerms = tx
+      .select({ id: terms.id })
+      .from(terms)
       .where(inArray(terms.vocabulary, ["genre", "tag", "tone"]))
-      .run()
-  }
-
-  const updatedRows = tx.select().from(works).all()
-  for (const work of updatedRows) {
-    const metadata = work.metadata as Metadata
+      .all()
+    if (taxonomyTerms.length) {
+      tx.delete(workTerms)
+        .where(
+          and(
+            eq(workTerms.workId, work.id),
+            inArray(
+              workTerms.termId,
+              taxonomyTerms.map(({ id }) => id)
+            )
+          )
+        )
+        .run()
+    }
     const vocabularies: Array<[string, string[]]> = [
-      ["genre", metadata.genres ?? []],
-      ["tag", metadata.tags ?? []],
-      ["tone", metadata.tone ?? []],
+      ["genre", finalTaxonomy.genres],
+      ["tag", tags],
+      ["tone", tone],
     ]
     for (const [vocabulary, values] of vocabularies) {
       for (const name of values) {
@@ -493,11 +526,44 @@ db.transaction((tx) => {
           .values({ id: termId, vocabulary, name, slug: slug(name) })
           .onConflictDoNothing()
           .run()
+        const term = tx
+          .select({ id: terms.id })
+          .from(terms)
+          .where(
+            and(eq(terms.vocabulary, vocabulary), eq(terms.slug, slug(name)))
+          )
+          .get()
+        if (!term) throw new Error(`Could not persist ${vocabulary}/${name}`)
         tx.insert(workTerms)
-          .values({ workId: work.id, termId, source: "catalog-cleanup-v1" })
+          .values({
+            workId: work.id,
+            termId: term.id,
+            source: "catalog-cleanup-v2",
+          })
           .onConflictDoNothing()
           .run()
       }
+    }
+
+    tx.delete(externalLinksTable)
+      .where(
+        and(
+          eq(externalLinksTable.ownerType, "work"),
+          eq(externalLinksTable.ownerId, work.id)
+        )
+      )
+      .run()
+    for (const link of externalLinks.values()) {
+      tx.insert(externalLinksTable)
+        .values({
+          id: stableId("link", work.id, link.url),
+          ownerType: "work",
+          ownerId: work.id,
+          provider: link.provider,
+          label: link.label,
+          url: link.url,
+        })
+        .run()
     }
   }
 })

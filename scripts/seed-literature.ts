@@ -4,6 +4,7 @@ import { db } from "@/db/client"
 import { normalizeTaxonomy } from "@/features/library/taxonomy"
 import {
   entities,
+  externalLinks,
   personalState,
   terms,
   workCredits,
@@ -412,14 +413,7 @@ db.transaction((tx) => {
         status: item.releaseEnd ? "ended" : "releasing",
         metadata: {
           subtitle: item.aliases.join(" · "),
-          aliases: item.aliases,
-          creator: item.creator,
-          genres: taxonomy.genres,
-          tags: taxonomy.tags,
-          tone: taxonomy.tone,
-          country: item.country,
           riskProfile: item.riskProfile ?? null,
-          externalLinks: item.links,
           releaseStart: item.releaseStart,
           releaseEnd: item.releaseEnd ?? null,
           publication: {
@@ -451,14 +445,7 @@ db.transaction((tx) => {
           status: item.releaseEnd ? "ended" : "releasing",
           metadata: {
             subtitle: item.aliases.join(" · "),
-            aliases: item.aliases,
-            creator: item.creator,
-            genres: taxonomy.genres,
-            tags: taxonomy.tags,
-            tone: taxonomy.tone,
-            country: item.country,
             riskProfile: item.riskProfile ?? null,
-            externalLinks: item.links,
             releaseStart: item.releaseStart,
             releaseEnd: item.releaseEnd ?? null,
             publication: {
@@ -523,7 +510,40 @@ db.transaction((tx) => {
           .run()
       }
       tx.insert(workCredits)
-        .values({ workId: item.id, entityId, role: credit.role })
+        .values({
+          workId: item.id,
+          entityId,
+          role: [
+            "author",
+            "original-author",
+            "writer",
+            "writer-artist",
+            "artist",
+          ].includes(credit.role)
+            ? "author"
+            : "creator",
+        })
+        .run()
+    }
+
+    tx.delete(externalLinks)
+      .where(
+        and(
+          eq(externalLinks.ownerType, "work"),
+          eq(externalLinks.ownerId, item.id)
+        )
+      )
+      .run()
+    for (const link of item.links) {
+      tx.insert(externalLinks)
+        .values({
+          id: stableId("link", item.id, link.url),
+          ownerType: "work",
+          ownerId: item.id,
+          provider: link.provider,
+          label: link.label,
+          url: link.url,
+        })
         .run()
     }
 

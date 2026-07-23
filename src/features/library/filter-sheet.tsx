@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/sheet"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
-import { workKinds, type Work, type WorkKind } from "./model"
+import { workKinds } from "./model"
+import type { Work, WorkKind } from "./model"
 import {
   countActiveFilters,
   createEmptyFacetFilters,
@@ -30,11 +31,13 @@ import {
   facetDefinitions,
   kindLabels,
   personalStatuses,
-  type FacetFilters,
-  type FacetOption,
-  type FacetOptions,
-  type FacetSelection,
-  type WorkFilterState,
+} from "./filtering"
+import type {
+  FacetFilters,
+  FacetOption,
+  FacetOptions,
+  FacetSelection,
+  WorkFilterState,
 } from "./filtering"
 
 export function AdvancedFilter({
@@ -106,25 +109,33 @@ export function AdvancedFilter({
 
   return (
     <Sheet>
-      <SheetTrigger render={
-        <Button
-          variant={activeCount ? "secondary" : "outline"}
-          size="sm"
-          className="h-8 text-xs gap-1.5 border-border/60"
-        >
-          <FunnelSimpleIcon className="size-3.5 text-muted-foreground" />
-          <span>{triggerLabel}</span>
-          {activeCount > 0 && (
-            <Badge variant="default" className="ml-0.5 h-4 px-1 font-mono text-[10px] leading-none">
-              {activeCount}
-            </Badge>
-          )}
-        </Button>
-      }/>
+      <SheetTrigger
+        render={
+          <Button
+            variant={activeCount ? "secondary" : "outline"}
+            size="sm"
+            className="h-8 gap-1.5 border-border/60 text-xs"
+          >
+            <FunnelSimpleIcon className="size-3.5 text-muted-foreground" />
+            <span>{triggerLabel}</span>
+            {activeCount > 0 && (
+              <Badge
+                variant="default"
+                className="ml-0.5 h-4 px-1 font-mono text-[10px] leading-none"
+              >
+                {activeCount}
+              </Badge>
+            )}
+          </Button>
+        }
+      />
 
-      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col h-full gap-0">
+      <SheetContent
+        side="right"
+        className="flex h-full w-full flex-col gap-0 p-0 sm:max-w-md"
+      >
         {/* Fixed Header */}
-        <SheetHeader className="p-5 pb-4 border-b border-border/40 text-left space-y-1">
+        <SheetHeader className="space-y-1 border-b border-border/40 p-5 pb-4 text-left">
           <SheetTitle className="text-base font-semibold">{title}</SheetTitle>
           <SheetDescription className="text-xs leading-normal">
             Click once to include, twice to exclude, and a third time to clear.
@@ -132,9 +143,9 @@ export function AdvancedFilter({
         </SheetHeader>
 
         {/* Scrollable Main Area */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        <div className="flex-1 space-y-5 overflow-y-auto p-5">
           {/* Legend Pill */}
-          <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-xs border border-border/40">
+          <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/40 px-3 py-2 text-xs">
             <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
               <span className="flex size-4 items-center justify-center rounded bg-emerald-500/15">
                 <CheckIcon className="size-3 stroke-[3]" />
@@ -155,12 +166,12 @@ export function AdvancedFilter({
 
           {/* Facet Search */}
           <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+            <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={facetSearch}
               onChange={(event) => setFacetSearch(event.target.value)}
               placeholder="Find a genre, tag, studio, country…"
-              className="pl-9 h-9 text-xs"
+              className="h-9 pl-9 text-xs"
               aria-label="Search filter values"
             />
           </div>
@@ -168,8 +179,12 @@ export function AdvancedFilter({
           {/* Filter Group: Type */}
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</span>
-              <span className="text-[11px] text-muted-foreground/70 italic">include or exclude</span>
+              <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                Type
+              </span>
+              <span className="text-[11px] text-muted-foreground/70 italic">
+                include or exclude
+              </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {workKinds.map((kind) => (
@@ -188,8 +203,12 @@ export function AdvancedFilter({
           {/* Filter Group: Status */}
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</span>
-              <span className="text-[11px] text-muted-foreground/70 italic">include or exclude</span>
+              <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                Status
+              </span>
+              <span className="text-[11px] text-muted-foreground/70 italic">
+                include or exclude
+              </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {personalStatuses.map((status) => (
@@ -212,7 +231,9 @@ export function AdvancedFilter({
           {/* Numeric Filters Grid */}
           <div className="grid grid-cols-3 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">Min rating</label>
+              <label className="text-xs font-medium text-foreground">
+                Min rating
+              </label>
               <select
                 value={filters.minRating}
                 onChange={(event) =>
@@ -221,7 +242,7 @@ export function AdvancedFilter({
                     minRating: Number(event.target.value),
                   })
                 }
-                className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
               >
                 <option value="0">Any rating</option>
                 <option value="7">7+</option>
@@ -231,7 +252,9 @@ export function AdvancedFilter({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">Release from</label>
+              <label className="text-xs font-medium text-foreground">
+                Release from
+              </label>
               <Input
                 type="number"
                 placeholder="Any"
@@ -249,7 +272,9 @@ export function AdvancedFilter({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">Release to</label>
+              <label className="text-xs font-medium text-foreground">
+                Release to
+              </label>
               <Input
                 type="number"
                 placeholder="Any"
@@ -268,10 +293,14 @@ export function AdvancedFilter({
           </div>
 
           {/* Favorites Switch */}
-          <div className="flex items-center justify-between rounded-lg border border-border/60 p-3 bg-muted/20">
+          <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-3">
             <div className="flex flex-col gap-0.5">
-              <span className="text-xs font-medium text-foreground">Favorites only</span>
-              <span className="text-[11px] text-muted-foreground">Only show works marked as favorite</span>
+              <span className="text-xs font-medium text-foreground">
+                Favorites only
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                Only show works marked as favorite
+              </span>
             </div>
             <Switch
               checked={filters.favoriteOnly}
@@ -296,15 +325,17 @@ export function AdvancedFilter({
             ))}
           </div>
 
-          <p className="text-[11px] text-muted-foreground/80 leading-relaxed italic">
+          <p className="text-[11px] leading-relaxed text-muted-foreground/80 italic">
             Exclusions are saved with the view and apply across the library.
           </p>
         </div>
 
         {/* Fixed Footer */}
-        <SheetFooter className="border-t border-border/40 p-4 bg-background/95 backdrop-blur flex flex-row items-center justify-between gap-2 sm:justify-between">
+        <SheetFooter className="flex flex-row items-center justify-between gap-2 border-t border-border/40 bg-background/95 p-4 backdrop-blur sm:justify-between">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground font-mono text-sm">{matchingCount}</span>
+            <span className="font-mono text-sm font-semibold text-foreground">
+              {matchingCount}
+            </span>
             <span>matching works</span>
           </div>
           <div className="flex items-center gap-2">
@@ -317,12 +348,13 @@ export function AdvancedFilter({
             >
               Clear all
             </Button>
-            <SheetClose render={
-
-              <Button size="sm" className="h-8 text-xs">
-                Done
-              </Button>
-            }/>
+            <SheetClose
+              render={
+                <Button size="sm" className="h-8 text-xs">
+                  Done
+                </Button>
+              }
+            />
           </div>
         </SheetFooter>
       </SheetContent>
@@ -356,18 +388,22 @@ function TriStateButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring capitalize",
+        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium capitalize transition-all duration-150 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none",
         state === "include" &&
-          "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs",
+          "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 shadow-xs hover:bg-emerald-500/20 dark:text-emerald-300",
         state === "exclude" &&
-          "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs",
+          "border-rose-500/30 bg-rose-500/10 text-rose-700 shadow-xs hover:bg-rose-500/20 dark:text-rose-300",
         state === "neutral" &&
           "border-border/60 bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
       aria-label={`${label}: ${state}`}
     >
-      {state === "include" && <CheckIcon className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400 stroke-[3]" />}
-      {state === "exclude" && <MinusIcon className="size-3 shrink-0 text-rose-600 dark:text-rose-400 stroke-[3]" />}
+      {state === "include" && (
+        <CheckIcon className="size-3 shrink-0 stroke-[3] text-emerald-600 dark:text-emerald-400" />
+      )}
+      {state === "exclude" && (
+        <MinusIcon className="size-3 shrink-0 stroke-[3] text-rose-600 dark:text-rose-400" />
+      )}
       <span>{label}</span>
     </button>
   )
@@ -399,21 +435,23 @@ function FacetSection({
 
   return (
     <details
-      className="group rounded-lg border border-border/50 bg-background overflow-hidden transition-all [&[open]]:shadow-xs"
+      className="group overflow-hidden rounded-lg border border-border/50 bg-background transition-all [&[open]]:shadow-xs"
       open={defaultOpen || Boolean(normalizedSearch)}
     >
-      <summary className="flex items-center justify-between p-3 text-xs font-medium cursor-pointer select-none bg-muted/20 hover:bg-muted/40 transition-colors list-none [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between bg-muted/20 p-3 text-xs font-medium transition-colors select-none hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
         <span className="font-semibold text-foreground">{label}</span>
-        <span className="text-[11px] text-muted-foreground font-mono">
+        <span className="font-mono text-[11px] text-muted-foreground">
           {selectedCount ? (
-            <span className="text-primary font-semibold">{selectedCount} active</span>
+            <span className="font-semibold text-primary">
+              {selectedCount} active
+            </span>
           ) : (
             `${options.length} values`
           )}
         </span>
       </summary>
 
-      <div className="p-3 border-t border-border/40 flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+      <div className="flex max-h-48 flex-wrap gap-1.5 overflow-y-auto border-t border-border/40 p-3">
         {visible.map((option) => {
           const state = getState(
             selection.include,
@@ -425,21 +463,27 @@ function FacetSection({
               key={option.value}
               type="button"
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-all duration-150 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none",
                 state === "include" &&
-                  "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium",
+                  "border-emerald-500/30 bg-emerald-500/10 font-medium text-emerald-700 dark:text-emerald-300",
                 state === "exclude" &&
-                  "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 font-medium",
+                  "border-rose-500/30 bg-rose-500/10 font-medium text-rose-700 dark:text-rose-300",
                 state === "neutral" &&
                   "border-border/40 bg-muted/30 text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               onClick={() => onToggle(option.value)}
               aria-label={`${option.value}: ${state}`}
             >
-              {state === "include" && <CheckIcon className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400 stroke-[3]" />}
-              {state === "exclude" && <MinusIcon className="size-3 shrink-0 text-rose-600 dark:text-rose-400 stroke-[3]" />}
+              {state === "include" && (
+                <CheckIcon className="size-3 shrink-0 stroke-[3] text-emerald-600 dark:text-emerald-400" />
+              )}
+              {state === "exclude" && (
+                <MinusIcon className="size-3 shrink-0 stroke-[3] text-rose-600 dark:text-rose-400" />
+              )}
               <span>{option.value}</span>
-              <span className="text-[10px] opacity-60 font-mono">({option.count})</span>
+              <span className="font-mono text-[10px] opacity-60">
+                ({option.count})
+              </span>
             </button>
           )
         })}

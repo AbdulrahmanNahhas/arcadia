@@ -15,6 +15,41 @@
       "when": 1784482784158,
       "tag": "0001_tan_wither",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784791166710,
+      "tag": "0002_dusty_thunderball",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784795579646,
+      "tag": "0003_equal_boomerang",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1784796356041,
+      "tag": "0004_brown_molly_hayes",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784801034028,
+      "tag": "0005_dazzling_moon_knight",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1784802262140,
+      "tag": "0006_elite_surge",
+      "breakpoints": true
     }
   ]
 }

@@ -47,13 +47,13 @@ const report = {
       "select count(*) as total from works where trim(summary) = ''"
     ),
     missingGenres: scalar(
-      "select count(*) as total from works where json_array_length(coalesce(json_extract(metadata, '$.genres'), '[]')) = 0"
+      "select count(*) as total from works where not exists (select 1 from work_terms join terms on terms.id = work_terms.term_id where work_terms.work_id = works.id and terms.vocabulary = 'genre')"
     ),
     missingTags: scalar(
-      "select count(*) as total from works where json_array_length(coalesce(json_extract(metadata, '$.tags'), '[]')) = 0"
+      "select count(*) as total from works where not exists (select 1 from work_terms join terms on terms.id = work_terms.term_id where work_terms.work_id = works.id and terms.vocabulary = 'tag')"
     ),
     missingTones: scalar(
-      "select count(*) as total from works where json_array_length(coalesce(json_extract(metadata, '$.tone'), '[]')) = 0"
+      "select count(*) as total from works where not exists (select 1 from work_terms join terms on terms.id = work_terms.term_id where work_terms.work_id = works.id and terms.vocabulary = 'tone')"
     ),
     missingPosters: scalar(
       "select count(*) as total from works where not exists (select 1 from assets where assets.owner_type = 'work' and assets.owner_id = works.id and assets.asset_type = 'poster')"
@@ -62,27 +62,35 @@ const report = {
       "select count(*) as total from works where not exists (select 1 from work_credits where work_credits.work_id = works.id)"
     ),
     missingLinks: scalar(
-      "select count(*) as total from works where json_array_length(coalesce(json_extract(metadata, '$.externalLinks'), '[]')) = 0"
+      "select count(*) as total from works where not exists (select 1 from external_links where external_links.owner_type = 'work' and external_links.owner_id = works.id)"
     ),
     missingCurationReview: scalar(
       "select count(*) as total from works where json_extract(metadata, '$.curation.reviewedAt') is null"
     ),
     duplicatedGuidanceTags: scalar(
-      "select count(*) as total from works, json_each(works.metadata, '$.tags') where lower(json_each.value) like '%risk%' or lower(json_each.value) like '%fanservice%'"
+      "select count(*) as total from work_terms join terms on terms.id = work_terms.term_id where terms.vocabulary = 'tag' and (lower(terms.name) like '%risk%' or lower(terms.name) like '%fanservice%')"
     ),
     malformedTags: scalar(
-      `select count(*) as total from works, json_each(works.metadata, '$.tags')
-       where json_each.value <> lower(json_each.value)
-          or json_each.value glob '* *'
-          or json_each.value glob '*_*'`
+      `select count(*) as total from work_terms join terms on terms.id = work_terms.term_id
+       where terms.vocabulary = 'tag'
+         and (terms.slug <> lower(terms.slug)
+           or terms.slug glob '* *'
+           or terms.slug glob '*_*')`
     ),
     genreDuplicatingTags: scalar(
-      `select count(*) as total from works, json_each(works.metadata, '$.tags')
-       where json_each.value in ('action','adventure','comedy','drama','fantasy','historical','horror','mystery','music','psychological','romance','sci-fi','slice-of-life','sports','supernatural','thriller')`
+      `select count(*) as total from work_terms join terms on terms.id = work_terms.term_id
+       where terms.vocabulary = 'tag'
+         and terms.slug in ('action','adventure','comedy','drama','fantasy','historical','horror','mecha','military','music','mystery','political','psychological','romance','sci-fi','slice-of-life','sports','supernatural','thriller')`
     ),
     nonCanonicalGenres: scalar(
-      `select count(*) as total from works, json_each(works.metadata, '$.genres')
-       where json_each.value not in ('Action','Adventure','Comedy','Drama','Fantasy','Historical','Horror','Music','Mystery','Psychological','Romance','Sci-Fi','Slice of Life','Sports','Supernatural','Thriller')`
+      `select count(*) as total from work_terms join terms on terms.id = work_terms.term_id
+       where terms.vocabulary = 'genre'
+         and terms.name not in ('Action','Adventure','Comedy','Drama','Fantasy','Historical','Horror','Mecha','Military','Music','Mystery','Political','Psychological','Romance','Sci-Fi','Slice of Life','Sports','Supernatural','Thriller')`
+    ),
+    nonCanonicalTones: scalar(
+      `select count(*) as total from work_terms join terms on terms.id = work_terms.term_id
+       where terms.vocabulary = 'tone'
+         and terms.name not in ('Wholesome','Emotional','Bittersweet','Reflective','Tense','Hype / Energetic','Dark','Surreal / Whimsical','Epic','Atmospheric')`
     ),
   },
 }

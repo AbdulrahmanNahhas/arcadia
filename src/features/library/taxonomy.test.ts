@@ -12,7 +12,7 @@ describe("normalizeTaxonomy", () => {
     ).toEqual({
       genres: ["Sci-Fi", "Action", "Fantasy"],
       tags: ["superhero", "martial-arts", "dark-fantasy"],
-      tone: ["Intense", "Fast-paced"],
+      tone: ["Hype / Energetic"],
     })
   })
 
@@ -26,7 +26,7 @@ describe("normalizeTaxonomy", () => {
     ).toEqual({
       genres: ["Drama"],
       tags: ["found-family"],
-      tone: ["Emotional", "Warm"],
+      tone: ["Emotional", "Wholesome"],
     })
   })
 })

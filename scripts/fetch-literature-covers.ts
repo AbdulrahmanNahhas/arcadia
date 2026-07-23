@@ -126,7 +126,7 @@ async function saveCover(workId: string, url: string) {
 function addCatalogLink(workId: string, url: string) {
   const work = db.select().from(works).where(eq(works.id, workId)).get()
   if (!work) throw new Error(`Work not found: ${workId}`)
-  const metadata = (work.metadata ?? {}) as Record<string, unknown> & {
+  const metadata = work.metadata as Record<string, unknown> & {
     externalLinks?: Array<{ provider: string; label: string; url: string }>
   }
   const links = (metadata.externalLinks ?? []).filter(

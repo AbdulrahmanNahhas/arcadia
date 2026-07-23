@@ -1,17 +1,30 @@
-import { workKinds, type Work, type WorkKind } from "@/features/library/model"
-import {
-  editWorksBulk,
-} from "@/server/library.functions"
+import { genreSchema, workKinds } from "@/features/library/model"
+import type { WorkKind } from "@/features/library/model"
+import { editWorksBulk } from "@/server/library.functions"
 import { useMutation } from "@tanstack/react-query"
-import { useState, type FormEvent } from "react"
+import { useState } from "react"
+import type { FormEvent } from "react"
 import { parseList } from "../admin-app"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { kindLabels, personalStatuses } from "@/features/library/filtering"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { kindLabels } from "@/features/library/filtering"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { NotePencilIcon } from "@phosphor-icons/react"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export function BulkEditDialog({
   open,
@@ -25,8 +38,7 @@ export function BulkEditDialog({
   onUpdated: () => Promise<void>
 }) {
   const [kind, setKind] = useState("")
-  const [status, setStatus] = useState("")
-  const [rating, setRating] = useState("")
+
   const [favorite, setFavorite] = useState("")
   const [addGenres, setAddGenres] = useState("")
   const [removeGenres, setRemoveGenres] = useState("")
@@ -44,12 +56,18 @@ export function BulkEditDialog({
     mutation.mutate({
       data: {
         workIds,
-        ...(kind ? { kind: kind as WorkKind } : {}),
-        ...(status ? { status: status as Work["status"] } : {}),
-        ...(rating ? { rating: Number(rating) } : {}),
-        ...(favorite ? { favorite: favorite === "true" } : {}),
-        addGenres: parseList(addGenres),
-        removeGenres: parseList(removeGenres),
+        ...(kind && kind !== "unchanged" ? { kind: kind as WorkKind } : {}),
+        ...(favorite && favorite !== "unchanged"
+          ? { favorite: favorite === "true" }
+          : {}),
+        addGenres: parseList(addGenres).flatMap((genre) => {
+          const result = genreSchema.safeParse(genre)
+          return result.success ? [result.data] : []
+        }),
+        removeGenres: parseList(removeGenres).flatMap((genre) => {
+          const result = genreSchema.safeParse(genre)
+          return result.success ? [result.data] : []
+        }),
         addTags: parseList(addTags),
         removeTags: parseList(removeTags),
       },
@@ -73,7 +91,10 @@ export function BulkEditDialog({
         <form onSubmit={submit} className="space-y-6">
           <div className="grid gap-5 sm:grid-cols-2">
             <FormField label="Set type" htmlFor="bulk-kind">
-              <Select value={kind} onValueChange={setKind}>
+              <Select
+                value={kind}
+                onValueChange={(value) => setKind(value ?? "unchanged")}
+              >
                 <SelectTrigger id="bulk-kind" className="w-full">
                   <SelectValue placeholder="Keep unchanged" />
                 </SelectTrigger>
@@ -90,39 +111,11 @@ export function BulkEditDialog({
               </Select>
             </FormField>
 
-            <FormField label="Set status" htmlFor="bulk-status">
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger id="bulk-status" className="w-full">
-                  <SelectValue placeholder="Keep unchanged" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  <SelectItem value="unchanged">Keep unchanged</SelectItem>
-
-                  {personalStatuses.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-
-            <FormField label="Set rating" htmlFor="bulk-rating">
-              <Input
-                id="bulk-rating"
-                type="number"
-                min={0}
-                max={10}
-                step={0.1}
-                value={rating}
-                onChange={(event) => setRating(event.target.value)}
-                placeholder="Keep unchanged"
-              />
-            </FormField>
-
             <FormField label="Set favorite" htmlFor="bulk-favorite">
-              <Select value={favorite} onValueChange={setFavorite}>
+              <Select
+                value={favorite}
+                onValueChange={(value) => setFavorite(value ?? "unchanged")}
+              >
                 <SelectTrigger id="bulk-favorite" className="w-full">
                   <SelectValue placeholder="Keep unchanged" />
                 </SelectTrigger>
@@ -202,7 +195,6 @@ export function BulkEditDialog({
     </Dialog>
   )
 }
-
 
 type FormFieldProps = {
   label: string
