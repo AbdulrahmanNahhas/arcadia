@@ -353,7 +353,6 @@ export function AdminApp() {
                 <TableHead className="w-30">Curation</TableHead>
                 <TableHead className="w-27.5">Structure</TableHead>
                 <TableHead className="w-32.5">Status</TableHead>
-                <TableHead className="w-37.5">Progress</TableHead>
                 <TableHead className="w-20 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -479,19 +478,6 @@ export function AdminApp() {
                       <StatusBadge status={work.status} />
                     </TableCell>
 
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <span className="font-mono text-xs font-medium">
-                          {work.progress}
-                          {work.progressTotal !== null
-                            ? ` / ${work.progressTotal}`
-                            : ""}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {work.trackedOn ?? "Never tracked"}
-                        </span>
-                      </div>
-                    </TableCell>
 
                     {/* Row Actions */}
                     <TableCell className="text-right">
