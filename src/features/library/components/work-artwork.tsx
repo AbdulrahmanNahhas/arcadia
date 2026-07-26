@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { kindLabels } from "../filtering"
 import type { Work } from "../model"
+import { progressUnitLabelAr } from "../translations"
 
 const paletteClasses: Record<string, string> = {
   ember: "from-orange-950 via-rose-900 to-amber-600",
@@ -13,13 +14,13 @@ const paletteClasses: Record<string, string> = {
 }
 
 export function progressText(work: Work) {
-  if (work.status === "completed" && !work.progressTotal) return "Completed"
+  if (work.status === "completed" && !work.progressTotal) return "مكتمل"
   if (!work.progressTotal) {
     return work.progress
-      ? `${work.progress} ${work.progressUnit}`
-      : "Not started"
+      ? `${work.progress} ${progressUnitLabelAr(work.progressUnit)}`
+      : "لم يبدأ"
   }
-  return `${work.progress} / ${work.progressTotal} ${work.progressUnit}`
+  return `${work.progress} / ${work.progressTotal} ${progressUnitLabelAr(work.progressUnit)}`
 }
 
 export function usesProgress(work: Work) {
@@ -78,10 +79,10 @@ export function WorkArtwork({
       {!path && (
         <div className="absolute inset-x-5 bottom-8 z-10 text-white">
           <p className="mb-1 text-[10px] font-medium tracking-[0.18em] text-white/65 uppercase">
-            {work.creator || "Arcadia archive"}
+            {work.creator || "أرشيف أركاديا"}
           </p>
           <p className="line-clamp-3 text-lg leading-tight font-semibold tracking-tight">
-            {work.title}
+            {work.arabicTitle || work.title}
           </p>
         </div>
       )}
@@ -95,10 +96,10 @@ export function WorkArtwork({
           {kindLabels[work.kind]}
         </Badge>
       )}
-      {showRating && work.rating !== null && (
+      {showRating && work.calculatedRating !== null && (
         <Badge className="absolute top-2.5 right-2.5 gap-1 border-white/15 bg-black/55 px-2 py-0.5 text-[10px] text-white shadow-sm backdrop-blur-md hover:bg-black/65">
           <StarIcon className="size-2.5 text-amber-300" weight="fill" />
-          {work.rating.toFixed(1)}
+          {work.calculatedRating.toFixed(1)}
         </Badge>
       )}
     </div>

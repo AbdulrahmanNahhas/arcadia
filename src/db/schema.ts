@@ -31,9 +31,12 @@ export const works = sqliteTable(
     releaseYear: integer("release_year"),
     originalReleaseAt: integer("original_release_at"),
     runtimeMinutes: integer("runtime_minutes"),
+    playtimeMinutes: integer("playtime_minutes"),
     pageCount: integer("page_count"),
     episodeCount: integer("episode_count"),
     chapterCount: integer("chapter_count"),
+    volumeCount: integer("volume_count"),
+    routeCount: integer("route_count"),
     status: text("status").notNull().default("released"),
     metadata: text("metadata", { mode: "json" })
       .$type<Record<string, unknown>>()
@@ -53,9 +56,12 @@ export const works = sqliteTable(
     check(
       "works_metrics_check",
       sql`(${table.runtimeMinutes} is null or ${table.runtimeMinutes} >= 0)
+        and (${table.playtimeMinutes} is null or ${table.playtimeMinutes} >= 0)
         and (${table.pageCount} is null or ${table.pageCount} >= 0)
         and (${table.episodeCount} is null or ${table.episodeCount} >= 0)
-        and (${table.chapterCount} is null or ${table.chapterCount} >= 0)`
+        and (${table.chapterCount} is null or ${table.chapterCount} >= 0)
+        and (${table.volumeCount} is null or ${table.volumeCount} >= 0)
+        and (${table.routeCount} is null or ${table.routeCount} >= 0)`
     ),
     check(
       "works_metadata_normalized_check",
@@ -99,6 +105,11 @@ export const workTitles = sqliteTable(
       table.titleType,
       table.language
     ),
+    uniqueIndex("work_titles_preferred_language_uq")
+      .on(table.workId, table.language)
+      .where(
+        sql`${table.isPreferred} = true and ${table.language} is not null`
+      ),
     index("work_titles_work_idx").on(table.workId),
   ]
 )
@@ -146,7 +157,7 @@ export const workCredits = sqliteTable(
   (table) => [
     check(
       "work_credits_role_check",
-      sql`${table.role} in ('author', 'director', 'main-studio', 'publisher', 'creator')`
+      sql`${table.role} in ('author', 'writer', 'director', 'illustrator', 'main-studio', 'developer', 'publisher', 'composer', 'creator')`
     ),
     primaryKey({ columns: [table.workId, table.entityId, table.role] }),
     index("work_credits_entity_idx").on(table.entityId),
@@ -162,30 +173,34 @@ export const terms = sqliteTable(
     slug: text("slug").notNull(),
     parentId: text("parent_id"),
     color: text("color"),
+    labelAr: text("label_ar"),
     description: text("description").notNull().default(""),
+    descriptionAr: text("description_ar").notNull().default(""),
   },
   (table) => [
     check(
       "terms_vocabulary_check",
-      sql`${table.vocabulary} in ('genre', 'tone', 'tag', 'audience', 'country', 'era')`
+      sql`${table.vocabulary} in ('genre', 'tone', 'tag', 'audience', 'country', 'platform')`
     ),
     check(
       "terms_controlled_values_check",
       sql`(
         ${table.vocabulary} <> 'genre'
         or ${table.name} in (
-          'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Historical',
-          'Horror', 'Mecha', 'Military', 'Music', 'Mystery', 'Political',
-          'Psychological', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports',
-          'Supernatural', 'Thriller'
+          'Action', 'Adventure', 'Comedy', 'Crime', 'Drama', 'Fantasy',
+          'Historical', 'Horror', 'Mecha', 'Music', 'Mystery', 'Psychological',
+          'Romance', 'Science Fiction', 'Slice of Life', 'Sports',
+          'Supernatural', 'Thriller', 'War'
         )
       ) and (
         ${table.vocabulary} <> 'tone'
         or ${table.name} in (
           'Wholesome', 'Emotional', 'Bittersweet', 'Reflective', 'Tense',
-          'Hype / Energetic', 'Dark', 'Surreal / Whimsical', 'Epic',
-          'Atmospheric'
+          'Energetic', 'Dark', 'Whimsical', 'Epic', 'Atmospheric'
         )
+      ) and (
+        ${table.vocabulary} <> 'audience'
+        or ${table.name} in ('Adult', 'Young Adult', 'Teen', 'General')
       )`
     ),
     uniqueIndex("terms_vocabulary_slug_uq").on(table.vocabulary, table.slug),
@@ -206,6 +221,26 @@ export const workTerms = sqliteTable(
     source: text("source").notNull().default("manual"),
   },
   (table) => [primaryKey({ columns: [table.workId, table.termId] })]
+)
+
+export const termAliases = sqliteTable(
+  "term_aliases",
+  {
+    id: text("id").primaryKey(),
+    termId: text("term_id")
+      .notNull()
+      .references(() => terms.id, { onDelete: "cascade" }),
+    alias: text("alias").notNull(),
+    language: text("language"),
+    normalizedAlias: text("normalized_alias").notNull(),
+  },
+  (table) => [
+    uniqueIndex("term_aliases_identity_uq").on(
+      table.termId,
+      table.normalizedAlias
+    ),
+    index("term_aliases_lookup_idx").on(table.normalizedAlias),
+  ]
 )
 
 export const workRelations = sqliteTable(
@@ -235,45 +270,6 @@ export const workRelations = sqliteTable(
   ]
 )
 
-export const fieldDefinitions = sqliteTable(
-  "field_definitions",
-  {
-    id: text("id").primaryKey(),
-    key: text("key").notNull().unique(),
-    label: text("label").notNull(),
-    dataType: text("data_type").notNull(),
-    appliesTo: text("applies_to", { mode: "json" }).$type<string[]>().notNull(),
-    config: text("config", { mode: "json" })
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default({}),
-    position: integer("position").notNull().default(0),
-    ...timestamps,
-  },
-  (table) => [index("field_definitions_position_idx").on(table.position)]
-)
-
-export const fieldValues = sqliteTable(
-  "field_values",
-  {
-    workId: text("work_id")
-      .notNull()
-      .references(() => works.id, { onDelete: "cascade" }),
-    fieldId: text("field_id")
-      .notNull()
-      .references(() => fieldDefinitions.id, { onDelete: "cascade" }),
-    textValue: text("text_value"),
-    numberValue: real("number_value"),
-    booleanValue: integer("boolean_value", { mode: "boolean" }),
-    dateValue: integer("date_value"),
-    jsonValue: text("json_value", { mode: "json" }).$type<unknown>(),
-    updatedAt: integer("updated_at")
-      .notNull()
-      .default(sql`(unixepoch())`),
-  },
-  (table) => [primaryKey({ columns: [table.workId, table.fieldId] })]
-)
-
 export const personalState = sqliteTable(
   "personal_state",
   {
@@ -281,7 +277,6 @@ export const personalState = sqliteTable(
       .primaryKey()
       .references(() => works.id, { onDelete: "cascade" }),
     status: text("status").notNull().default("planned"),
-    rating: real("rating"),
     favorite: integer("favorite", { mode: "boolean" }).notNull().default(false),
     progress: real("progress").notNull().default(0),
     progressTotal: real("progress_total"),
@@ -302,9 +297,35 @@ export const personalState = sqliteTable(
       "personal_state_values_check",
       sql`${table.progress} >= 0
         and (${table.progressTotal} is null or ${table.progressTotal} >= 0)
-        and (${table.rating} is null or (${table.rating} >= 0 and ${table.rating} <= 10))`
+        `
     ),
     index("personal_state_status_idx").on(table.status),
+  ]
+)
+
+export const personalScores = sqliteTable(
+  "personal_scores",
+  {
+    workId: text("work_id")
+      .notNull()
+      .references(() => works.id, { onDelete: "cascade" }),
+    criterion: text("criterion").notNull(),
+    value: real("value").notNull(),
+    updatedAt: integer("updated_at")
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [
+    check(
+      "personal_scores_criterion_check",
+      sql`${table.criterion} in ('story', 'characters', 'depth', 'worldBuilding', 'originality', 'craft')`
+    ),
+    check(
+      "personal_scores_value_check",
+      sql`${table.value} >= 0 and ${table.value} <= 10`
+    ),
+    primaryKey({ columns: [table.workId, table.criterion] }),
+    index("personal_scores_work_idx").on(table.workId),
   ]
 )
 

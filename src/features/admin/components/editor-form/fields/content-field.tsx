@@ -25,6 +25,20 @@ const contentTypes = [
   "Extras",
 ] as const
 
+const contentTypeLabels: Record<(typeof contentTypes)[number], string> = {
+  Chapters: "فصول",
+  Volumes: "مجلدات",
+  Parts: "أجزاء",
+  Books: "كتب",
+  Stories: "قصص",
+  Essays: "مقالات",
+  Poems: "قصائد",
+  Routes: "مسارات",
+  Acts: "فصول مسرحية",
+  Episodes: "حلقات",
+  Extras: "إضافات",
+}
+
 export function ContentField({
   value = [],
   onChange,
@@ -39,7 +53,7 @@ export function ContentField({
   }
 
   return (
-    <Field label="Contents" wide>
+    <Field label="المحتويات" wide>
       <div className="flex flex-col gap-2">
         {value.map((item, index) => (
           <div
@@ -49,7 +63,7 @@ export function ContentField({
             <Input
               value={item}
               onChange={(event) => update(index, event.target.value)}
-              placeholder="e.g. 41 chapters or Part One"
+              placeholder="مثلاً: 41 فصلاً أو الجزء الأول"
               className="h-8 flex-1 bg-background text-xs"
             />
             <Select
@@ -58,13 +72,13 @@ export function ContentField({
               }
             >
               <SelectTrigger className="h-8 w-32 bg-background text-xs">
-                <SelectValue placeholder="Quick type" />
+                <SelectValue placeholder="نوع سريع" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   {contentTypes.map((contentType) => (
                     <SelectItem key={contentType} value={contentType}>
-                      {contentType}
+                      {contentTypeLabels[contentType]}
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -77,7 +91,7 @@ export function ContentField({
               onClick={() =>
                 onChange(value.filter((_, itemIndex) => itemIndex !== index))
               }
-              aria-label={`Remove content ${index + 1}`}
+              aria-label={`إزالة المحتوى ${index + 1}`}
             >
               <TrashIcon data-icon="inline-start" />
             </Button>
@@ -91,7 +105,7 @@ export function ContentField({
           className="w-full border-dashed"
         >
           <PlusIcon data-icon="inline-start" />
-          Add content item
+          إضافة عنصر محتوى
         </Button>
       </div>
     </Field>

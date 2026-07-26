@@ -54,6 +54,7 @@ import {
 } from "@/features/library/components/tracking-form"
 import { kindLabels } from "@/features/library/filtering"
 import type { TrackingEntry, Work } from "@/features/library/model"
+import { progressUnitLabelAr } from "@/features/library/translations"
 import {
   getTrackingPage,
   getWorkStructure,
@@ -108,17 +109,17 @@ export function ActivityFeedPage() {
               nativeButton={false}
               render={<Link to="/" />}
             >
+              <span className="sr-only">العودة إلى المكتبة</span>
               <ArrowLeftIcon />
-              <span className="sr-only">Back to library</span>
             </Button>
             <div>
-              <p className="text-xs text-muted-foreground">Tracking history</p>
-              <h1 className="text-sm font-semibold">Activity</h1>
+              <p className="text-xs text-muted-foreground">سجل المتابعة</p>
+              <h1 className="text-sm font-semibold">النشاط</h1>
             </div>
           </div>
           <Button size="sm" onClick={() => setEntryOpen(true)}>
             <PlusIcon data-icon="inline-start" />
-            Add progress
+            إضافة تقدم
           </Button>
         </div>
       </header>
@@ -126,16 +127,16 @@ export function ActivityFeedPage() {
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6">
         <Card>
           <CardHeader>
-            <CardTitle>Progress history</CardTitle>
+            <CardTitle>سجل التقدم</CardTitle>
             <CardDescription>
-              Every entry is a date-only snapshot. Older checkpoints can be
-              added later without replacing newer progress.
+              كل إدخال لقطة مؤرخة للتقدم. يمكنك إضافة نقاط أقدم لاحقاً دون
+              استبدال التقدم الأحدث.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <FieldGroup className="gap-3 sm:grid sm:grid-cols-4">
               <Field>
-                <FieldLabel htmlFor="feed-work">Work</FieldLabel>
+                <FieldLabel htmlFor="feed-work">العمل</FieldLabel>
                 <Select
                   value={workId}
                   onValueChange={(value) => value && setWorkId(value)}
@@ -145,10 +146,10 @@ export function ActivityFeedPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="all">All works</SelectItem>
+                      <SelectItem value="all">كل الأعمال</SelectItem>
                       {works.map((work) => (
                         <SelectItem key={work.id} value={work.id}>
-                          {work.title}
+                          {work.arabicTitle || work.title}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -156,7 +157,7 @@ export function ActivityFeedPage() {
                 </Select>
               </Field>
               <Field>
-                <FieldLabel htmlFor="feed-status">Status</FieldLabel>
+                <FieldLabel htmlFor="feed-status">الحالة</FieldLabel>
                 <Select
                   value={status}
                   onValueChange={(value) => value && setStatus(value)}
@@ -166,7 +167,7 @@ export function ActivityFeedPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="all">كل الحالات</SelectItem>
                       {(
                         [
                           "planned",
@@ -185,7 +186,7 @@ export function ActivityFeedPage() {
                 </Select>
               </Field>
               <Field>
-                <FieldLabel htmlFor="feed-from">From</FieldLabel>
+                <FieldLabel htmlFor="feed-from">من</FieldLabel>
                 <Input
                   id="feed-from"
                   type="date"
@@ -194,7 +195,7 @@ export function ActivityFeedPage() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="feed-to">To</FieldLabel>
+                <FieldLabel htmlFor="feed-to">إلى</FieldLabel>
                 <Input
                   id="feed-to"
                   type="date"
@@ -217,10 +218,9 @@ export function ActivityFeedPage() {
               <EmptyMedia variant="icon">
                 <CalendarBlankIcon />
               </EmptyMedia>
-              <EmptyTitle>No tracking yet</EmptyTitle>
+              <EmptyTitle>لا يوجد تتبع بعد</EmptyTitle>
               <EmptyDescription>
-                Add progress for today or backdate something you watched or read
-                earlier.
+                أضف تقدم اليوم أو سجل بتاريخ سابق عملاً شاهدته أو قرأته.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -257,7 +257,7 @@ export function ActivityFeedPage() {
             onClick={() => query.fetchNextPage()}
           >
             <ClockCounterClockwiseIcon data-icon="inline-start" />
-            {query.isFetchingNextPage ? "Loading…" : "Load older"}
+            {query.isFetchingNextPage ? "جارٍ التحميل…" : "تحميل الأقدم"}
           </Button>
         ) : null}
       </main>
@@ -318,7 +318,9 @@ function TrackingCard({ entry, work }: { entry: TrackingEntry; work: Work }) {
             </Badge>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <strong className="truncate text-sm">{work.title}</strong>
+            <strong className="truncate text-sm">
+              {work.arabicTitle || work.title}
+            </strong>
           </div>
           <div className="group relative flex flex-col gap-2">
             <p
@@ -327,9 +329,9 @@ function TrackingCard({ entry, work }: { entry: TrackingEntry; work: Work }) {
                 work.progressTotal && "opacity-0 group-hover:opacity-100!"
               )}
             >
-              Progress {entry.progress}
-              {work.progressTotal ? ` of ${work.progressTotal}` : ""}{" "}
-              {work.progressUnit}
+              التقدم {entry.progress}
+              {work.progressTotal ? ` من ${work.progressTotal}` : ""}{" "}
+              {progressUnitLabelAr(work.progressUnit)}
             </p>
             {work.progressTotal && (
               <>
@@ -344,7 +346,7 @@ function TrackingCard({ entry, work }: { entry: TrackingEntry; work: Work }) {
         <Button
           variant="destructive"
           size="icon-sm"
-          aria-label={`Delete ${work.title} checkpoint from ${entry.occurredOn}`}
+          aria-label={`حذف نقطة تقدم ${work.arabicTitle || work.title} بتاريخ ${entry.occurredOn}`}
           disabled={mutation.isPending}
           className={"bg-transparent! hover:bg-destructive/10!"}
           onClick={() => mutation.mutate({ data: { entryId: entry.id } })}
@@ -376,13 +378,13 @@ function AddTrackingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add progress</DialogTitle>
+          <DialogTitle>إضافة تقدم</DialogTitle>
           <DialogDescription>
-            Choose a work, progress, status, and the date it happened.
+            اختر العمل ومقدار التقدم والحالة وتاريخ حدوثه.
           </DialogDescription>
         </DialogHeader>
         <Field>
-          <FieldLabel htmlFor="tracking-work">Work</FieldLabel>
+          <FieldLabel htmlFor="tracking-work">العمل</FieldLabel>
           <Select
             value={workId}
             onValueChange={(value) => value && setWorkId(value)}
@@ -394,7 +396,7 @@ function AddTrackingDialog({
               <SelectGroup>
                 {works.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
-                    {item.title}
+                    {item.arabicTitle || item.title}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -426,7 +428,7 @@ function groupEntries(entries: TrackingEntry[]) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat("ar", {
     weekday: "short",
     month: "short",
     day: "numeric",

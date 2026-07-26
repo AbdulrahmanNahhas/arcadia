@@ -187,7 +187,7 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      subtitle:
+      editorialDeck:
         "A quiet fantasy about time, memory, and learning to know people",
       releaseStart: "2023-09-29",
       releaseEnd: null,
@@ -205,7 +205,6 @@ const goldWorks: GoldWork[] = [
         "The story is structured as a post-adventure journey: episodic encounters repeatedly reframe earlier memories rather than escalating through a conventional quest alone.",
       riskProfile: {
         sexuality: "low",
-        fanService: 1,
         behavioral: "low",
         theology: "medium",
       },
@@ -262,17 +261,7 @@ const goldWorks: GoldWork[] = [
       "Humanity survives behind enormous walls until a catastrophic breach sends Eren Yeager into a war against the Titans. The struggle expands into a political and moral conflict over inherited violence, freedom, identity, and the history hidden beyond the walls.",
     originalReleaseAt: epoch("2013-04-07"),
     episodeCount: 94,
-    genres: [
-      "Action",
-      "Drama",
-      "Fantasy",
-      "Horror",
-      "Military",
-      "Mystery",
-      "Political",
-      "Psychological",
-      "Thriller",
-    ],
+    genres: ["Action", "Drama", "Fantasy", "Horror", "Mystery", "Thriller"],
     tones: ["Dark", "Tense", "Epic", "Emotional", "Reflective"],
     tags: [
       "war",
@@ -284,6 +273,9 @@ const goldWorks: GoldWork[] = [
       "conspiracy",
       "post-apocalyptic",
       "ensemble-cast",
+      "military",
+      "political",
+      "psychological",
       "manga-adaptation",
     ],
     audiences: ["Mature"],
@@ -351,7 +343,7 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      subtitle:
+      editorialDeck:
         "A war epic about freedom, inherited violence, and the stories nations tell",
       releaseStart: "2013-04-07",
       releaseEnd: "2023-11-05",
@@ -369,7 +361,6 @@ const goldWorks: GoldWork[] = [
         "The series deliberately changes genre and political scale across its seasons; later revelations recast the apparent monster-survival premise as a cycle of nationalism and retaliatory violence.",
       riskProfile: {
         sexuality: "low",
-        fanService: 1,
         behavioral: "high",
         theology: "medium",
       },
@@ -422,7 +413,7 @@ const goldWorks: GoldWork[] = [
     originalReleaseAt: epoch("2023-07-01"),
     pageCount: 480,
     chapterCount: 43,
-    genres: ["Fantasy", "Romance", "Sci-Fi"],
+    genres: ["Fantasy", "Romance", "Science Fiction"],
     tones: ["Wholesome", "Emotional", "Reflective", "Atmospheric", "Epic"],
     tags: [
       "cosmere",
@@ -467,7 +458,7 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      subtitle:
+      editorialDeck:
         "A Cosmere standalone about art, duty, and two lives out of place",
       releaseStart: "2023-07-01",
       releaseEnd: "2023-07-01",
@@ -485,7 +476,6 @@ const goldWorks: GoldWork[] = [
         "A self-contained Cosmere novel. Its paired magic systems treat disciplined artistic practice as both plot mechanism and a language for intimacy.",
       riskProfile: {
         sexuality: "low",
-        fanService: 1,
         behavioral: "medium",
         theology: "medium",
       },
@@ -521,7 +511,7 @@ const goldWorks: GoldWork[] = [
     originalReleaseAt: epoch("1949-06-08"),
     pageCount: 328,
     chapterCount: 24,
-    genres: ["Drama", "Political", "Psychological", "Sci-Fi", "Thriller"],
+    genres: ["Drama", "Science Fiction", "Thriller"],
     tones: ["Dark", "Tense", "Reflective"],
     tags: [
       "dystopia",
@@ -531,6 +521,8 @@ const goldWorks: GoldWork[] = [
       "censorship",
       "language",
       "authoritarianism",
+      "political",
+      "psychological",
       "classic",
     ],
     audiences: ["Adult"],
@@ -566,7 +558,8 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      subtitle: "A dystopian novel about power, language, memory, and truth",
+      editorialDeck:
+        "A dystopian novel about power, language, memory, and truth",
       releaseStart: "1949-06-08",
       releaseEnd: "1949-06-08",
       sourceMaterial: null,
@@ -583,7 +576,6 @@ const goldWorks: GoldWork[] = [
         "The novel's central mechanism is epistemic control: Newspeak, historical revision, and doublethink show political power operating by narrowing what can be said, remembered, and finally believed.",
       riskProfile: {
         sexuality: "medium",
-        fanService: 0,
         behavioral: "high",
         theology: "low",
       },
@@ -687,7 +679,7 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      subtitle:
+      editorialDeck:
         "A school sports romance built on practice, patience, and proximity",
       releaseStart: "2021-04-12",
       releaseEnd: "2026-07-13",
@@ -705,7 +697,6 @@ const goldWorks: GoldWork[] = [
         "Athletic progress and romantic progress share the same rhythm: repetition, incremental improvement, and the willingness to keep showing up.",
       riskProfile: {
         sexuality: "low",
-        fanService: 1,
         behavioral: "low",
         theology: "none",
       },
@@ -742,7 +733,7 @@ const goldWorks: GoldWork[] = [
       "Twenty-year-old Kusunoki sells nearly all of his remaining lifespan and is left with only three months. Watched by the observer Miyagi, he begins to reconsider the value of time, connection, and a life he had assumed was already beyond repair.",
     originalReleaseAt: epoch("2016-08-10"),
     chapterCount: 18,
-    genres: ["Drama", "Psychological", "Romance", "Supernatural"],
+    genres: ["Drama", "Romance", "Supernatural"],
     tones: ["Bittersweet", "Reflective", "Emotional", "Dark"],
     tags: [
       "mortality",
@@ -752,6 +743,7 @@ const goldWorks: GoldWork[] = [
       "existentialism",
       "life-value",
       "manga-adaptation",
+      "psychological",
     ],
     audiences: ["Mature"],
     countries: ["Japan"],
@@ -792,7 +784,8 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      subtitle: "A brief existential romance about what makes a life valuable",
+      editorialDeck:
+        "A brief existential romance about what makes a life valuable",
       releaseStart: "2016-08-10",
       releaseEnd: "2017-10-25",
       sourceMaterial: {
@@ -815,7 +808,6 @@ const goldWorks: GoldWork[] = [
         "The speculative transaction gives the story a literal price for lifespan, then steadily separates market value from lived value through attention, sacrifice, and companionship.",
       riskProfile: {
         sexuality: "low",
-        fanService: 0,
         behavioral: "high",
         theology: "low",
       },
@@ -862,7 +854,6 @@ function curateWork(spec: GoldWork) {
           ...spec.metadata,
           palette: currentMetadata.palette,
           sharedWith: currentMetadata.sharedWith ?? [],
-          scoreBreakdown: currentMetadata.scoreBreakdown ?? {},
           watchDates: currentMetadata.watchDates ?? null,
         },
         updatedAt: now,

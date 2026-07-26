@@ -39,14 +39,19 @@ import type {
   FacetSelection,
   WorkFilterState,
 } from "./filtering"
+import {
+  facetLabelsAr,
+  statusLabelsAr,
+  useArabicTranslations,
+} from "./translations"
 
 export function AdvancedFilter({
   filters,
   facetOptions,
   onChange,
   matchingCount,
-  title = "Filter this view",
-  triggerLabel = "Filter",
+  title = "فلترة هذا العرض",
+  triggerLabel = "الفلاتر",
 }: {
   filters: WorkFilterState
   facetOptions: FacetOptions
@@ -55,6 +60,7 @@ export function AdvancedFilter({
   title?: string
   triggerLabel?: string
 }) {
+  const { facetValueLabel } = useArabicTranslations()
   const [facetSearch, setFacetSearch] = useState("")
   const activeCount = countActiveFilters(filters)
 
@@ -138,7 +144,7 @@ export function AdvancedFilter({
         <SheetHeader className="space-y-1 border-b border-border/40 p-5 pb-4 text-left">
           <SheetTitle className="text-base font-semibold">{title}</SheetTitle>
           <SheetDescription className="text-xs leading-normal">
-            Click once to include, twice to exclude, and a third time to clear.
+            اضغط مرة للتضمين، ومرتين للاستبعاد، وثلاث مرات لإلغاء الاختيار.
           </SheetDescription>
         </SheetHeader>
 
@@ -150,17 +156,17 @@ export function AdvancedFilter({
               <span className="flex size-4 items-center justify-center rounded bg-emerald-500/15">
                 <CheckIcon className="size-3 stroke-[3]" />
               </span>
-              Include
+              تضمين
             </span>
             <span className="flex items-center gap-1.5 font-medium text-rose-600 dark:text-rose-400">
               <span className="flex size-4 items-center justify-center rounded bg-rose-500/15">
                 <MinusIcon className="size-3 stroke-[3]" />
               </span>
-              Exclude
+              استبعاد
             </span>
             <span className="flex items-center gap-1.5 text-muted-foreground">
               <span className="size-4 rounded border border-dashed border-border" />
-              Neutral
+              محايد
             </span>
           </div>
 
@@ -170,9 +176,9 @@ export function AdvancedFilter({
             <Input
               value={facetSearch}
               onChange={(event) => setFacetSearch(event.target.value)}
-              placeholder="Find a genre, tag, studio, country…"
+              placeholder="ابحث عن تصنيف أو وسم أو استوديو أو دولة…"
               className="h-9 pl-9 text-xs"
-              aria-label="Search filter values"
+              aria-label="البحث في قيم الفلاتر"
             />
           </div>
 
@@ -180,10 +186,10 @@ export function AdvancedFilter({
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
               <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                Type
+                النوع
               </span>
               <span className="text-[11px] text-muted-foreground/70 italic">
-                include or exclude
+                تضمين أو استبعاد
               </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -204,17 +210,17 @@ export function AdvancedFilter({
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
               <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                Status
+                الحالة
               </span>
               <span className="text-[11px] text-muted-foreground/70 italic">
-                include or exclude
+                تضمين أو استبعاد
               </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {personalStatuses.map((status) => (
                 <TriStateButton
                   key={status}
-                  label={status.replace("-", " ")}
+                  label={statusLabelsAr[status]}
                   state={getState(
                     filters.statuses,
                     filters.excludedStatuses,
@@ -232,7 +238,7 @@ export function AdvancedFilter({
           <div className="grid grid-cols-3 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-foreground">
-                Min rating
+                أقل تقييم
               </label>
               <select
                 value={filters.minRating}
@@ -244,7 +250,7 @@ export function AdvancedFilter({
                 }
                 className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
               >
-                <option value="0">Any rating</option>
+                <option value="0">أي تقييم</option>
                 <option value="7">7+</option>
                 <option value="8">8+</option>
                 <option value="9">9+</option>
@@ -253,11 +259,11 @@ export function AdvancedFilter({
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-foreground">
-                Release from
+                صدر بعد
               </label>
               <Input
                 type="number"
-                placeholder="Any"
+                placeholder="أي سنة"
                 className="h-9 text-xs"
                 value={filters.yearFrom ?? ""}
                 onChange={(event) =>
@@ -273,11 +279,11 @@ export function AdvancedFilter({
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-foreground">
-                Release to
+                صدر قبل
               </label>
               <Input
                 type="number"
-                placeholder="Any"
+                placeholder="أي سنة"
                 className="h-9 text-xs"
                 value={filters.yearTo ?? ""}
                 onChange={(event) =>
@@ -296,10 +302,10 @@ export function AdvancedFilter({
           <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-3">
             <div className="flex flex-col gap-0.5">
               <span className="text-xs font-medium text-foreground">
-                Favorites only
+                المفضلة فقط
               </span>
               <span className="text-[11px] text-muted-foreground">
-                Only show works marked as favorite
+                عرض الأعمال المضافة إلى المفضلة فقط
               </span>
             </div>
             <Switch
@@ -315,18 +321,19 @@ export function AdvancedFilter({
             {facetDefinitions.map((definition) => (
               <FacetSection
                 key={definition.key}
-                label={definition.label}
+                label={facetLabelsAr[definition.key]}
                 options={facetOptions[definition.key]}
                 selection={filters.facets[definition.key]}
                 search={facetSearch}
                 onToggle={(value) => toggleFacet(definition.key, value)}
+                valueLabel={(value) => facetValueLabel(definition.key, value)}
                 defaultOpen={definition.defaultOpen}
               />
             ))}
           </div>
 
           <p className="text-[11px] leading-relaxed text-muted-foreground/80 italic">
-            Exclusions are saved with the view and apply across the library.
+            تُحفظ الاستبعادات مع العرض وتُطبّق في جميع أنحاء المكتبة.
           </p>
         </div>
 
@@ -336,7 +343,7 @@ export function AdvancedFilter({
             <span className="font-mono text-sm font-semibold text-foreground">
               {matchingCount}
             </span>
-            <span>matching works</span>
+            <span>عمل مطابق</span>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -346,12 +353,12 @@ export function AdvancedFilter({
               onClick={clear}
               disabled={!activeCount}
             >
-              Clear all
+              مسح الكل
             </Button>
             <SheetClose
               render={
                 <Button size="sm" className="h-8 text-xs">
-                  Done
+                  تم
                 </Button>
               }
             />
@@ -415,6 +422,7 @@ function FacetSection({
   selection,
   search,
   onToggle,
+  valueLabel,
   defaultOpen = false,
 }: {
   label: string
@@ -422,13 +430,15 @@ function FacetSection({
   selection: FacetSelection
   search: string
   onToggle: (value: string) => void
+  valueLabel: (value: string) => string
   defaultOpen?: boolean
 }) {
   const normalizedSearch = search.trim().toLocaleLowerCase()
   const visible = options.filter(
     (option) =>
       !normalizedSearch ||
-      option.value.toLocaleLowerCase().includes(normalizedSearch)
+      option.value.toLocaleLowerCase().includes(normalizedSearch) ||
+      valueLabel(option.value).toLocaleLowerCase().includes(normalizedSearch)
   )
   const selectedCount = selection.include.length + selection.exclude.length
   if (!visible.length && !selectedCount) return null
@@ -443,10 +453,10 @@ function FacetSection({
         <span className="font-mono text-[11px] text-muted-foreground">
           {selectedCount ? (
             <span className="font-semibold text-primary">
-              {selectedCount} active
+              {selectedCount} نشط
             </span>
           ) : (
-            `${options.length} values`
+            `${options.length} قيمة`
           )}
         </span>
       </summary>
@@ -472,7 +482,7 @@ function FacetSection({
                   "border-border/40 bg-muted/30 text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               onClick={() => onToggle(option.value)}
-              aria-label={`${option.value}: ${state}`}
+              aria-label={`${valueLabel(option.value)}: ${state}`}
             >
               {state === "include" && (
                 <CheckIcon className="size-3 shrink-0 stroke-[3] text-emerald-600 dark:text-emerald-400" />
@@ -480,7 +490,7 @@ function FacetSection({
               {state === "exclude" && (
                 <MinusIcon className="size-3 shrink-0 stroke-[3] text-rose-600 dark:text-rose-400" />
               )}
-              <span>{option.value}</span>
+              <span>{valueLabel(option.value)}</span>
               <span className="font-mono text-[10px] opacity-60">
                 ({option.count})
               </span>

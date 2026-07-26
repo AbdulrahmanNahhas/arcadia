@@ -1,16 +1,40 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { z } from "zod"
 import {
+  ArrowsClockwiseIcon,
   BracketsCurlyIcon,
   CheckIcon,
+  ClipboardTextIcon,
+  CodeIcon,
   FloppyDiskIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  TextAlignLeftIcon,
 } from "@phosphor-icons/react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -20,24 +44,155 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  adminWorkUpdateSchema,
+  adminWorkTransportSchema,
   editableWorkStructureSchema,
 } from "@/features/library/model"
 import type { AdminWorkUpdate, Work } from "@/features/library/model"
 import {
   getAdminRecordBundles,
-  saveWork,
-  saveWorkStructure,
+  saveAdminRecordChanges,
 } from "@/server/library.functions"
 import { cn } from "@/lib/utils"
 
 type JsonScope = "all" | "visible" | "selected"
+type ProjectionPreset = keyof typeof PROJECTION_PRESETS | "custom"
+
+const PROJECTION_FIELDS = [
+  { key: "work.title", label: "العنوان", group: "الهوية" },
+  { key: "work.arabicTitle", label: "العنوان العربي", group: "الهوية" },
+  { key: "work.aliases", label: "العناوين البديلة", group: "الهوية" },
+  { key: "work.summary", label: "الملخص", group: "الهوية" },
+  { key: "work.kind", label: "النوع", group: "الفهرس" },
+  { key: "work.year", label: "سنة الإصدار", group: "الفهرس" },
+  { key: "work.releaseStatus", label: "حالة الإصدار", group: "الفهرس" },
+  { key: "work.runtimeMinutes", label: "مدة العرض", group: "الفهرس" },
+  { key: "work.playtimeMinutes", label: "مدة اللعب", group: "الفهرس" },
+  { key: "work.pageCount", label: "عدد الصفحات", group: "الفهرس" },
+  { key: "work.episodeCount", label: "عدد الحلقات", group: "الفهرس" },
+  { key: "work.chapterCount", label: "عدد الفصول", group: "الفهرس" },
+  { key: "work.volumeCount", label: "عدد المجلدات", group: "الفهرس" },
+  { key: "work.routeCount", label: "عدد المسارات", group: "الفهرس" },
+  { key: "work.genres", label: "التصنيفات", group: "التصنيف" },
+  { key: "work.tags", label: "الوسوم", group: "التصنيف" },
+  { key: "work.tone", label: "الطابع", group: "التصنيف" },
+  { key: "work.audience", label: "الجمهور", group: "التصنيف" },
+  { key: "work.country", label: "الدول", group: "التصنيف" },
+  { key: "work.sharedWith", label: "مشاركة مع", group: "التصنيف" },
+  { key: "work.favorite", label: "المفضلة", group: "التقييم والشخصي" },
+  {
+    key: "work.scoreComponents",
+    label: "مكونات التقييم",
+    group: "التقييم والشخصي",
+  },
+  { key: "work.riskProfile", label: "ملف المخاطر", group: "الإرشادات" },
+  { key: "work.contentWarnings", label: "تحذيرات المحتوى", group: "الإرشادات" },
+  { key: "work.analysisNotes", label: "التحليل", group: "الإرشادات" },
+  { key: "work.releaseStart", label: "بداية الإصدار", group: "النشر" },
+  { key: "work.releaseEnd", label: "نهاية الإصدار", group: "النشر" },
+  { key: "work.watchDates", label: "تواريخ المشاهدة", group: "النشر" },
+  {
+    key: "work.sourceMaterial",
+    label: "المادة الأصلية",
+    group: "النشر",
+  },
+  { key: "work.publication", label: "النشر", group: "النشر" },
+  { key: "work.curation", label: "المراجعة", group: "النشر" },
+  {
+    key: "work.externalLinks",
+    label: "الروابط الخارجية",
+    group: "العلاقات والوسائط",
+  },
+  { key: "work.credits", label: "صنّاع العمل", group: "العلاقات والوسائط" },
+  { key: "work.relations", label: "العلاقات", group: "العلاقات والوسائط" },
+  { key: "work.imagePath", label: "الملصق", group: "العلاقات والوسائط" },
+  { key: "work.bannerPath", label: "الغلاف", group: "العلاقات والوسائط" },
+  { key: "work.logoPath", label: "الشعار", group: "العلاقات والوسائط" },
+  { key: "structure", label: "المواسم والوحدات", group: "البنية" },
+] as const
+
+type ProjectionKey = (typeof PROJECTION_FIELDS)[number]["key"]
+
+const PROJECTION_PRESETS = {
+  "titles-summary-scores": {
+    label: "العناوين والملخص والتقييمات",
+    fields: [
+      "work.title",
+      "work.arabicTitle",
+      "work.aliases",
+      "work.summary",
+      "work.scoreComponents",
+    ],
+  },
+  essential: {
+    label: "الفهرس الأساسي",
+    fields: [
+      "work.title",
+      "work.arabicTitle",
+      "work.kind",
+      "work.year",
+      "work.releaseStatus",
+      "work.summary",
+      "work.genres",
+      "work.tags",
+    ],
+  },
+  classification: {
+    label: "التصنيف",
+    fields: [
+      "work.genres",
+      "work.tags",
+      "work.tone",
+      "work.audience",
+      "work.country",
+      "work.sharedWith",
+    ],
+  },
+  guidance: {
+    label: "الإرشادات والتقييمات",
+    fields: [
+      "work.scoreComponents",
+      "work.riskProfile",
+      "work.contentWarnings",
+      "work.analysisNotes",
+    ],
+  },
+  publication: {
+    label: "الإصدار والنشر",
+    fields: [
+      "work.releaseStart",
+      "work.releaseEnd",
+      "work.watchDates",
+      "work.sourceMaterial",
+      "work.publication",
+      "work.curation",
+      "work.externalLinks",
+    ],
+  },
+  relations: {
+    label: "صنّاع العمل والعلاقات",
+    fields: ["work.credits", "work.relations"],
+  },
+  artwork: {
+    label: "مسارات الصور",
+    fields: ["work.imagePath", "work.bannerPath", "work.logoPath"],
+  },
+  structure: { label: "البنية", fields: ["structure"] },
+  complete: {
+    label: "السجل الكامل القابل للتعديل",
+    fields: PROJECTION_FIELDS.map(({ key }) => key),
+  },
+} as const satisfies Record<
+  string,
+  { label: string; fields: readonly ProjectionKey[] }
+>
+
+const DEFAULT_PRESET = "titles-summary-scores" as const
 
 const completeRecordSchema = z.object({
   schemaVersion: z.literal(1),
   records: z.array(
     z.object({
-      work: adminWorkUpdateSchema,
+      work: adminWorkTransportSchema,
       structure: editableWorkStructureSchema,
       tracking: z.object({
         existing: z.array(z.unknown()),
@@ -310,7 +465,7 @@ function diffValues(left: unknown, right: unknown, path: string): FieldDiff[] {
 }
 
 function formatDiffValue(value: unknown, present: boolean) {
-  if (!present) return "Not present"
+  if (!present) return "غير موجود"
   if (value === undefined) return "undefined"
   return JSON.stringify(value, null, 2)
 }
@@ -324,7 +479,7 @@ function toEditableWork(work: Work): AdminWorkUpdate {
     relations,
     ...editable
   } = work
-  return adminWorkUpdateSchema.parse({
+  return adminWorkTransportSchema.parse({
     ...editable,
     relations: relations.map(({ workId, relationType, direction, notes }) => ({
       workId,
@@ -333,6 +488,147 @@ function toEditableWork(work: Work): AdminWorkUpdate {
       notes,
     })),
   })
+}
+
+function sameStringSet(left: readonly string[], right: readonly string[]) {
+  return (
+    left.length === right.length &&
+    [...left].sort().every((value, index) => value === [...right].sort()[index])
+  )
+}
+
+function projectDocument(
+  document: CompleteRecordDocument,
+  fields: readonly ProjectionKey[],
+  preset: ProjectionPreset
+) {
+  const workFields = fields
+    .filter((field): field is Extract<ProjectionKey, `work.${string}`> =>
+      field.startsWith("work.")
+    )
+    .map((field) => field.slice(5))
+  const includeStructure = fields.includes("structure")
+  return {
+    schemaVersion: 2,
+    projection: { preset, fields },
+    records: document.records.map((record) => {
+      const projectedWork: JsonObject = { id: record.work.id }
+      for (const field of workFields) {
+        projectedWork[field] = (record.work as unknown as JsonObject)[field]
+      }
+      return {
+        id: record.work.id,
+        work: projectedWork,
+        ...(includeStructure ? { structure: record.structure } : {}),
+      }
+    }),
+  }
+}
+
+function parseProjectedDocument(
+  text: string,
+  base: CompleteRecordDocument,
+  fields: readonly ProjectionKey[],
+  preset: ProjectionPreset
+): CompleteRecordDocument {
+  const raw: unknown = JSON.parse(text)
+  if (!isObject(raw)) throw new Error("يجب أن يكون المستند كائن JSON.")
+  if (raw.schemaVersion !== 2) throw new Error("schemaVersion must be 2.")
+  if (!isObject(raw.projection)) throw new Error("projection is required.")
+  if (raw.projection.preset !== preset) {
+    throw new Error("قالب العرض مقفل. غيّره من عناصر تحكم المحرر.")
+  }
+  if (
+    !Array.isArray(raw.projection.fields) ||
+    !raw.projection.fields.every((field) => typeof field === "string") ||
+    !sameStringSet(raw.projection.fields, fields)
+  ) {
+    throw new Error("قائمة حقول العرض مقفلة. استخدم عنصر تحكم الحقول.")
+  }
+  if (!Array.isArray(raw.records)) throw new Error("records must be an array.")
+
+  const originals = new Map(
+    base.records.map((record) => [record.work.id, record])
+  )
+  const expectedIds = [...originals.keys()].sort()
+  const receivedIds: string[] = []
+  const workFields = fields
+    .filter((field): field is Extract<ProjectionKey, `work.${string}`> =>
+      field.startsWith("work.")
+    )
+    .map((field) => field.slice(5))
+  const allowedWorkFields = new Set(["id", ...workFields])
+  const includeStructure = fields.includes("structure")
+
+  const records = raw.records.map((value, index) => {
+    if (!isObject(value)) throw new Error(`records.${index} must be an object.`)
+    const allowedRecordKeys = new Set([
+      "id",
+      "work",
+      ...(includeStructure ? ["structure"] : []),
+    ])
+    const unknownRecordKey = Object.keys(value).find(
+      (key) => !allowedRecordKeys.has(key)
+    )
+    if (unknownRecordKey) {
+      throw new Error(
+        `records.${index}.${unknownRecordKey} is not part of this projection.`
+      )
+    }
+    if (typeof value.id !== "string")
+      throw new Error(`records.${index}.id is required.`)
+    if (!isObject(value.work))
+      throw new Error(`records.${index}.work is required.`)
+    const projectedWork = value.work
+    if (projectedWork.id !== value.id) {
+      throw new Error(`${value.id}: work.id must match the record ID.`)
+    }
+    const unknownWorkKey = Object.keys(projectedWork).find(
+      (key) => !allowedWorkFields.has(key)
+    )
+    if (unknownWorkKey) {
+      throw new Error(
+        `${value.id}: work.${unknownWorkKey} is hidden and cannot be edited in this projection.`
+      )
+    }
+    const missingWorkField = workFields.find(
+      (field) => !(field in projectedWork)
+    )
+    if (missingWorkField) {
+      throw new Error(
+        `${value.id}: selected field work.${missingWorkField} is missing.`
+      )
+    }
+    const original = originals.get(value.id)
+    if (!original)
+      throw new Error(`Unknown or out-of-scope work ID: ${value.id}`)
+    receivedIds.push(value.id)
+    const mergedWork = adminWorkTransportSchema.parse({
+      ...original.work,
+      ...projectedWork,
+      id: original.work.id,
+    })
+    const structure = includeStructure
+      ? editableWorkStructureSchema.parse(value.structure)
+      : original.structure
+    if (structure.workId !== original.work.id) {
+      throw new Error(
+        `${value.id}: structure.workId must match the immutable work ID.`
+      )
+    }
+    return { ...original, work: mergedWork, structure }
+  })
+
+  const sortedReceived = [...receivedIds].sort()
+  if (
+    new Set(receivedIds).size !== receivedIds.length ||
+    JSON.stringify(expectedIds) !== JSON.stringify(sortedReceived)
+  ) {
+    throw new Error(
+      "احتفظ بمعرّفات الأعمال الفريدة نفسها تماماً ضمن هذا النطاق."
+    )
+  }
+  return { schemaVersion: 1, records }
 }
 
 export function JsonEditorDialog({
@@ -353,7 +649,21 @@ export function JsonEditorDialog({
   const [scope, setScope] = useState<JsonScope>("all")
   const [json, setJson] = useState("")
   const [reviewed, setReviewed] = useState<CompleteRecordDocument | null>(null)
+  const [reviewSource, setReviewSource] =
+    useState<CompleteRecordDocument | null>(null)
   const [error, setError] = useState("")
+  const [preset, setPreset] = useState<ProjectionPreset>(DEFAULT_PRESET)
+  const [selectedFields, setSelectedFields] = useState<ProjectionKey[]>(() => [
+    ...PROJECTION_PRESETS[DEFAULT_PRESET].fields,
+  ])
+  const [draftBase, setDraftBase] = useState<CompleteRecordDocument | null>(
+    null
+  )
+  const [dirty, setDirty] = useState(false)
+  const [fieldSearch, setFieldSearch] = useState("")
+  const [documentSearch, setDocumentSearch] = useState("")
+  const [reviewSearch, setReviewSearch] = useState("")
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const sourceWorks =
     scope === "visible"
       ? visibleWorks
@@ -370,7 +680,7 @@ export function JsonEditorDialog({
     if (!bundlesQuery.data) return null
     return {
       schemaVersion: 1,
-      records: bundlesQuery.data.map((bundle) => ({
+      records: bundlesQuery.data.bundles.map((bundle) => ({
         work: toEditableWork(bundle.work),
         structure: bundle.structure,
         tracking: {
@@ -381,11 +691,17 @@ export function JsonEditorDialog({
   }, [bundlesQuery.data])
 
   useEffect(() => {
-    if (!open || !sourceDocument) return
-    setJson(JSON.stringify(sourceDocument, null, 2))
-    setReviewed(null)
+    if (!open || !sourceDocument || dirty || reviewed) return
+    setDraftBase(sourceDocument)
+    setJson(
+      JSON.stringify(
+        projectDocument(sourceDocument, selectedFields, preset),
+        null,
+        2
+      )
+    )
     setError("")
-  }, [open, scope, sourceDocument])
+  }, [open, scope, sourceDocument, dirty, reviewed, selectedFields, preset])
 
   const changes = useMemo(() => {
     if (!reviewed || !sourceDocument) return []
@@ -411,59 +727,96 @@ export function JsonEditorDialog({
     })
   }, [reviewed, sourceDocument])
 
-  const review = () => {
+  const review = async () => {
     try {
-      const raw: unknown = JSON.parse(json)
-      const result = completeRecordSchema.safeParse(raw)
-      if (!result.success) {
-        const issue = result.error.issues[0]
-        setError(
-          `${issue.path.length ? `${issue.path.join(".")}: ` : ""}${issue.message}`
+      if (!draftBase || !sourceDocument) {
+        setError("لم تُحمّل السجلات المصدرية بعد.")
+        return
+      }
+      const merged = parseProjectedDocument(
+        json,
+        draftBase,
+        selectedFields,
+        preset
+      )
+      const refreshed = await bundlesQuery.refetch()
+      if (!refreshed.data) {
+        throw new Error("تعذر تحديث أحدث سجلات قاعدة البيانات.")
+      }
+      if (refreshed.data.errors.length) {
+        throw new Error(
+          `تعذر تحميل ${refreshed.data.errors.length} سجل. أصلح السجلات الموضحة أدناه ثم أعد المحاولة.`
         )
-        return
       }
-      if (!sourceDocument) {
-        setError("The source records have not loaded yet.")
-        return
+      const latestDocument: CompleteRecordDocument = {
+        schemaVersion: 1,
+        records: refreshed.data.bundles.map((bundle) => ({
+          work: toEditableWork(bundle.work),
+          structure: bundle.structure,
+          tracking: { existing: bundle.tracking },
+        })),
       }
-      const originalIds = sourceDocument.records
-        .map(({ work }) => work.id)
-        .sort()
-      const nextIds = result.data.records.map(({ work }) => work.id).sort()
-      if (
-        new Set(nextIds).size !== nextIds.length ||
-        JSON.stringify(originalIds) !== JSON.stringify(nextIds)
-      ) {
-        setError(
-          "Keep exactly the same work IDs in this scope. Add and remove works through the dedicated admin actions."
+      const latestById = new Map(
+        latestDocument.records.map((record) => [record.work.id, record])
+      )
+      for (const record of merged.records) {
+        const opening = draftBase.records.find(
+          (candidate) => candidate.work.id === record.work.id
         )
-        return
-      }
-      for (const record of result.data.records) {
-        if (record.structure.workId !== record.work.id) {
-          setError(
-            `${record.work.id}: structure.workId must match the work ID.`
+        const latest = latestById.get(record.work.id)
+        if (!opening || !latest) {
+          throw new Error(
+            `${record.work.id}: the source record no longer exists.`
           )
-          return
         }
-        const original = sourceDocument.records.find(
-          ({ work }) => work.id === record.work.id
-        )
-        if (
-          !original ||
-          JSON.stringify(original.tracking.existing) !==
-            JSON.stringify(record.tracking.existing)
-        ) {
-          setError(
-            `${record.work.id}: tracking.existing is immutable. Add checkpoints through the tracking form.`
-          )
-          return
+        for (const field of selectedFields) {
+          const openingValue =
+            field === "structure"
+              ? opening.structure
+              : (opening.work as unknown as JsonObject)[field.slice(5)]
+          const latestValue =
+            field === "structure"
+              ? latest.structure
+              : (latest.work as unknown as JsonObject)[field.slice(5)]
+          const draftValue =
+            field === "structure"
+              ? record.structure
+              : (record.work as unknown as JsonObject)[field.slice(5)]
+          if (
+            !valuesEqual(openingValue, latestValue) &&
+            !valuesEqual(openingValue, draftValue) &&
+            !valuesEqual(latestValue, draftValue)
+          ) {
+            throw new Error(
+              `${record.work.id}: ${field} changed elsewhere while you were editing. Reset the draft and reapply your change.`
+            )
+          }
+          if (valuesEqual(openingValue, draftValue)) {
+            if (field === "structure") record.structure = latest.structure
+            else
+              (record.work as unknown as JsonObject)[field.slice(5)] =
+                latestValue
+          }
         }
+        const latestWork = latest.work as unknown as JsonObject
+        const draftWork = record.work as unknown as JsonObject
+        const safelyMergedWork: JsonObject = { ...latestWork }
+        for (const field of selectedFields) {
+          if (field.startsWith("work.")) {
+            safelyMergedWork[field.slice(5)] = draftWork[field.slice(5)]
+          }
+        }
+        record.work = adminWorkTransportSchema.parse(safelyMergedWork)
+        if (!selectedFields.includes("structure")) {
+          record.structure = latest.structure
+        }
+        record.tracking = latest.tracking
       }
       setError("")
-      setReviewed(result.data)
+      setReviewSource(latestDocument)
+      setReviewed(completeRecordSchema.parse(merged))
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Invalid JSON")
+      setError(caught instanceof Error ? caught.message : "JSON غير صالح")
     }
   }
 
@@ -475,46 +828,226 @@ export function JsonEditorDialog({
         structureChanged: boolean
       }>
     ) => {
-      for (const update of updates) {
-        if (update.workChanged) {
-          await saveWork({ data: update.record.work })
-        }
-        if (update.structureChanged) {
-          await saveWorkStructure({ data: update.record.structure })
-        }
+      if (!reviewSource) throw new Error("راجع المسودة الحالية قبل الحفظ.")
+      const latestResult = await getAdminRecordBundles({
+        data: { workIds: sourceIds },
+      })
+      if (latestResult.errors.length) {
+        throw new Error(
+          `تعذر التحقق من ${latestResult.errors.length} سجل قبل الحفظ.`
+        )
+      }
+      const latestDocument: CompleteRecordDocument = {
+        schemaVersion: 1,
+        records: latestResult.bundles.map((bundle) => ({
+          work: toEditableWork(bundle.work),
+          structure: bundle.structure,
+          tracking: { existing: bundle.tracking },
+        })),
+      }
+      if (!valuesEqual(latestDocument, reviewSource)) {
+        throw new Error(
+          "تغيرت قاعدة البيانات بعد المراجعة. عُد إلى المحرر وراجع مجدداً قبل الحفظ."
+        )
+      }
+      const result = await saveAdminRecordChanges({
+        data: {
+          changes: updates.map((update) => ({
+            workId: update.record.work.id,
+            ...(update.workChanged ? { work: update.record.work } : {}),
+            ...(update.structureChanged
+              ? { structure: update.record.structure }
+              : {}),
+          })),
+        },
+      })
+      if (result.errors.length) {
+        throw new Error(
+          result.errors
+            .map(({ workId, message }) => `${workId}: ${message}`)
+            .join("\n")
+        )
       }
     },
     onSuccess: async () => {
+      setDirty(false)
       await onSaved()
       onOpenChange(false)
     },
   })
 
-  const selectScope = (nextScope: JsonScope) => {
-    setScope(nextScope)
+  const jsonValid = useMemo(() => {
+    try {
+      JSON.parse(json)
+      return true
+    } catch {
+      return false
+    }
+  }, [json])
+
+  const applyProjection = (
+    nextFields: ProjectionKey[],
+    nextPreset: ProjectionPreset
+  ) => {
+    try {
+      if (!draftBase) return
+      const merged = dirty
+        ? parseProjectedDocument(json, draftBase, selectedFields, preset)
+        : draftBase
+      setDraftBase(merged)
+      setSelectedFields(nextFields)
+      setPreset(nextPreset)
+      setJson(
+        JSON.stringify(projectDocument(merged, nextFields, nextPreset), null, 2)
+      )
+      setDirty(
+        Boolean(sourceDocument) &&
+          JSON.stringify(merged) !== JSON.stringify(sourceDocument)
+      )
+      setReviewed(null)
+      setError("")
+    } catch (caught) {
+      setError(
+        `${caught instanceof Error ? caught.message : "JSON غير صالح"} أصلح المسودة قبل تغيير عرضها.`
+      )
+    }
+  }
+
+  const choosePreset = (value: string | null) => {
+    if (!value || !(value in PROJECTION_PRESETS)) return
+    const nextPreset = value as keyof typeof PROJECTION_PRESETS
+    applyProjection([...PROJECTION_PRESETS[nextPreset].fields], nextPreset)
+  }
+
+  const toggleField = (field: ProjectionKey, checked: boolean) => {
+    const nextFields = checked
+      ? [...new Set([...selectedFields, field])]
+      : selectedFields.filter((candidate) => candidate !== field)
+    if (!nextFields.length) {
+      setError("اختر حقلاً واحداً قابلاً للتعديل على الأقل.")
+      return
+    }
+    applyProjection(nextFields, "custom")
+  }
+
+  const resetDraft = () => {
+    if (!sourceDocument) return
+    setDraftBase(sourceDocument)
+    setJson(
+      JSON.stringify(
+        projectDocument(sourceDocument, selectedFields, preset),
+        null,
+        2
+      )
+    )
+    setDirty(false)
     setReviewed(null)
     setError("")
   }
 
+  const formatJson = (compact = false) => {
+    try {
+      setJson(JSON.stringify(JSON.parse(json), null, compact ? 0 : 2))
+      setError("")
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "JSON غير صالح")
+    }
+  }
+
+  const copyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(json)
+    } catch {
+      setError("تعذر نسخ JSON إلى الحافظة.")
+    }
+  }
+
+  const findNext = () => {
+    const textarea = textareaRef.current
+    if (!textarea || !documentSearch) return
+    const start = textarea.selectionEnd
+    const match = json
+      .toLocaleLowerCase()
+      .indexOf(documentSearch.toLocaleLowerCase(), start)
+    const index =
+      match >= 0
+        ? match
+        : json.toLocaleLowerCase().indexOf(documentSearch.toLocaleLowerCase())
+    if (index < 0) {
+      setError(`No match for “${documentSearch}”.`)
+      return
+    }
+    textarea.focus()
+    textarea.setSelectionRange(index, index + documentSearch.length)
+    setError("")
+  }
+
+  const selectScope = (nextScope: JsonScope) => {
+    if (dirty) {
+      setError("أعد ضبط المسودة الحالية أو احفظها قبل تغيير نطاق السجلات.")
+      return
+    }
+    setScope(nextScope)
+    setDraftBase(null)
+    setReviewed(null)
+    setError("")
+  }
+
+  const visibleChanges = changes.filter(
+    (change) =>
+      !reviewSearch ||
+      change.record.work.id
+        .toLocaleLowerCase()
+        .includes(reviewSearch.toLocaleLowerCase()) ||
+      change.record.work.title
+        .toLocaleLowerCase()
+        .includes(reviewSearch.toLocaleLowerCase()) ||
+      change.fieldDiffs.some((diff) =>
+        diff.path.toLocaleLowerCase().includes(reviewSearch.toLocaleLowerCase())
+      )
+  )
+
+  const groupedFields = PROJECTION_FIELDS.reduce(
+    (groups, field) => {
+      const group = (groups[field.group] ??= [])
+      group.push(field)
+      return groups
+    },
+    {} as Record<string, Array<(typeof PROJECTION_FIELDS)[number]>>
+  )
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && dirty && !reviewed) {
+      setError(
+        "تحتوي المسودة على تغييرات غير محفوظة. أعد ضبطها أو راجعها واحفظها قبل الإغلاق."
+      )
+      return
+    }
+    onOpenChange(nextOpen)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
-        <DialogHeader className="flex shrink-0 flex-col justify-between gap-4 border-b border-l-4 border-l-amber-500 p-5 text-left md:flex-row md:items-center">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        showCloseButton={false}
+        className="flex h-[min(92dvh,56rem)] max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none lg:w-[min(72rem,calc(100vw-3rem))]"
+      >
+        <DialogHeader className="flex shrink-0 flex-col justify-between gap-4 border-b p-5 text-right md:flex-row md:items-center">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/50">
               <BracketsCurlyIcon className="size-5" />
             </div>
             <div>
-              <DialogTitle>Complete record JSON editor</DialogTitle>
+              <DialogTitle>مساحة تحرير JSON لقاعدة البيانات</DialogTitle>
               <DialogDescription>
-                Edit catalog metadata and structure together. Tracking
-                checkpoints are read-only here and use the dated tracking form.
+                عدّل الحقول التي تحتاجها فقط. تبقى القيم المخفية محفوظة
+                والمعرّفات مقفلة وسجل التتبع محمياً.
               </DialogDescription>
             </div>
           </div>
           <div className="flex gap-1 font-mono text-[10px]">
-            <Badge variant={reviewed ? "outline" : "default"}>1 · Edit</Badge>
-            <Badge variant={reviewed ? "default" : "outline"}>2 · Review</Badge>
+            <Badge variant={reviewed ? "outline" : "default"}>١ · تعديل</Badge>
+            <Badge variant={reviewed ? "default" : "outline"}>٢ · مراجعة</Badge>
           </div>
         </DialogHeader>
 
@@ -523,21 +1056,27 @@ export function JsonEditorDialog({
             <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border bg-muted/20 p-4">
               <div>
                 <strong className="block text-sm">
-                  {changes.length} records changed
+                  تغيّر {changes.length} سجل
                 </strong>
                 <span className="text-xs text-muted-foreground">
                   {changes.reduce(
                     (total, change) => total + change.fieldDiffs.length,
                     0
                   )}{" "}
-                  field changes are ready to save.
+                  تغييراً دقيقاً في الحقول جاهزاً للحفظ.
                 </span>
               </div>
-              <Badge>{changes.length} pending</Badge>
+              <Badge>{changes.length} معلّق</Badge>
             </div>
             {changes.length ? (
               <div className="flex flex-col gap-4">
-                {changes.map(
+                <Input
+                  value={reviewSearch}
+                  onChange={(event) => setReviewSearch(event.target.value)}
+                  placeholder="فلترة حسب العنوان أو المعرّف أو المسار المتغير…"
+                  aria-label="فلترة التغييرات المراجعة"
+                />
+                {visibleChanges.map(
                   ({ record, workChanged, structureChanged, fieldDiffs }) => {
                     const headingId = `json-review-${record.work.id}`
                     return (
@@ -552,7 +1091,7 @@ export function JsonEditorDialog({
                               id={headingId}
                               className="text-sm font-semibold"
                             >
-                              Work record
+                              {record.work.arabicTitle || record.work.title}
                             </h3>
                             <code className="mt-1 block text-[10px] text-muted-foreground">
                               {record.work.id}
@@ -560,12 +1099,11 @@ export function JsonEditorDialog({
                           </div>
                           <div className="flex flex-wrap justify-end gap-1.5">
                             <Badge variant="outline">
-                              {fieldDiffs.length} field
-                              {fieldDiffs.length === 1 ? "" : "s"}
+                              {fieldDiffs.length} حقل
                             </Badge>
-                            {workChanged && <Badge>Work & personal</Badge>}
+                            {workChanged && <Badge>العمل والشخصي</Badge>}
                             {structureChanged && (
-                              <Badge variant="secondary">Structure</Badge>
+                              <Badge variant="secondary">البنية</Badge>
                             )}
                           </div>
                         </header>
@@ -588,7 +1126,11 @@ export function JsonEditorDialog({
                                           : "default"
                                     }
                                   >
-                                    {diff.kind}
+                                    {diff.kind === "removed"
+                                      ? "محذوف"
+                                      : diff.kind === "changed"
+                                        ? "متغير"
+                                        : "مضاف"}
                                   </Badge>
                                   <code className="text-[11px] break-all text-muted-foreground">
                                     {diff.path}
@@ -596,7 +1138,7 @@ export function JsonEditorDialog({
                                 </dt>
                                 <dd className="min-w-0 rounded-md border bg-muted/20 p-3">
                                   <span className="mb-1 block text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                                    Old value
+                                    القيمة القديمة
                                   </span>
                                   <pre className="font-mono text-xs break-all whitespace-pre-wrap">
                                     {formatDiffValue(
@@ -611,10 +1153,10 @@ export function JsonEditorDialog({
                                 >
                                   →
                                 </span>
-                                <span className="sr-only">changed to</span>
+                                <span className="sr-only">تغيرت إلى</span>
                                 <dd className="min-w-0 rounded-md border bg-muted/20 p-3">
                                   <span className="mb-1 block text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                                    New value
+                                    القيمة الجديدة
                                   </span>
                                   <pre className="font-mono text-xs break-all whitespace-pre-wrap">
                                     {formatDiffValue(
@@ -635,36 +1177,150 @@ export function JsonEditorDialog({
             ) : (
               <div className="flex flex-col items-center rounded-lg border border-dashed p-12 text-center">
                 <CheckIcon className="mb-3 size-8 text-emerald-500" />
-                <strong>No changes found</strong>
+                <strong>لم يُعثر على تغييرات</strong>
               </div>
             )}
           </div>
         ) : (
           <div className="grid min-h-0 flex-1 md:grid-cols-[250px_1fr]">
-            <aside className="space-y-4 overflow-y-auto border-r bg-muted/20 p-4">
-              <div>
-                <p className="mb-2 text-xs font-semibold">Records to show</p>
-                <div className="space-y-1">
+            <aside className="flex flex-col gap-4 overflow-y-auto border-e bg-muted/20 p-4">
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-semibold">قالب التحرير</p>
+                <Select
+                  items={Object.entries(PROJECTION_PRESETS).map(
+                    ([value, definition]) => ({
+                      value,
+                      label: definition.label,
+                    })
+                  )}
+                  value={preset}
+                  onValueChange={choosePreset}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {Object.entries(PROJECTION_PRESETS).map(
+                        ([value, definition]) => (
+                          <SelectItem key={value} value={value}>
+                            {definition.label}
+                          </SelectItem>
+                        )
+                      )}
+                      {preset === "custom" && (
+                        <SelectItem value="custom">اختيار مخصص</SelectItem>
+                      )}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <Popover>
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between"
+                      />
+                    }
+                  >
+                    <span className="flex items-center gap-2">
+                      <FunnelIcon data-icon="inline-start" />
+                      الحقول
+                    </span>
+                    <Badge variant="secondary">{selectedFields.length}</Badge>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-96 p-0">
+                    <PopoverHeader className="border-b p-4">
+                      <PopoverTitle>
+                        الحقول الظاهرة القابلة للتعديل
+                      </PopoverTitle>
+                      <PopoverDescription>
+                        يُضمّن معرّف العمل دائماً ولا يمكن تغييره.
+                      </PopoverDescription>
+                      <Input
+                        value={fieldSearch}
+                        onChange={(event) => setFieldSearch(event.target.value)}
+                        placeholder="ابحث عن الحقول…"
+                      />
+                    </PopoverHeader>
+                    <div className="flex max-h-96 flex-col gap-4 overflow-y-auto p-4">
+                      {Object.entries(groupedFields).map(([group, fields]) => {
+                        const matchingFields = fields.filter((field) =>
+                          `${field.label} ${field.key}`
+                            .toLocaleLowerCase()
+                            .includes(fieldSearch.toLocaleLowerCase())
+                        )
+                        if (!matchingFields.length) return null
+                        return (
+                          <section key={group} className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <strong className="text-xs">{group}</strong>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="xs"
+                                onClick={() =>
+                                  applyProjection(
+                                    [
+                                      ...new Set([
+                                        ...selectedFields,
+                                        ...fields.map((field) => field.key),
+                                      ]),
+                                    ],
+                                    "custom"
+                                  )
+                                }
+                              >
+                                تحديد المجموعة
+                              </Button>
+                            </div>
+                            {matchingFields.map((field) => (
+                              <label
+                                key={field.key}
+                                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
+                              >
+                                <Checkbox
+                                  checked={selectedFields.includes(field.key)}
+                                  onCheckedChange={(checked) =>
+                                    toggleField(field.key, checked === true)
+                                  }
+                                />
+                                <span className="min-w-0 flex-1 text-xs">
+                                  {field.label}
+                                  <code className="block truncate text-[10px] text-muted-foreground">
+                                    {field.key}
+                                  </code>
+                                </span>
+                              </label>
+                            ))}
+                          </section>
+                        )
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-semibold">السجلات المعروضة</p>
+                <div className="flex flex-col gap-1">
                   {(
                     [
-                      ["all", "All works", works.length],
-                      ["visible", "Current results", visibleWorks.length],
-                      ["selected", "Selected works", selectedIds.size],
+                      ["all", "كل الأعمال", works.length],
+                      ["visible", "النتائج الحالية", visibleWorks.length],
+                      ["selected", "الأعمال المحددة", selectedIds.size],
                     ] as const
                   ).map(([value, label, count]) => (
                     <button
                       key={value}
                       type="button"
-                      disabled={value === "selected" && !selectedIds.size}
+                      disabled={count === 0}
                       onClick={() => selectScope(value)}
                       className={cn(
                         "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs",
                         scope === value
                           ? "border-foreground bg-foreground text-background"
                           : "border-transparent bg-background hover:border-border",
-                        value === "selected" &&
-                          !selectedIds.size &&
-                          "opacity-40"
+                        count === 0 && "opacity-40"
                       )}
                     >
                       {label}
@@ -673,47 +1329,133 @@ export function JsonEditorDialog({
                   ))}
                 </div>
               </div>
-              <div className="space-y-2 rounded-lg border bg-background p-3 text-[11px] leading-5 text-muted-foreground">
-                <strong className="block text-foreground">
-                  Document structure
-                </strong>
-                <code>work</code> — catalog fields and preferences.
-                <br />
-                <code>structure</code> — seasons and atomic units. Keep IDs
-                referenced by tracking.
-                <br />
-                <code>tracking.existing</code> — read-only dated checkpoints.
-              </div>
             </aside>
             <div className="flex min-h-0 flex-col">
-              <div className="flex h-9 shrink-0 items-center justify-between border-b bg-muted/20 px-4 font-mono text-[10px] text-muted-foreground">
-                <span>{sourceWorks.length} complete records</span>
-                <span>schemaVersion 1 · application/json</span>
+              <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-muted/20 px-3 py-2">
+                <Badge variant={jsonValid ? "secondary" : "destructive"}>
+                  {jsonValid ? "JSON صالح" : "JSON غير صالح"}
+                </Badge>
+                {dirty && <Badge variant="outline">مسودة غير محفوظة</Badge>}
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  {sourceWorks.length} سجل · {selectedFields.length} حقل ·{" "}
+                  {json.length.toLocaleString()} حرف
+                </span>
+                <div className="ml-auto flex min-w-64 items-center gap-1">
+                  <Input
+                    value={documentSearch}
+                    onChange={(event) => setDocumentSearch(event.target.value)}
+                    onKeyDown={(event) => event.key === "Enter" && findNext()}
+                    placeholder="ابحث في JSON…"
+                    className="h-7 text-xs"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={findNext}
+                    aria-label="البحث عن التالي"
+                  >
+                    <MagnifyingGlassIcon />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => formatJson(false)}
+                    aria-label="تنسيق JSON"
+                  >
+                    <TextAlignLeftIcon />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => formatJson(true)}
+                    aria-label="ضغط JSON"
+                  >
+                    <CodeIcon />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={copyJson}
+                    aria-label="نسخ JSON"
+                  >
+                    <ClipboardTextIcon />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={resetDraft}
+                    disabled={!dirty}
+                    aria-label="إعادة ضبط المسودة"
+                  >
+                    <ArrowsClockwiseIcon />
+                  </Button>
+                </div>
               </div>
               {bundlesQuery.isPending ? (
                 <div className="grid flex-1 place-items-center text-sm text-muted-foreground">
-                  Loading normalized records…
+                  جارٍ تحميل السجلات المنظمة…
                 </div>
               ) : (
                 <textarea
+                  ref={textareaRef}
                   value={json}
-                  onChange={(event) => setJson(event.target.value)}
+                  onChange={(event) => {
+                    setJson(event.target.value)
+                    setDirty(true)
+                    setReviewed(null)
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      (event.metaKey || event.ctrlKey) &&
+                      event.key === "Enter"
+                    ) {
+                      event.preventDefault()
+                      review()
+                    } else if (event.key === "Tab") {
+                      event.preventDefault()
+                      const target = event.currentTarget
+                      const start = target.selectionStart
+                      const end = target.selectionEnd
+                      const next = `${json.slice(0, start)}  ${json.slice(end)}`
+                      setJson(next)
+                      setDirty(true)
+                      requestAnimationFrame(() => {
+                        target.selectionStart = target.selectionEnd = start + 2
+                      })
+                    }
+                  }}
                   spellCheck={false}
-                  aria-label="Complete records JSON"
-                  className="min-h-0 flex-1 resize-none border-0 bg-transparent p-4 font-mono text-xs leading-5 outline-none"
+                  dir="ltr"
+                  aria-label="JSON للسجلات المعروضة"
+                  className="min-h-0 flex-1 resize-none border-0 bg-transparent p-4 text-left font-mono text-xs leading-5 outline-none [unicode-bidi:plaintext]"
                 />
               )}
             </div>
           </div>
         )}
 
-        {(error || mutation.error || bundlesQuery.error) && (
+        {(error ||
+          mutation.error ||
+          bundlesQuery.error ||
+          bundlesQuery.data?.errors.length) && (
           <div className="shrink-0 border-t bg-destructive/5 px-5 py-2">
             <Alert variant="destructive" className="border-0 bg-transparent">
               <AlertDescription>
                 {error ||
                   mutation.error?.message ||
-                  bundlesQuery.error?.message}
+                  bundlesQuery.error?.message || (
+                    <span className="flex flex-col gap-1">
+                      <strong>
+                        تعذر تحميل {bundlesQuery.data?.errors.length} سجل. أصلح
+                        هذه السجلات أو أخرجها من النطاق ثم أعد المحاولة:
+                      </strong>
+                      {bundlesQuery.data?.errors.slice(0, 6).map((item) => (
+                        <code key={item.workId}>
+                          {item.workId}: {item.message}
+                        </code>
+                      ))}
+                    </span>
+                  )}
               </AlertDescription>
             </Alert>
           </div>
@@ -727,7 +1469,7 @@ export function JsonEditorDialog({
                 onClick={() => setReviewed(null)}
                 disabled={mutation.isPending}
               >
-                Back to editor
+                العودة إلى المحرر
               </Button>
               <Button
                 onClick={() => mutation.mutate(changes)}
@@ -735,20 +1477,24 @@ export function JsonEditorDialog({
               >
                 <FloppyDiskIcon />
                 {mutation.isPending
-                  ? "Saving…"
-                  : `Save ${changes.length} records`}
+                  ? "جارٍ الحفظ…"
+                  : `حفظ ${changes.length} سجل`}
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                إلغاء
               </Button>
               <Button
                 onClick={review}
-                disabled={!sourceDocument || bundlesQuery.isPending}
+                disabled={
+                  !sourceDocument ||
+                  bundlesQuery.isPending ||
+                  Boolean(bundlesQuery.data?.errors.length)
+                }
               >
-                Review changes
+                مراجعة التغييرات
               </Button>
             </>
           )}

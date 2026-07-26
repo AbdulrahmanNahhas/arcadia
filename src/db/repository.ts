@@ -1,5 +1,11 @@
-import { and, asc, desc, eq, gte, inArray, lt, lte, ne, or } from "drizzle-orm"
+import { and, asc, desc, eq, gte, inArray, lt, lte, or } from "drizzle-orm"
 import { recordTrackingEntrySchema } from "@/features/library/model"
+import {
+  calculatedRating,
+  scoreCriteria,
+  type ScoreComponents,
+  type ScoreCriterion,
+} from "@/features/library/scoring"
 import type {
   AdminWorkUpdate,
   CreateWork,
@@ -19,6 +25,7 @@ import {
   assets,
   entities,
   externalLinks,
+  personalScores,
   personalState,
   savedViews,
   terms,
@@ -35,14 +42,11 @@ import {
 type WorkDetails = Partial<
   Pick<
     Work,
-    | "subtitle"
     | "palette"
-    | "audience"
     | "sharedWith"
     | "contentWarnings"
     | "analysisNotes"
     | "riskProfile"
-    | "scoreBreakdown"
     | "releaseStart"
     | "releaseEnd"
     | "watchDates"
@@ -174,8 +178,15 @@ export function listWorks(): Work[] {
     .where(inArray(workTitles.workId, workIds))
     .all()
   const aliasesByWork = new Map<string, string[]>()
+  const arabicTitleByWork = new Map<string, string>()
   for (const title of titleRows) {
     if (title.titleType === "canonical") continue
+    if (title.titleType === "localized" && title.language === "ar") {
+      if (title.isPreferred || !arabicTitleByWork.has(title.workId)) {
+        arabicTitleByWork.set(title.workId, title.title)
+      }
+      continue
+    }
     const values = aliasesByWork.get(title.workId) ?? []
     if (!values.includes(title.title)) values.push(title.title)
     aliasesByWork.set(title.workId, values)
@@ -194,6 +205,18 @@ export function listWorks(): Work[] {
     if (!values.includes(term.name)) values.push(term.name)
     byVocabulary.set(term.vocabulary, values)
     termsByWork.set(workId, byVocabulary)
+  }
+
+  const scoreRows = db
+    .select()
+    .from(personalScores)
+    .where(inArray(personalScores.workId, workIds))
+    .all()
+  const scoresByWork = new Map<string, ScoreComponents>()
+  for (const row of scoreRows) {
+    const components = scoresByWork.get(row.workId) ?? {}
+    components[row.criterion as ScoreCriterion] = row.value
+    scoresByWork.set(row.workId, components)
   }
 
   const linkRows = db
@@ -311,23 +334,27 @@ export function listWorks(): Work[] {
       .filter(({ role }) => role === "main-studio")
       .map(({ name }) => name)
     const creatorNames = primaryCreators.map(({ name }) => name)
+    const scoreComponents = scoresByWork.get(work.id) ?? {}
 
     return {
       id: work.id,
       title: work.canonicalTitle,
-      subtitle: details.subtitle ?? "",
+      arabicTitle: arabicTitleByWork.get(work.id) ?? null,
       kind: work.kind as WorkKind,
       year: work.releaseYear,
       releaseStatus: work.status as Work["releaseStatus"],
       runtimeMinutes: work.runtimeMinutes,
+      playtimeMinutes: work.playtimeMinutes,
       pageCount: work.pageCount,
       episodeCount: work.episodeCount,
       chapterCount: work.chapterCount,
+      volumeCount: work.volumeCount,
+      routeCount: work.routeCount,
       status: (personal?.status ?? "planned") as Work["status"],
       progress: personal?.progress ?? 0,
       progressTotal: metric.total,
       progressUnit: metric.unit,
-      rating: personal?.rating ?? null,
+      calculatedRating: calculatedRating(scoreComponents),
       favorite: personal?.favorite ?? false,
       completedAt: personal?.completedAt ?? null,
       trackedOn: latestTrackingByWork.get(work.id) ?? null,
@@ -336,18 +363,20 @@ export function listWorks(): Work[] {
       genres: taxonomy?.get("genre") ?? [],
       aliases: aliasesByWork.get(work.id) ?? [],
       studios,
-      audience: taxonomy?.get("audience") ?? details.audience ?? [],
+      audience: (taxonomy?.get("audience")?.[0] ?? null) as Work["audience"],
       sharedWith: details.sharedWith ?? [],
       tone: taxonomy?.get("tone") ?? [],
       contentWarnings: details.contentWarnings ?? null,
       analysisNotes: details.analysisNotes ?? null,
       riskProfile: details.riskProfile ?? null,
-      scoreBreakdown: details.scoreBreakdown ?? {},
+      scoreComponents,
       externalLinks: linksByWork.get(work.id) ?? [],
       releaseStart: details.releaseStart ?? null,
       releaseEnd: details.releaseEnd ?? null,
       watchDates: details.watchDates ?? null,
-      country: taxonomy?.get("country") ?? details.country ?? [],
+      country: (taxonomy?.get("country") ??
+        details.country ??
+        []) as Work["country"],
       sourceMaterial: details.sourceMaterial ?? null,
       publication: details.publication ?? null,
       curation: details.curation ?? null,
@@ -379,7 +408,7 @@ export function createWork(input: CreateWork): Work {
         summary: input.summary,
         releaseYear: input.year,
         status: "released",
-        metadata: { subtitle: "New local entry", palette: "new" },
+        metadata: { palette: "new" },
         createdAt: now,
         updatedAt: now,
       })
@@ -411,6 +440,99 @@ export function updateFavorite(workId: string, favorite: boolean) {
   return { workId, favorite }
 }
 
+export type TaxonomyTermRecord = {
+  id: string
+  vocabulary: string
+  key: string
+  labelEn: string
+  labelAr: string | null
+  description: string
+  descriptionAr: string
+  usageCount: number
+}
+
+export function listTaxonomyTerms(): TaxonomyTermRecord[] {
+  const usage = new Map<string, number>()
+  for (const link of db
+    .select({ termId: workTerms.termId })
+    .from(workTerms)
+    .all()) {
+    usage.set(link.termId, (usage.get(link.termId) ?? 0) + 1)
+  }
+  return db
+    .select()
+    .from(terms)
+    .orderBy(asc(terms.vocabulary), asc(terms.name))
+    .all()
+    .map((term) => ({
+      id: term.id,
+      vocabulary: term.vocabulary,
+      key: term.slug,
+      labelEn: term.name,
+      labelAr: term.labelAr,
+      description: term.description,
+      descriptionAr: term.descriptionAr,
+      usageCount: usage.get(term.id) ?? 0,
+    }))
+}
+
+export function updateTaxonomyTranslation(input: {
+  id: string
+  labelAr: string | null
+  description: string
+  descriptionAr: string
+}) {
+  const existing = db.select().from(terms).where(eq(terms.id, input.id)).get()
+  if (!existing) throw new Error("Taxonomy term not found")
+  db.update(terms)
+    .set({
+      labelAr: input.labelAr?.trim() || null,
+      description: input.description.trim(),
+      descriptionAr: input.descriptionAr.trim(),
+    })
+    .where(eq(terms.id, input.id))
+    .run()
+  return listTaxonomyTerms().find((term) => term.id === input.id)!
+}
+
+export function updateTaxonomyTranslations(
+  inputs: Array<{
+    id: string
+    labelAr: string | null
+    description: string
+    descriptionAr: string
+  }>
+) {
+  db.transaction((tx) => {
+    const existingIds = new Set(
+      tx
+        .select({ id: terms.id })
+        .from(terms)
+        .where(
+          inArray(
+            terms.id,
+            inputs.map(({ id }) => id)
+          )
+        )
+        .all()
+        .map(({ id }) => id)
+    )
+    const missing = inputs.find(({ id }) => !existingIds.has(id))
+    if (missing) throw new Error(`Taxonomy term not found: ${missing.id}`)
+    for (const input of inputs) {
+      tx.update(terms)
+        .set({
+          labelAr: input.labelAr?.trim() || null,
+          description: input.description.trim(),
+          descriptionAr: input.descriptionAr.trim(),
+        })
+        .where(eq(terms.id, input.id))
+        .run()
+    }
+  })
+  return { updated: inputs.length }
+}
+
 export function updateWork(input: AdminWorkUpdate): Work {
   const existing = db
     .select({ work: works, personal: personalState })
@@ -423,14 +545,11 @@ export function updateWork(input: AdminWorkUpdate): Work {
   const now = Math.floor(Date.now() / 1000)
   const details: WorkDetails = {
     ...normalizedDetails(existing.work.metadata),
-    subtitle: input.subtitle,
     palette: normalizedDetails(existing.work.metadata).palette,
-    audience: undefined,
     sharedWith: input.sharedWith,
     contentWarnings: input.contentWarnings,
     analysisNotes: input.analysisNotes,
     riskProfile: input.riskProfile,
-    scoreBreakdown: input.scoreBreakdown,
     releaseStart: input.releaseStart,
     releaseEnd: input.releaseEnd,
     watchDates: input.watchDates,
@@ -450,9 +569,12 @@ export function updateWork(input: AdminWorkUpdate): Work {
         releaseYear: input.year,
         status: input.releaseStatus,
         runtimeMinutes: input.runtimeMinutes,
+        playtimeMinutes: input.playtimeMinutes,
         pageCount: input.pageCount,
         episodeCount: input.episodeCount,
         chapterCount: input.chapterCount,
+        volumeCount: input.volumeCount,
+        routeCount: input.routeCount,
         metadata: details,
         updatedAt: now,
       })
@@ -461,10 +583,7 @@ export function updateWork(input: AdminWorkUpdate): Work {
 
     tx.delete(workTitles)
       .where(
-        and(
-          eq(workTitles.workId, input.id),
-          ne(workTitles.titleType, "canonical")
-        )
+        and(eq(workTitles.workId, input.id), eq(workTitles.titleType, "alias"))
       )
       .run()
     const canonical = tx
@@ -493,6 +612,44 @@ export function updateWork(input: AdminWorkUpdate): Work {
         })
         .run()
     }
+    const arabicTitle = input.arabicTitle?.trim() || null
+    const existingArabicTitle = tx
+      .select()
+      .from(workTitles)
+      .where(
+        and(
+          eq(workTitles.workId, input.id),
+          eq(workTitles.titleType, "localized"),
+          eq(workTitles.language, "ar")
+        )
+      )
+      .get()
+    if (arabicTitle && existingArabicTitle) {
+      tx.update(workTitles)
+        .set({
+          title: arabicTitle,
+          script: "Arab",
+          isPreferred: true,
+        })
+        .where(eq(workTitles.id, existingArabicTitle.id))
+        .run()
+    } else if (arabicTitle) {
+      tx.insert(workTitles)
+        .values({
+          id: crypto.randomUUID(),
+          workId: input.id,
+          title: arabicTitle,
+          titleType: "localized",
+          language: "ar",
+          script: "Arab",
+          isPreferred: true,
+        })
+        .run()
+    } else if (existingArabicTitle) {
+      tx.delete(workTitles)
+        .where(eq(workTitles.id, existingArabicTitle.id))
+        .run()
+    }
     for (const alias of [
       ...new Set(input.aliases.map((item) => item.trim())),
     ]) {
@@ -511,7 +668,7 @@ export function updateWork(input: AdminWorkUpdate): Work {
       genre: input.genres,
       tone: input.tone,
       tag: input.tags,
-      audience: input.audience,
+      audience: input.audience ? [input.audience] : [],
       country: input.country,
     }
     const oldTerms = tx
@@ -543,12 +700,17 @@ export function updateWork(input: AdminWorkUpdate): Work {
             and(eq(terms.vocabulary, vocabulary), eq(terms.slug, termSlug))
           )
           .get()
-        if (!term) {
+        if (!term && vocabulary === "country") {
           const id = crypto.randomUUID()
           tx.insert(terms)
             .values({ id, vocabulary, name, slug: termSlug })
             .run()
           term = tx.select().from(terms).where(eq(terms.id, id)).get()
+        }
+        if (!term) {
+          throw new Error(
+            `Unknown controlled ${vocabulary} term: ${name}. Add it to the taxonomy registry first.`
+          )
         }
         if (term) {
           tx.insert(workTerms)
@@ -710,6 +872,15 @@ export function updateWork(input: AdminWorkUpdate): Work {
         },
       })
       .run()
+
+    tx.delete(personalScores).where(eq(personalScores.workId, input.id)).run()
+    for (const criterion of scoreCriteria) {
+      const value = input.scoreComponents[criterion]
+      if (value === undefined) continue
+      tx.insert(personalScores)
+        .values({ workId: input.id, criterion, value, updatedAt: now })
+        .run()
+    }
   })
 
   const updated = listWorks().find((work) => work.id === input.id)
@@ -741,7 +912,7 @@ export function createWorksBulk(
           summary: input.summary,
           releaseYear: input.year,
           status: "released",
-          metadata: { subtitle: "", palette: "new" },
+          metadata: { palette: "new" },
           createdAt: now,
           updatedAt: now,
         })
@@ -756,7 +927,7 @@ export function createWorksBulk(
         })
         .run()
       tx.insert(personalState)
-        .values({ workId: id, status: "planned", updatedAt: now })
+        .values({ workId: id, status: input.status, updatedAt: now })
         .run()
 
       for (const [vocabulary, values] of Object.entries({
@@ -772,13 +943,8 @@ export function createWorksBulk(
               and(eq(terms.vocabulary, vocabulary), eq(terms.slug, termSlug))
             )
             .get()
-          if (!term) {
-            const termId = crypto.randomUUID()
-            tx.insert(terms)
-              .values({ id: termId, vocabulary, name, slug: termSlug })
-              .run()
-            term = tx.select().from(terms).where(eq(terms.id, termId)).get()
-          }
+          if (!term)
+            throw new Error(`Unknown controlled ${vocabulary} term: ${name}`)
           if (term) {
             tx.insert(workTerms)
               .values({ workId: id, termId: term.id })
@@ -874,25 +1040,15 @@ export function updateWorksBulk(input: {
           }
         }
         for (const name of additions) {
-          let term = tx
+          const term = tx
             .select()
             .from(terms)
             .where(
               and(eq(terms.vocabulary, vocabulary), eq(terms.slug, slug(name)))
             )
             .get()
-          if (!term) {
-            const termId = crypto.randomUUID()
-            tx.insert(terms)
-              .values({
-                id: termId,
-                vocabulary,
-                name,
-                slug: slug(name),
-              })
-              .run()
-            term = tx.select().from(terms).where(eq(terms.id, termId)).get()
-          }
+          if (!term)
+            throw new Error(`Unknown controlled ${vocabulary} term: ${name}`)
           if (term) {
             tx.insert(workTerms)
               .values({ workId, termId: term.id })

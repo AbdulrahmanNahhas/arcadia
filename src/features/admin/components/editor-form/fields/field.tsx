@@ -1,4 +1,4 @@
-import { Label } from "@/components/ui/label"
+import { Field as BaseField, FieldLabel } from "@/components/ui/field"
 import { cn } from "@/lib/utils"
 import type { ReactNode } from "react"
 
@@ -16,17 +16,17 @@ export function Field({
   children,
 }: FieldProps) {
   return (
-    <div
+    <BaseField
       className={cn(
-        "flex flex-col justify-start space-y-1.5",
+        "flex flex-col justify-start gap-1.5",
         wide && "sm:col-span-2",
         className
       )}
     >
-      <Label className="text-xs font-medium text-muted-foreground">
+      <FieldLabel className="text-xs font-medium text-muted-foreground">
         {label}
-      </Label>
+      </FieldLabel>
       {children}
-    </div>
+    </BaseField>
   )
 }

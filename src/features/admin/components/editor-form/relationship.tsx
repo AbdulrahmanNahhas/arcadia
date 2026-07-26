@@ -18,11 +18,11 @@ export type RelationType =
 export type RelationDirection = "outgoing" | "incoming"
 
 const RELATION_TYPES: { value: RelationType; label: string }[] = [
-  { value: "adaptation", label: "Adaptation" },
-  { value: "sequel", label: "Sequel" },
-  { value: "prequel", label: "Prequel" },
-  { value: "spin-off", label: "Spin-off" },
-  { value: "related", label: "Related" },
+  { value: "adaptation", label: "اقتباس" },
+  { value: "sequel", label: "تكملة" },
+  { value: "prequel", label: "سابقة" },
+  { value: "spin-off", label: "عمل مشتق" },
+  { value: "related", label: "مرتبط" },
 ]
 
 interface RelationshipEditorProps {
@@ -101,10 +101,10 @@ export function RelationshipEditor({
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center">
           <LinkIcon className="mb-2 size-8 text-muted-foreground/40" />
           <p className="mb-1 text-xs font-medium text-muted-foreground">
-            No relationships linked yet
+            لا توجد علاقات مرتبطة بعد
           </p>
           <p className="mb-3 text-[11px] text-muted-foreground/70">
-            Connect this entry to prequels, sequels, adaptations, or spin-offs.
+            اربط هذا السجل بأعمال سابقة أو تكملات أو اقتباسات أو أعمال مشتقة.
           </p>
           <Button
             type="button"
@@ -115,7 +115,7 @@ export function RelationshipEditor({
             className="h-8 text-xs"
           >
             <PlusIcon className="mr-1 size-3.5" />
-            Add Relationship
+            إضافة علاقة
           </Button>
         </div>
       ) : (
@@ -135,7 +135,7 @@ export function RelationshipEditor({
                     }
                   >
                     <SelectTrigger className="h-8 bg-background text-xs">
-                      <SelectValue placeholder="Select target work" />
+                      <SelectValue placeholder="اختر العمل الهدف" />
                     </SelectTrigger>
                     <SelectContent>
                       {candidates.map((candidate) => (
@@ -144,7 +144,9 @@ export function RelationshipEditor({
                           value={candidate.id}
                           className="text-xs"
                         >
-                          <span className="font-medium">{candidate.title}</span>
+                          <span className="font-medium">
+                            {candidate.arabicTitle || candidate.title}
+                          </span>
                           {candidate.year && (
                             <span className="ml-1.5 text-[10px] text-muted-foreground">
                               ({candidate.year})
@@ -165,7 +167,7 @@ export function RelationshipEditor({
                     }
                   >
                     <SelectTrigger className="h-8 bg-background text-xs capitalize">
-                      <SelectValue placeholder="Type" />
+                      <SelectValue placeholder="النوع" />
                     </SelectTrigger>
                     <SelectContent>
                       {RELATION_TYPES.map((type) => (
@@ -190,21 +192,21 @@ export function RelationshipEditor({
                     }
                   >
                     <SelectTrigger className="h-8 bg-background text-xs">
-                      <SelectValue placeholder="Direction" />
+                      <SelectValue placeholder="الاتجاه" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="outgoing" className="text-xs">
                         <div className="flex items-center gap-1.5">
-                          <span>This</span>
+                          <span>هذا العمل</span>
                           <ArrowRightIcon className="size-3 text-muted-foreground" />
-                          <span>Target</span>
+                          <span>الهدف</span>
                         </div>
                       </SelectItem>
                       <SelectItem value="incoming" className="text-xs">
                         <div className="flex items-center gap-1.5">
-                          <span>Target</span>
+                          <span>الهدف</span>
                           <ArrowRightIcon className="size-3 text-muted-foreground" />
-                          <span>This</span>
+                          <span>هذا العمل</span>
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -215,7 +217,7 @@ export function RelationshipEditor({
                 <div className="min-w-[140px] flex-1">
                   <Input
                     value={relation.notes}
-                    placeholder="Note (e.g. S1, TV Ver.)"
+                    placeholder="ملاحظة، مثلاً الموسم الأول"
                     onChange={(e) => update(index, { notes: e.target.value })}
                     className="h-8 bg-background text-xs"
                   />
@@ -230,7 +232,7 @@ export function RelationshipEditor({
                   className="size-8 shrink-0 self-end text-muted-foreground hover:text-destructive lg:self-auto"
                 >
                   <TrashIcon className="size-4" />
-                  <span className="sr-only">Remove relationship</span>
+                  <span className="sr-only">إزالة العلاقة</span>
                 </Button>
               </div>
             ))}
@@ -245,7 +247,7 @@ export function RelationshipEditor({
             className="flex h-8 w-full items-center justify-center gap-1.5 border-dashed text-xs"
           >
             <PlusIcon className="size-3.5" />
-            Add Relationship
+            إضافة علاقة
           </Button>
         </>
       )}

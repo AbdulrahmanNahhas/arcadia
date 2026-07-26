@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { kindLabels } from "../filtering"
 import type { Work } from "../model"
+import { useArabicTranslations } from "../translations"
 import { WorkArtwork } from "./work-artwork"
 
 export type GalleryOptions = {
@@ -28,6 +29,7 @@ export function Gallery({
   cardSize: number
   options: GalleryOptions
 }) {
+  const { taxonomyLabel } = useArabicTranslations()
   const openFromKeyboard = (event: KeyboardEvent, id: string) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault()
@@ -49,7 +51,7 @@ export function Gallery({
             key={work.id}
             role="button"
             tabIndex={0}
-            aria-label={`Open ${work.title}`}
+            aria-label={`فتح ${work.arabicTitle || work.title}`}
             aria-current={selected ? "true" : undefined}
             onMouseEnter={() => onSelect(work.id)}
             onFocus={() => onSelect(work.id)}
@@ -80,7 +82,7 @@ export function Gallery({
               <div className="px-1 pt-3">
                 <div className="flex min-w-0 items-start gap-2">
                   <h2 className="line-clamp-2 flex-1 text-sm leading-snug font-semibold tracking-tight">
-                    {work.title}
+                    {work.arabicTitle || work.title}
                   </h2>
                   {work.favorite && (
                     <StarIcon
@@ -92,7 +94,8 @@ export function Gallery({
                 {options.mode === "full" && (
                   <>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {work.year ?? "Year unknown"} · {kindLabels[work.kind]}
+                      {work.year ?? "السنة غير معروفة"} ·{" "}
+                      {kindLabels[work.kind]}
                     </p>
                     {work.genres.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
@@ -102,7 +105,7 @@ export function Gallery({
                             variant="secondary"
                             className="px-1.5 py-0 text-[10px] font-normal"
                           >
-                            {genre}
+                            {taxonomyLabel("genre", genre)}
                           </Badge>
                         ))}
                       </div>

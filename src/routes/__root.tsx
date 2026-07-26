@@ -14,12 +14,11 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Arcadia — your media, remembered",
+        title: "أركاديا — مكتبتك المحفوظة",
       },
       {
         name: "description",
-        content:
-          "A private, local-first knowledge base for every story you keep.",
+        content: "قاعدة معرفة خاصة ومحلية لكل قصة تحتفظ بها.",
       },
     ],
     links: [
@@ -32,7 +31,7 @@ export const Route = createRootRoute({
   notFoundComponent: () => (
     <main className="container mx-auto p-4 pt-16">
       <h1>404</h1>
-      <p>The requested page could not be found.</p>
+      <p>تعذر العثور على الصفحة المطلوبة.</p>
     </main>
   ),
   shellComponent: RootDocument,
@@ -41,7 +40,7 @@ export const Route = createRootRoute({
 function RootDocument({ children }: { children: React.ReactNode }) {
   const restorePreferences = `(function(){try{var r=document.documentElement,t=localStorage.getItem('arcadia:theme');if(t==='dark')r.classList.add('dark');r.dataset.sidebarOpen=localStorage.getItem('arcadia:sidebar-open')==='false'?'false':'true';r.dataset.focusMode=localStorage.getItem('arcadia:focus-mode')==='true'?'true':'false';r.style.colorScheme=t==='dark'?'dark':'light'}catch(e){}})()`
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: restorePreferences }} />
         <HeadContent />

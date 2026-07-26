@@ -60,30 +60,30 @@ export function AddWorkDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" className="h-8" />}>
         <PlusIcon className="size-3.5" weight="bold" />
-        Add work
+        إضافة عمل
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add to your library</DialogTitle>
+          <DialogTitle>إضافة إلى مكتبتك</DialogTitle>
           <DialogDescription>
-            Create the basic record now. You can expand its metadata from the
-            admin workspace.
+            أنشئ السجل الأساسي الآن، ويمكنك استكمال بياناته لاحقاً من مساحة
+            الإدارة.
           </DialogDescription>
         </DialogHeader>
         <form id="add-work-form" onSubmit={submit} className="grid gap-4 py-2">
           <div className="grid gap-2">
-            <Label htmlFor="work-title">Title</Label>
+            <Label htmlFor="work-title">العنوان</Label>
             <Input
               id="work-title"
               name="title"
-              placeholder="Work title"
+              placeholder="عنوان العمل"
               required
               autoFocus
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="work-kind">Type</Label>
+              <Label htmlFor="work-kind">النوع</Label>
               <Select
                 value={kind}
                 onValueChange={(value) => value && setKind(value)}
@@ -101,7 +101,7 @@ export function AddWorkDialog({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="work-year">Year</Label>
+              <Label htmlFor="work-year">السنة</Label>
               <Input
                 id="work-year"
                 name="year"
@@ -113,11 +113,11 @@ export function AddWorkDialog({
             </div>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="work-summary">Summary</Label>
+            <Label htmlFor="work-summary">الملخص</Label>
             <Textarea
               id="work-summary"
               name="summary"
-              placeholder="A short, searchable description…"
+              placeholder="وصف قصير يمكن البحث فيه…"
               rows={4}
             />
           </div>
@@ -129,14 +129,14 @@ export function AddWorkDialog({
         </form>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>
-            Cancel
+            إلغاء
           </Button>
           <Button
             type="submit"
             form="add-work-form"
             disabled={mutation.isPending}
           >
-            {mutation.isPending ? "Adding…" : "Add to library"}
+            {mutation.isPending ? "جارٍ الإضافة…" : "إضافة إلى المكتبة"}
           </Button>
         </DialogFooter>
       </DialogContent>

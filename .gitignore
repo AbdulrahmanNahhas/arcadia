@@ -18,6 +18,7 @@ todos.json
 data/*.db
 data/*.db-*
 data/media/*
+data/backups/
 
 # Devenv
 .devenv*

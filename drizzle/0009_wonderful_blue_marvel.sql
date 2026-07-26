@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `work_titles_preferred_language_uq` ON `work_titles` (`work_id`,`language`) WHERE "work_titles"."is_preferred" = true and "work_titles"."language" is not null;

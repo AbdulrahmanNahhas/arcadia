@@ -93,6 +93,7 @@ import {
 } from "./filtering"
 import type { FacetFilters, WorkFilterState } from "./filtering"
 import type { Work, WorkKind } from "./model"
+import { scoreLabel, type ScoreCriterion } from "./scoring"
 import { Badge } from "@/components/ui/badge"
 import { AddWorkDialog as LibraryAddWorkDialog } from "./components/add-work-dialog"
 import { EmptyState as LibraryEmptyState } from "./components/empty-state"
@@ -146,29 +147,43 @@ const defaultGalleryOptions: GalleryOptions = {
 }
 
 const viewItems = [
-  { id: "all" as const, label: "All works", icon: SquaresFourIcon },
+  { id: "all" as const, label: "كل الأعمال", icon: SquaresFourIcon },
   {
     id: "progress" as const,
-    label: "In progress",
+    label: "قيد المتابعة",
     icon: ClockCounterClockwiseIcon,
   },
-  { id: "favorites" as const, label: "Favorites", icon: HeartIcon },
-  { id: "recent" as const, label: "Recently added", icon: SparkleIcon },
+  { id: "favorites" as const, label: "المفضلة", icon: HeartIcon },
+  { id: "recent" as const, label: "المضافة حديثاً", icon: SparkleIcon },
 ]
 
 const layoutItems = [
-  { id: "gallery" as const, label: "Gallery", icon: GridFourIcon },
-  { id: "table" as const, label: "Table", icon: TableIcon },
-  { id: "timeline" as const, label: "Timeline", icon: CalendarBlankIcon },
-  { id: "statistics" as const, label: "Statistics", icon: ChartDonutIcon },
+  { id: "gallery" as const, label: "المعرض", icon: GridFourIcon },
+  { id: "table" as const, label: "الجدول", icon: TableIcon },
+  { id: "timeline" as const, label: "الخط الزمني", icon: CalendarBlankIcon },
+  { id: "statistics" as const, label: "الإحصاءات", icon: ChartDonutIcon },
 ]
 
+const sortLabels: Record<Sort, string> = {
+  title: "العنوان",
+  rating: "التقييم",
+  recent: "الأحدث",
+  year: "السنة",
+}
+
+const columnLabels: Record<string, string> = {
+  type: "النوع",
+  year: "السنة",
+  status: "الحالة",
+  genres: "التصنيفات",
+  progress: "التقدم",
+  rating: "التقييم",
+}
+
 function progressText(work: Work) {
-  if (work.status === "completed" && !work.progressTotal) return "Completed"
+  if (work.status === "completed" && !work.progressTotal) return "مكتمل"
   if (!work.progressTotal)
-    return work.progress
-      ? `${work.progress} ${work.progressUnit}`
-      : "Not started"
+    return work.progress ? `${work.progress} ${work.progressUnit}` : "لم يبدأ"
   return `${work.progress} / ${work.progressTotal} ${work.progressUnit}`
 }
 
@@ -180,11 +195,11 @@ function usesProgress(work: Work) {
 
 function relationLabel(relation: Work["relations"][number]) {
   if (relation.relationType === "adaptation")
-    return relation.direction === "outgoing" ? "Adapted from" : "Adaptation"
+    return relation.direction === "outgoing" ? "مقتبس من" : "اقتباس"
   if (relation.relationType === "prequel")
-    return relation.direction === "outgoing" ? "Prequel" : "Sequel"
+    return relation.direction === "outgoing" ? "سابقة" : "تكملة"
   if (relation.relationType === "sequel")
-    return relation.direction === "outgoing" ? "Sequel" : "Prequel"
+    return relation.direction === "outgoing" ? "تكملة" : "سابقة"
   return relation.relationType.replace("-", " ")
 }
 
@@ -352,7 +367,7 @@ export function LibraryApp() {
         !normalized ||
         [
           work.title,
-          work.subtitle,
+          work.arabicTitle ?? "",
           work.creator,
           work.summary,
           ...work.tags,
@@ -376,7 +391,8 @@ export function LibraryApp() {
     })
 
     return [...next].sort((a, b) => {
-      if (sort === "rating") return (b.rating ?? -1) - (a.rating ?? -1)
+      if (sort === "rating")
+        return (b.calculatedRating ?? -1) - (a.calculatedRating ?? -1)
       if (sort === "recent") return b.addedAt - a.addedAt
       if (sort === "year") return (b.year ?? 0) - (a.year ?? 0)
       return a.title.localeCompare(b.title)
@@ -394,11 +410,11 @@ export function LibraryApp() {
   const displayTitle = activeSavedView
     ? activeSavedView.name
     : activeCollection === "books"
-      ? "Books & comics"
+      ? "الكتب والقصص المصورة"
       : activeCollection === "screen"
-        ? "Screen & play"
+        ? "الشاشة والألعاب"
         : (viewItems.find((item) => item.id === activeView)?.label ??
-          "All works")
+          "كل الأعمال")
 
   function chooseView(view: SavedView) {
     setActiveSavedViewId(null)
@@ -529,8 +545,8 @@ export function LibraryApp() {
       )}
       style={
         {
-          "--sidebar-width": "248px",
-          "--sidebar-width-icon": "56px",
+          "--sidebar-width": "220px",
+          "--sidebar-width-icon": "55px",
         } as CSSProperties
       }
       open={sidebarOpen}
@@ -561,7 +577,7 @@ export function LibraryApp() {
               <div className="flex items-center gap-2 text-muted-foreground">
                 <SidebarTrigger className="-ml-1 h-7 w-7" />
                 <div className="flex items-center gap-1.5 font-medium">
-                  <span>Library</span>
+                  <span>المكتبة</span>
                   <span className="text-muted-foreground/40">/</span>
                   <span className="font-semibold text-foreground">
                     {displayTitle}
@@ -575,14 +591,14 @@ export function LibraryApp() {
                   size="sm"
                   nativeButton={false}
                   className="h-7 text-xs"
-                  render={<Link to="/feed">Feed</Link>}
+                  render={<Link to="/feed">النشاط</Link>}
                 />
                 <Button
                   variant="ghost"
                   size="sm"
                   nativeButton={false}
                   className="h-7 text-xs"
-                  render={<Link to="/admin">Admin</Link>}
+                  render={<Link to="/admin">الإدارة</Link>}
                 />
 
                 <Tooltip>
@@ -593,7 +609,11 @@ export function LibraryApp() {
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         onClick={toggleTheme}
-                        aria-label={`Use ${theme === "light" ? "dark" : "light"} mode`}
+                        aria-label={
+                          theme === "light"
+                            ? "استخدام الوضع الداكن"
+                            : "استخدام الوضع الفاتح"
+                        }
                       >
                         {theme === "light" ? (
                           <MoonIcon className="h-3.5 w-3.5" />
@@ -604,7 +624,7 @@ export function LibraryApp() {
                     }
                   />
                   <TooltipContent>
-                    {theme === "light" ? "Dark mode" : "Light mode"}
+                    {theme === "light" ? "الوضع الداكن" : "الوضع الفاتح"}
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -643,8 +663,8 @@ export function LibraryApp() {
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search titles, tags, people…"
-                aria-label="Search library"
+                placeholder="ابحث في العناوين والوسوم والأشخاص…"
+                aria-label="البحث في المكتبة"
                 className="h-8 border-border/60 bg-muted/30 pr-8 pl-9 text-xs transition-colors focus-visible:bg-background"
               />
               {search && (
@@ -652,7 +672,7 @@ export function LibraryApp() {
                   type="button"
                   onClick={() => setSearch("")}
                   className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-                  aria-label="Clear search"
+                  aria-label="مسح البحث"
                 >
                   <XIcon className="h-3 w-3" />
                 </button>
@@ -682,14 +702,14 @@ export function LibraryApp() {
                       variant={inspectorOpen ? "secondary" : "ghost"}
                       size="icon"
                       className="h-8 w-8"
-                      aria-label="Toggle inspector"
+                      aria-label="إظهار أو إخفاء التفاصيل"
                       onClick={() => setInspectorOpen((value) => !value)}
                     >
                       <RowsIcon className="h-4 w-4" />
                     </Button>
                   }
                 />
-                <TooltipContent>Toggle details</TooltipContent>
+                <TooltipContent>إظهار أو إخفاء التفاصيل</TooltipContent>
               </Tooltip>
 
               {!focusMode && (
@@ -701,13 +721,13 @@ export function LibraryApp() {
                         size="icon"
                         className="h-8 w-8"
                         onClick={() => changeFocusMode(true)}
-                        aria-label="Expand view"
+                        aria-label="توسيع العرض"
                       >
                         <CornersOutIcon className="h-4 w-4" />
                       </Button>
                     }
                   />
-                  <TooltipContent>Focus canvas</TooltipContent>
+                  <TooltipContent>وضع التركيز</TooltipContent>
                 </Tooltip>
               )}
             </div>
@@ -732,15 +752,15 @@ export function LibraryApp() {
                       className="h-8 gap-1.5 border-border/60 text-xs font-normal"
                     >
                       <ArrowsDownUpIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                      Sort:{" "}
-                      <span className="font-medium capitalize">{sort}</span>
+                      الترتيب:{" "}
+                      <span className="font-medium">{sortLabels[sort]}</span>
                     </Button>
                   }
                 />
                 <DropdownMenuContent align="start" className="w-48">
                   <DropdownMenuGroup>
                     <DropdownMenuLabel className="text-xs">
-                      Sort works by
+                      ترتيب الأعمال حسب
                     </DropdownMenuLabel>
                     {(["title", "rating", "recent", "year"] as const).map(
                       (option) => (
@@ -749,7 +769,7 @@ export function LibraryApp() {
                           onClick={() => setSort(option)}
                           className="justify-between text-xs"
                         >
-                          <span className="capitalize">{option}</span>
+                          <span>{sortLabels[option]}</span>
                           {sort === option && (
                             <CheckIcon className="h-3.5 w-3.5 text-primary" />
                           )}
@@ -801,7 +821,7 @@ export function LibraryApp() {
                       variant="outline"
                       className="gap-1 border-destructive/20 bg-destructive/10 pr-1 text-xs font-normal text-destructive hover:bg-destructive/20"
                     >
-                      not {kindLabels[kind]}
+                      ليس {kindLabels[kind]}
                       <button
                         type="button"
                         onClick={() =>
@@ -823,7 +843,7 @@ export function LibraryApp() {
             <div className="flex shrink-0 items-center gap-3">
               <span className="font-mono text-xs text-muted-foreground">
                 {filteredWorks.length}{" "}
-                {filteredWorks.length === 1 ? "item" : "items"}
+                {filteredWorks.length === 1 ? "عنصر" : "عناصر"}
               </span>
 
               {focusMode && (
@@ -833,7 +853,7 @@ export function LibraryApp() {
                   className="h-7 gap-1.5 border-border/60 text-xs"
                   onClick={() => changeFocusMode(false)}
                 >
-                  <CornersInIcon className="h-3.5 w-3.5" /> Exit focus
+                  <CornersInIcon className="h-3.5 w-3.5" /> إنهاء التركيز
                 </Button>
               )}
             </div>
@@ -936,14 +956,14 @@ function AppSidebar({
   onSavedViewDelete: (id: string) => void
 }) {
   return (
-    <ShadcnSidebar variant="inset" collapsible="icon">
+    <ShadcnSidebar side="right" variant="sidebar" collapsible="icon">
       {/* Brand Header */}
-      <SidebarHeader className="border-b border-sidebar-border/50 pb-2">
+      <SidebarHeader className="pb-1">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
-              tooltip="Arcadia Library"
+              tooltip="مكتبة أركاديا"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
@@ -954,7 +974,7 @@ function AppSidebar({
                   Arcadia
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
-                  Local Library
+                  مكتبة محلية
                 </span>
               </div>
             </SidebarMenuButton>
@@ -965,11 +985,14 @@ function AppSidebar({
       <SidebarContent>
         {/* Navigation Group */}
         <SidebarGroup>
-          <SidebarGroupLabel>Library</SidebarGroupLabel>
+          <SidebarGroupLabel>المكتبة</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {viewItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
+                <SidebarMenuItem
+                  className="flex items-center justify-center p-0!"
+                  key={item.id}
+                >
                   <SidebarMenuButton
                     type="button"
                     tooltip={item.label}
@@ -980,7 +1003,7 @@ function AppSidebar({
                     <span>{item.label}</span>
                   </SidebarMenuButton>
                   {item.id === "all" && (
-                    <SidebarMenuBadge className="font-mono text-[10px]">
+                    <SidebarMenuBadge className="absolute top-1/2! -translate-y-1/2! border border-primary/25 bg-primary/20 font-mono text-[10px] text-primary-foreground!">
                       {total}
                     </SidebarMenuBadge>
                   )}
@@ -992,29 +1015,29 @@ function AppSidebar({
 
         {/* Media Groups */}
         <SidebarGroup>
-          <SidebarGroupLabel>Media groups</SidebarGroupLabel>
+          <SidebarGroupLabel>مجموعات الوسائط</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   type="button"
-                  tooltip="Books & comics"
+                  tooltip="الكتب والقصص المصورة"
                   isActive={activeCollection === "books"}
                   onClick={() => onCollectionChange("books")}
                 >
                   <BooksIcon className="h-4 w-4" />
-                  <span>Books & comics</span>
+                  <span>الكتب والقصص المصورة</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   type="button"
-                  tooltip="Screen & play"
+                  tooltip="الشاشة والألعاب"
                   isActive={activeCollection === "screen"}
                   onClick={() => onCollectionChange("screen")}
                 >
                   <SquaresFourIcon className="h-4 w-4" />
-                  <span>Screen & play</span>
+                  <span>الشاشة والألعاب</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -1024,7 +1047,7 @@ function AppSidebar({
         {/* Saved Views */}
         <SidebarGroup>
           <SidebarGroupLabel className="flex w-full items-center justify-between">
-            <span>Saved views</span>
+            <span>العروض المحفوظة</span>
             {savedViews.length > 0 && (
               <span className="ml-auto font-mono text-[10px] text-sidebar-foreground/60">
                 {savedViews.length}
@@ -1058,7 +1081,7 @@ function AppSidebar({
                       type="button"
                       className="absolute top-1/2 right-1 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-sidebar-foreground/50 opacity-0 transition-all group-hover/item:opacity-100 group-data-[collapsible=icon]:hidden hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => onSavedViewDelete(view.id)}
-                      aria-label={`Delete ${view.name}`}
+                      aria-label={`حذف ${view.name}`}
                     >
                       <XIcon className="h-3.5 w-3.5" />
                     </button>
@@ -1067,7 +1090,7 @@ function AppSidebar({
               </SidebarMenu>
             ) : (
               <p className="px-2 py-1.5 text-xs leading-relaxed text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
-                Save a filtered layout and it will stay one click away here.
+                احفظ عرضاً مفلترًا ليبقى متاحاً هنا بنقرة واحدة.
               </p>
             )}
           </SidebarGroupContent>
@@ -1081,10 +1104,10 @@ function AppSidebar({
             <SidebarMenuButton
               className="group-data-[collapsible=icon]:m-1"
               render={<Link to="/admin" />}
-              tooltip="Database admin"
+              tooltip="إدارة قاعدة البيانات"
             >
               <GearSixIcon className="h-4 w-4" />
-              <span>Database admin</span>
+              <span>إدارة قاعدة البيانات</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -1111,13 +1134,13 @@ function CardSizeControl({
             className="h-8 gap-1.5 border-border/60 text-xs"
           >
             <GridFourIcon className="h-3.5 w-3.5 text-muted-foreground" />
-            Size
+            الحجم
           </Button>
         }
       />
       <PopoverContent align="start" className="w-64 p-4">
         <div className="mb-4 flex items-center justify-between">
-          <span className="text-sm font-medium">Gallery card size</span>
+          <span className="text-sm font-medium">حجم بطاقات المعرض</span>
           <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
             {value}px
           </span>
@@ -1128,7 +1151,7 @@ function CardSizeControl({
             variant="outline"
             size="icon"
             className="h-8 w-8 shrink-0 rounded-full"
-            aria-label="Smaller cards"
+            aria-label="بطاقات أصغر"
             onClick={() => onChange(Math.max(110, value - 10))}
           >
             <MinusIcon className="h-3.5 w-3.5" />
@@ -1153,14 +1176,14 @@ function CardSizeControl({
             variant="outline"
             size="icon"
             className="h-8 w-8 shrink-0 rounded-full"
-            aria-label="Larger cards"
+            aria-label="بطاقات أكبر"
             onClick={() => onChange(Math.min(220, value + 10))}
           >
             <PlusIcon className="h-3.5 w-3.5" />
           </Button>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Saved locally and applied to this gallery.
+          يُحفظ محلياً ويُطبّق على هذا المعرض.
         </p>
       </PopoverContent>
     </Popover>
@@ -1198,11 +1221,7 @@ function ViewSettings({
     <Popover>
       <PopoverTrigger
         render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`${layout} view settings`}
-          />
+          <Button variant="ghost" size="icon-sm" aria-label="إعدادات العرض" />
         }
       >
         <FadersHorizontalIcon />
@@ -1210,17 +1229,17 @@ function ViewSettings({
       <PopoverContent align="end" className="w-80 overflow-hidden p-0">
         <div className="border-b bg-muted/30 px-4 py-3">
           <strong className="block text-sm font-semibold capitalize">
-            {layout} settings
+            إعدادات {layoutItems.find((item) => item.id === layout)?.label}
           </strong>
           <span className="mt-0.5 block text-xs text-muted-foreground">
-            Saved with custom views
+            تُحفظ مع العروض المخصصة
           </span>
         </div>
         <div className="space-y-5 p-4">
           {layout === "gallery" ? (
             <>
               <div className="space-y-2">
-                <label className="text-xs font-medium">Card content</label>
+                <label className="text-xs font-medium">محتوى البطاقة</label>
                 <div className="grid grid-cols-3 rounded-lg bg-muted p-1">
                   {(["cover", "title", "full"] as const).map((mode) => (
                     <button
@@ -1234,16 +1253,16 @@ function ViewSettings({
                       onClick={() => onGalleryChange({ ...gallery, mode })}
                     >
                       {mode === "cover"
-                        ? "Cover only"
+                        ? "الغلاف فقط"
                         : mode === "title"
-                          ? "Cover + title"
-                          : "Full"}
+                          ? "الغلاف والعنوان"
+                          : "كامل"}
                     </button>
                   ))}
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium">Artwork</label>
+                <label className="text-xs font-medium">الصورة</label>
                 <div className="grid grid-cols-2 rounded-lg bg-muted p-1">
                   <button
                     type="button"
@@ -1256,7 +1275,7 @@ function ViewSettings({
                       onGalleryChange({ ...gallery, imageType: "poster" })
                     }
                   >
-                    Poster
+                    الملصق
                   </button>
                   <button
                     type="button"
@@ -1269,12 +1288,12 @@ function ViewSettings({
                       onGalleryChange({ ...gallery, imageType: "logo" })
                     }
                   >
-                    Logo
+                    الشعار
                   </button>
                 </div>
               </div>
               <label className="flex items-center justify-between gap-3 text-xs">
-                <span className="font-medium">Type badge</span>
+                <span className="font-medium">شارة النوع</span>
                 <Switch
                   checked={gallery.showType}
                   onCheckedChange={(showType) =>
@@ -1283,7 +1302,7 @@ function ViewSettings({
                 />
               </label>
               <label className="flex items-center justify-between gap-3 text-xs">
-                <span className="font-medium">Rating badge</span>
+                <span className="font-medium">شارة التقييم</span>
                 <Switch
                   checked={gallery.showRating}
                   onCheckedChange={(showRating) =>
@@ -1293,7 +1312,7 @@ function ViewSettings({
               </label>
               <div className="space-y-3 border-t pt-4">
                 <label className="flex items-center justify-between text-xs font-medium">
-                  Card size{" "}
+                  حجم البطاقة{" "}
                   <em className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground not-italic">
                     {cardSize}px
                   </em>
@@ -1314,7 +1333,7 @@ function ViewSettings({
           ) : null}
           {layout === "table" ? (
             <div className="space-y-3">
-              <label className="text-xs font-medium">Visible columns</label>
+              <label className="text-xs font-medium">الأعمدة الظاهرة</label>
               <div className="grid grid-cols-2 gap-1.5">
                 {["type", "year", "status", "genres", "progress", "rating"].map(
                   (column) => (
@@ -1331,7 +1350,7 @@ function ViewSettings({
                       <i className="flex size-4 items-center justify-center rounded border bg-background">
                         {tableColumns.includes(column) ? <CheckIcon /> : null}
                       </i>
-                      <span>{column}</span>
+                      <span>{columnLabels[column]}</span>
                     </button>
                   )
                 )}
@@ -1340,7 +1359,7 @@ function ViewSettings({
           ) : null}
           {layout === "timeline" ? (
             <label className="flex items-center justify-between gap-3 text-xs">
-              <span className="font-medium">Newest years first</span>
+              <span className="font-medium">السنوات الأحدث أولاً</span>
               <Switch
                 checked={timelineNewestFirst}
                 onCheckedChange={onTimelineOrderChange}
@@ -1349,7 +1368,7 @@ function ViewSettings({
           ) : null}
           {layout === "statistics" ? (
             <p className="text-xs leading-5 text-muted-foreground">
-              Statistics automatically reflect the current search and filters.
+              تعكس الإحصاءات البحث والفلاتر الحالية تلقائياً.
             </p>
           ) : null}
         </div>
@@ -1388,7 +1407,7 @@ function SavedViewsControl({
             className="h-8 gap-1.5 border-border/60 text-xs"
           >
             <FloppyDiskIcon className="h-3.5 w-3.5 text-muted-foreground" />
-            Views
+            العروض
             {views.length > 0 && (
               <Badge
                 variant="secondary"
@@ -1403,10 +1422,10 @@ function SavedViewsControl({
       <PopoverContent align="start" className="w-80 overflow-hidden p-0">
         <div className="border-b border-border/40 bg-muted/30 p-3">
           <strong className="mb-0.5 block text-sm font-medium">
-            Saved views
+            العروض المحفوظة
           </strong>
           <span className="block text-xs text-muted-foreground">
-            Store the complete query and layout
+            احفظ البحث والفلاتر والتخطيط كاملاً
           </span>
         </div>
 
@@ -1417,7 +1436,7 @@ function SavedViewsControl({
             onKeyDown={(event) => {
               if (event.key === "Enter") save()
             }}
-            placeholder="Name your view..."
+            placeholder="اسم العرض…"
             className="h-8 text-xs"
           />
           <Button
@@ -1426,7 +1445,7 @@ function SavedViewsControl({
             onClick={save}
             disabled={!name.trim()}
           >
-            Save
+            حفظ
           </Button>
         </div>
 
@@ -1446,7 +1465,8 @@ function SavedViewsControl({
                     {view.name}
                   </span>
                   <span className="mt-0.5 text-[11px] text-muted-foreground">
-                    <span className="capitalize">{view.layout}</span> layout ·{" "}
+                    {layoutItems.find((item) => item.id === view.layout)?.label}{" "}
+                    ·{" "}
                     {view.kinds.length +
                       (view.excludedKinds?.length ?? 0) +
                       view.statuses.length +
@@ -1454,7 +1474,7 @@ function SavedViewsControl({
                       countFacetFilters(
                         normalizeFacetFilters(view.facets)
                       )}{" "}
-                    filters
+                    فلاتر
                   </span>
                 </button>
                 <Button
@@ -1462,7 +1482,7 @@ function SavedViewsControl({
                   size="icon"
                   className="h-7 w-7 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
                   onClick={() => onDelete(view.id)}
-                  aria-label={`Delete ${view.name}`}
+                  aria-label={`حذف ${view.name}`}
                 >
                   <XIcon className="h-3.5 w-3.5" />
                 </Button>
@@ -1472,7 +1492,7 @@ function SavedViewsControl({
         ) : (
           <div className="p-4 text-center">
             <p className="text-xs text-muted-foreground">
-              No custom views yet. Configure this view, then save it here.
+              لا توجد عروض مخصصة بعد. اضبط هذا العرض ثم احفظه هنا.
             </p>
           </div>
         )}
@@ -1978,9 +1998,9 @@ function Poster({
       {showType ? (
         <span className="kind-pill">{kindLabels[work.kind]}</span>
       ) : null}
-      {showRating && work.rating ? (
+      {showRating && work.calculatedRating ? (
         <span className="rating-pill">
-          <StarIcon weight="fill" /> {work.rating.toFixed(1)}
+          <StarIcon weight="fill" /> {work.calculatedRating.toFixed(1)}
         </span>
       ) : null}
       {(image === "poster" && !work.imagePath) ||
@@ -2052,12 +2072,12 @@ function Inspector({
             <span>{work.year ?? "Unreleased"}</span>
           </div>
           <h2>{work.title}</h2>
-          <p>{work.subtitle}</p>
+          <p>{work.arabicTitle}</p>
         </div>
         <div className="inspector-rating">
           <span>
             <StarIcon weight="fill" />
-            {work.rating?.toFixed(1) ?? "—"}
+            {work.calculatedRating?.toFixed(1) ?? "—"}
             <small>/ 10</small>
           </span>
           <Button variant="outline" size="sm" onClick={open}>
@@ -2181,10 +2201,10 @@ function WorkTable({
               ) : null}
               {columns.includes("rating") ? (
                 <td>
-                  {work.rating ? (
+                  {work.calculatedRating ? (
                     <span className="table-rating">
                       <StarIcon weight="fill" />
-                      {work.rating.toFixed(1)}
+                      {work.calculatedRating.toFixed(1)}
                     </span>
                   ) : (
                     "—"
@@ -2250,9 +2270,10 @@ function Timeline({
                     </em>
                   </span>
                   <span className="timeline-status">
-                    {work.rating ? (
+                    {work.calculatedRating ? (
                       <strong>
-                        <StarIcon weight="fill" /> {work.rating.toFixed(1)}
+                        <StarIcon weight="fill" />{" "}
+                        {work.calculatedRating.toFixed(1)}
                       </strong>
                     ) : null}
                     <small>{work.status.replace("-", " ")}</small>
@@ -2268,9 +2289,9 @@ function Timeline({
 
 function Statistics({ works }: { works: Work[] }) {
   const completed = works.filter((work) => work.status === "completed").length
-  const rated = works.filter((work) => work.rating !== null)
+  const rated = works.filter((work) => work.calculatedRating !== null)
   const average =
-    rated.reduce((sum, work) => sum + (work.rating ?? 0), 0) /
+    rated.reduce((sum, work) => sum + (work.calculatedRating ?? 0), 0) /
     Math.max(1, rated.length)
   const byKind = workKinds
     .map((kind) => ({
@@ -2333,7 +2354,9 @@ function Statistics({ works }: { works: Work[] }) {
             .map((work) => (
               <i
                 key={work.id}
-                style={{ height: `${30 + (work.rating ?? 4) * 6}%` }}
+                style={{
+                  height: `${30 + (work.calculatedRating ?? 4) * 6}%`,
+                }}
                 title={`${work.title} (${work.year})`}
               />
             ))}
@@ -2437,7 +2460,7 @@ function WorkDetailDialog({
                 />
               )}
               <h1 className={cn(work.logoPath && "sr-only")}>{work.title}</h1>
-              <p className="detail-subtitle">{work.subtitle}</p>
+              <p className="detail-subtitle">{work.arabicTitle}</p>
               <p className="detail-summary">{work.summary}</p>
 
               <div className="detail-primary-meta">
@@ -2449,7 +2472,7 @@ function WorkDetailDialog({
                   <span>التقييم</span>
                   <strong>
                     <StarIcon weight="fill" />
-                    {work.rating?.toFixed(1) ?? "غير مقيّم"}
+                    {work.calculatedRating?.toFixed(1) ?? "غير مقيّم"}
                   </strong>
                 </div>
                 {usesProgress(work) && (
@@ -2549,8 +2572,8 @@ function WorkDetailDialog({
                 <div>
                   <dt>التقييم</dt>
                   <dd>
-                    {work.rating
-                      ? `${work.rating.toFixed(1)} / 10`
+                    {work.calculatedRating
+                      ? `${work.calculatedRating.toFixed(1)} / 10`
                       : "غير مقيّم"}
                   </dd>
                 </div>
@@ -2633,19 +2656,23 @@ function WorkDetailDialog({
             </div>
 
             {/* Score Breakdown */}
-            {!!Object.keys(work.scoreBreakdown).length && (
+            {!!Object.keys(work.scoreComponents).length && (
               <div className="detail-panel detail-score-panel">
                 <h2>تفاصيل التقييم</h2>
                 <div className="score-breakdown">
-                  {Object.entries(work.scoreBreakdown).map(([label, score]) => (
-                    <div key={label}>
-                      <span>{label}</span>
-                      <i>
-                        <b style={{ width: `${score * 10}%` }} />
-                      </i>
-                      <strong>{score}</strong>
-                    </div>
-                  ))}
+                  {Object.entries(work.scoreComponents).map(
+                    ([label, score]) => (
+                      <div key={label}>
+                        <span>
+                          {scoreLabel(label as ScoreCriterion, work.kind).ar}
+                        </span>
+                        <i>
+                          <b style={{ width: `${score * 10}%` }} />
+                        </i>
+                        <strong>{score}</strong>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
             )}
@@ -2659,26 +2686,6 @@ function WorkDetailDialog({
                     <span>المحتوى الجنسي</span>
                     <strong data-risk={work.riskProfile.sexuality}>
                       {work.riskProfile.sexuality}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>مستوى Fan Service</span>
-                    <strong
-                      data-risk={
-                        work.riskProfile.fanService === null
-                          ? "unknown"
-                          : work.riskProfile.fanService === 0
-                            ? "none"
-                            : work.riskProfile.fanService < 4
-                              ? "low"
-                              : work.riskProfile.fanService < 7
-                                ? "medium"
-                                : "high"
-                      }
-                    >
-                      {work.riskProfile.fanService === null
-                        ? "غير معروف"
-                        : `${work.riskProfile.fanService} / 10`}
                     </strong>
                   </div>
                   <div>

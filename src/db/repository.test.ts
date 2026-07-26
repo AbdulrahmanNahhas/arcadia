@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { eq } from "drizzle-orm"
+import { adminWorkUpdateSchema } from "@/features/library/model"
 import type { db as databaseValue } from "./client"
 import type * as Repository from "./repository"
 import type * as Schema from "./schema"
@@ -47,6 +48,63 @@ function currentWork(workId: string) {
   if (!work) throw new Error("Work not found in projection")
   return work
 }
+
+describe("admin record persistence", () => {
+  it("calculates a rating from persisted components without changing tracking", () => {
+    const work = createTrackedWork("Rated Work")
+    repository.recordTrackingEntry({
+      workId: work.id,
+      progress: 3,
+      status: "in-progress",
+      occurredOn: "2026-07-01",
+    })
+    const current = currentWork(work.id)
+    const {
+      addedAt: _addedAt,
+      catalogUpdatedAt: _catalogUpdatedAt,
+      personalUpdatedAt: _personalUpdatedAt,
+      palette: _palette,
+      relations,
+      ...editable
+    } = current
+
+    repository.updateWork(
+      adminWorkUpdateSchema.parse({
+        ...editable,
+        scoreComponents: {
+          story: 8,
+          characters: 9,
+          depth: 7,
+          worldBuilding: 8,
+          originality: 6,
+          craft: 9,
+        },
+        relations: relations.map(
+          ({ workId, relationType, direction, notes }) => ({
+            workId,
+            relationType,
+            direction,
+            notes,
+          })
+        ),
+      })
+    )
+
+    expect(currentWork(work.id)).toMatchObject({
+      calculatedRating: 8.1,
+      scoreComponents: {
+        story: 8,
+        characters: 9,
+        depth: 7,
+        worldBuilding: 8,
+        originality: 6,
+        craft: 9,
+      },
+      progress: 3,
+      status: "in-progress",
+    })
+  })
+})
 
 describe("tracking core", () => {
   it("orders backdated entries chronologically without overwriting newer state", () => {

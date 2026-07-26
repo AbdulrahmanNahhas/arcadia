@@ -150,6 +150,7 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    direction: rtl;
   }
   html {
     @apply font-mono;
@@ -171,4 +172,8 @@
   ::selection {
     background: #c9d5cc;
   }
+}
+
+.ltr {
+    direction: ltr;
 }

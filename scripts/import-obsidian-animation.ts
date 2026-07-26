@@ -19,6 +19,7 @@ import {
   collections,
   entities,
   externalLinks,
+  personalScores,
   personalState,
   terms,
   workCredits,
@@ -62,9 +63,16 @@ type PreparedWork = {
   status: "planned" | "in-progress" | "completed" | "paused" | "dropped"
   releaseStart: string | null
   releaseEnd: string | null
-  rating: number | null
   links: Link[]
   assets: PreparedAsset[]
+}
+
+const unknownAudienceOverrides: Readonly<Record<string, string>> = {
+  "obsidian-animation-tv-genshin": "Teen",
+  "obsidian-animation-tv-lona": "Teen",
+  "obsidian-animation-tv-the-bugle-call-song-of-war": "Teen",
+  "obsidian-animation-movies-ghost-provisional-title": "General",
+  "obsidian-animation-movies-wasted-chef": "General",
 }
 
 const positionalArguments = process.argv
@@ -137,6 +145,21 @@ function list(value: unknown): string[] {
       values.map(wikilinkLabel).filter((item): item is string => Boolean(item))
     ),
   ]
+}
+
+function normalizeAudience(workId: string, values: string[]) {
+  const normalized = values.flatMap((value) => {
+    const key = value.trim().toLocaleLowerCase()
+    if (key === "adult" || key === "mature") return ["Adult"]
+    if (key === "young adult") return ["Young Adult"]
+    if (key === "teen") return ["Teen"]
+    if (key === "family" || key === "general") return ["General"]
+    if (key === "unknown") {
+      return [unknownAudienceOverrides[workId] ?? "General"]
+    }
+    return []
+  })
+  return [...new Set(normalized)].slice(0, 1)
 }
 
 function dateValue(value: unknown): string | null {
@@ -330,14 +353,14 @@ function risk(value: unknown): "none" | "low" | "medium" | "high" | "unknown" {
   return "unknown"
 }
 
-function scoreBreakdown(data: Frontmatter) {
+function scoreComponents(data: Frontmatter) {
   const fields = [
-    ["Characters", "characters"],
-    ["Visuals", "visuals"],
-    ["Story", "story"],
-    ["World building", "worldBuilding"],
-    ["Depth", "depth"],
-    ["Originality", "originality"],
+    ["characters", "characters"],
+    ["craft", "visuals"],
+    ["story", "story"],
+    ["worldBuilding", "worldBuilding"],
+    ["depth", "depth"],
+    ["originality", "originality"],
   ] as const
   const scores: Record<string, number> = {}
   for (const [label, key] of fields) {
@@ -345,17 +368,6 @@ function scoreBreakdown(data: Frontmatter) {
     if (value !== null && value > 0) scores[label] = value
   }
   return scores
-}
-
-function ratingFor(data: Frontmatter, status: PreparedWork["status"]) {
-  if (status === "planned") return null
-  const scores = Object.values(scoreBreakdown(data))
-  if (scores.length < 2) return null
-  return (
-    Math.round(
-      (scores.reduce((sum, value) => sum + value, 0) / scores.length) * 10
-    ) / 10
-  )
 }
 
 function link(
@@ -506,7 +518,7 @@ const prepared: PreparedWork[] = noteFiles.map(({ folder, filePath }) => {
     producers: list(data.producer),
     genres: taxonomy.genres,
     tags: taxonomy.tags,
-    audience: list(data.audience),
+    audience: normalizeAudience(id, list(data.audience)),
     tone: taxonomy.tone,
     country,
     era: list(data.era),
@@ -521,7 +533,6 @@ const prepared: PreparedWork[] = noteFiles.map(({ folder, filePath }) => {
     releaseEnd:
       dateValue(data.endDate) ??
       (folder === "Movies" ? dateValue(data.releaseDate) : null),
-    rating: ratingFor(data, status),
     links: uniqueLinks([
       link("anilist", "AniList", data.anilistUrl, data.anilistId),
       link("tmdb", "TMDB", data.tmdbUrl),
@@ -581,7 +592,7 @@ db.transaction((tx) => {
 
   prepared.forEach((item, position) => {
     const data = item.data
-    const scores = scoreBreakdown(data)
+    const scores = scoreComponents(data)
     const sourceType = list(data.sourceType).at(0)
     const sourceStarted = numberValue(data.sourceStarted)
     const sourceFinished = numberValue(data.sourceFinished)
@@ -603,7 +614,6 @@ db.transaction((tx) => {
         : null
     const riskProfile = {
       sexuality: risk(data.SexualityRisk),
-      fanService: numberValue(data.fanServiceLevel),
       behavioral: risk(data.BehavioralRisk),
       theology: risk(data.TheologyRisk),
     }
@@ -615,7 +625,6 @@ db.transaction((tx) => {
         : item.releaseStart
           ? "releasing"
           : "released"
-    const subtitle = item.aliases.join(" · ")
     tx.insert(works)
       .values({
         id: item.id,
@@ -630,12 +639,10 @@ db.transaction((tx) => {
         chapterCount: null,
         status: objectiveStatus,
         metadata: {
-          subtitle,
           sharedWith: item.sharedWith,
           contentWarnings: stringValue(data.contentWarnings),
           analysisNotes: stringValue(data.theologicalAnalysis),
           riskProfile,
-          scoreBreakdown: scores,
           releaseStart: item.releaseStart,
           releaseEnd: item.releaseEnd,
           watchDates: {
@@ -666,7 +673,6 @@ db.transaction((tx) => {
       .values({
         workId: item.id,
         status: item.status,
-        rating: item.rating,
         favorite: booleanValue(data.favorite),
         progress: 0,
         progressTotal: null,
@@ -684,6 +690,16 @@ db.transaction((tx) => {
         updatedAt: now,
       })
       .run()
+    for (const [criterion, value] of Object.entries(scores)) {
+      tx.insert(personalScores)
+        .values({
+          workId: item.id,
+          criterion,
+          value,
+          updatedAt: now,
+        })
+        .run()
+    }
 
     const titles: Array<{
       title: string
@@ -691,10 +707,11 @@ db.transaction((tx) => {
       language: string | null
     }> = [{ title: item.title, type: "canonical", language: null }]
     for (const alias of item.aliases) {
+      const isArabic = alias === stringValue(data.arTitle)
       titles.push({
         title: alias,
-        type: "alias",
-        language: alias === stringValue(data.arTitle) ? "ar" : null,
+        type: isArabic ? "localized" : "alias",
+        language: isArabic ? "ar" : null,
       })
     }
     for (const title of titles) {
@@ -705,7 +722,10 @@ db.transaction((tx) => {
           title: title.title,
           titleType: title.type,
           language: title.language,
-          isPreferred: title.type === "canonical",
+          script: title.language === "ar" ? "Arab" : null,
+          isPreferred:
+            title.type === "canonical" ||
+            (title.type === "localized" && title.language === "ar"),
         })
         .run()
     }
@@ -716,7 +736,6 @@ db.transaction((tx) => {
       ["audience", item.audience],
       ["tone", item.tone],
       ["country", item.country],
-      ["era", item.era],
     ]
     for (const [vocabulary, values] of vocabularies) {
       for (const name of values) {

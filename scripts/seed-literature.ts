@@ -13,6 +13,7 @@ import {
   workTitles,
   works,
 } from "@/db/schema"
+import type { Audience } from "@/features/library/model"
 
 type LiteratureWork = {
   id: string
@@ -27,6 +28,7 @@ type LiteratureWork = {
   genres: string[]
   tags: string[]
   tone: string[]
+  audience: Audience
   country: string[]
   releaseStart: string
   releaseEnd?: string
@@ -47,7 +49,6 @@ type LiteratureWork = {
   }
   riskProfile?: {
     sexuality: "none" | "low" | "medium" | "high" | "unknown"
-    fanService: number | null
     behavioral: "none" | "low" | "medium" | "high" | "unknown"
     theology: "none" | "low" | "medium" | "high" | "unknown"
   }
@@ -68,6 +69,7 @@ const literature: LiteratureWork[] = [
     genres: ["Romance", "Sports", "Coming-of-age"],
     tags: ["School life", "Badminton", "Basketball", "Slow burn"],
     tone: ["Warm", "Earnest", "Hopeful"],
+    audience: "Teen",
     country: ["Japan"],
     releaseStart: "2021-04-12",
     publication: {
@@ -85,7 +87,6 @@ const literature: LiteratureWork[] = [
     ],
     riskProfile: {
       sexuality: "low",
-      fanService: 1,
       behavioral: "low",
       theology: "none",
     },
@@ -104,6 +105,7 @@ const literature: LiteratureWork[] = [
     genres: ["Fantasy", "Adventure", "Drama"],
     tags: ["Witches", "Identity", "Found family", "Journey"],
     tone: ["Atmospheric", "Emotional", "Adventurous"],
+    audience: "Teen",
     country: ["Japan"],
     releaseStart: "2025-10-23",
     publication: {
@@ -121,7 +123,6 @@ const literature: LiteratureWork[] = [
     ],
     riskProfile: {
       sexuality: "none",
-      fanService: 0,
       behavioral: "medium",
       theology: "medium",
     },
@@ -144,6 +145,7 @@ const literature: LiteratureWork[] = [
     genres: ["Action", "Fantasy", "Adventure"],
     tags: ["Dungeons", "Hunters", "Power progression", "Necromancy"],
     tone: ["Intense", "Power fantasy", "Dark"],
+    audience: "Young Adult",
     country: ["South Korea"],
     releaseStart: "2018-03-04",
     releaseEnd: "2021-12-29",
@@ -168,7 +170,6 @@ const literature: LiteratureWork[] = [
     },
     riskProfile: {
       sexuality: "low",
-      fanService: 1,
       behavioral: "high",
       theology: "medium",
     },
@@ -190,9 +191,16 @@ const literature: LiteratureWork[] = [
       { name: "Sugaru Miaki", role: "original-author" },
       { name: "Shouichi Taguchi", role: "artist" },
     ],
-    genres: ["Drama", "Romance", "Psychological"],
-    tags: ["Mortality", "Regret", "Loneliness", "Life choices"],
+    genres: ["Drama", "Romance"],
+    tags: [
+      "Mortality",
+      "Regret",
+      "Loneliness",
+      "Life choices",
+      "Psychological",
+    ],
     tone: ["Melancholic", "Reflective", "Bittersweet"],
+    audience: "Young Adult",
     country: ["Japan"],
     releaseStart: "2016-08-10",
     releaseEnd: "2017-10-18",
@@ -217,7 +225,6 @@ const literature: LiteratureWork[] = [
     },
     riskProfile: {
       sexuality: "low",
-      fanService: 0,
       behavioral: "medium",
       theology: "low",
     },
@@ -239,6 +246,7 @@ const literature: LiteratureWork[] = [
     genres: ["Fantasy", "Adventure", "Comedy"],
     tags: ["Magic", "Witches", "Creatures", "Gender roles"],
     tone: ["Playful", "Inventive", "Adventurous"],
+    audience: "Teen",
     country: ["Japan"],
     releaseStart: "2024-09-09",
     publication: {
@@ -256,7 +264,6 @@ const literature: LiteratureWork[] = [
     ],
     riskProfile: {
       sexuality: "low",
-      fanService: 1,
       behavioral: "medium",
       theology: "high",
     },
@@ -275,6 +282,7 @@ const literature: LiteratureWork[] = [
     genres: ["Dark fantasy", "Adventure", "Drama"],
     tags: ["Slavery", "Curses", "Found family", "Survival"],
     tone: ["Dark", "Emotional", "Epic"],
+    audience: "Young Adult",
     country: ["Japan"],
     releaseStart: "2024-04-14",
     publication: {
@@ -292,7 +300,6 @@ const literature: LiteratureWork[] = [
     ],
     riskProfile: {
       sexuality: "medium",
-      fanService: 0,
       behavioral: "high",
       theology: "medium",
     },
@@ -311,6 +318,7 @@ const literature: LiteratureWork[] = [
     genres: ["Political satire", "Allegory", "Classics"],
     tags: ["Totalitarianism", "Revolution", "Power", "Propaganda"],
     tone: ["Satirical", "Bleak", "Sharp"],
+    audience: "Adult",
     country: ["United Kingdom"],
     releaseStart: "1945-08-17",
     publication: {
@@ -326,7 +334,6 @@ const literature: LiteratureWork[] = [
     ],
     riskProfile: {
       sexuality: "none",
-      fanService: 0,
       behavioral: "medium",
       theology: "low",
     },
@@ -345,6 +352,7 @@ const literature: LiteratureWork[] = [
     genres: ["Epic fantasy", "High fantasy", "Adventure"],
     tags: ["Heist", "Magic system", "Rebellion", "Found family"],
     tone: ["Epic", "Inventive", "Hopeful"],
+    audience: "Adult",
     country: ["United States"],
     releaseStart: "2006-07-17",
     releaseEnd: "2008-10-14",
@@ -366,7 +374,6 @@ const literature: LiteratureWork[] = [
     ],
     riskProfile: {
       sexuality: "low",
-      fanService: 0,
       behavioral: "high",
       theology: "medium",
     },
@@ -406,7 +413,6 @@ db.transaction((tx) => {
         ),
         status: item.releaseEnd ? "ended" : "releasing",
         metadata: {
-          subtitle: item.aliases.join(" · "),
           riskProfile: item.riskProfile ?? null,
           releaseStart: item.releaseStart,
           releaseEnd: item.releaseEnd ?? null,
@@ -437,7 +443,6 @@ db.transaction((tx) => {
           ),
           status: item.releaseEnd ? "ended" : "releasing",
           metadata: {
-            subtitle: item.aliases.join(" · "),
             riskProfile: item.riskProfile ?? null,
             releaseStart: item.releaseStart,
             releaseEnd: item.releaseEnd ?? null,
@@ -543,6 +548,7 @@ db.transaction((tx) => {
       ["genre", taxonomy.genres],
       ["tag", taxonomy.tags],
       ["tone", taxonomy.tone],
+      ["audience", [item.audience]],
       ["country", item.country],
     ]
     for (const [vocabulary, values] of vocabularies) {

@@ -10,9 +10,9 @@ describe("normalizeTaxonomy", () => {
         tone: ["Action-heavy"],
       })
     ).toEqual({
-      genres: ["Sci-Fi", "Action", "Fantasy"],
-      tags: ["superhero", "martial-arts", "dark-fantasy"],
-      tone: ["Hype / Energetic"],
+      genres: ["Science Fiction", "Action", "Fantasy"],
+      tags: ["special-abilities", "martial-arts", "dark-fantasy"],
+      tone: ["Energetic"],
     })
   })
 

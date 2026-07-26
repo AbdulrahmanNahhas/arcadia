@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { publicationSchema, workRelationInputSchema } from "./model"
+import {
+  audienceSchema,
+  countrySchema,
+  publicationSchema,
+  workRelationInputSchema,
+} from "./model"
 
 describe("literature model", () => {
   it("accepts publication metadata without tracking progress", () => {
@@ -27,5 +32,22 @@ describe("literature model", () => {
         notes: "",
       })
     ).toMatchObject({ relationType: "adaptation", direction: "outgoing" })
+  })
+
+  it("uses the controlled audience and country vocabularies", () => {
+    expect(audienceSchema.options).toEqual([
+      "Adult",
+      "Young Adult",
+      "Teen",
+      "General",
+    ])
+    expect(countrySchema.options).toEqual([
+      "Australia",
+      "France",
+      "Japan",
+      "South Korea",
+      "United Kingdom",
+      "United States",
+    ])
   })
 })

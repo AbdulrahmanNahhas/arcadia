@@ -31,15 +31,8 @@ import {
 } from "@/components/ui/select"
 import { personalStatuses } from "@/features/library/model"
 import type { Work, WorkStructure } from "@/features/library/model"
+import { statusLabelsAr } from "@/features/library/translations"
 import { recordTracking } from "@/server/library.functions"
-
-const statusLabels: Record<Work["status"], string> = {
-  planned: "Planning",
-  "in-progress": "In progress",
-  completed: "Completed",
-  paused: "Paused",
-  dropped: "Dropped",
-}
 
 export function TrackingForm({
   work,
@@ -59,18 +52,18 @@ export function TrackingForm({
   const [occurredOn, setOccurredOn] = useState(today())
   const numericProgress = Math.max(0, Math.trunc(progress || 0))
   const error = useMemo(() => {
-    if (!occurredOn) return "Choose the date this progress happened."
+    if (!occurredOn) return "اختر تاريخ حدوث هذا التقدم."
     if (total !== null && numericProgress > total) {
-      return `Progress cannot exceed ${total}.`
+      return `لا يمكن أن يتجاوز التقدم ${total}.`
     }
     if (status === "planned" && numericProgress !== 0) {
-      return "Planning requires progress 0."
+      return "يجب أن يكون التقدم صفراً للعمل المخطط له."
     }
     if (total && status === "completed" && numericProgress !== total) {
-      return `Completed requires progress ${total}.`
+      return `يتطلب الاكتمال وصول التقدم إلى ${total}.`
     }
     if (total && numericProgress === total && status !== "completed") {
-      return "The final unit requires Completed status."
+      return "تتطلب الوحدة الأخيرة اختيار حالة مكتمل."
     }
     return ""
   }, [numericProgress, occurredOn, status, total])
@@ -127,11 +120,11 @@ export function TrackingForm({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold">Track progress</h3>
-              <Badge variant="secondary">{statusLabels[work.status]}</Badge>
+              <h3 className="font-semibold">تسجيل التقدم</h3>
+              <Badge variant="secondary">{statusLabelsAr[work.status]}</Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Save an absolute checkpoint for any calendar date.
+              احفظ نقطة تقدم لأي تاريخ.
             </p>
           </div>
           {total ? (
@@ -142,9 +135,9 @@ export function TrackingForm({
         </div>
       )}
 
-      {total ? (
+      {compact && total ? (
         <Progress value={percentage}>
-          <ProgressLabel>Overall progress</ProgressLabel>
+          <ProgressLabel>التقدم الإجمالي</ProgressLabel>
           <ProgressValue />
         </Progress>
       ) : null}
@@ -152,9 +145,9 @@ export function TrackingForm({
       <FieldGroup
         className={compact ? "gap-4" : "gap-5 sm:grid sm:grid-cols-3"}
       >
-        <Field data-invalid={Boolean(error && error.includes("Progress"))}>
+        <Field data-invalid={Boolean(error && !error.includes("تاريخ"))}>
           <FieldLabel htmlFor={`tracking-progress-${work.id}`}>
-            Through {unit}
+            حتى {unit}
           </FieldLabel>
           <div className="flex gap-2">
             <Button
@@ -163,7 +156,7 @@ export function TrackingForm({
               size="icon"
               onClick={() => chooseProgress(numericProgress - 1)}
               disabled={numericProgress === 0 || mutation.isPending}
-              aria-label={`Decrease ${unit} progress`}
+              aria-label={`إنقاص تقدم ${unit}`}
             >
               <MinusIcon />
             </Button>
@@ -174,7 +167,7 @@ export function TrackingForm({
               max={total ?? undefined}
               step={1}
               value={progress}
-              aria-invalid={Boolean(error && error.includes("Progress"))}
+              aria-invalid={Boolean(error && !error.includes("تاريخ"))}
               onChange={(event) => chooseProgress(Number(event.target.value))}
               className="text-center font-mono"
             />
@@ -186,7 +179,7 @@ export function TrackingForm({
               disabled={
                 Boolean(total && numericProgress >= total) || mutation.isPending
               }
-              aria-label={`Increase ${unit} progress`}
+              aria-label={`زيادة تقدم ${unit}`}
             >
               <PlusIcon />
             </Button>
@@ -194,7 +187,7 @@ export function TrackingForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor={`tracking-status-${work.id}`}>Status</FieldLabel>
+          <FieldLabel htmlFor={`tracking-status-${work.id}`}>الحالة</FieldLabel>
           <Select
             value={status}
             onValueChange={(value) => value && setStatus(value)}
@@ -206,7 +199,7 @@ export function TrackingForm({
               <SelectGroup>
                 {personalStatuses.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {statusLabels[value]}
+                    {statusLabelsAr[value]}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -214,14 +207,14 @@ export function TrackingForm({
           </Select>
         </Field>
 
-        <Field data-invalid={Boolean(error && error.includes("date"))}>
-          <FieldLabel htmlFor={`tracking-date-${work.id}`}>Date</FieldLabel>
+        <Field data-invalid={Boolean(error && error.includes("تاريخ"))}>
+          <FieldLabel htmlFor={`tracking-date-${work.id}`}>التاريخ</FieldLabel>
           <Input
             id={`tracking-date-${work.id}`}
             type="date"
             value={occurredOn}
             max={today()}
-            aria-invalid={Boolean(error && error.includes("date"))}
+            aria-invalid={Boolean(error && error.includes("تاريخ"))}
             onChange={(event) => setOccurredOn(event.target.value)}
           />
           <div className="flex gap-1">
@@ -231,7 +224,7 @@ export function TrackingForm({
               size="xs"
               onClick={() => setOccurredOn(today())}
             >
-              Today
+              اليوم
             </Button>
             <Button
               type="button"
@@ -239,7 +232,7 @@ export function TrackingForm({
               size="xs"
               onClick={() => setOccurredOn(daysAgo(1))}
             >
-              Yesterday
+              أمس
             </Button>
           </div>
         </Field>
@@ -256,7 +249,7 @@ export function TrackingForm({
 
       <Button type="submit" disabled={Boolean(error) || mutation.isPending}>
         {mutation.isPending ? (
-          "Saving…"
+          "جارٍ الحفظ…"
         ) : (
           <>
             {occurredOn === today() ? (
@@ -264,7 +257,7 @@ export function TrackingForm({
             ) : (
               <CalendarBlankIcon data-icon="inline-start" />
             )}
-            Save checkpoint
+            حفظ نقطة التقدم
           </>
         )}
       </Button>
@@ -273,7 +266,7 @@ export function TrackingForm({
 }
 
 export function statusLabel(status: Work["status"]) {
-  return statusLabels[status]
+  return statusLabelsAr[status]
 }
 
 export function today() {
@@ -291,7 +284,20 @@ function daysAgo(days: number) {
 
 function singularUnit(value: string) {
   const normalized = value.trim().toLocaleLowerCase()
+  const arabicUnits: Record<string, string> = {
+    episode: "الحلقة",
+    episodes: "الحلقة",
+    chapter: "الفصل",
+    chapters: "الفصل",
+    volume: "المجلد",
+    volumes: "المجلد",
+    page: "الصفحة",
+    pages: "الصفحة",
+    route: "المسار",
+    routes: "المسار",
+  }
+  if (arabicUnits[normalized]) return arabicUnits[normalized]
   if (normalized.endsWith("ies")) return `${normalized.slice(0, -3)}y`
   if (normalized.endsWith("s")) return normalized.slice(0, -1)
-  return normalized || "unit"
+  return normalized || "الوحدة"
 }

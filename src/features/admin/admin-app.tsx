@@ -1,11 +1,6 @@
 import { useMemo, useState } from "react"
-import type { FormEvent } from "react"
 import { Link } from "@tanstack/react-router"
-import {
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query"
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import {
   ArrowLeftIcon,
   BracketsCurlyIcon,
@@ -15,37 +10,29 @@ import {
   MagnifyingGlassIcon,
   NotePencilIcon,
   PlusIcon,
-  RowsPlusBottomIcon,
   SelectionAllIcon,
   SparkleIcon,
-  WarningCircleIcon,
+  TranslateIcon,
   XIcon,
 } from "@phosphor-icons/react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { AdvancedFilter } from "@/features/library/filter-sheet"
 import {
   buildFacetOptions,
   createEmptyFacetFilters,
   kindLabels,
-  personalStatuses,
   workMatchesFilters,
 } from "@/features/library/filtering"
 import type { WorkFilterState } from "@/features/library/filtering"
-import { genreSchema, workKinds } from "@/features/library/model"
-import type { Genre, Work, WorkKind } from "@/features/library/model"
-import { addWorksBulk, getWorks } from "@/server/library.functions"
+import type { Work } from "@/features/library/model"
+import {
+  progressUnitLabelAr,
+  statusLabelsAr,
+  useArabicTranslations,
+} from "@/features/library/translations"
+import { getWorks } from "@/server/library.functions"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -66,6 +53,8 @@ import {
 import { WorkEditor } from "./components/editor-form"
 import { JsonEditorDialog } from "./components/json-editor"
 import { BulkEditDialog } from "./components/bulk-edit"
+import { TaxonomyManagerDialog } from "./components/taxonomy-manager"
+import { AddWorksDialog } from "./components/add-works-dialog"
 
 function createDefaultFilters(): WorkFilterState {
   return {
@@ -86,7 +75,7 @@ function matchesSearch(work: Work, search: string) {
   if (!query) return true
   return [
     work.title,
-    work.subtitle,
+    work.arabicTitle ?? "",
     work.creator,
     ...work.aliases,
     ...work.genres,
@@ -101,6 +90,7 @@ function matchesSearch(work: Work, search: string) {
 
 export function AdminApp() {
   const queryClient = useQueryClient()
+  const { taxonomyLabel } = useArabicTranslations()
   const { data: works } = useSuspenseQuery({
     queryKey: ["works"],
     queryFn: () => getWorks(),
@@ -113,6 +103,7 @@ export function AdminApp() {
   const [bulkAddOpen, setBulkAddOpen] = useState(false)
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false)
+  const [taxonomyOpen, setTaxonomyOpen] = useState(false)
 
   const facetOptions = useMemo(() => buildFacetOptions(works), [works])
   const visibleWorks = useMemo(
@@ -161,10 +152,10 @@ export function AdminApp() {
             </div>
             <div className="flex flex-col">
               <span className="text-xs leading-none font-semibold tracking-tight">
-                Arcadia Admin
+                إدارة أركاديا
               </span>
               <span className="mt-1 text-[10px] leading-none text-muted-foreground">
-                Local database workspace
+                مساحة قاعدة البيانات المحلية
               </span>
             </div>
           </div>
@@ -175,7 +166,7 @@ export function AdminApp() {
               size="sm"
               nativeButton={false}
               className="h-8 text-xs"
-              render={<Link to="/feed">Activity feed</Link>}
+              render={<Link to="/feed">سجل النشاط</Link>}
             />
             <Button
               variant="ghost"
@@ -184,8 +175,8 @@ export function AdminApp() {
               className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
               render={
                 <Link to="/">
+                  <span>العودة إلى المكتبة</span>
                   <ArrowLeftIcon className="size-3.5" />
-                  <span>Back to library</span>
                 </Link>
               }
             />
@@ -199,12 +190,11 @@ export function AdminApp() {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
               <SparkleIcon className="size-3.5" />
-              <span>Database Maintenance</span>
+              <span>صيانة قاعدة البيانات</span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Manage Works</h1>
+            <h1 className="text-2xl font-bold tracking-tight">إدارة الأعمال</h1>
             <p className="text-xs text-muted-foreground">
-              Edit metadata and personal state without changing the browsing
-              experience.
+              عدّل البيانات الوصفية والحالة الشخصية دون التأثير في تجربة التصفح.
             </p>
           </div>
 
@@ -213,20 +203,20 @@ export function AdminApp() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setJsonEditorOpen(true)}
+              onClick={() => setTaxonomyOpen(true)}
               className="h-9 gap-1.5 border-border/60 text-xs"
             >
-              <BracketsCurlyIcon className="size-3.5 text-muted-foreground" />
-              <span>JSON Editor</span>
+              <TranslateIcon data-icon="inline-start" />
+              <span>قاموس التصنيفات</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setBulkAddOpen(true)}
+              onClick={() => setJsonEditorOpen(true)}
               className="h-9 gap-1.5 border-border/60 text-xs"
             >
-              <RowsPlusBottomIcon className="size-3.5 text-muted-foreground" />
-              <span>Bulk Add</span>
+              <BracketsCurlyIcon className="size-3.5 text-muted-foreground" />
+              <span>محرر JSON</span>
             </Button>
             <Button
               size="sm"
@@ -234,7 +224,7 @@ export function AdminApp() {
               className="h-9 gap-1.5 text-xs shadow-xs"
             >
               <PlusIcon className="size-3.5" />
-              <span>Add Works</span>
+              <span>إضافة أعمال</span>
             </Button>
           </div>
         </div>
@@ -247,8 +237,8 @@ export function AdminApp() {
                 <CheckIcon className="size-3 stroke-3" />
               </span>
               <span>
-                <strong>{selectedIds.size}</strong> work
-                {selectedIds.size > 1 ? "s" : ""} selected
+                تم اختيار <strong>{selectedIds.size}</strong>{" "}
+                {selectedIds.size === 1 ? "عمل" : "أعمال"}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -258,7 +248,7 @@ export function AdminApp() {
                 onClick={() => setSelectedIds(new Set())}
                 className="h-7 text-xs text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
               >
-                Clear
+                مسح
               </Button>
               <Button
                 size="sm"
@@ -267,7 +257,7 @@ export function AdminApp() {
                 className="h-7 gap-1.5 text-xs shadow-2xs"
               >
                 <NotePencilIcon className="size-3.5" />
-                <span>Edit Selected</span>
+                <span>تعديل المحدد</span>
               </Button>
             </div>
           </div>
@@ -280,16 +270,16 @@ export function AdminApp() {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search titles, aliases, genres, tags, contributors…"
+              placeholder="ابحث في العناوين والتصنيفات والوسوم والمساهمين…"
               className="h-9 pr-8 pl-9 text-xs"
-              aria-label="Search admin records"
+              aria-label="البحث في سجلات الإدارة"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch("")}
                 className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-                aria-label="Clear search"
+                aria-label="مسح البحث"
               >
                 <XIcon className="size-3.5" />
               </button>
@@ -302,8 +292,8 @@ export function AdminApp() {
               facetOptions={facetOptions}
               onChange={setFilters}
               matchingCount={visibleWorks.length}
-              title="Filter Admin Records"
-              triggerLabel="Advanced Filters"
+              title="فلترة سجلات الإدارة"
+              triggerLabel="فلاتر متقدمة"
             />
 
             <Button
@@ -315,7 +305,7 @@ export function AdminApp() {
             >
               <SelectionAllIcon className="size-3.5 text-muted-foreground" />
               <span>
-                {allVisibleSelected ? "Deselect Visible" : "Select Visible"}
+                {allVisibleSelected ? "إلغاء تحديد الظاهر" : "تحديد الظاهر"}
               </span>
             </Button>
 
@@ -343,17 +333,17 @@ export function AdminApp() {
                   <Checkbox
                     checked={allVisibleSelected}
                     onCheckedChange={toggleAllVisible}
-                    aria-label="Select all visible works"
+                    aria-label="تحديد جميع الأعمال الظاهرة"
                   />
                 </TableHead>
-                <TableHead className="min-w-55">Work</TableHead>
-                <TableHead className="w-25">Type</TableHead>
-                <TableHead className="w-22.5">Release</TableHead>
-                <TableHead className="min-w-45">Genres</TableHead>
-                <TableHead className="w-30">Curation</TableHead>
-                <TableHead className="w-27.5">Structure</TableHead>
-                <TableHead className="w-32.5">Status</TableHead>
-                <TableHead className="w-20 text-right">Actions</TableHead>
+                <TableHead className="min-w-55">العمل</TableHead>
+                <TableHead className="w-25">النوع</TableHead>
+                <TableHead className="w-22.5">الإصدار</TableHead>
+                <TableHead className="min-w-45">التصنيفات</TableHead>
+                <TableHead className="w-30">المراجعة</TableHead>
+                <TableHead className="w-27.5">البنية</TableHead>
+                <TableHead className="w-32.5">الحالة</TableHead>
+                <TableHead className="w-20 text-right">الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -372,7 +362,7 @@ export function AdminApp() {
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggleSelected(work.id)}
-                        aria-label={`Select ${work.title}`}
+                        aria-label={`تحديد ${work.arabicTitle || work.title}`}
                       />
                     </TableCell>
 
@@ -396,7 +386,7 @@ export function AdminApp() {
                         )}
                         <div className="flex max-w-60 flex-col gap-0.5 truncate">
                           <span className="truncate text-xs font-semibold text-foreground transition-colors group-hover:text-primary">
-                            {work.title}
+                            {work.arabicTitle || work.title}
                           </span>
                           <span className="truncate text-[11px] text-muted-foreground">
                             {work.studios.at(0) ?? work.creator}
@@ -429,7 +419,7 @@ export function AdminApp() {
                             variant="secondary"
                             className="bg-muted/60 px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
                           >
-                            {genre}
+                            {taxonomyLabel("genre", genre)}
                           </Badge>
                         ))}
                         {work.genres.length > 2 && (
@@ -449,7 +439,10 @@ export function AdminApp() {
                         }
                         className="text-[10px] capitalize"
                       >
-                        {work.curation?.status ?? "unreviewed"}
+                        {taxonomyLabel(
+                          "curation-status",
+                          work.curation?.status ?? "unreviewed"
+                        )}
                       </Badge>
                     </TableCell>
 
@@ -463,12 +456,12 @@ export function AdminApp() {
                         </strong>
                         <span className="text-[10px] text-muted-foreground">
                           {work.episodeCount !== null
-                            ? "episodes"
+                            ? progressUnitLabelAr("episodes")
                             : work.chapterCount !== null
-                              ? "chapters"
+                              ? progressUnitLabelAr("chapters")
                               : work.pageCount !== null
-                                ? "pages"
-                                : "no units"}
+                                ? progressUnitLabelAr("pages")
+                                : "لا توجد وحدات"}
                         </span>
                       </div>
                     </TableCell>
@@ -477,7 +470,6 @@ export function AdminApp() {
                     <TableCell>
                       <StatusBadge status={work.status} />
                     </TableCell>
-
 
                     {/* Row Actions */}
                     <TableCell className="text-right">
@@ -490,7 +482,7 @@ export function AdminApp() {
                               className="size-7"
                             >
                               <DotsThreeVerticalIcon className="size-4" />
-                              <span className="sr-only">Open menu</span>
+                              <span className="sr-only">فتح القائمة</span>
                             </Button>
                           }
                         />
@@ -499,7 +491,7 @@ export function AdminApp() {
                             onClick={() => setEditingWork(work)}
                           >
                             <NotePencilIcon className="mr-2 size-3.5" />
-                            Edit details
+                            تعديل التفاصيل
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -517,11 +509,10 @@ export function AdminApp() {
                 <DatabaseIcon className="size-6" weight="duotone" />
               </div>
               <p className="text-sm font-semibold text-foreground">
-                No matching works
+                لا توجد أعمال مطابقة
               </p>
               <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                Try clearing your search query or modifying the current filter
-                definitions.
+                جرّب مسح عبارة البحث أو تعديل الفلاتر الحالية.
               </p>
               {(search || countFiltersActive(filters)) && (
                 <Button
@@ -533,7 +524,7 @@ export function AdminApp() {
                   }}
                   className="mt-4 h-8 text-xs"
                 >
-                  Clear filters
+                  مسح الفلاتر
                 </Button>
               )}
             </div>
@@ -551,7 +542,7 @@ export function AdminApp() {
           await refresh()
         }}
       />
-      <BulkAddDialog
+      <AddWorksDialog
         open={bulkAddOpen}
         onOpenChange={setBulkAddOpen}
         onCreated={refresh}
@@ -575,6 +566,10 @@ export function AdminApp() {
           onSaved={refresh}
         />
       )}
+      <TaxonomyManagerDialog
+        open={taxonomyOpen}
+        onOpenChange={setTaxonomyOpen}
+      />
     </div>
   )
 }
@@ -583,7 +578,8 @@ export function AdminApp() {
  * Status Badge Component
  */
 function StatusBadge({ status }: { status: string }) {
-  const formattedStatus = status.replace("-", " ")
+  const formattedStatus =
+    statusLabelsAr[status as keyof typeof statusLabelsAr] ?? status
 
   return (
     <div className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground capitalize">
@@ -610,149 +606,5 @@ function countFiltersActive(filters: WorkFilterState): boolean {
     filters.excludedStatuses.length ||
     filters.favoriteOnly ||
     filters.minRating > 0
-  )
-}
-
-export function parseList(value: string) {
-  return [
-    ...new Set(
-      value
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean)
-    ),
-  ]
-}
-
-const bulkExample = `Frieren: Beyond Journey's End | anime | 2023 | planned | Adventure, Fantasy | Madhouse
-Pluto | anime | 2023 | completed | Mystery, Sci-Fi | Studio M2`
-
-function BulkAddDialog({
-  open,
-  onOpenChange,
-  onCreated,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onCreated: () => Promise<void>
-}) {
-  const [rows, setRows] = useState(bulkExample)
-  const [parseError, setParseError] = useState("")
-  const mutation = useMutation({
-    mutationFn: addWorksBulk,
-    onSuccess: async () => {
-      onOpenChange(false)
-      await onCreated()
-    },
-  })
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    const parsed: Array<{
-      title: string
-      kind: WorkKind
-      year: number | null
-      status: Work["status"]
-      summary: string
-      genres: Genre[]
-      tags: string[]
-      studios: string[]
-    }> = []
-    const errors: string[] = []
-    rows.split("\n").forEach((line, index) => {
-      if (!line.trim()) return
-      const [
-        title,
-        rawKind = "anime",
-        rawYear = "",
-        rawStatus = "planned",
-        rawGenres = "",
-        rawStudios = "",
-      ] = line.split("|").map((value) => value.trim())
-      if (!title) errors.push(`Line ${index + 1}: title is required`)
-      if (!workKinds.includes(rawKind as WorkKind))
-        errors.push(`Line ${index + 1}: unknown type “${rawKind}”`)
-      if (!personalStatuses.includes(rawStatus as Work["status"]))
-        errors.push(`Line ${index + 1}: unknown status “${rawStatus}”`)
-      const parsedGenres = parseList(rawGenres).flatMap((genre) => {
-        const result = genreSchema.safeParse(genre)
-        if (!result.success) {
-          errors.push(`Line ${index + 1}: unknown genre “${genre}”`)
-          return []
-        }
-        return [result.data]
-      })
-      if (
-        title &&
-        workKinds.includes(rawKind as WorkKind) &&
-        personalStatuses.includes(rawStatus as Work["status"])
-      ) {
-        parsed.push({
-          title,
-          kind: rawKind as WorkKind,
-          year: rawYear ? Number(rawYear) : null,
-          status: rawStatus as Work["status"],
-          summary: "",
-          genres: parsedGenres,
-          tags: [],
-          studios: parseList(rawStudios),
-        })
-      }
-    })
-    if (errors.length || !parsed.length) {
-      setParseError(errors.join(" · ") || "Add at least one row.")
-      return
-    }
-    setParseError("")
-    mutation.mutate({ data: { works: parsed } })
-  }
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Bulk add works</DialogTitle>
-          <DialogDescription>
-            Paste one work per line. Nothing is imported from the cloud.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="rounded-xl border bg-muted/35 p-3">
-            <code className="block overflow-x-auto font-mono text-xs whitespace-nowrap text-foreground">
-              Title | type | year | status | genres | studios
-            </code>
-            <span className="mt-1.5 block text-xs leading-5 text-muted-foreground">
-              Use one line per work. Separate genres and studios with commas.
-            </span>
-          </div>
-          <Textarea
-            rows={12}
-            value={rows}
-            onChange={(e) => setRows(e.target.value)}
-            className="min-h-72 resize-y font-mono text-xs leading-6"
-            aria-label="Works to add"
-            spellCheck={false}
-          />
-          {parseError || mutation.error ? (
-            <Alert variant="destructive">
-              <WarningCircleIcon />
-              <AlertDescription>
-                {parseError || mutation.error?.message}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          <DialogFooter className="border-t pt-4">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              <PlusIcon /> {mutation.isPending ? "Adding…" : "Add rows"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }

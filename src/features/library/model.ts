@@ -18,25 +18,34 @@ export const genres = [
   "Action",
   "Adventure",
   "Comedy",
+  "Crime",
   "Drama",
   "Fantasy",
   "Historical",
   "Horror",
   "Mecha",
-  "Military",
   "Music",
   "Mystery",
-  "Political",
   "Psychological",
   "Romance",
-  "Sci-Fi",
+  "Science Fiction",
   "Slice of Life",
   "Sports",
   "Supernatural",
   "Thriller",
+  "War",
 ] as const
 
 export const audiences = ["Adult", "Young Adult", "Teen", "General"] as const
+
+export const countries = [
+  "Australia",
+  "France",
+  "Japan",
+  "South Korea",
+  "United Kingdom",
+  "United States",
+] as const
 
 export const tones = [
   "Wholesome",
@@ -44,18 +53,226 @@ export const tones = [
   "Bittersweet",
   "Reflective",
   "Tense",
-  "Hype / Energetic",
+  "Energetic",
   "Dark",
-  "Surreal / Whimsical",
+  "Whimsical",
   "Epic",
   "Atmospheric",
 ] as const
 
+export const taxonomyLabels = {
+  genres: {
+    Action: "أكشن",
+    Adventure: "مغامرة",
+    Comedy: "كوميديا",
+    Crime: "جريمة",
+    Drama: "دراما",
+    Fantasy: "فانتازيا",
+    Historical: "تاريخي",
+    Horror: "رعب",
+    Mecha: "ميكا",
+    Music: "موسيقى",
+    Mystery: "غموض",
+    Psychological: "نفسي",
+    Romance: "رومانسية",
+    "Science Fiction": "خيال علمي",
+    "Slice of Life": "شريحة من الحياة",
+    Sports: "رياضة",
+    Supernatural: "خوارق",
+    Thriller: "إثارة",
+    War: "حرب",
+  },
+  tones: {
+    Wholesome: "دافئ",
+    Emotional: "عاطفي",
+    Bittersweet: "حلو ومر",
+    Reflective: "تأملي",
+    Tense: "متوتر",
+    Energetic: "حماسي",
+    Dark: "قاتم",
+    Whimsical: "خيالي مرح",
+    Epic: "ملحمي",
+    Atmospheric: "غني بالأجواء",
+  },
+  audiences: {
+    Adult: "بالغون",
+    "Young Adult": "شباب بالغون",
+    Teen: "مراهقون",
+    General: "عام",
+  },
+  countries: {
+    Australia: "أستراليا",
+    France: "فرنسا",
+    Japan: "اليابان",
+    "South Korea": "كوريا الجنوبية",
+    "United Kingdom": "المملكة المتحدة",
+    "United States": "الولايات المتحدة",
+  },
+} as const
+
+export const tagLabelsAr: Readonly<Record<string, string>> = {
+  "Adult Cast": "شخصيات بالغة",
+  Adoption: "التبنّي",
+  Agriculture: "الزراعة",
+  Aliens: "كائنات فضائية",
+  "Animal Cast": "شخصيات حيوانية",
+  "Animated Movie": "فيلم رسوم متحركة",
+  Animals: "الحيوانات",
+  "Anime Movie": "فيلم أنمي",
+  Anthology: "قصص مختارة",
+  Antihero: "بطل مضاد",
+  Art: "الفن",
+  "Artificial Intelligence": "الذكاء الاصطناعي",
+  "Arranged Marriage": "زواج مدبّر",
+  Assassins: "القتلة المأجورون",
+  Badminton: "الريشة الطائرة",
+  Basketball: "كرة السلة",
+  "Body Horror": "رعب جسدي",
+  "Body Swap": "تبادل الأجساد",
+  Bullying: "التنمّر",
+  "Cat and Mouse": "مطاردة القط والفأر",
+  "Child Cast": "شخصيات طفولية",
+  "Childhood Classic": "كلاسيكيات الطفولة",
+  Censorship: "الرقابة",
+  "Class Conflict": "الصراع الطبقي",
+  Cohabitation: "السكن المشترك",
+  College: "الجامعة",
+  "Coming-of-Age": "النضج",
+  Conspiracy: "المؤامرة",
+  Cooking: "الطبخ",
+  "Corporate Power": "نفوذ الشركات",
+  "Crime Organization": "منظمة إجرامية",
+  Curses: "اللعنات",
+  Cyberpunk: "سايبربانك",
+  "Dark Fantasy": "فانتازيا مظلمة",
+  Demons: "الشياطين",
+  Detective: "التحقيق البوليسي",
+  Disability: "الإعاقة",
+  "Detailed Worldbuilding": "بناء عالم مفصّل",
+  Dragons: "التنانين",
+  Dungeons: "الزنزانات",
+  Dystopia: "ديستوبيا",
+  Education: "التعليم",
+  "Ensemble Cast": "بطولة جماعية",
+  Environment: "البيئة",
+  Episodic: "حلقات مستقلة",
+  "Epic Fantasy": "فانتازيا ملحمية",
+  Espionage: "التجسس",
+  "Fairy Tales": "حكايات خرافية",
+  Family: "العائلة",
+  "Family Life": "الحياة العائلية",
+  "Female Protagonist": "بطلة",
+  Folklore: "الموروث الشعبي",
+  Football: "كرة القدم",
+  "Found Family": "العائلة المختارة",
+  Friendship: "الصداقة",
+  Fugitive: "مطارد",
+  Gods: "الآلهة",
+  Grief: "الفقد",
+  Guns: "الأسلحة النارية",
+  Healing: "التعافي",
+  "Hidden Identity": "هوية مخفية",
+  Identity: "الهوية",
+  "Idol Industry": "صناعة الآيدول",
+  Immortality: "الخلود",
+  "Intergenerational Conflict": "صراع الأجيال",
+  Invention: "الاختراع",
+  Investigation: "التحقيق",
+  "Island Setting": "بيئة جزيرية",
+  Kaiju: "وحوش عملاقة",
+  "Literary Classic": "كلاسيكيات أدبية",
+  "Lost Civilization": "حضارة مفقودة",
+  "Love Triangle": "مثلث عاطفي",
+  Magic: "السحر",
+  "Male Protagonist": "بطل ذكر",
+  Manipulation: "التلاعب",
+  Marriage: "الزواج",
+  "Martial Arts": "فنون قتالية",
+  "Maritime Setting": "بيئة بحرية",
+  Medicine: "الطب",
+  Memory: "الذاكرة",
+  "Mental Health": "الصحة النفسية",
+  "Mind Games": "ألعاب ذهنية",
+  Military: "عسكري",
+  Monsters: "الوحوش",
+  "Moral Ambiguity": "غموض أخلاقي",
+  Mortality: "الفناء",
+  "Murder Mystery": "لغز جريمة قتل",
+  Mythology: "الأساطير",
+  "Natural Disaster": "كارثة طبيعية",
+  Necromancy: "استحضار الموتى",
+  Neuroscience: "علم الأعصاب",
+  "Nonhuman Characters": "شخصيات غير بشرية",
+  "Otaku Culture": "ثقافة الأوتاكو",
+  "Overpowered Protagonist": "بطل فائق القوة",
+  "Parallel Worlds": "عوالم متوازية",
+  Parenthood: "الأبوّة والأمومة",
+  "Peace and Nonviolence": "السلام واللاعنف",
+  Philosophy: "الفلسفة",
+  Pirates: "القراصنة",
+  Police: "الشرطة",
+  "Political Intrigue": "مكائد سياسية",
+  "Post-Apocalyptic": "ما بعد الكارثة",
+  Prejudice: "التحيّز",
+  "Prehistoric Life": "حياة ما قبل التاريخ",
+  Propaganda: "الدعاية السياسية",
+  Racing: "السباقات",
+  Rebellion: "التمرد",
+  Redemption: "الخلاص",
+  Regret: "الندم",
+  Reincarnation: "التناسخ",
+  Religion: "الدين",
+  "Rescue Mission": "مهمة إنقاذ",
+  Revenge: "الانتقام",
+  Rivalry: "التنافس",
+  Robots: "الروبوتات",
+  "Royal Court": "البلاط الملكي",
+  "Rural Setting": "بيئة ريفية",
+  Samurai: "الساموراي",
+  School: "المدرسة",
+  "School Club": "نادٍ مدرسي",
+  "Sibling Relationship": "علاقة الأشقاء",
+  Slavery: "العبودية",
+  "Slow Burn": "تطور بطيء",
+  "Social Anxiety": "القلق الاجتماعي",
+  "Special Abilities": "قدرات خاصة",
+  Spirits: "الأرواح",
+  Steampunk: "ستيمبانك",
+  "Student Council": "مجلس الطلبة",
+  Survival: "البقاء",
+  Swordplay: "المبارزة بالسيوف",
+  "Tabletop Role-Playing": "ألعاب تقمص الأدوار الطاولة",
+  "Teen Cast": "شخصيات مراهقة",
+  Technology: "التقنية",
+  "Time Loop": "حلقة زمنية",
+  "Time Travel": "السفر عبر الزمن",
+  Totalitarianism: "الشمولية",
+  Toys: "الألعاب",
+  Training: "التدريب",
+  "Transported to Another World": "الانتقال إلى عالم آخر",
+  Travel: "السفر",
+  "Undercover Mission": "مهمة سرية",
+  Underdog: "شخصية مستضعفة",
+  "Urban Setting": "بيئة حضرية",
+  "Video Games": "ألعاب الفيديو",
+  "Virtual Reality": "الواقع الافتراضي",
+  "Virtual World": "عالم افتراضي",
+  Vikings: "الفايكنغ",
+  "Weird Fiction": "خيال غرائبي",
+  Witches: "الساحرات",
+  Workplace: "مكان العمل",
+  Writing: "الكتابة",
+}
+
 export const creatorRoles = [
   "author",
+  "writer",
   "director",
+  "illustrator",
   "main-studio",
+  "developer",
   "publisher",
+  "composer",
   "creator",
 ] as const
 
@@ -69,6 +286,8 @@ export const personalStatuses = [
 
 export const genreSchema = z.enum(genres)
 export const toneSchema = z.enum(tones)
+export const audienceSchema = z.enum(audiences)
+export const countrySchema = z.enum(countries)
 export const creatorRoleSchema = z.enum(creatorRoles)
 export const personalStatusSchema = z.enum(personalStatuses)
 
@@ -82,8 +301,8 @@ function isCalendarDate(value: string) {
 
 export const dateOnlySchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date.")
-  .refine(isCalendarDate, "Use a valid calendar date.")
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "استخدم تاريخاً بصيغة YYYY-MM-DD.")
+  .refine(isCalendarDate, "استخدم تاريخاً صحيحاً.")
 
 export const trackingEntrySchema = z.object({
   id: z.string(),
@@ -123,6 +342,8 @@ export type TrackingPageInput = z.infer<typeof trackingPageInputSchema>
 
 export type Genre = z.infer<typeof genreSchema>
 export type Tone = z.infer<typeof toneSchema>
+export type Audience = z.infer<typeof audienceSchema>
+export type Country = z.infer<typeof countrySchema>
 
 export const workCreditSchema = z.object({
   entityId: z.string(),
@@ -179,7 +400,7 @@ export type WorkRelation = z.infer<typeof workRelationSchema>
 export const workSchema = z.object({
   id: z.string(),
   title: z.string().min(1),
-  subtitle: z.string().default(""),
+  arabicTitle: z.string().nullable().default(null),
   kind: workKindSchema,
   year: z.number().int().nullable(),
   releaseStatus: z.enum([
@@ -190,14 +411,17 @@ export const workSchema = z.object({
     "unknown",
   ]),
   runtimeMinutes: z.number().int().min(0).nullable(),
+  playtimeMinutes: z.number().int().min(0).nullable(),
   pageCount: z.number().int().min(0).nullable(),
   episodeCount: z.number().int().min(0).nullable(),
   chapterCount: z.number().int().min(0).nullable(),
+  volumeCount: z.number().int().min(0).nullable(),
+  routeCount: z.number().int().min(0).nullable(),
   status: personalStatusSchema,
   progress: z.number().min(0),
   progressTotal: z.number().min(0).nullable(),
   progressUnit: z.string(),
-  rating: z.number().min(0).max(10).nullable(),
+  calculatedRating: z.number().min(0).max(10).nullable(),
   favorite: z.boolean(),
   completedAt: z.number().int().nullable(),
   trackedOn: dateOnlySchema.nullable(),
@@ -206,7 +430,7 @@ export const workSchema = z.object({
   genres: z.array(z.string()),
   aliases: z.array(z.string()),
   studios: z.array(z.string()),
-  audience: z.array(z.string()).max(1),
+  audience: audienceSchema.nullable(),
   sharedWith: z.array(z.string()),
   tone: z.array(z.string()),
   contentWarnings: z.string().nullable(),
@@ -214,12 +438,20 @@ export const workSchema = z.object({
   riskProfile: z
     .object({
       sexuality: z.enum(["none", "low", "medium", "high", "unknown"]),
-      fanService: z.number().min(0).max(10).nullable(),
       behavioral: z.enum(["none", "low", "medium", "high", "unknown"]),
       theology: z.enum(["none", "low", "medium", "high", "unknown"]),
     })
     .nullable(),
-  scoreBreakdown: z.record(z.string(), z.number().min(0).max(10)),
+  scoreComponents: z
+    .object({
+      story: z.number().min(0).max(10).optional(),
+      characters: z.number().min(0).max(10).optional(),
+      depth: z.number().min(0).max(10).optional(),
+      worldBuilding: z.number().min(0).max(10).optional(),
+      originality: z.number().min(0).max(10).optional(),
+      craft: z.number().min(0).max(10).optional(),
+    })
+    .default({}),
   externalLinks: z.array(
     z.object({
       provider: z.string(),
@@ -236,7 +468,7 @@ export const workSchema = z.object({
       completedAt: z.string().nullable(),
     })
     .nullable(),
-  country: z.array(z.string()),
+  country: z.array(countrySchema),
   sourceMaterial: z
     .object({
       type: z.string(),
@@ -518,20 +750,64 @@ export const createWorkSchema = workSchema
 
 export type CreateWork = z.infer<typeof createWorkSchema>
 
-export const adminWorkUpdateSchema = workSchema
+export const adminWorkTransportSchema = workSchema
   .omit({
     addedAt: true,
     catalogUpdatedAt: true,
     personalUpdatedAt: true,
     palette: true,
     relations: true,
+    calculatedRating: true,
   })
   .extend({
     genres: z.array(genreSchema),
     tone: z.array(toneSchema),
     relations: z.array(workRelationInputSchema),
   })
+
+export const adminWorkUpdateSchema = adminWorkTransportSchema.superRefine(
+  (work, context) => {
+    if (work.tags.length > 12) {
+      context.addIssue({
+        code: "too_big",
+        maximum: 12,
+        origin: "array",
+        inclusive: true,
+        path: ["tags"],
+        message: "اختر 12 وسماً قابلاً لإعادة الاستخدام كحد أقصى.",
+      })
+    }
+    if (work.curation?.status !== "verified") return
+    if (work.genres.length === 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["genres"],
+        message: "تحتاج الأعمال الموثّقة إلى تصنيف واحد على الأقل.",
+      })
+    }
+    if (work.tone.length === 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["tone"],
+        message: "تحتاج الأعمال الموثّقة إلى طابع واحد على الأقل.",
+      })
+    }
+    if (work.audience === null) {
+      context.addIssue({
+        code: "custom",
+        path: ["audience"],
+        message: "تحتاج الأعمال الموثّقة إلى جمهور مستهدف.",
+      })
+    }
+  }
+)
 export type AdminWorkUpdate = z.infer<typeof adminWorkUpdateSchema>
+
+export const adminRecordChangeSchema = z.object({
+  workId: z.string().min(1),
+  work: adminWorkTransportSchema.optional(),
+  structure: editableWorkStructureSchema.optional(),
+})
 
 export const bulkCreateWorkSchema = z.object({
   works: z

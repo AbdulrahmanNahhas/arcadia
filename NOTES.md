@@ -28,32 +28,6 @@ Here are the updated lists with **Political** added to the genres and **Tones** 
 
 ## Finalized Tones (10)
 
-## Allowed Genres
-
-* **Action**
-* **Adventure**
-* **Comedy**
-* **Drama**
-* **Fantasy**
-* **Historical**
-* **Horror**
-* **Mecha**
-* **Military**
-* **Music**
-* **Mystery**
-* **Political**
-* **Psychological**
-* **Romance**
-* **Sci-Fi**
-* **Slice of Life**
-* **Sports**
-* **Supernatural**
-* **Thriller**
-
----
-
-## Finalized Tones (10)
-
 1. **Light** — Easygoing, gentle, and fun-spirited.
 2. **Wholesome** — Heartwarming, uplifting, and cozy.
 3. **Emotional** — Highly moving, poignant, and feeling-driven.

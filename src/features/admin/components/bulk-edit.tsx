@@ -4,7 +4,6 @@ import { editWorksBulk } from "@/server/library.functions"
 import { useMutation } from "@tanstack/react-query"
 import { useState } from "react"
 import type { FormEvent } from "react"
-import { parseList } from "../admin-app"
 import {
   Dialog,
   DialogContent,
@@ -25,6 +24,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+
+function parseList(value: string) {
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    ),
+  ]
+}
 
 export function BulkEditDialog({
   open,
@@ -78,29 +88,29 @@ export function BulkEditDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            Edit {workIds.length} selected{" "}
-            {workIds.length === 1 ? "work" : "works"}
+            تعديل {workIds.length}{" "}
+            {workIds.length === 1 ? "عمل محدد" : "أعمال محددة"}
           </DialogTitle>
 
           <DialogDescription>
-            Only configured fields will be changed. Adding or removing values
-            preserves all other existing data.
+            لن تتغير إلا الحقول التي تضبطها هنا، وستبقى جميع البيانات الأخرى كما
+            هي.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-6">
           <div className="grid gap-5 sm:grid-cols-2">
-            <FormField label="Set type" htmlFor="bulk-kind">
+            <FormField label="تعيين النوع" htmlFor="bulk-kind">
               <Select
                 value={kind}
                 onValueChange={(value) => setKind(value ?? "unchanged")}
               >
                 <SelectTrigger id="bulk-kind" className="w-full">
-                  <SelectValue placeholder="Keep unchanged" />
+                  <SelectValue placeholder="دون تغيير" />
                 </SelectTrigger>
 
                 <SelectContent>
-                  <SelectItem value="unchanged">Keep unchanged</SelectItem>
+                  <SelectItem value="unchanged">دون تغيير</SelectItem>
 
                   {workKinds.map((item) => (
                     <SelectItem key={item} value={item}>
@@ -111,33 +121,33 @@ export function BulkEditDialog({
               </Select>
             </FormField>
 
-            <FormField label="Set favorite" htmlFor="bulk-favorite">
+            <FormField label="تعيين المفضلة" htmlFor="bulk-favorite">
               <Select
                 value={favorite}
                 onValueChange={(value) => setFavorite(value ?? "unchanged")}
               >
                 <SelectTrigger id="bulk-favorite" className="w-full">
-                  <SelectValue placeholder="Keep unchanged" />
+                  <SelectValue placeholder="دون تغيير" />
                 </SelectTrigger>
 
                 <SelectContent>
-                  <SelectItem value="unchanged">Keep unchanged</SelectItem>
-                  <SelectItem value="true">Favorite</SelectItem>
-                  <SelectItem value="false">Not favorite</SelectItem>
+                  <SelectItem value="unchanged">دون تغيير</SelectItem>
+                  <SelectItem value="true">في المفضلة</SelectItem>
+                  <SelectItem value="false">ليست في المفضلة</SelectItem>
                 </SelectContent>
               </Select>
             </FormField>
 
-            <FormField label="Add genres" htmlFor="bulk-add-genres">
+            <FormField label="إضافة تصنيفات" htmlFor="bulk-add-genres">
               <Input
                 id="bulk-add-genres"
                 value={addGenres}
                 onChange={(event) => setAddGenres(event.target.value)}
-                placeholder="Drama, Classic"
+                placeholder="Drama, Fantasy"
               />
             </FormField>
 
-            <FormField label="Remove genres" htmlFor="bulk-remove-genres">
+            <FormField label="إزالة تصنيفات" htmlFor="bulk-remove-genres">
               <Input
                 id="bulk-remove-genres"
                 value={removeGenres}
@@ -146,7 +156,7 @@ export function BulkEditDialog({
               />
             </FormField>
 
-            <FormField label="Add tags" htmlFor="bulk-add-tags">
+            <FormField label="إضافة وسوم" htmlFor="bulk-add-tags">
               <Input
                 id="bulk-add-tags"
                 value={addTags}
@@ -155,7 +165,7 @@ export function BulkEditDialog({
               />
             </FormField>
 
-            <FormField label="Remove tags" htmlFor="bulk-remove-tags">
+            <FormField label="إزالة وسوم" htmlFor="bulk-remove-tags">
               <Input
                 id="bulk-remove-tags"
                 value={removeTags}
@@ -181,13 +191,13 @@ export function BulkEditDialog({
               onClick={() => onOpenChange(false)}
               disabled={mutation.isPending}
             >
-              Cancel
+              إلغاء
             </Button>
 
             <Button type="submit" disabled={mutation.isPending}>
               <NotePencilIcon className="size-4" />
 
-              {mutation.isPending ? "Updating…" : "Apply changes"}
+              {mutation.isPending ? "جارٍ التحديث…" : "تطبيق التغييرات"}
             </Button>
           </DialogFooter>
         </form>

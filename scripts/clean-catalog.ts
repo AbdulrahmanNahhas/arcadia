@@ -18,7 +18,6 @@ type Metadata = Record<string, unknown> & {
   releaseEnd?: string | null
   riskProfile?: {
     sexuality?: string
-    fanService?: number | null
     behavioral?: string
     theology?: string
   } | null
@@ -270,7 +269,7 @@ const overrides = new Map<string, Override>([
       summary:
         "A young chef searching for a lost flavor enters a strange world that has lost its sense of taste, beginning an adventure about food, memory, growth, and the meaning of value.",
       releaseWindow: "TBA",
-      genres: ["Drama", "Sci-Fi", "Adventure"],
+      genres: ["Drama", "Science Fiction", "Adventure"],
       tags: ["cooking", "memory", "original-anime", "post-apocalyptic"],
       tone: ["Inventive", "Emotional", "Adventurous"],
       releaseStatus: "announced",
@@ -369,10 +368,10 @@ function fallbackTone(genres: string[]) {
   if (genres.includes("Horror")) return ["Dark", "Tense"]
   if (genres.includes("Comedy")) return ["Wholesome"]
   if (genres.includes("Thriller")) return ["Tense"]
-  if (genres.includes("Action")) return ["Hype / Energetic"]
+  if (genres.includes("Action")) return ["Energetic"]
   if (genres.includes("Romance")) return ["Emotional"]
   if (genres.includes("Drama")) return ["Emotional"]
-  if (genres.includes("Adventure")) return ["Hype / Energetic"]
+  if (genres.includes("Adventure")) return ["Energetic"]
   return ["Atmospheric"]
 }
 

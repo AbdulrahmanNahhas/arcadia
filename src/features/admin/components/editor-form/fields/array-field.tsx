@@ -9,11 +9,15 @@ export function ArrayField({
   value = [],
   onChange,
   options,
+  maxItems,
+  optionLabels,
 }: {
   label: string
   value: string[]
   onChange: (value: string[]) => void
   options?: readonly string[]
+  maxItems?: number
+  optionLabels?: Readonly<Record<string, string>>
 }) {
   const listId = useId()
   const [inputValue, setInputValue] = useState("")
@@ -21,7 +25,11 @@ export function ArrayField({
   const addTag = (tag: string) => {
     const trimmed = tag.trim()
     if (options && !options.includes(trimmed)) return
-    if (trimmed && !value.includes(trimmed)) {
+    if (
+      trimmed &&
+      !value.includes(trimmed) &&
+      (maxItems === undefined || value.length < maxItems)
+    ) {
       onChange([...value, trimmed])
     }
     setInputValue("")
@@ -49,14 +57,16 @@ export function ArrayField({
             variant="secondary"
             className="flex items-center gap-1 py-0.5 pr-1 pl-2 text-xs font-normal"
           >
-            {tag}
+            {optionLabels?.[tag] ?? tag}
             <button
               type="button"
               onClick={() => removeTag(index)}
               className="cursor-pointer rounded-full p-0.5 transition-colors hover:bg-muted-foreground/20"
             >
               <XIcon className="size-3 text-muted-foreground hover:text-foreground" />
-              <span className="sr-only">Remove {tag}</span>
+              <span className="sr-only">
+                إزالة {optionLabels?.[tag] ?? tag}
+              </span>
             </button>
           </Badge>
         ))}
@@ -67,7 +77,8 @@ export function ArrayField({
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={() => inputValue && addTag(inputValue)}
-          placeholder={value.length === 0 ? "Type and press Enter..." : ""}
+          placeholder={value.length === 0 ? "اكتب ثم اضغط Enter…" : ""}
+          disabled={maxItems !== undefined && value.length >= maxItems}
           className="min-w-30 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
         />
         {options && (
@@ -75,11 +86,18 @@ export function ArrayField({
             {options
               .filter((option) => !value.includes(option))
               .map((option) => (
-                <option key={option} value={option} />
+                <option key={option} value={option}>
+                  {optionLabels?.[option]}
+                </option>
               ))}
           </datalist>
         )}
       </div>
+      {maxItems !== undefined && (
+        <p className="text-[11px] text-muted-foreground">
+          تم اختيار {value.length}/{maxItems}
+        </p>
+      )}
     </Field>
   )
 }

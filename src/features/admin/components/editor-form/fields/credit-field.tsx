@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react"
 import { creatorRoles } from "@/features/library/model"
 import type { WorkCredit } from "@/features/library/model"
+import { useArabicTranslations } from "@/features/library/translations"
 
 export function CreditField({
   value = [],
@@ -19,6 +20,7 @@ export function CreditField({
   value: WorkCredit[]
   onChange: (value: WorkCredit[]) => void
 }) {
+  const { facetValueLabel } = useArabicTranslations()
   const handleUpdate = (
     index: number,
     field: keyof WorkCredit,
@@ -51,7 +53,7 @@ export function CreditField({
   }
 
   return (
-    <Field label="Primary creators & credits" wide>
+    <Field label="صنّاع العمل والمساهمون الرئيسيون" wide>
       <div className="space-y-2">
         {value.map((credit, index) => (
           <div
@@ -60,7 +62,7 @@ export function CreditField({
           >
             {/* Contributor Name */}
             <Input
-              placeholder="Name (e.g. Naoki Urasawa)"
+              placeholder="الاسم، مثلاً ناوكي أوراساوا"
               value={credit.name}
               onChange={(e) => handleUpdate(index, "name", e.target.value)}
               className="h-8 flex-2 bg-background text-xs"
@@ -74,13 +76,13 @@ export function CreditField({
               }
             >
               <SelectTrigger className="h-8 w-28 bg-background text-xs">
-                <SelectValue placeholder="Type" />
+                <SelectValue placeholder="النوع" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="person">Person</SelectItem>
-                <SelectItem value="studio">Studio</SelectItem>
-                <SelectItem value="publisher">Publisher</SelectItem>
-                <SelectItem value="organization">Organization</SelectItem>
+                <SelectItem value="person">شخص</SelectItem>
+                <SelectItem value="studio">استوديو</SelectItem>
+                <SelectItem value="publisher">ناشر</SelectItem>
+                <SelectItem value="organization">مؤسسة</SelectItem>
               </SelectContent>
             </Select>
 
@@ -92,12 +94,12 @@ export function CreditField({
               }
             >
               <SelectTrigger className="h-8 flex-[1.5] bg-background text-xs">
-                <SelectValue placeholder="Role" />
+                <SelectValue placeholder="الدور" />
               </SelectTrigger>
               <SelectContent>
                 {creatorRoles.map((role) => (
                   <SelectItem key={role} value={role}>
-                    {role.replace("-", " ")}
+                    {facetValueLabel("creatorRoles", role)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -112,7 +114,7 @@ export function CreditField({
               className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
             >
               <TrashIcon className="size-4" />
-              <span className="sr-only">Delete credit</span>
+              <span className="sr-only">حذف المساهمة</span>
             </Button>
           </div>
         ))}
@@ -125,7 +127,7 @@ export function CreditField({
           className="flex h-8 w-full items-center justify-center gap-1.5 border-dashed text-xs"
         >
           <PlusIcon className="size-3.5" />
-          Add Contributor
+          إضافة مساهم
         </Button>
       </div>
     </Field>

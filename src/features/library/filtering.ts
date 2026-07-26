@@ -69,14 +69,14 @@ export const facetDefinitions: Array<{
 ]
 
 export const kindLabels: Record<WorkKind, string> = {
-  movie: "Movie",
-  series: "TV series",
-  anime: "Anime",
-  manga: "Manga",
-  novel: "Novel",
-  game: "Game",
-  "visual-novel": "Visual novel",
-  comic: "Comic",
+  movie: "فيلم",
+  series: "مسلسل",
+  anime: "أنمي",
+  manga: "مانغا",
+  novel: "رواية",
+  game: "لعبة",
+  "visual-novel": "رواية مرئية",
+  comic: "قصص مصورة",
 }
 
 export const personalStatuses: Work["status"][] = [
@@ -171,7 +171,7 @@ export function getWorkFacetValues(work: Work, key: FacetKey): string[] {
     return work.publication?.format ? [work.publication.format] : []
   if (key === "releaseStatuses") return [work.releaseStatus]
   if (key === "countries") return work.country
-  if (key === "audiences") return work.audience
+  if (key === "audiences") return work.audience ? [work.audience] : []
   if (key === "sharedWith") return work.sharedWith
   if (key === "sourceTypes")
     return work.sourceMaterial ? [work.sourceMaterial.type] : []
@@ -209,7 +209,7 @@ export function workMatchesFilters(work: Work, filters: WorkFilterState) {
   if (filters.statuses.length && !filters.statuses.includes(work.status))
     return false
   if (filters.excludedStatuses.includes(work.status)) return false
-  if ((work.rating ?? 0) < filters.minRating) return false
+  if ((work.calculatedRating ?? 0) < filters.minRating) return false
   if (filters.favoriteOnly && !work.favorite) return false
   if (filters.yearFrom !== null && (work.year ?? 0) < filters.yearFrom)
     return false

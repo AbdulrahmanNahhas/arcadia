@@ -1,12 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import type { FormEvent, ReactNode } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { InfoIcon, CodeIcon, CheckIcon } from "@phosphor-icons/react"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -37,7 +39,23 @@ import {
 } from "@/components/ui/drawer"
 
 import { kindLabels } from "@/features/library/filtering"
-import { audiences, genres, tones, workKinds } from "@/features/library/model"
+import {
+  audiences,
+  countries,
+  genres,
+  tagLabelsAr,
+  taxonomyLabels,
+  tones,
+  workKinds,
+} from "@/features/library/model"
+import {
+  calculatedRating,
+  scoreCriteria,
+  scoreLabel,
+  scoreWeights,
+} from "@/features/library/scoring"
+import { fieldAppliesToKind } from "@/features/library/work-kind-fields"
+import { useArabicTranslations } from "@/features/library/translations"
 import type {
   AdminWorkUpdate,
   Work,
@@ -119,6 +137,7 @@ function WorkEditorInner({
     const {
       addedAt: _addedAt,
       palette: _palette,
+      calculatedRating: _calculatedRating,
       relations,
       ...editable
     } = draft
@@ -149,9 +168,9 @@ function WorkEditorInner({
     })
   }
 
-  const title = `Edit ${work.title}`
+  const title = `تعديل ${work.arabicTitle || work.title}`
   const description =
-    "Objective metadata, personal state, guidance, links, and local assets."
+    "البيانات الوصفية والحالة الشخصية والإرشادات والروابط والملفات المحلية."
 
   const formFields = (
     <WorkEditorFormFields
@@ -170,8 +189,12 @@ function WorkEditorInner({
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex h-[92vh] flex-col gap-0 overflow-hidden rounded-xl! bg-background p-0 text-foreground sm:max-w-6xl">
-          <DialogHeader className="z-10 shrink-0 border-b border-l-4 border-border border-l-amber-500 p-4 text-left shadow-sm">
+        <DialogContent
+          showCloseButton={false}
+          dir="rtl"
+          className="flex h-[min(92dvh,56rem)] max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-none -translate-x-1/2 flex-col gap-0 overflow-hidden rounded-xl! bg-background p-0 text-foreground sm:max-w-none lg:w-[min(72rem,calc(100vw-3rem))]"
+        >
+          <DialogHeader className="z-10 shrink-0 border-e-4 border-b border-border border-e-amber-500 p-4 text-right shadow-sm">
             <DialogTitle className="text-xl font-bold tracking-tight">
               {title}
             </DialogTitle>
@@ -189,7 +212,7 @@ function WorkEditorInner({
               size="sm"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              إلغاء
             </Button>
             <Button
               type="submit"
@@ -197,7 +220,7 @@ function WorkEditorInner({
               size="sm"
               disabled={mutation.isPending}
             >
-              {mutation.isPending ? "Saving…" : "Save changes"}
+              {mutation.isPending ? "جارٍ الحفظ…" : "حفظ التغييرات"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -208,7 +231,7 @@ function WorkEditorInner({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="flex h-[90vh] flex-col gap-0 bg-background p-0 text-foreground">
-        <DrawerHeader className="shrink-0 border-b border-border/60 p-6 text-left">
+        <DrawerHeader className="shrink-0 border-b border-border/60 p-6 text-right">
           <DrawerTitle className="text-xl font-bold tracking-tight">
             {title}
           </DrawerTitle>
@@ -223,7 +246,7 @@ function WorkEditorInner({
           <DrawerClose
             render={
               <Button type="button" variant="outline" size="sm">
-                Cancel
+                إلغاء
               </Button>
             }
           />
@@ -233,7 +256,7 @@ function WorkEditorInner({
             size="sm"
             disabled={mutation.isPending}
           >
-            {mutation.isPending ? "Saving…" : "Save changes"}
+            {mutation.isPending ? "جارٍ الحفظ…" : "حفظ التغييرات"}
           </Button>
         </DrawerFooter>
       </DrawerContent>
@@ -262,12 +285,18 @@ function WorkEditorFormFields({
   structure?: WorkStructure
   submit: (e: FormEvent) => void
 }) {
-  const showRuntime = ["movie", "game", "visual-novel"].includes(draft.kind)
-  const showPages = ["manga", "comic", "novel"].includes(draft.kind)
-  const showEpisodes = ["series", "anime"].includes(draft.kind)
-  const showChapters = ["manga", "comic"].includes(draft.kind)
-  const showPublication = ["manga", "comic", "novel"].includes(draft.kind)
-  const showSerialization = ["manga", "comic"].includes(draft.kind)
+  const { taxonomyLabel } = useArabicTranslations()
+  const applies = (field: Parameters<typeof fieldAppliesToKind>[1]) =>
+    fieldAppliesToKind(draft.kind, field)
+  const showRuntime = applies("runtimeMinutes")
+  const showPlaytime = applies("playtimeMinutes")
+  const showPages = applies("pageCount")
+  const showEpisodes = applies("episodeCount")
+  const showChapters = applies("chapterCount")
+  const showVolumes = applies("volumeCount")
+  const showRoutes = applies("routeCount")
+  const showPublication = applies("publication")
+  const showSerialization = applies("serialization")
 
   const emptyPublication: NonNullable<Work["publication"]> = {
     format: null,
@@ -286,52 +315,25 @@ function WorkEditorFormFields({
     })
   }
 
-  const changeKind = (kind: WorkKind) => {
-    setDraft({
-      ...draft,
-      kind,
-      runtimeMinutes: ["movie", "game", "visual-novel"].includes(kind)
-        ? draft.runtimeMinutes
-        : null,
-      pageCount: ["manga", "comic", "novel"].includes(kind)
-        ? draft.pageCount
-        : null,
-      episodeCount: ["series", "anime"].includes(kind)
-        ? draft.episodeCount
-        : null,
-      chapterCount: ["manga", "comic"].includes(kind)
-        ? draft.chapterCount
-        : null,
-      publication: ["manga", "comic", "novel"].includes(kind)
-        ? {
-            ...(draft.publication ?? {
-              format: null,
-              publisher: null,
-              imprint: null,
-              serialization: [],
-              contents: [],
-            }),
-            serialization: ["manga", "comic"].includes(kind)
-              ? (draft.publication?.serialization ?? [])
-              : [],
-          }
-        : null,
-    })
-  }
+  const changeKind = (kind: WorkKind) => setDraft({ ...draft, kind })
+  const tagOptions = useMemo(
+    () => [...new Set(works.flatMap((candidate) => candidate.tags))].sort(),
+    [works]
+  )
 
   return (
     <form
       id="admin-editor-form"
-      className="grid flex-1 grid-cols-1 items-start gap-6 overflow-y-auto p-6 lg:grid-cols-2"
+      className="grid min-h-0 flex-1 grid-cols-1 items-start gap-6 overflow-y-auto p-6 lg:grid-cols-2"
       onSubmit={submit}
     >
       <div className="lg:col-span-2">
         <EditorSection
-          title="Structure & tracking"
-          description="Canonical work metrics and the normalized season/unit ledger. Progress is stored against these stable units."
+          title="البنية والتتبع"
+          description="مقاييس العمل الأساسية وسجل المواسم والوحدات المنظّم. يُحفظ التقدم مقابل هذه الوحدات الثابتة."
         >
           {showRuntime && (
-            <Field label="Runtime (minutes)">
+            <Field label="مدة العرض (بالدقائق)">
               <Input
                 type="number"
                 min="0"
@@ -347,8 +349,25 @@ function WorkEditorFormFields({
               />
             </Field>
           )}
+          {showPlaytime && (
+            <Field label="مدة اللعب التقديرية (بالدقائق)">
+              <Input
+                type="number"
+                min="0"
+                value={draft.playtimeMinutes ?? ""}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    playtimeMinutes: event.target.value
+                      ? Number(event.target.value)
+                      : null,
+                  })
+                }
+              />
+            </Field>
+          )}
           {showPages && (
-            <Field label="Page count">
+            <Field label="عدد الصفحات">
               <Input
                 type="number"
                 min="0"
@@ -363,7 +382,7 @@ function WorkEditorFormFields({
             </Field>
           )}
           {showEpisodes && (
-            <Field label="Episode count">
+            <Field label="عدد الحلقات">
               <Input
                 type="number"
                 min="0"
@@ -380,7 +399,7 @@ function WorkEditorFormFields({
             </Field>
           )}
           {showChapters && (
-            <Field label="Chapter count">
+            <Field label="عدد الفصول">
               <Input
                 type="number"
                 min="0"
@@ -396,16 +415,50 @@ function WorkEditorFormFields({
               />
             </Field>
           )}
+          {showVolumes && (
+            <Field label="عدد المجلدات">
+              <Input
+                type="number"
+                min="0"
+                value={draft.volumeCount ?? ""}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    volumeCount: event.target.value
+                      ? Number(event.target.value)
+                      : null,
+                  })
+                }
+              />
+            </Field>
+          )}
+          {showRoutes && (
+            <Field label="عدد المسارات">
+              <Input
+                type="number"
+                min="0"
+                value={draft.routeCount ?? ""}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    routeCount: event.target.value
+                      ? Number(event.target.value)
+                      : null,
+                  })
+                }
+              />
+            </Field>
+          )}
           <StructureSummary structure={structure} />
         </EditorSection>
       </div>
 
       {/* Identity Section */}
       <EditorSection
-        title="Identity"
-        description="Core fields used everywhere in Arcadia."
+        title="الهوية"
+        description="الحقول الأساسية المستخدمة في جميع أنحاء أركاديا."
       >
-        <Field label="Title">
+        <Field label="العنوان الأصلي">
           <Input
             value={draft.title}
             required
@@ -413,20 +466,28 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Subtitle">
+        <Field label="العنوان العربي">
           <Input
-            value={draft.subtitle}
-            onChange={(e) => setDraft({ ...draft, subtitle: e.target.value })}
+            dir="rtl"
+            lang="ar"
+            value={draft.arabicTitle ?? ""}
+            placeholder="العنوان العربي الموثوق، إن وجد"
+            onChange={(event) =>
+              setDraft({
+                ...draft,
+                arabicTitle: event.target.value || null,
+              })
+            }
           />
         </Field>
 
-        <Field label="Type">
+        <Field label="النوع">
           <Select
             value={draft.kind}
             onValueChange={(value) => changeKind(value as WorkKind)}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select type" />
+              <SelectValue placeholder="اختر النوع" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -440,7 +501,7 @@ function WorkEditorFormFields({
           </Select>
         </Field>
 
-        <Field label="Release year">
+        <Field label="سنة الإصدار">
           <Input
             type="number"
             value={draft.year ?? ""}
@@ -453,7 +514,7 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Release status">
+        <Field label="حالة الإصدار">
           <Select
             value={draft.releaseStatus}
             onValueChange={(value) =>
@@ -464,7 +525,7 @@ function WorkEditorFormFields({
             }
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select status" />
+              <SelectValue placeholder="اختر الحالة" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -475,7 +536,7 @@ function WorkEditorFormFields({
                       value={status}
                       className="capitalize"
                     >
-                      {status}
+                      {taxonomyLabel("release-status", status)}
                     </SelectItem>
                   )
                 )}
@@ -485,13 +546,15 @@ function WorkEditorFormFields({
         </Field>
 
         <ArrayField
-          label="Aliases"
+          label="العناوين البديلة"
           value={draft.aliases}
           onChange={(aliases: string[]) => setDraft({ ...draft, aliases })}
         />
 
-        <Field label="Summary" wide>
+        <Field label="الملخص" wide>
           <Textarea
+            dir="rtl"
+            lang="ar"
             rows={5}
             value={draft.summary}
             onChange={(e) => setDraft({ ...draft, summary: e.target.value })}
@@ -517,48 +580,63 @@ function WorkEditorFormFields({
 
       {/* Classification Section */}
       <EditorSection
-        title="Classification"
-        description="Comma-separated values become searchable facets."
+        title="التصنيف"
+        description="تتحول القيم المفصولة بفواصل إلى فلاتر قابلة للبحث."
       >
         <ArrayField
-          label="Genres"
+          label="التصنيفات"
           value={draft.genres}
           onChange={(nextGenres: string[]) =>
             setDraft({ ...draft, genres: nextGenres })
           }
           options={genres}
+          optionLabels={taxonomyLabels.genres}
+          maxItems={4}
         />
         <ArrayField
-          label="Tags & themes"
+          label="الوسوم والموضوعات"
           value={draft.tags}
           onChange={(tags: string[]) => setDraft({ ...draft, tags })}
+          options={tagOptions}
+          maxItems={12}
+          optionLabels={tagLabelsAr}
         />
         <ArrayField
-          label="Tone"
+          label="الطابع"
           value={draft.tone}
           onChange={(tone: string[]) => setDraft({ ...draft, tone })}
           options={tones}
+          optionLabels={taxonomyLabels.tones}
+          maxItems={3}
         />
         <ArrayField
-          label="Countries"
+          label="الدول"
           value={draft.country}
-          onChange={(country: string[]) => setDraft({ ...draft, country })}
+          onChange={(country: string[]) =>
+            setDraft({ ...draft, country: country as Work["country"] })
+          }
+          options={countries}
+          optionLabels={taxonomyLabels.countries}
         />
-        <Field label="Audience">
+        <Field label="الجمهور">
           <Select
-            value={draft.audience[0] ?? null}
+            value={draft.audience}
             onValueChange={(audience) =>
-              audience && setDraft({ ...draft, audience: [audience] })
+              audience &&
+              setDraft({
+                ...draft,
+                audience: audience as Work["audience"],
+              })
             }
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select audience" />
+              <SelectValue placeholder="اختر الجمهور" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 {audiences.map((audience) => (
                   <SelectItem key={audience} value={audience}>
-                    {audience}
+                    {taxonomyLabels.audiences[audience]}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -566,7 +644,7 @@ function WorkEditorFormFields({
           </Select>
         </Field>
         <ArrayField
-          label="Shared with"
+          label="مشاركة مع"
           value={draft.sharedWith}
           onChange={(sharedWith: string[]) =>
             setDraft({ ...draft, sharedWith })
@@ -579,12 +657,20 @@ function WorkEditorFormFields({
         />
       </EditorSection>
 
+      <EditorSection
+        title="سجل التقييم الشخصي"
+        description="تنتج ستة مكونات موزونة التقييم المعروض في أركاديا. يبقى التقييم غير مكتمل حتى تعبئة جميع المكونات."
+        className="lg:col-span-2"
+      >
+        <ScoreLedger draft={draft} setDraft={setDraft} />
+      </EditorSection>
+
       {/* Guidance & Analysis Section */}
       <EditorSection
-        title="Guidance & analysis"
-        description="Content guidance stays distinct from objective metadata."
+        title="إرشادات المحتوى والتحليل"
+        description="تبقى إرشادات المحتوى منفصلة عن البيانات الموضوعية."
       >
-        <Field label="Sexuality risk">
+        <Field label="مخاطر المحتوى الجنسي">
           <RiskSelect
             value={draft.riskProfile?.sexuality ?? "unknown"}
             onChange={(sexuality: any) =>
@@ -592,7 +678,6 @@ function WorkEditorFormFields({
                 ...draft,
                 riskProfile: {
                   sexuality,
-                  fanService: draft.riskProfile?.fanService ?? null,
                   behavioral: draft.riskProfile?.behavioral ?? "unknown",
                   theology: draft.riskProfile?.theology ?? "unknown",
                 },
@@ -601,7 +686,7 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Behavioral risk">
+        <Field label="المخاطر السلوكية">
           <RiskSelect
             value={draft.riskProfile?.behavioral ?? "unknown"}
             onChange={(behavioral: any) =>
@@ -609,7 +694,6 @@ function WorkEditorFormFields({
                 ...draft,
                 riskProfile: {
                   sexuality: draft.riskProfile?.sexuality ?? "unknown",
-                  fanService: draft.riskProfile?.fanService ?? null,
                   behavioral,
                   theology: draft.riskProfile?.theology ?? "unknown",
                 },
@@ -618,7 +702,7 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Theology risk">
+        <Field label="المخاطر الدينية">
           <RiskSelect
             value={draft.riskProfile?.theology ?? "unknown"}
             onChange={(theology: any) =>
@@ -626,7 +710,6 @@ function WorkEditorFormFields({
                 ...draft,
                 riskProfile: {
                   sexuality: draft.riskProfile?.sexuality ?? "unknown",
-                  fanService: draft.riskProfile?.fanService ?? null,
                   behavioral: draft.riskProfile?.behavioral ?? "unknown",
                   theology,
                 },
@@ -635,28 +718,10 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Fan-service level">
-          <Input
-            type="number"
-            min="0"
-            max="10"
-            value={draft.riskProfile?.fanService ?? ""}
-            onChange={(e) =>
-              setDraft({
-                ...draft,
-                riskProfile: {
-                  sexuality: draft.riskProfile?.sexuality ?? "unknown",
-                  fanService: e.target.value ? Number(e.target.value) : null,
-                  behavioral: draft.riskProfile?.behavioral ?? "unknown",
-                  theology: draft.riskProfile?.theology ?? "unknown",
-                },
-              })
-            }
-          />
-        </Field>
-
-        <Field label="Content warnings" wide>
+        <Field label="تحذيرات المحتوى" wide>
           <Textarea
+            dir="rtl"
+            lang="ar"
             rows={3}
             value={draft.contentWarnings ?? ""}
             onChange={(e) =>
@@ -665,8 +730,10 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Analysis notes" wide>
+        <Field label="ملاحظات التحليل" wide>
           <Textarea
+            dir="rtl"
+            lang="ar"
             rows={4}
             value={draft.analysisNotes ?? ""}
             onChange={(e) =>
@@ -678,10 +745,10 @@ function WorkEditorFormFields({
 
       {/* Dates, Source & Links Section */}
       <EditorSection
-        title="Dates, source & links"
-        description="Publishing context and destinations outside Arcadia."
+        title="التواريخ والمصدر والروابط"
+        description="سياق النشر والوجهات خارج أركاديا."
       >
-        <Field label="Release start">
+        <Field label="بداية الإصدار">
           <Input
             type="date"
             value={draft.releaseStart ?? ""}
@@ -691,7 +758,7 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Release end">
+        <Field label="نهاية الإصدار">
           <Input
             type="date"
             value={draft.releaseEnd ?? ""}
@@ -701,7 +768,7 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Source type">
+        <Field label="نوع المصدر">
           <Input
             value={draft.sourceMaterial?.type ?? ""}
             onChange={(e) =>
@@ -719,7 +786,7 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Source publication">
+        <Field label="منشور المصدر">
           <Input
             value={draft.sourceMaterial?.publication ?? ""}
             onChange={(e) =>
@@ -737,7 +804,7 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Source started">
+        <Field label="سنة بدء المصدر">
           <Input
             type="number"
             value={draft.sourceMaterial?.started ?? ""}
@@ -756,7 +823,7 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Source finished">
+        <Field label="سنة انتهاء المصدر">
           <Input
             type="number"
             value={draft.sourceMaterial?.finished ?? ""}
@@ -776,7 +843,7 @@ function WorkEditorFormFields({
         </Field>
 
         <ArrayField
-          label="Source serialization"
+          label="تسلسل المصدر"
           value={draft.sourceMaterial?.serialization ?? []}
           onChange={(serialization: string[]) =>
             setDraft({
@@ -794,7 +861,7 @@ function WorkEditorFormFields({
 
         {showPublication && (
           <>
-            <Field label="Publication format">
+            <Field label="صيغة النشر">
               <Input
                 value={draft.publication?.format ?? ""}
                 onChange={(event) =>
@@ -802,7 +869,7 @@ function WorkEditorFormFields({
                 }
               />
             </Field>
-            <Field label="Publisher">
+            <Field label="الناشر">
               <Input
                 value={draft.publication?.publisher ?? ""}
                 onChange={(event) =>
@@ -810,7 +877,7 @@ function WorkEditorFormFields({
                 }
               />
             </Field>
-            <Field label="Imprint">
+            <Field label="العلامة الناشرة">
               <Input
                 value={draft.publication?.imprint ?? ""}
                 onChange={(event) =>
@@ -820,7 +887,7 @@ function WorkEditorFormFields({
             </Field>
             {showSerialization && (
               <ArrayField
-                label="Serialization"
+                label="التسلسل"
                 value={draft.publication?.serialization ?? []}
                 onChange={(serialization: string[]) =>
                   updatePublication({ serialization })
@@ -834,7 +901,7 @@ function WorkEditorFormFields({
           </>
         )}
 
-        <Field label="External links" wide>
+        <Field label="الروابط الخارجية" wide>
           <Textarea
             rows={4}
             value={links}
@@ -842,16 +909,16 @@ function WorkEditorFormFields({
             placeholder="AniList | AniList | https://…"
           />
           <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-            Format: provider | label | URL (one per line)
+            الصيغة: المزوّد | التسمية | الرابط (رابط واحد في كل سطر)
           </p>
         </Field>
       </EditorSection>
 
       <EditorSection
-        title="Curation provenance"
-        description="Verification state for objective catalog data."
+        title="مصدر المراجعة"
+        description="حالة التحقق من بيانات الفهرس الموضوعية."
       >
-        <Field label="Reviewed at">
+        <Field label="تاريخ المراجعة">
           <Input
             type="date"
             value={draft.curation?.reviewedAt ?? ""}
@@ -867,7 +934,7 @@ function WorkEditorFormFields({
             }
           />
         </Field>
-        <Field label="Verification">
+        <Field label="التحقق">
           <Select
             value={draft.curation?.status ?? "provisional"}
             onValueChange={(status) =>
@@ -887,12 +954,12 @@ function WorkEditorFormFields({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="provisional">Provisional</SelectItem>
-              <SelectItem value="verified">Verified</SelectItem>
+              <SelectItem value="provisional">مبدئي</SelectItem>
+              <SelectItem value="verified">موثّق</SelectItem>
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Curation notes" wide>
+        <Field label="ملاحظات المراجعة" wide>
           <Textarea
             rows={3}
             value={draft.curation?.notes ?? ""}
@@ -914,10 +981,10 @@ function WorkEditorFormFields({
 
       {/* Local Artwork Section */}
       <EditorSection
-        title="Local artwork"
-        description="Paths are served locally; clearing one removes its database asset reference."
+        title="الصور المحلية"
+        description="تُعرض المسارات محلياً؛ ومسح أحدها يزيل مرجعه من قاعدة البيانات."
       >
-        <Field label="Poster path">
+        <Field label="مسار الملصق">
           <Input
             value={draft.imagePath ?? ""}
             onChange={(e) =>
@@ -926,7 +993,7 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Banner path">
+        <Field label="مسار الغلاف">
           <Input
             value={draft.bannerPath ?? ""}
             onChange={(e) =>
@@ -935,7 +1002,7 @@ function WorkEditorFormFields({
           />
         </Field>
 
-        <Field label="Logo path">
+        <Field label="مسار الشعار">
           <Input
             value={draft.logoPath ?? ""}
             onChange={(e) =>
@@ -948,8 +1015,8 @@ function WorkEditorFormFields({
       {/* Related Works Section */}
       <div className="lg:col-span-2">
         <EditorSection
-          title="Related works"
-          description="Link adaptations, sequels, and other media records."
+          title="الأعمال المرتبطة"
+          description="اربط الاقتباسات والتكملات وسجلات الوسائط الأخرى."
           subClassname="sm:grid-cols-1!"
         >
           <RelationshipEditor
@@ -982,19 +1049,19 @@ function WorkEditorFormFields({
               >
                 <span className="flex items-center gap-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
                   <CodeIcon className="size-3.5" />
-                  View Raw Record JSON
+                  عرض JSON الخام للسجل
                 </span>
                 <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                  Read-only
+                  للقراءة فقط
                 </span>
               </Button>
             }
           />
           <DrawerContent>
-            <DrawerHeader className="text-left">
-              <DrawerTitle>Raw Record JSON</DrawerTitle>
+            <DrawerHeader className="text-right">
+              <DrawerTitle>JSON الخام للسجل</DrawerTitle>
               <DrawerDescription>
-                Read-only data viewer for the current record state.
+                عارض بيانات للقراءة فقط لحالة السجل الحالية.
               </DrawerDescription>
             </DrawerHeader>
             <div className="flex-1 overflow-y-auto p-4">
@@ -1009,7 +1076,7 @@ function WorkEditorFormFields({
               <DrawerClose
                 render={
                   <Button type="button" variant="outline">
-                    Close
+                    إغلاق
                   </Button>
                 }
               />
@@ -1029,7 +1096,7 @@ function StructureSummary({
   if (!structure) {
     return (
       <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground sm:col-span-2">
-        Loading structural ledger…
+        جارٍ تحميل سجل البنية…
       </div>
     )
   }
@@ -1037,19 +1104,19 @@ function StructureSummary({
   if (structure.totalUnits === 0 && structure.seasons.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground sm:col-span-2">
-        No seasons or atomic units are defined for this work yet.
+        لم تُعرّف مواسم أو وحدات مستقلة لهذا العمل بعد.
       </div>
     )
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-amber-500/25 bg-amber-500/4 sm:col-span-2">
+    <div className="overflow-hidden rounded-lg sm:col-span-2">
       <div className="flex items-center justify-between gap-4 border-b px-4 py-3">
         <span className="font-mono text-[10px] font-semibold tracking-[0.16em] text-amber-700 uppercase dark:text-amber-400">
-          Normalized ledger
+          السجل المنظّم
         </span>
         <span className="text-xs text-muted-foreground">
-          {structure.completedUnits}/{structure.totalUnits} complete
+          اكتمل {structure.completedUnits}/{structure.totalUnits}
         </span>
       </div>
       <div className="flex flex-wrap gap-2 p-3">
@@ -1095,6 +1162,89 @@ function StructureSummary({
   )
 }
 
+function ScoreLedger({
+  draft,
+  setDraft,
+}: {
+  draft: Work
+  setDraft: React.Dispatch<React.SetStateAction<Work>>
+}) {
+  const rating = calculatedRating(draft.scoreComponents)
+  return (
+    <>
+      <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-4 sm:col-span-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <span className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+            التقييم المحسوب
+          </span>
+          <strong className="text-3xl tabular-nums">
+            {rating === null ? "—" : rating.toFixed(1)}
+            <span className="text-sm font-normal text-muted-foreground">
+              {" "}
+              / 10
+            </span>
+          </strong>
+        </div>
+        <Badge variant={rating === null ? "outline" : "secondary"}>
+          {rating === null
+            ? `${Object.keys(draft.scoreComponents).length}/6 مكونات`
+            : "اكتملت المعادلة"}
+        </Badge>
+      </div>
+      {scoreCriteria.map((criterion) => {
+        const label = scoreLabel(criterion, draft.kind)
+        const value = draft.scoreComponents[criterion]
+        return (
+          <Field
+            key={criterion}
+            label={`${label.ar} (${Math.round(
+              scoreWeights[criterion] * 100
+            )}%)`}
+            wide
+          >
+            <div className="grid grid-cols-[1fr_4.5rem] items-center gap-3">
+              <Slider
+                min={0}
+                max={10}
+                step={0.5}
+                value={[value ?? 0]}
+                onValueChange={(next) => {
+                  const nextValue = Array.isArray(next) ? next[0] : next
+                  setDraft({
+                    ...draft,
+                    scoreComponents: {
+                      ...draft.scoreComponents,
+                      [criterion]: nextValue,
+                    },
+                  })
+                }}
+                aria-label={label.ar}
+              />
+              <Input
+                type="number"
+                min="0"
+                max="10"
+                step="0.5"
+                value={value ?? ""}
+                aria-label={`تقييم ${label.ar}`}
+                onChange={(event) => {
+                  const next = event.target.value
+                    ? Number(event.target.value)
+                    : undefined
+                  const scoreComponents = { ...draft.scoreComponents }
+                  if (next === undefined) delete scoreComponents[criterion]
+                  else scoreComponents[criterion] = next
+                  setDraft({ ...draft, scoreComponents })
+                }}
+              />
+            </div>
+          </Field>
+        )
+      })}
+    </>
+  )
+}
+
 interface EditorSectionProps {
   title: string
   description?: string
@@ -1112,11 +1262,11 @@ export function EditorSection({
   return (
     <section
       className={cn(
-        "space-y-4 rounded-lg border border-border bg-card p-5 shadow-xs",
+        "flex flex-col gap-4 rounded-lg border border-border bg-card p-5 shadow-xs",
         className
       )}
     >
-      <div className="space-y-1 border-b border-border/50 pb-3">
+      <div className="flex flex-col gap-1 border-b border-border/50 pb-3">
         <h3 className="font-mono text-[11px] font-semibold tracking-[0.12em] text-foreground uppercase">
           {title}
         </h3>

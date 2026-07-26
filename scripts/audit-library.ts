@@ -8,6 +8,14 @@ const sqlite = new Database(databasePath, { readonly: true })
 
 const scalar = (query: string) =>
   (sqlite.prepare(query).get() as { total: number }).total
+const tableExists = (name: string) =>
+  Boolean(
+    sqlite
+      .prepare(
+        "select 1 from sqlite_master where type = 'table' and name = ? limit 1"
+      )
+      .get(name)
+  )
 
 const report = {
   databasePath,
@@ -70,6 +78,26 @@ const report = {
     duplicatedGuidanceTags: scalar(
       "select count(*) as total from work_terms join terms on terms.id = work_terms.term_id where terms.vocabulary = 'tag' and (lower(terms.name) like '%risk%' or lower(terms.name) like '%fanservice%')"
     ),
+    legacyFanServiceMetadata: scalar(
+      "select count(*) as total from works where json_type(metadata, '$.riskProfile.fanService') is not null"
+    ),
+    legacySubtitleMetadata: scalar(
+      "select count(*) as total from works where json_type(metadata, '$.subtitle') is not null"
+    ),
+    legacyScoreBreakdownMetadata: scalar(
+      "select count(*) as total from works where json_type(metadata, '$.scoreBreakdown') is not null"
+    ),
+    tagVocabularySize: scalar(
+      "select count(*) as total from terms where vocabulary = 'tag'"
+    ),
+    singletonTags: scalar(
+      "select count(*) as total from (select terms.id from terms left join work_terms on work_terms.term_id = terms.id where terms.vocabulary = 'tag' group by terms.id having count(work_terms.work_id) = 1)"
+    ),
+    incompleteScoreLedgers: tableExists("personal_scores")
+      ? scalar(
+          "select count(*) as total from (select work_id from personal_scores group by work_id having count(*) <> 6)"
+        )
+      : null,
     malformedTags: scalar(
       `select count(*) as total from work_terms join terms on terms.id = work_terms.term_id
        where terms.vocabulary = 'tag'
@@ -80,17 +108,17 @@ const report = {
     genreDuplicatingTags: scalar(
       `select count(*) as total from work_terms join terms on terms.id = work_terms.term_id
        where terms.vocabulary = 'tag'
-         and terms.slug in ('action','adventure','comedy','drama','fantasy','historical','horror','mecha','military','music','mystery','political','psychological','romance','sci-fi','slice-of-life','sports','supernatural','thriller')`
+         and terms.slug in ('action','adventure','comedy','crime','drama','fantasy','historical','horror','mecha','music','mystery','psychological','romance','science-fiction','slice-of-life','sports','supernatural','thriller','war')`
     ),
     nonCanonicalGenres: scalar(
       `select count(*) as total from work_terms join terms on terms.id = work_terms.term_id
        where terms.vocabulary = 'genre'
-         and terms.name not in ('Action','Adventure','Comedy','Drama','Fantasy','Historical','Horror','Mecha','Military','Music','Mystery','Political','Psychological','Romance','Sci-Fi','Slice of Life','Sports','Supernatural','Thriller')`
+         and terms.name not in ('Action','Adventure','Comedy','Crime','Drama','Fantasy','Historical','Horror','Mecha','Music','Mystery','Psychological','Romance','Science Fiction','Slice of Life','Sports','Supernatural','Thriller','War')`
     ),
     nonCanonicalTones: scalar(
       `select count(*) as total from work_terms join terms on terms.id = work_terms.term_id
        where terms.vocabulary = 'tone'
-         and terms.name not in ('Wholesome','Emotional','Bittersweet','Reflective','Tense','Hype / Energetic','Dark','Surreal / Whimsical','Epic','Atmospheric')`
+         and terms.name not in ('Wholesome','Emotional','Bittersweet','Reflective','Tense','Energetic','Dark','Whimsical','Epic','Atmospheric')`
     ),
   },
 }

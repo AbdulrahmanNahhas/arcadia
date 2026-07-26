@@ -14,27 +14,27 @@ const RISK_CONFIG: Record<
   { label: string; dotColor: string; textColor: string }
 > = {
   none: {
-    label: "None",
+    label: "لا يوجد",
     dotColor: "bg-emerald-500",
     textColor: "text-emerald-600 dark:text-emerald-400",
   },
   low: {
-    label: "Low",
+    label: "منخفض",
     dotColor: "bg-sky-500",
     textColor: "text-sky-600 dark:text-sky-400",
   },
   medium: {
-    label: "Medium",
+    label: "متوسط",
     dotColor: "bg-amber-500",
     textColor: "text-amber-600 dark:text-amber-400",
   },
   high: {
-    label: "High",
+    label: "مرتفع",
     dotColor: "bg-rose-500",
     textColor: "text-rose-600 dark:text-rose-400",
   },
   unknown: {
-    label: "Unknown",
+    label: "غير معروف",
     dotColor: "bg-slate-400",
     textColor: "text-muted-foreground",
   },
@@ -52,7 +52,7 @@ export function RiskSelect({
   return (
     <Select value={value} onValueChange={(val) => onChange(val as RiskLevel)}>
       <SelectTrigger className="w-full">
-        <SelectValue placeholder="Select risk level">
+        <SelectValue placeholder="اختر مستوى المخاطر">
           <div className="flex items-center gap-2">
             <span className={cn("size-2 rounded-full", currentRisk.dotColor)} />
             <span

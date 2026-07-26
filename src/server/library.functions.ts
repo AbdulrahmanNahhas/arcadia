@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import {
   adminWorkUpdateSchema,
+  adminRecordChangeSchema,
   bulkCreateWorkSchema,
   bulkUpdateWorksSchema,
   createSavedUserViewSchema,
@@ -15,6 +16,48 @@ export const getWorks = createServerFn({ method: "GET" }).handler(async () => {
   const { listWorks } = await import("@/db/repository")
   return listWorks()
 })
+
+export const getTaxonomyTerms = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { listTaxonomyTerms } = await import("@/db/repository")
+    return listTaxonomyTerms()
+  }
+)
+
+export const saveTaxonomyTranslation = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string().min(1),
+      labelAr: z.string().nullable(),
+      description: z.string(),
+      descriptionAr: z.string(),
+    })
+  )
+  .handler(async ({ data }) => {
+    const { updateTaxonomyTranslation } = await import("@/db/repository")
+    return updateTaxonomyTranslation(data)
+  })
+
+export const saveTaxonomyTranslations = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      translations: z
+        .array(
+          z.object({
+            id: z.string().min(1),
+            labelAr: z.string().nullable(),
+            description: z.string(),
+            descriptionAr: z.string(),
+          })
+        )
+        .min(1)
+        .max(10_000),
+    })
+  )
+  .handler(async ({ data }) => {
+    const { updateTaxonomyTranslations } = await import("@/db/repository")
+    return updateTaxonomyTranslations(data.translations)
+  })
 
 export const getTrackingPage = createServerFn({ method: "GET" })
   .validator(trackingPageInputSchema)
@@ -148,22 +191,73 @@ export const getWorkStructure = createServerFn({ method: "GET" })
     return repository.getWorkStructure(data.workId)
   })
 
-export const getAdminRecordBundles = createServerFn({ method: "GET" })
-  .validator(z.object({ workIds: z.array(z.string()).min(1).max(500) }))
+export const getAdminRecordBundles = createServerFn({ method: "POST" })
+  .validator(z.object({ workIds: z.array(z.string()).min(1).max(5_000) }))
   .handler(async ({ data }) => {
     const repository = await import("@/db/repository")
     const worksById = new Map(
       repository.listWorks().map((work) => [work.id, work])
     )
-    return data.workIds.map((workId) => {
+    const bundles: Array<{
+      work: ReturnType<typeof repository.listWorks>[number]
+      structure: ReturnType<typeof repository.getEditableWorkStructure>
+      tracking: ReturnType<typeof repository.listWorkTrackingEntries>
+    }> = []
+    const errors: Array<{ workId: string; message: string }> = []
+    for (const workId of data.workIds) {
       const work = worksById.get(workId)
-      if (!work) throw new Error(`Work not found: ${workId}`)
-      return {
-        work,
-        structure: repository.getEditableWorkStructure(workId),
-        tracking: repository.listWorkTrackingEntries(workId, 10_000),
+      if (!work) {
+        errors.push({ workId, message: "لم يعد العمل موجوداً." })
+        continue
       }
+      try {
+        bundles.push({
+          work,
+          structure: repository.getEditableWorkStructure(workId),
+          tracking: repository.listWorkTrackingEntries(workId, 10_000),
+        })
+      } catch (error) {
+        errors.push({
+          workId,
+          message: error instanceof Error ? error.message : "تعذر تحميل السجل.",
+        })
+      }
+    }
+    return { bundles, errors }
+  })
+
+export const saveAdminRecordChanges = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      changes: z.array(adminRecordChangeSchema).min(1).max(5_000),
     })
+  )
+  .handler(async ({ data }) => {
+    const repository = await import("@/db/repository")
+    const errors: Array<{ workId: string; message: string }> = []
+    let updated = 0
+    for (const change of data.changes) {
+      try {
+        if (change.work && change.work.id !== change.workId) {
+          throw new Error("معرّف العمل لا يطابق السجل المطلوب.")
+        }
+        if (
+          change.structure?.workId !== undefined &&
+          change.structure.workId !== change.workId
+        ) {
+          throw new Error("معرّف بنية العمل لا يطابق السجل المطلوب.")
+        }
+        if (change.work) repository.updateWork(change.work)
+        if (change.structure) repository.replaceWorkStructure(change.structure)
+        updated++
+      } catch (error) {
+        errors.push({
+          workId: change.workId,
+          message: error instanceof Error ? error.message : "تعذر حفظ السجل.",
+        })
+      }
+    }
+    return { updated, errors }
   })
 
 export const saveWorkStructure = createServerFn({ method: "POST" })

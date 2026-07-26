@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils"
 import { kindLabels } from "../filtering"
 import type { Work } from "../model"
+import { statusLabelsAr, useArabicTranslations } from "../translations"
 import { progressText, usesProgress } from "./work-artwork"
 
 export function WorkTable({
@@ -24,21 +25,22 @@ export function WorkTable({
   onOpen: (id: string) => void
   columns: string[]
 }) {
+  const { taxonomyLabel } = useArabicTranslations()
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
       <Table>
         <TableHeader className="bg-muted/35">
           <TableRow className="hover:bg-transparent">
             <TableHead className="h-10 pl-4 text-[11px] tracking-wider uppercase">
-              Work
+              العمل
             </TableHead>
-            {columns.includes("type") && <TableHead>Type</TableHead>}
-            {columns.includes("year") && <TableHead>Year</TableHead>}
-            {columns.includes("status") && <TableHead>Status</TableHead>}
-            {columns.includes("genres") && <TableHead>Genres</TableHead>}
-            {columns.includes("progress") && <TableHead>Progress</TableHead>}
+            {columns.includes("type") && <TableHead>النوع</TableHead>}
+            {columns.includes("year") && <TableHead>السنة</TableHead>}
+            {columns.includes("status") && <TableHead>الحالة</TableHead>}
+            {columns.includes("genres") && <TableHead>التصنيفات</TableHead>}
+            {columns.includes("progress") && <TableHead>التقدم</TableHead>}
             {columns.includes("rating") && (
-              <TableHead className="pr-4 text-right">Rating</TableHead>
+              <TableHead className="pr-4 text-right">التقييم</TableHead>
             )}
           </TableRow>
         </TableHeader>
@@ -70,9 +72,11 @@ export function WorkTable({
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{work.title}</p>
+                    <p className="truncate text-sm font-medium">
+                      {work.arabicTitle || work.title}
+                    </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {work.creator || "Creator unknown"}
+                      {work.creator || "المنشئ غير معروف"}
                     </p>
                   </div>
                 </div>
@@ -102,7 +106,7 @@ export function WorkTable({
                         work.status === "dropped" && "bg-rose-500"
                       )}
                     />
-                    {work.status.replace("-", " ")}
+                    {statusLabelsAr[work.status]}
                   </span>
                 </TableCell>
               )}
@@ -115,7 +119,7 @@ export function WorkTable({
                         variant="secondary"
                         className="font-normal"
                       >
-                        {genre}
+                        {taxonomyLabel("genre", genre)}
                       </Badge>
                     ))}
                   </div>
@@ -128,13 +132,13 @@ export function WorkTable({
               )}
               {columns.includes("rating") && (
                 <TableCell className="pr-4 text-right font-medium tabular-nums">
-                  {work.rating !== null ? (
+                  {work.calculatedRating !== null ? (
                     <span className="inline-flex items-center gap-1">
                       <StarIcon
                         className="size-3 text-amber-500"
                         weight="fill"
                       />
-                      {work.rating.toFixed(1)}
+                      {work.calculatedRating.toFixed(1)}
                     </span>
                   ) : (
                     <span className="text-muted-foreground">—</span>
