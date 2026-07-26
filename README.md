@@ -25,22 +25,6 @@ nix develop path:.
 pnpm build
 ```
 
-## Obsidian animation import
-
-The importer reads only the `Tv` and `Movies` work folders. It never modifies
-the vault. Linked vault artwork is copied into `public/media/library`, remote
-artwork is localized only when no suitable vault file exists, and the SQLite
-refresh is atomic and repeatable.
-
-```bash
-pnpm db:import:animation -- /path/to/Obsidian/database/Animation
-```
-
-It deliberately omits episode counts, watched-episode progress, and Jellyfin
-flags. Uncommon useful source fields stay in structured metadata. Add
-`--skip-downloads` or `--skip-enrichment` when an offline-only refresh is
-required.
-
 The SQLite database is stored at `data/arcadia.db` in WAL mode. Set
 `ARCADIA_DB_PATH` to use another local path.
 
@@ -59,5 +43,4 @@ pnpm db:audit
 ```
 
 `db:clean` applies Arcadia's controlled genre, tag, and tone vocabularies to
-every work and records the review date. Run it after importing older vault data;
-the importer applies the same taxonomy to future refreshes automatically.
+every work and records the review date.

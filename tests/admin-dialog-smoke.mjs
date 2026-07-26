@@ -14,14 +14,14 @@ const errors = []
 page.on("pageerror", (error) => errors.push(error.message))
 
 await page.goto(process.env.ARCADIA_URL ?? "http://localhost:3000/admin", {
-  waitUntil: "networkidle",
+  waitUntil: "domcontentloaded",
 })
+await page.getByRole("heading", { name: "إدارة الأعمال" }).waitFor()
 
 await page.getByRole("button", { name: "إضافة أعمال" }).click()
-const addDialog = page.getByRole("dialog", {
-  name: "إضافة أعمال إلى المكتبة",
-})
+const addDialog = page.locator('[data-slot="dialog-content"]').last()
 await addDialog.waitFor()
+await addDialog.getByText("إضافة أعمال إلى المكتبة").waitFor()
 await addDialog.getByRole("combobox", { name: "طريقة الإضافة" }).click()
 await page.getByRole("option", { name: /أعمال متعددة/ }).click()
 await addDialog.getByText("2 صالح").waitFor()
@@ -29,17 +29,15 @@ await page.screenshot({ path: "/tmp/arcadia-admin-add.png" })
 await addDialog.getByRole("button", { name: "إلغاء" }).click()
 
 await page.getByRole("button", { name: "محرر JSON" }).click()
-const jsonDialog = page.getByRole("dialog", {
-  name: "مساحة تحرير JSON لقاعدة البيانات",
-})
+const jsonDialog = page.locator('[data-slot="dialog-content"]').last()
+await jsonDialog.getByText("مساحة تحرير JSON لقاعدة البيانات").waitFor()
 await jsonDialog.getByText("JSON صالح").waitFor({ timeout: 15_000 })
 await page.screenshot({ path: "/tmp/arcadia-admin-json.png" })
 await jsonDialog.getByRole("button", { name: "إلغاء" }).click()
 
 await page.getByRole("button", { name: "قاموس التصنيفات" }).click()
-const taxonomyDialog = page.getByRole("dialog", {
-  name: "قاموس التصنيفات المنقّح",
-})
+const taxonomyDialog = page.locator('[data-slot="dialog-content"]').last()
+await taxonomyDialog.getByText("قاموس التصنيفات المنقّح").waitFor()
 await taxonomyDialog.getByRole("switch", { name: "تحرير JSON" }).click()
 await taxonomyDialog.getByText("JSON صالح").waitFor()
 await page.screenshot({ path: "/tmp/arcadia-admin-taxonomy-json.png" })
