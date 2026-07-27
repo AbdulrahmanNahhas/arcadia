@@ -1387,7 +1387,7 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("ar").format(value)
 }
 
-function formatYear(value: number | string) {
+export function formatYear(value: number | string) {
   const numericValue = Number(value)
 
   if (!Number.isFinite(numericValue)) return "غير محدد"

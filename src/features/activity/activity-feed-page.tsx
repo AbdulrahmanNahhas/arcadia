@@ -1,43 +1,25 @@
 import { useMemo, useState } from "react"
 import { Link } from "@tanstack/react-router"
+import { useInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query"
 import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query"
-import {
-  ArrowLeftIcon,
+  ArrowRightIcon,
   CalendarBlankIcon,
+  ChartBarIcon,
   ClockCounterClockwiseIcon,
+  ListBulletsIcon,
   PlusIcon,
-  TrashIcon,
 } from "@phosphor-icons/react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
@@ -48,21 +30,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { statusLabel } from "@/features/library/components/tracking-form"
+import type { Work } from "@/features/library/model"
+import { getTrackingPage, getWorks } from "@/server/library.functions"
+import { AddTrackingDialog } from "./activity-feed/add-tracking-dialog"
+import { ActivityCalendarPanel } from "./activity-feed/calendar-tab"
+import { FeedPanel } from "./activity-feed/feed-tab"
+import { SummaryPanel } from "./activity-feed/summary-tab"
 import {
-  TrackingForm,
-  statusLabel,
-} from "@/features/library/components/tracking-form"
-import { kindLabels } from "@/features/library/filtering"
-import type { TrackingEntry, Work } from "@/features/library/model"
-import { progressUnitLabelAr } from "@/features/library/translations"
-import {
-  getTrackingPage,
-  getWorkStructure,
-  getWorks,
-  removeTrackingEntry,
-} from "@/server/library.functions"
-import { cn } from "@/lib/utils"
-import { Progress } from "@/components/ui/progress"
+  groupEntries,
+  summarizeEntries,
+  type FeedGrouping,
+} from "./activity-feed-utils"
+
+const trackingStatuses = [
+  "planned",
+  "in-progress",
+  "completed",
+  "paused",
+  "dropped",
+] as const
 
 export function ActivityFeedPage() {
   const { data: works } = useSuspenseQuery({
@@ -73,6 +62,7 @@ export function ActivityFeedPage() {
   const [status, setStatus] = useState("all")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
+  const [grouping, setGrouping] = useState<FeedGrouping>("week")
   const [entryOpen, setEntryOpen] = useState(false)
   const query = useInfiniteQuery({
     queryKey: ["tracking-feed", workId, status, dateFrom, dateTo],
@@ -96,13 +86,32 @@ export function ActivityFeedPage() {
     () => new Map(works.map((work) => [work.id, work])),
     [works]
   )
-  const groups = useMemo(() => groupEntries(entries), [entries])
+  const groups = useMemo(
+    () => groupEntries(entries, grouping),
+    [entries, grouping]
+  )
+  const summary = useMemo(
+    () => summarizeEntries(entries, worksById),
+    [entries, worksById]
+  )
+  const filtersActive =
+    workId !== "all" || status !== "all" || Boolean(dateFrom || dateTo)
+
+  const clearFilters = () => {
+    setWorkId("all")
+    setStatus("all")
+    setDateFrom("")
+    setDateTo("")
+  }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 border-b bg-background/95 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
+    <div
+      dir="rtl"
+      className="min-h-screen overflow-x-clip bg-background text-foreground"
+    >
+      <header className="sticky top-1 z-10 mx-auto max-w-6xl rounded-full border bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-4">
+          <div className="flex min-w-0 items-center gap-3">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -110,11 +119,12 @@ export function ActivityFeedPage() {
               render={<Link to="/" />}
             >
               <span className="sr-only">العودة إلى المكتبة</span>
-              <ArrowLeftIcon />
+              <ArrowRightIcon />
             </Button>
-            <div>
-              <p className="text-xs text-muted-foreground">سجل المتابعة</p>
-              <h1 className="text-sm font-semibold">النشاط</h1>
+            <div className="min-w-0">
+              <h1 className="truncate font-heading text-lg font-semibold tracking-tight">
+                النشاط
+              </h1>
             </div>
           </div>
           <Button size="sm" onClick={() => setEntryOpen(true)}>
@@ -124,17 +134,24 @@ export function ActivityFeedPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>سجل التقدم</CardTitle>
+      <main className="mx-auto flex max-w-6xl min-w-0 flex-col gap-6 overflow-x-clip px-4 py-6 sm:px-6 lg:py-8">
+        <Card className="[--card-spacing:--spacing(5)]">
+          <CardHeader className="border-b">
+            <CardTitle>اعرض السجل كما تحتاج</CardTitle>
             <CardDescription>
-              كل إدخال لقطة مؤرخة للتقدم. يمكنك إضافة نقاط أقدم لاحقاً دون
-              استبدال التقدم الأحدث.
+              اختر عملاً أو حالة أو نطاقاً زمنياً. يؤثر التحديد في السجل والملخص
+              والتقويم معاً.
             </CardDescription>
+            {filtersActive ? (
+              <CardAction>
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  مسح التصفية
+                </Button>
+              </CardAction>
+            ) : null}
           </CardHeader>
           <CardContent>
-            <FieldGroup className="gap-3 sm:grid sm:grid-cols-4">
+            <FieldGroup className="gap-4 sm:grid sm:grid-cols-2 lg:grid-cols-4">
               <Field>
                 <FieldLabel htmlFor="feed-work">العمل</FieldLabel>
                 <Select
@@ -168,15 +185,7 @@ export function ActivityFeedPage() {
                   <SelectContent>
                     <SelectGroup>
                       <SelectItem value="all">كل الحالات</SelectItem>
-                      {(
-                        [
-                          "planned",
-                          "in-progress",
-                          "completed",
-                          "paused",
-                          "dropped",
-                        ] as const
-                      ).map((value) => (
+                      {trackingStatuses.map((value) => (
                         <SelectItem key={value} value={value}>
                           {statusLabel(value)}
                         </SelectItem>
@@ -186,7 +195,7 @@ export function ActivityFeedPage() {
                 </Select>
               </Field>
               <Field>
-                <FieldLabel htmlFor="feed-from">من</FieldLabel>
+                <FieldLabel htmlFor="feed-from">من تاريخ</FieldLabel>
                 <Input
                   id="feed-from"
                   type="date"
@@ -195,7 +204,7 @@ export function ActivityFeedPage() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="feed-to">إلى</FieldLabel>
+                <FieldLabel htmlFor="feed-to">إلى تاريخ</FieldLabel>
                 <Input
                   id="feed-to"
                   type="date"
@@ -212,54 +221,78 @@ export function ActivityFeedPage() {
             <AlertDescription>{query.error.message}</AlertDescription>
           </Alert>
         ) : null}
-        {!query.isPending && groups.length === 0 ? (
-          <Empty className="border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <CalendarBlankIcon />
-              </EmptyMedia>
-              <EmptyTitle>لا يوجد تتبع بعد</EmptyTitle>
-              <EmptyDescription>
-                أضف تقدم اليوم أو سجل بتاريخ سابق عملاً شاهدته أو قرأته.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {groups.map(([date, dayEntries]) => (
-              <section key={date} className="grid gap-3">
-                <header>
-                  <time
-                    className="sticky top-20 text-sm font-semibold"
-                    dateTime={date}
-                  >
-                    {formatDate(date)}
-                  </time>
-                </header>
-                <div className="grid gap-2 md:grid-cols-2">
-                  {dayEntries.map((entry) => {
-                    const work = worksById.get(entry.workId)
-                    if (!work) return null
-                    return (
-                      <TrackingCard key={entry.id} entry={entry} work={work} />
-                    )
-                  })}
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
-        {query.hasNextPage ? (
-          <Button
-            variant="outline"
-            className="self-center"
-            disabled={query.isFetchingNextPage}
-            onClick={() => query.fetchNextPage()}
-          >
-            <ClockCounterClockwiseIcon data-icon="inline-start" />
-            {query.isFetchingNextPage ? "جارٍ التحميل…" : "تحميل الأقدم"}
-          </Button>
-        ) : null}
+
+        <Tabs defaultValue="feed" className="min-w-0 gap-6">
+          <TabsList aria-label="عرض النشاط" className="max-w-full">
+            <TabsTrigger value="feed">
+              <ListBulletsIcon data-icon="inline-start" />
+              السجل
+              <Badge variant="secondary" className="ms-1">
+                {entries.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="summary">
+              <ChartBarIcon data-icon="inline-start" />
+              ملخص
+            </TabsTrigger>
+            <TabsTrigger value="calendar">
+              <CalendarBlankIcon data-icon="inline-start" />
+              التقويم
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="feed" className="min-w-0">
+            <div className="mb-6 flex flex-col gap-3 rounded-2xl border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium">تنظيم السجل</p>
+                <p className="text-xs text-muted-foreground">
+                  تُجمع تحديثات العمل المتكررة في الفترة نفسها لتظهر نقطة
+                  البداية والنهاية بوضوح.
+                </p>
+              </div>
+              <ToggleGroup
+                value={[grouping]}
+                multiple={false}
+                variant="outline"
+                size="sm"
+                spacing={0}
+                aria-label="طريقة تنظيم السجل"
+                onValueChange={(value) => {
+                  if (value[0]) setGrouping(value[0] as FeedGrouping)
+                }}
+              >
+                <ToggleGroupItem value="week">أسبوعي</ToggleGroupItem>
+                <ToggleGroupItem value="day">يومي</ToggleGroupItem>
+                <ToggleGroupItem value="month">شهري</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+            <FeedPanel
+              groups={groups}
+              worksById={worksById}
+              isPending={query.isPending}
+              filtersActive={filtersActive}
+            />
+            {query.hasNextPage ? (
+              <Button
+                variant="outline"
+                className="mx-auto mt-6"
+                disabled={query.isFetchingNextPage}
+                onClick={() => query.fetchNextPage()}
+              >
+                <ClockCounterClockwiseIcon data-icon="inline-start" />
+                {query.isFetchingNextPage ? "جارٍ التحميل…" : "تحميل الأقدم"}
+              </Button>
+            ) : null}
+          </TabsContent>
+
+          <TabsContent value="summary" className="min-w-0">
+            <SummaryPanel summary={summary} worksById={worksById} />
+          </TabsContent>
+
+          <TabsContent value="calendar" className="min-w-0">
+            <ActivityCalendarPanel entries={entries} worksById={worksById} />
+          </TabsContent>
+        </Tabs>
       </main>
 
       <AddTrackingDialog
@@ -269,170 +302,4 @@ export function ActivityFeedPage() {
       />
     </div>
   )
-}
-
-function TrackingCard({ entry, work }: { entry: TrackingEntry; work: Work }) {
-  const queryClient = useQueryClient()
-  const mutation = useMutation({
-    mutationFn: removeTrackingEntry,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["tracking-feed"] }),
-        queryClient.invalidateQueries({ queryKey: ["works"] }),
-        queryClient.invalidateQueries({ queryKey: ["work-tracking", work.id] }),
-        queryClient.invalidateQueries({
-          queryKey: ["work-structure", work.id],
-        }),
-      ])
-    },
-  })
-  return (
-    <Card className="p-2">
-      <CardContent className="flex items-center gap-4 p-2">
-        {work.imagePath ? (
-          <img
-            src={work.imagePath}
-            alt=""
-            className="h-auto w-16 rounded-md object-cover"
-          />
-        ) : null}
-        <div className="min-w-0 flex-1 gap-2">
-          <div className="border-px mb-2 flex flex-wrap items-center gap-0">
-            <Badge variant="outline" className="rounded-r-none">
-              {kindLabels[work.kind]}
-            </Badge>
-            <Badge
-              variant="secondary"
-              className={cn(
-                "rounded-l-none",
-                entry.status === "in-progress" &&
-                  "bg-blue-400/15 text-blue-400",
-                entry.status === "completed" &&
-                  "bg-green-400/15 text-green-400",
-                entry.status === "dropped" && "bg-red-400/15 text-red-400/50",
-                entry.status === "paused" && "bg-gray-400/15 text-gray-400",
-                entry.status === "planned" && "bg-yellow-400/15 text-yellow-400"
-              )}
-            >
-              {statusLabel(entry.status)}
-            </Badge>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <strong className="truncate text-sm">
-              {work.arabicTitle || work.title}
-            </strong>
-          </div>
-          <div className="group relative flex flex-col gap-2">
-            <p
-              className={cn(
-                "mt-1 text-sm text-muted-foreground",
-                work.progressTotal && "opacity-0 group-hover:opacity-100!"
-              )}
-            >
-              التقدم {entry.progress}
-              {work.progressTotal ? ` من ${work.progressTotal}` : ""}{" "}
-              {progressUnitLabelAr(work.progressUnit)}
-            </p>
-            {work.progressTotal && (
-              <>
-                <Progress
-                  value={(entry.progress / work.progressTotal) * 100}
-                  className={"absolute bottom-0 w-full group-hover:opacity-0"}
-                />
-              </>
-            )}
-          </div>
-        </div>
-        <Button
-          variant="destructive"
-          size="icon-sm"
-          aria-label={`حذف نقطة تقدم ${work.arabicTitle || work.title} بتاريخ ${entry.occurredOn}`}
-          disabled={mutation.isPending}
-          className={"bg-transparent! hover:bg-destructive/10!"}
-          onClick={() => mutation.mutate({ data: { entryId: entry.id } })}
-        >
-          <TrashIcon />
-        </Button>
-      </CardContent>
-    </Card>
-  )
-}
-
-function AddTrackingDialog({
-  open,
-  onOpenChange,
-  works,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  works: Work[]
-}) {
-  const [workId, setWorkId] = useState(works[0]?.id ?? "")
-  const work = works.find((item) => item.id === workId)
-  const structure = useQuery({
-    queryKey: ["work-structure", workId],
-    queryFn: () => getWorkStructure({ data: { workId } }),
-    enabled: open && Boolean(workId),
-  })
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>إضافة تقدم</DialogTitle>
-          <DialogDescription>
-            اختر العمل ومقدار التقدم والحالة وتاريخ حدوثه.
-          </DialogDescription>
-        </DialogHeader>
-        <Field>
-          <FieldLabel htmlFor="tracking-work">العمل</FieldLabel>
-          <Select
-            value={workId}
-            onValueChange={(value) => value && setWorkId(value)}
-          >
-            <SelectTrigger id="tracking-work" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {works.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.arabicTitle || item.title}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
-        {work ? (
-          <TrackingForm
-            key={work.id}
-            work={work}
-            structure={structure.data}
-            compact
-            onSaved={() => onOpenChange(false)}
-          />
-        ) : null}
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function groupEntries(entries: TrackingEntry[]) {
-  const groups = new Map<string, TrackingEntry[]>()
-  for (const entry of entries)
-    groups.set(entry.occurredOn, [
-      ...(groups.get(entry.occurredOn) ?? []),
-      entry,
-    ])
-  return [...groups.entries()]
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ar", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T00:00:00Z`))
 }
