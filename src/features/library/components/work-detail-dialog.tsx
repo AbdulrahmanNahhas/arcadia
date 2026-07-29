@@ -6,7 +6,12 @@ import {
   ArrowsOutIcon,
   ArrowSquareOutIcon,
   CaretDownIcon,
+  CheckIcon,
+  CopyIcon,
   HeartIcon,
+  MarkdownLogoIcon,
+  TelegramLogoIcon,
+  WhatsappLogoIcon,
   XIcon,
 } from "@phosphor-icons/react"
 
@@ -18,6 +23,14 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Progress,
   ProgressLabel,
@@ -147,6 +160,8 @@ export function WorkDetailDialog({
         />
 
         <DialogFloatingActions
+          work={work}
+          taxonomyLabel={taxonomyLabel}
           fullScreen={fullScreen}
           onToggleFullScreen={() => setFullScreen((value) => !value)}
           onClose={() => onOpenChange(false)}
@@ -829,14 +844,38 @@ function activitySeasonLabel(title: string, number: number | null) {
 }
 
 function DialogFloatingActions({
+  work,
+  taxonomyLabel,
   fullScreen,
   onToggleFullScreen,
   onClose,
 }: {
+  work: Work
+  taxonomyLabel: ReturnType<typeof useArabicTranslations>["taxonomyLabel"]
   fullScreen: boolean
   onToggleFullScreen: () => void
   onClose: () => void
 }) {
+  const [copiedFormat, setCopiedFormat] = useState<ShareFormat | null>(null)
+
+  useEffect(() => {
+    if (!copiedFormat) return
+
+    const timeout = window.setTimeout(() => setCopiedFormat(null), 2_000)
+    return () => window.clearTimeout(timeout)
+  }, [copiedFormat])
+
+  const handleCopy = async (format: ShareFormat) => {
+    try {
+      await copyTextToClipboard(
+        formatWorkShareText(work, format, taxonomyLabel)
+      )
+      setCopiedFormat(format)
+    } catch {
+      setCopiedFormat(null)
+    }
+  }
+
   return (
     <div
       className={cn(
@@ -854,6 +893,46 @@ function DialogFloatingActions({
       >
         <XIcon />
       </Button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="نسخ معلومات العمل"
+              title="نسخ ومشاركة"
+            />
+          }
+        >
+          {copiedFormat ? <CheckIcon /> : <CopyIcon />}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56" dir="rtl">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>نسخ بصيغة مناسبة لـ</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => handleCopy("plain")}>
+              <CopyIcon />
+              نص عام
+              {copiedFormat === "plain" && <CheckIcon className="ms-auto" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleCopy("whatsapp")}>
+              <WhatsappLogoIcon />
+              واتساب
+              {copiedFormat === "whatsapp" && <CheckIcon className="ms-auto" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleCopy("telegram")}>
+              <TelegramLogoIcon />
+              تيليجرام
+              {copiedFormat === "telegram" && <CheckIcon className="ms-auto" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleCopy("markdown")}>
+              <MarkdownLogoIcon />
+              Markdown
+              {copiedFormat === "markdown" && <CheckIcon className="ms-auto" />}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <Button
         variant="ghost"
@@ -1502,7 +1581,9 @@ const sourceTypeTranslations: Record<string, string> = {
 }
 
 const curationStatusTranslations: Record<string, string> = {
-  reviewed: "تمت مراجعته",
+  verified: "موثّق",
+  provisional: "مؤقت",
+  reviewed: "تمت المراجعة",
   approved: "معتمد",
   pending: "بانتظار المراجعة",
   draft: "مسودة",
@@ -1651,4 +1732,306 @@ function formatMinutes(value: number) {
   }
 
   return `${formatNumber(hours)} ساعة و${formatNumber(minutes)} دقيقة`
+}
+
+type ShareFormat = "plain" | "whatsapp" | "telegram" | "markdown"
+
+type ShareField = {
+  label: string
+  value: string
+}
+
+type ShareSection = {
+  title: string
+  fields: ShareField[]
+}
+
+function formatWorkShareText(
+  work: Work,
+  format: ShareFormat,
+  taxonomyLabel: ReturnType<typeof useArabicTranslations>["taxonomyLabel"]
+) {
+  const releaseSpan =
+    work.releaseStart &&
+    work.releaseEnd &&
+    work.releaseStart !== work.releaseEnd
+      ? `${formatDateString(work.releaseStart)} — ${formatDateString(
+          work.releaseEnd
+        )}`
+      : formatDateString(work.releaseStart ?? work.releaseEnd)
+
+  const sections = [
+    makeShareSection("معلومات العمل", [
+      [
+        "العنوان العربي",
+        work.arabicTitle && work.arabicTitle !== work.title
+          ? work.arabicTitle
+          : null,
+      ],
+      ["أسماء أخرى", work.aliases.join("، ")],
+      ["النوع", translatedKind(work.kind)],
+      [
+        "حالة الإصدار",
+        work.releaseStatus === "unknown"
+          ? null
+          : releaseStatusLabel(work.releaseStatus),
+      ],
+      ["الإصدار", releaseSpan || (work.year ? formatYear(work.year) : null)],
+      ["صنّاع العمل", work.creator],
+      [
+        "البلد",
+        work.country
+          .map((country) => taxonomyLabel("country", country))
+          .join("، "),
+      ],
+      [
+        "الفئة العمرية",
+        work.audience ? taxonomyLabel("audience", work.audience) : null,
+      ],
+      ["الاستوديوهات", work.studios.join("، ")],
+      [
+        "المدة",
+        work.runtimeMinutes === null
+          ? null
+          : formatMinutes(work.runtimeMinutes),
+      ],
+      [
+        "مدة اللعب",
+        work.playtimeMinutes === null
+          ? null
+          : formatMinutes(work.playtimeMinutes),
+      ],
+      ["الصفحات", shareNumber(work.pageCount)],
+      ["الحلقات", shareNumber(work.episodeCount)],
+      ["الفصول", shareNumber(work.chapterCount)],
+      ["المجلدات", shareNumber(work.volumeCount)],
+      ["المسارات", shareNumber(work.routeCount)],
+    ]),
+    makeShareSection("السجل الشخصي", [
+      ["الحالة", translatedStatus(statusLabel(work.status))],
+      ["التقدّم", localizedProgressText(work)],
+      ["التقييم", shareRating(work.calculatedRating)],
+      ["المفضلة", work.favorite ? "نعم" : null],
+      ["تاريخ الإضافة", formatDateString(work.trackedOn)],
+      ["أول مشاهدة", formatDateString(work.watchDates?.firstWatchedAt ?? null)],
+      ["آخر مشاهدة", formatDateString(work.watchDates?.lastWatchedAt ?? null)],
+      ["تاريخ الإكمال", formatDateString(work.watchDates?.completedAt ?? null)],
+      ["تاريخ الإنجاز", formatTimestamp(work.completedAt)],
+      ["مشاركة التجربة مع", work.sharedWith.join("، ")],
+    ]),
+    makeShareSection("تفاصيل التقييم", [
+      ...scoreCriteria.map(
+        (criterion) =>
+          [
+            scoreLabel(criterion, work.kind).ar,
+            shareRating(work.scoreComponents[criterion]),
+          ] as const
+      ),
+    ]),
+    makeShareSection("النبذة", [["الوصف", work.summary]]),
+    makeShareSection("التصنيف", [
+      [
+        "التصنيفات",
+        work.genres.map((genre) => taxonomyLabel("genre", genre)).join("، "),
+      ],
+      [
+        "الطابع",
+        work.tone.map((tone) => taxonomyLabel("tone", tone)).join("، "),
+      ],
+      [
+        "الموضوعات",
+        work.tags.map((tag) => taxonomyLabel("tag", tag)).join("، "),
+      ],
+    ]),
+    makeShareSection("النشر والمصدر", [
+      ["الصيغة", work.publication?.format],
+      ["الناشر", work.publication?.publisher],
+      ["العلامة", work.publication?.imprint],
+      ["التسلسل", work.publication?.serialization.join("، ")],
+      ["المحتويات", work.publication?.contents.join("، ")],
+      [
+        "المادة الأصلية",
+        work.sourceMaterial ? sourceTypeLabel(work.sourceMaterial.type) : null,
+      ],
+      ["منشور المصدر", work.sourceMaterial?.publication],
+      [
+        "بداية نشر المصدر",
+        work.sourceMaterial?.started === null ||
+        work.sourceMaterial?.started === undefined
+          ? null
+          : formatYear(work.sourceMaterial.started),
+      ],
+      [
+        "نهاية نشر المصدر",
+        work.sourceMaterial?.finished === null ||
+        work.sourceMaterial?.finished === undefined
+          ? null
+          : formatYear(work.sourceMaterial.finished),
+      ],
+      ["تسلسل المصدر", work.sourceMaterial?.serialization.join("، ")],
+    ]),
+    makeShareSection(
+      "طاقم العمل الأساسي",
+      work.credits.map(
+        (credit) => [creditRoleLabel(credit.role), credit.name] as const
+      )
+    ),
+    makeShareSection("ملف المحتوى", [
+      ["ملاحظات المحتوى", work.contentWarnings],
+      ["التحليل العقدي", work.analysisNotes],
+      [
+        "المحتوى الجنسي",
+        work.riskProfile ? riskConfig[work.riskProfile.sexuality].label : null,
+      ],
+      [
+        "السلوكيات",
+        work.riskProfile ? riskConfig[work.riskProfile.behavioral].label : null,
+      ],
+      [
+        "المحتوى العقدي",
+        work.riskProfile ? riskConfig[work.riskProfile.theology].label : null,
+      ],
+    ]),
+    makeShareSection("معلومات المراجعة", [
+      [
+        "الحالة",
+        work.curation ? curationStatusLabel(work.curation.status) : null,
+      ],
+      ["تاريخ المراجعة", formatDateString(work.curation?.reviewedAt ?? null)],
+      ["ملاحظات المراجعة", work.curation?.notes],
+    ]),
+    makeShareSection(
+      "الأعمال المرتبطة",
+      work.relations.map(
+        (relation) =>
+          [
+            relationContextLabel(relation),
+            [
+              relation.work.title,
+              translatedKind(relation.work.kind),
+              relation.work.year ? formatYear(relation.work.year) : null,
+              relation.notes.trim() || null,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+          ] as const
+      )
+    ),
+    makeShareSection(
+      "الروابط الخارجية",
+      work.externalLinks.map((link) => [link.label, link.url] as const)
+    ),
+  ].filter((section): section is ShareSection => section !== null)
+
+  return renderShareText(work.title, sections, format)
+}
+
+function makeShareSection(
+  title: string,
+  fields: ReadonlyArray<readonly [string, string | null | undefined]>
+): ShareSection | null {
+  const populatedFields = fields.flatMap(([label, value]) => {
+    const normalizedValue = value?.trim()
+    return normalizedValue ? [{ label, value: normalizedValue }] : []
+  })
+
+  return populatedFields.length > 0 ? { title, fields: populatedFields } : null
+}
+
+function renderShareText(
+  title: string,
+  sections: ShareSection[],
+  format: ShareFormat
+) {
+  const indented = (value: string) => value.replaceAll("\n", "\n  ")
+
+  if (format === "markdown") {
+    return [
+      `# 🎬 ${title}`,
+      ...sections.map(
+        (section) =>
+          `## ${section.title}\n${section.fields
+            .map((field) => `- **${field.label}:** ${indented(field.value)}`)
+            .join("\n")}`
+      ),
+    ].join("\n\n")
+  }
+
+  if (format === "whatsapp") {
+    return [
+      `*🎬 ${title}*`,
+      ...sections.map(
+        (section) =>
+          `*${section.title}*\n${section.fields
+            .map((field) => `• *${field.label}:* ${indented(field.value)}`)
+            .join("\n")}`
+      ),
+    ].join("\n\n")
+  }
+
+  if (format === "telegram") {
+    return [
+      `🎬 ${title}`,
+      ...sections.map(
+        (section) =>
+          `▰ ${section.title}\n${section.fields
+            .map((field) => `• ${field.label}: ${indented(field.value)}`)
+            .join("\n")}`
+      ),
+    ].join("\n\n")
+  }
+
+  return [
+    title,
+    ...sections.map(
+      (section) =>
+        `${section.title}\n${section.fields
+          .map((field) => `${field.label}: ${indented(field.value)}`)
+          .join("\n")}`
+    ),
+  ].join("\n\n")
+}
+
+function shareNumber(value: number | null) {
+  return value === null ? null : formatNumber(value)
+}
+
+function shareRating(value: number | null | undefined) {
+  return value === null || value === undefined
+    ? null
+    : `${value.toFixed(1)} / 10`
+}
+
+function formatTimestamp(value: number | null) {
+  if (value === null) return null
+
+  const date = new Date(value)
+  if (Number.isNaN(date.valueOf())) return null
+
+  return new Intl.DateTimeFormat("ar", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date)
+}
+
+async function copyTextToClipboard(text: string) {
+  if ("clipboard" in navigator && window.isSecureContext) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  const textarea = document.createElement("textarea")
+  textarea.value = text
+  textarea.readOnly = true
+  textarea.dir = "rtl"
+  textarea.style.position = "fixed"
+  textarea.style.opacity = "0"
+  document.body.append(textarea)
+  textarea.select()
+
+  const copied = document.execCommand("copy")
+  textarea.remove()
+
+  if (!copied) throw new Error("Clipboard copy failed")
 }
