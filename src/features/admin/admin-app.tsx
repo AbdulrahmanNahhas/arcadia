@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router"
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import {
   ActivityIcon,
-  ArrowLeftIcon,
+  BookmarkSimpleIcon,
   BracketsCurlyIcon,
   CheckIcon,
   DatabaseIcon,
@@ -12,7 +12,6 @@ import {
   NotePencilIcon,
   PlusIcon,
   SelectionAllIcon,
-  SparkleIcon,
   TranslateIcon,
   XIcon,
 } from "@phosphor-icons/react"
@@ -56,6 +55,7 @@ import { JsonEditorDialog } from "./components/json-editor"
 import { BulkEditDialog } from "./components/bulk-edit"
 import { TaxonomyManagerDialog } from "./components/taxonomy-manager"
 import { AddWorksDialog } from "./components/add-works-dialog"
+import { ViewsManagerDialog } from "./components/views-manager"
 import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr"
 
 function createDefaultFilters(): WorkFilterState {
@@ -107,6 +107,7 @@ export function AdminApp() {
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false)
   const [taxonomyOpen, setTaxonomyOpen] = useState(false)
+  const [viewsManagerOpen, setViewsManagerOpen] = useState(false)
 
   const facetOptions = useMemo(() => buildFacetOptions(works), [works])
   const visibleWorks = useMemo(
@@ -176,6 +177,16 @@ export function AdminApp() {
             >
               <ActivityIcon data-icon="inline-start" />
               النشاط
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewsManagerOpen(true)}
+              className="h-9 gap-1.5 border-border/60 text-xs"
+            >
+              <BookmarkSimpleIcon data-icon="inline-start" />
+              إدارة العروض
             </Button>
 
             <Button
@@ -551,6 +562,10 @@ export function AdminApp() {
       <TaxonomyManagerDialog
         open={taxonomyOpen}
         onOpenChange={setTaxonomyOpen}
+      />
+      <ViewsManagerDialog
+        open={viewsManagerOpen}
+        onOpenChange={setViewsManagerOpen}
       />
     </div>
   )

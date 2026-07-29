@@ -38,7 +38,7 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const restorePreferences = `(function(){try{var r=document.documentElement,t=localStorage.getItem('arcadia:theme');if(t==='dark')r.classList.add('dark');r.dataset.sidebarOpen=localStorage.getItem('arcadia:sidebar-open')==='false'?'false':'true';r.dataset.focusMode=localStorage.getItem('arcadia:focus-mode')==='true'?'true':'false';r.style.colorScheme=t==='dark'?'dark':'light'}catch(e){}})()`
+  const restorePreferences = `(function(){try{var r=document.documentElement,t=localStorage.getItem('arcadia:theme');if(t==='dark')r.classList.add('dark');r.style.colorScheme=t==='dark'?'dark':'light'}catch(e){}})()`
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>

@@ -1091,8 +1091,10 @@ export function listSavedViews(): SavedUserView[] {
         >
       >
       const display = row.display as {
-        gallery?: SavedUserView["gallery"]
+        gallery?: Partial<SavedUserView["gallery"]>
+        tableDensity?: SavedUserView["tableDensity"]
       }
+      const galleryMode = display.gallery?.mode ?? "full"
       return {
         id: row.id,
         name: row.name,
@@ -1109,14 +1111,20 @@ export function listSavedViews(): SavedUserView[] {
         yearFrom: filters.yearFrom ?? null,
         yearTo: filters.yearTo ?? null,
         cardSize: row.cardSize,
-        gallery:
-          display.gallery ??
-          ({
-            mode: "full",
-            imageType: "poster",
-            showType: true,
-            showRating: true,
-          } as const),
+        gallery: {
+          mode: galleryMode,
+          imageType: display.gallery?.imageType ?? "poster",
+          showType: display.gallery?.showType ?? true,
+          showRating: display.gallery?.showRating ?? true,
+          showTitle: display.gallery?.showTitle ?? galleryMode !== "cover",
+          showFavorite:
+            display.gallery?.showFavorite ?? galleryMode !== "cover",
+          showCreator: display.gallery?.showCreator ?? false,
+          showYear: display.gallery?.showYear ?? galleryMode === "full",
+          showGenres: display.gallery?.showGenres ?? galleryMode === "full",
+          showProgress: display.gallery?.showProgress ?? false,
+        },
+        tableDensity: display.tableDensity ?? "comfortable",
         facets: filters.facets,
         search: row.search,
         visibleColumns: row.visibleColumns,
@@ -1152,7 +1160,10 @@ export function createSavedView(
       visibleColumns: input.visibleColumns,
       cardSize: input.cardSize,
       search: input.search,
-      display: { gallery: input.gallery },
+      display: {
+        gallery: input.gallery,
+        tableDensity: input.tableDensity,
+      },
       isPinned: input.isPinned,
       createdAt: now,
       updatedAt: now,

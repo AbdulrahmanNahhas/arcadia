@@ -42,14 +42,15 @@ export function WorkArtwork({
   showRating?: boolean
   className?: string
 }) {
-  const path = image === "logo" ? work.logoPath : work.imagePath
+  const artworkType = image === "logo" && work.logoPath ? "logo" : "poster"
+  const path = artworkType === "logo" ? work.logoPath : work.imagePath
 
   return (
     <div
       className={cn(
         "group/art relative isolate overflow-hidden",
-        image === "logo" ? "aspect-square" : "aspect-2/3",
-        image === "logo" && path
+        artworkType === "logo" ? "aspect-square" : "aspect-2/3",
+        artworkType === "logo" && path
           ? "bg-white/90 dark:bg-white/85"
           : cn(
               "bg-linear-to-br",
@@ -65,7 +66,7 @@ export function WorkArtwork({
           alt=""
           className={cn(
             "size-full transition duration-500 group-hover/art:scale-[1.025]",
-            image === "logo" ? "object-contain p-6" : "object-cover"
+            artworkType === "logo" ? "object-contain p-6" : "object-cover"
           )}
         />
       ) : (
@@ -87,7 +88,7 @@ export function WorkArtwork({
         </div>
       )}
 
-      {image === "poster" && path && (
+      {artworkType === "poster" && path && (
         <div className="absolute inset-0 bg-linear-to-t from-black/55 via-transparent to-black/15" />
       )}
 

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as FeedRouteImport } from './routes/feed'
+import { Route as LibraryCollectionRouteImport } from './routes/library.$collection'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,44 @@ const FeedRoute = FeedRouteImport.update({
   path: '/feed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LibraryCollectionRoute = LibraryCollectionRouteImport.update({
+  id: '/library/$collection',
+  path: '/library/$collection',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/feed': typeof FeedRoute
+  '/library/$collection': typeof LibraryCollectionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/feed': typeof FeedRoute
+  '/library/$collection': typeof LibraryCollectionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/feed': typeof FeedRoute
+  '/library/$collection': typeof LibraryCollectionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/feed'
+  fullPaths: '/' | '/admin' | '/feed' | '/library/$collection'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/feed'
-  id: '__root__' | '/' | '/admin' | '/feed'
+  to: '/' | '/admin' | '/feed' | '/library/$collection'
+  id: '__root__' | '/' | '/admin' | '/feed' | '/library/$collection'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   FeedRoute: typeof FeedRoute
+  LibraryCollectionRoute: typeof LibraryCollectionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/library/$collection': {
+      id: '/library/$collection'
+      path: '/library/$collection'
+      fullPath: '/library/$collection'
+      preLoaderRoute: typeof LibraryCollectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   FeedRoute: FeedRoute,
+  LibraryCollectionRoute: LibraryCollectionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

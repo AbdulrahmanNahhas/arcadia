@@ -58,9 +58,17 @@ export function AddWorkDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" className="h-8" />}>
-        <PlusIcon className="size-3.5" weight="bold" />
-        إضافة عمل
+      <DialogTrigger
+        render={
+          <Button
+            size="sm"
+            className="size-10 px-0 sm:h-8 sm:w-auto sm:px-3"
+            aria-label="إضافة عمل"
+          />
+        }
+      >
+        <PlusIcon data-icon="inline-start" weight="bold" />
+        <span className="hidden sm:inline">إضافة عمل</span>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>

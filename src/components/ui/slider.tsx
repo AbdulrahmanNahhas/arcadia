@@ -1,6 +1,7 @@
 import { Slider as SliderPrimitive } from "@base-ui/react/slider"
 
 import { cn } from "@/lib/utils"
+import { DirectionProvider } from "@base-ui/react"
 
 function Slider({
   className,
@@ -17,8 +18,10 @@ function Slider({
       : [min, max]
 
   return (
+    <DirectionProvider direction="rtl">
+
     <SliderPrimitive.Root
-      className={cn("data-horizontal:w-full data-vertical:h-full", className)}
+      className={cn("data-horizontal:w-full data-vertical:h-full ltr", className)}
       data-slot="slider"
       defaultValue={defaultValue}
       value={value}
@@ -46,6 +49,7 @@ function Slider({
         ))}
       </SliderPrimitive.Control>
     </SliderPrimitive.Root>
+    </DirectionProvider>
   )
 }
 

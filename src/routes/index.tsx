@@ -1,8 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { LibraryApp } from "@/features/library/library-app"
+import { LibraryHome } from "@/features/library/library-home"
 
-export const Route = createFileRoute("/")({ component: App })
-
-function App() {
-  return <LibraryApp />
-}
+export const Route = createFileRoute("/")({ component: LibraryHome })

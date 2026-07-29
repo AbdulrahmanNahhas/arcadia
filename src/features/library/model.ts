@@ -670,11 +670,20 @@ export const savedUserViewSchema = z.object({
   yearTo: z.number().int().nullable(),
   cardSize: z.number().int().min(1).max(300),
   gallery: z.object({
-    mode: z.enum(["cover", "title", "full"]),
+    mode: z.enum(["cover", "title", "full", "custom"]),
     imageType: z.enum(["poster", "logo"]),
     showType: z.boolean(),
     showRating: z.boolean(),
+    showTitle: z.boolean().default(true),
+    showFavorite: z.boolean().default(true),
+    showCreator: z.boolean().default(false),
+    showYear: z.boolean().default(true),
+    showGenres: z.boolean().default(true),
+    showProgress: z.boolean().default(false),
   }),
+  tableDensity: z
+    .enum(["compact", "comfortable", "spacious"])
+    .default("comfortable"),
   facets: z
     .object(
       Object.fromEntries(

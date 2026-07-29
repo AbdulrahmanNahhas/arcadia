@@ -18,16 +18,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { workKinds } from "./model"
@@ -56,6 +46,16 @@ import {
   statusLabelsAr,
   useArabicTranslations,
 } from "./translations"
+import {
+  Dialog,
+  DialogContent,
+  DialogClose,
+  DialogDescription,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 export function AdvancedFilter({
   filters,
@@ -127,16 +127,20 @@ export function AdvancedFilter({
     })
 
   return (
-    <Sheet>
-      <SheetTrigger
+    <Dialog>
+      <DialogTrigger
         render={
           <Button
             variant={activeCount ? "secondary" : "outline"}
             size="sm"
-            className="h-8 gap-1.5 border-border/60 text-xs"
+            className="size-10 gap-1.5 border-border/60 px-0 text-xs sm:h-8 sm:w-auto sm:px-3"
+            aria-label={triggerLabel}
           >
-            <FunnelSimpleIcon className="size-3.5 text-muted-foreground" />
-            <span>{triggerLabel}</span>
+            <FunnelSimpleIcon
+              data-icon="inline-start"
+              className="text-muted-foreground"
+            />
+            <span className="hidden sm:inline">{triggerLabel}</span>
             {activeCount > 0 && (
               <Badge
                 variant="default"
@@ -149,17 +153,14 @@ export function AdvancedFilter({
         }
       />
 
-      <SheetContent
-        side="right"
-        className="flex h-full w-full flex-col gap-0 p-0 sm:max-w-lg"
-      >
+      <DialogContent className="flex max-h-[85vh] w-full max-w-lg flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
         {/* Fixed Header */}
-        <SheetHeader className="gap-1 border-b border-border/40 p-5 pb-4 text-start">
-          <SheetTitle className="text-base font-semibold">{title}</SheetTitle>
-          <SheetDescription className="text-xs leading-normal">
+        <DialogHeader className="gap-1 border-b border-border/40 p-5 pb-4 text-start">
+          <DialogTitle className="text-base font-semibold">{title}</DialogTitle>
+          <DialogDescription className="text-xs leading-normal">
             اضغط مرة للتضمين، ومرتين للاستبعاد، وثلاث مرات لإلغاء الاختيار.
-          </SheetDescription>
-        </SheetHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Scrollable Main Area */}
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-5">
@@ -362,14 +363,10 @@ export function AdvancedFilter({
               />
             ))}
           </div>
-
-          <p className="text-[11px] leading-relaxed text-muted-foreground/80 italic">
-            تُحفظ الاستبعادات مع العرض وتُطبّق في جميع أنحاء المكتبة.
-          </p>
         </div>
 
         {/* Fixed Footer */}
-        <SheetFooter className="flex flex-row items-center justify-between gap-2 border-t border-border/40 bg-background/95 p-4 backdrop-blur sm:justify-between">
+        <DialogFooter className="flex flex-row items-center justify-between gap-2 border-t border-border/40 bg-background/95 p-4 backdrop-blur sm:justify-between">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="font-mono text-sm font-semibold text-foreground">
               {matchingCount}
@@ -386,7 +383,7 @@ export function AdvancedFilter({
             >
               مسح الكل
             </Button>
-            <SheetClose
+            <DialogClose
               render={
                 <Button size="sm" className="h-8 text-xs">
                   تم
@@ -394,9 +391,9 @@ export function AdvancedFilter({
               }
             />
           </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
