@@ -7,8 +7,17 @@ import {
 } from "@phosphor-icons/react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSet,
+  FieldLegend,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
+import { Slider } from "@/components/ui/slider"
 import {
   Sheet,
   SheetClose,
@@ -26,12 +35,15 @@ import type { Work, WorkKind } from "./model"
 import {
   countActiveFilters,
   createEmptyFacetFilters,
+  createEmptyScoreFilters,
   cycleCategoricalValue,
   cycleSelection,
   facetDefinitions,
   kindLabels,
   personalStatuses,
 } from "./filtering"
+import { scoreCriteria, scoreCriterionLabels } from "./scoring"
+import type { ScoreComponents, ScoreCriterion } from "./scoring"
 import type {
   FacetFilters,
   FacetOption,
@@ -107,6 +119,7 @@ export function AdvancedFilter({
       statuses: [],
       excludedStatuses: [],
       minRating: 0,
+      minScores: createEmptyScoreFilters(),
       favoriteOnly: false,
       yearFrom: null,
       yearTo: null,
@@ -138,10 +151,10 @@ export function AdvancedFilter({
 
       <SheetContent
         side="right"
-        className="flex h-full w-full flex-col gap-0 p-0 sm:max-w-md"
+        className="flex h-full w-full flex-col gap-0 p-0 sm:max-w-lg"
       >
         {/* Fixed Header */}
-        <SheetHeader className="space-y-1 border-b border-border/40 p-5 pb-4 text-left">
+        <SheetHeader className="gap-1 border-b border-border/40 p-5 pb-4 text-start">
           <SheetTitle className="text-base font-semibold">{title}</SheetTitle>
           <SheetDescription className="text-xs leading-normal">
             اضغط مرة للتضمين، ومرتين للاستبعاد، وثلاث مرات لإلغاء الاختيار.
@@ -149,7 +162,7 @@ export function AdvancedFilter({
         </SheetHeader>
 
         {/* Scrollable Main Area */}
-        <div className="flex-1 space-y-5 overflow-y-auto p-5">
+        <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-5">
           {/* Legend Pill */}
           <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/40 px-3 py-2 text-xs">
             <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
@@ -234,34 +247,53 @@ export function AdvancedFilter({
 
           <Separator className="bg-border/40" />
 
-          {/* Numeric Filters Grid */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">
-                أقل تقييم
-              </label>
-              <select
-                value={filters.minRating}
-                onChange={(event) =>
-                  onChange({
-                    ...filters,
-                    minRating: Number(event.target.value),
-                  })
-                }
-                className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                <option value="0">أي تقييم</option>
-                <option value="7">7+</option>
-                <option value="8">8+</option>
-                <option value="9">9+</option>
-              </select>
+          <FieldSet className="gap-4 rounded-2xl border bg-muted/20 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <FieldLegend className="mb-1 text-sm">حدود التقييم</FieldLegend>
+                <FieldDescription className="text-xs">
+                  اعرض الأعمال التي تبلغ هذه الدرجات أو تتجاوزها.
+                </FieldDescription>
+              </div>
+              <Badge variant="secondary" className="shrink-0 font-mono">
+                {Object.keys(filters.minScores).length +
+                  Number(filters.minRating > 0)}{" "}
+                نشط
+              </Badge>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">
-                صدر بعد
-              </label>
+            <ScoreThreshold
+              label="التقييم الكلي"
+              value={filters.minRating}
+              onChange={(minRating) => onChange({ ...filters, minRating })}
+            />
+
+            <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+              {scoreCriteria.map((criterion) => (
+                <ScoreThreshold
+                  key={criterion}
+                  label={scoreCriterionLabels[criterion].ar}
+                  value={filters.minScores[criterion] ?? 0}
+                  onChange={(value) =>
+                    onChange({
+                      ...filters,
+                      minScores: updateMinimumScore(
+                        filters.minScores,
+                        criterion,
+                        value
+                      ),
+                    })
+                  }
+                />
+              ))}
+            </div>
+          </FieldSet>
+
+          <FieldGroup className="grid gap-3 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="filter-year-from">صدر بعد</FieldLabel>
               <Input
+                id="filter-year-from"
                 type="number"
                 placeholder="أي سنة"
                 className="h-9 text-xs"
@@ -275,13 +307,12 @@ export function AdvancedFilter({
                   })
                 }
               />
-            </div>
+            </Field>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-foreground">
-                صدر قبل
-              </label>
+            <Field>
+              <FieldLabel htmlFor="filter-year-to">صدر قبل</FieldLabel>
               <Input
+                id="filter-year-to"
                 type="number"
                 placeholder="أي سنة"
                 className="h-9 text-xs"
@@ -295,8 +326,8 @@ export function AdvancedFilter({
                   })
                 }
               />
-            </div>
-          </div>
+            </Field>
+          </FieldGroup>
 
           {/* Favorites Switch */}
           <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-3">
@@ -317,7 +348,7 @@ export function AdvancedFilter({
           </div>
 
           {/* Facets Sections */}
-          <div className="space-y-3 pt-2">
+          <div className="flex flex-col gap-3 pt-2">
             {facetDefinitions.map((definition) => (
               <FacetSection
                 key={definition.key}
@@ -366,6 +397,53 @@ export function AdvancedFilter({
         </SheetFooter>
       </SheetContent>
     </Sheet>
+  )
+}
+
+function updateMinimumScore(
+  scores: ScoreComponents,
+  criterion: ScoreCriterion,
+  value: number
+) {
+  if (value === 0) {
+    const next = { ...scores }
+    delete next[criterion]
+    return next
+  }
+  return { ...scores, [criterion]: value }
+}
+
+function ScoreThreshold({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number
+  onChange: (value: number) => void
+}) {
+  return (
+    <Field className="gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <FieldLabel>{label}</FieldLabel>
+        <Badge
+          variant={value > 0 ? "default" : "outline"}
+          className="min-w-11 justify-center font-mono tabular-nums"
+        >
+          {value > 0 ? `${value}+` : "الكل"}
+        </Badge>
+      </div>
+      <Slider
+        value={[value]}
+        min={0}
+        max={10}
+        step={1}
+        aria-label={`الحد الأدنى لـ ${label}`}
+        onValueChange={(next) =>
+          onChange(typeof next === "number" ? next : (next[0] ?? value))
+        }
+      />
+    </Field>
   )
 }
 

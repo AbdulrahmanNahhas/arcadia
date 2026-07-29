@@ -1,4 +1,6 @@
 import type { Work, WorkKind } from "./model"
+import { scoreCriteria } from "./scoring"
+import type { ScoreComponents } from "./scoring"
 
 export type FacetKey =
   | "genres"
@@ -36,10 +38,15 @@ export type WorkFilterState = {
   statuses: Work["status"][]
   excludedStatuses: Work["status"][]
   minRating: number
+  minScores: ScoreComponents
   favoriteOnly: boolean
   yearFrom: number | null
   yearTo: number | null
   facets: FacetFilters
+}
+
+export function createEmptyScoreFilters(): ScoreComponents {
+  return {}
 }
 
 export const facetDefinitions: Array<{
@@ -210,6 +217,8 @@ export function workMatchesFilters(work: Work, filters: WorkFilterState) {
     return false
   if (filters.excludedStatuses.includes(work.status)) return false
   if ((work.calculatedRating ?? 0) < filters.minRating) return false
+  if (!matchesScoreFilters(work.scoreComponents, filters.minScores))
+    return false
   if (filters.favoriteOnly && !work.favorite) return false
   if (filters.yearFrom !== null && (work.year ?? 0) < filters.yearFrom)
     return false
@@ -218,6 +227,19 @@ export function workMatchesFilters(work: Work, filters: WorkFilterState) {
   return facetKeys.every((key) =>
     matchesSelection(filters.facets[key], getWorkFacetValues(work, key))
   )
+}
+
+export function matchesScoreFilters(
+  scores: ScoreComponents,
+  minimums: ScoreComponents
+) {
+  return scoreCriteria.every((criterion) => {
+    const minimum = minimums[criterion]
+    return (
+      minimum === undefined ||
+      (scores[criterion] !== undefined && scores[criterion]! >= minimum)
+    )
+  })
 }
 
 export function buildFacetOptions(works: Work[]): FacetOptions {
@@ -254,6 +276,7 @@ export function countActiveFilters(filters: WorkFilterState) {
     filters.excludedStatuses.length +
     countFacetFilters(filters.facets) +
     Number(filters.minRating > 0) +
+    Object.keys(filters.minScores).length +
     Number(filters.favoriteOnly) +
     Number(filters.yearFrom !== null || filters.yearTo !== null)
   )
