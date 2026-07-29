@@ -107,6 +107,57 @@ describe("admin record persistence", () => {
 })
 
 describe("tracking core", () => {
+  it("stores exact progress ranges and repairs later ranges after backdating", () => {
+    const work = createTrackedWork("Continuous Work")
+    const first = repository.recordTrackingEntry({
+      workId: work.id,
+      progress: 1,
+      status: "in-progress",
+      occurredOn: "2026-04-01",
+    })
+    const latest = repository.recordTrackingEntry({
+      workId: work.id,
+      progress: 5,
+      status: "paused",
+      occurredOn: "2026-04-03",
+    })
+
+    expect(first).toMatchObject({
+      progressBefore: 0,
+      progress: 1,
+      statusBefore: "planned",
+      status: "in-progress",
+    })
+    expect(latest).toMatchObject({
+      progressBefore: 1,
+      progress: 5,
+      statusBefore: "in-progress",
+      status: "paused",
+    })
+
+    const backdated = repository.recordTrackingEntry({
+      workId: work.id,
+      progress: 3,
+      status: "in-progress",
+      occurredOn: "2026-04-02",
+    })
+    expect(backdated).toMatchObject({
+      progressBefore: 1,
+      progress: 3,
+    })
+    expect(repository.listWorkTrackingEntries(work.id)).toMatchObject([
+      { id: latest.id, progressBefore: 3, progress: 5 },
+      { id: backdated.id, progressBefore: 1, progress: 3 },
+      { id: first.id, progressBefore: 0, progress: 1 },
+    ])
+
+    repository.removeTrackingEntry(backdated.id)
+    expect(repository.listWorkTrackingEntries(work.id)).toMatchObject([
+      { id: latest.id, progressBefore: 1, progress: 5 },
+      { id: first.id, progressBefore: 0, progress: 1 },
+    ])
+  })
+
   it("orders backdated entries chronologically without overwriting newer state", () => {
     const work = createTrackedWork("Backdated Work")
     repository.recordTrackingEntry({
@@ -295,5 +346,83 @@ describe("tracking core", () => {
       progressTotal: 3,
       progressUnit: "episodes",
     })
+  })
+
+  it("projects progress through season unit counts without episode rows", () => {
+    const work = createTrackedWork("Season Count Work", 38)
+    const seasonOne = repository.createWorkSeason({
+      workId: work.id,
+      title: "Season One",
+      seasonNumber: 1,
+      position: 0,
+      unitCount: 28,
+    })
+    const seasonTwo = repository.createWorkSeason({
+      workId: work.id,
+      title: "Season Two",
+      seasonNumber: 2,
+      position: 1,
+      unitCount: 10,
+    })
+
+    repository.recordTrackingEntry({
+      workId: work.id,
+      progress: 30,
+      status: "in-progress",
+      occurredOn: "2026-06-01",
+    })
+
+    expect(repository.getWorkStructure(work.id)).toMatchObject({
+      completedUnits: 30,
+      totalUnits: 38,
+      seasons: [
+        {
+          id: seasonOne.id,
+          progress: { status: "completed", progress: 28 },
+        },
+        {
+          id: seasonTwo.id,
+          progress: { status: "in-progress", progress: 2 },
+        },
+      ],
+    })
+  })
+
+  it("tracks movies by status without using runtime minutes", () => {
+    const movie = repository.createWork({
+      title: "Status Only Movie",
+      kind: "movie",
+      year: 2026,
+      status: "planned",
+      summary: "",
+    })
+
+    const entry = repository.recordTrackingEntry({
+      workId: movie.id,
+      progress: 0,
+      status: "completed",
+      occurredOn: "2026-07-01",
+    })
+
+    expect(entry).toMatchObject({
+      progressBefore: 0,
+      progress: 0,
+      statusBefore: "planned",
+      status: "completed",
+    })
+    expect(currentWork(movie.id)).toMatchObject({
+      progress: 0,
+      progressTotal: null,
+      progressUnit: "movie",
+      status: "completed",
+    })
+    expect(() =>
+      repository.recordTrackingEntry({
+        workId: movie.id,
+        progress: 90,
+        status: "completed",
+        occurredOn: "2026-07-02",
+      })
+    ).toThrow(/status-only/)
   })
 })

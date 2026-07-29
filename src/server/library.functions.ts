@@ -78,6 +78,18 @@ export const getWorkTrackingEntries = createServerFn({ method: "GET" })
     return listWorkTrackingEntries(data.workId, data.limit)
   })
 
+export const getTrackingBaseline = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      workId: z.string().min(1),
+      occurredOn: recordTrackingEntrySchema.shape.occurredOn,
+    })
+  )
+  .handler(async ({ data }) => {
+    const repository = await import("@/db/repository")
+    return repository.getTrackingBaseline(data.workId, data.occurredOn)
+  })
+
 export const recordTracking = createServerFn({ method: "POST" })
   .validator(recordTrackingEntrySchema)
   .handler(async ({ data }) => {
@@ -189,6 +201,13 @@ export const getWorkStructure = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const repository = await import("@/db/repository")
     return repository.getWorkStructure(data.workId)
+  })
+
+export const getWorkStructures = createServerFn({ method: "POST" })
+  .validator(z.object({ workIds: z.array(z.string().min(1)).max(1_000) }))
+  .handler(async ({ data }) => {
+    const repository = await import("@/db/repository")
+    return data.workIds.map((workId) => repository.getWorkStructure(workId))
   })
 
 export const getAdminRecordBundles = createServerFn({ method: "POST" })

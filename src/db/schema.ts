@@ -404,7 +404,9 @@ export const trackingEntries = sqliteTable(
     workId: text("work_id")
       .notNull()
       .references(() => works.id, { onDelete: "cascade" }),
+    progressBefore: integer("progress_before").notNull().default(0),
     progress: integer("progress").notNull(),
+    statusBefore: text("status_before").notNull().default("planned"),
     status: text("status").notNull(),
     occurredOn: text("occurred_on").notNull(),
     daySequence: integer("day_sequence").notNull(),
@@ -413,7 +415,15 @@ export const trackingEntries = sqliteTable(
       .default(sql`(unixepoch())`),
   },
   (table) => [
+    check(
+      "tracking_entries_progress_before_check",
+      sql`${table.progressBefore} >= 0`
+    ),
     check("tracking_entries_progress_check", sql`${table.progress} >= 0`),
+    check(
+      "tracking_entries_status_before_check",
+      sql`${table.statusBefore} in ('planned', 'in-progress', 'completed', 'paused', 'dropped')`
+    ),
     check(
       "tracking_entries_status_check",
       sql`${table.status} in ('planned', 'in-progress', 'completed', 'paused', 'dropped')`

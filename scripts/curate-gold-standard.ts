@@ -29,6 +29,7 @@ type UnitSpec = {
   title?: string
   runtimeMinutes?: number
   pageCount?: number
+  releaseAt?: number
 }
 
 type SeasonSpec = {
@@ -398,6 +399,130 @@ const goldWorks: GoldWork[] = [
         position: 3,
         releaseAt: epoch("2020-12-07"),
         units: numberedUnits(35, "episode"),
+      },
+    ],
+  },
+  {
+    id: "obsidian-animation-tv-land-of-the-lustrous",
+    title: "Land of the Lustrous",
+    aliases: [
+      {
+        title: "宝石の国",
+        titleType: "original",
+        language: "ja",
+        script: "Jpan",
+      },
+      {
+        title: "Hōseki no Kuni",
+        titleType: "alias",
+        language: "ja-Latn",
+        script: "Latn",
+      },
+      {
+        title: "Houseki no Kuni",
+        titleType: "alias",
+        language: "ja-Latn",
+        script: "Latn",
+      },
+    ],
+    kind: "anime",
+    year: 2017,
+    releaseStatus: "ended",
+    summary:
+      "In a distant future, crystalline beings called Gems defend their island from the Lunarians. The fragile, restless Phosphophyllite is assigned to compile an encyclopedia, but a series of losses and transformations turns that task into a search for purpose, selfhood, and the truth of their world.",
+    originalReleaseAt: epoch("2017-10-07"),
+    episodeCount: 12,
+    genres: ["Action", "Drama", "Fantasy", "Mystery", "Psychological"],
+    tones: ["Atmospheric", "Reflective", "Emotional", "Tense", "Dark"],
+    tags: [
+      "gem-people",
+      "identity",
+      "transformation",
+      "coming-of-age",
+      "loneliness",
+      "existentialism",
+      "moon-dwellers",
+      "manga-adaptation",
+      "3d-cgi",
+    ],
+    audiences: ["Teen"],
+    countries: ["Japan"],
+    credits: [
+      { name: "Haruko Ichikawa", entityType: "person", role: "creator" },
+      { name: "Takahiko Kyōgoku", entityType: "person", role: "director" },
+      { name: "Toshiya Ōno", entityType: "person", role: "writer" },
+      { name: "Orange", entityType: "studio", role: "main-studio" },
+      { name: "Kensuke Ushio", entityType: "person", role: "composer" },
+    ],
+    links: [
+      {
+        provider: "anilist",
+        label: "AniList",
+        url: "https://anilist.co/anime/98707/Houseki-no-Kuni/",
+        externalId: "98707",
+      },
+      {
+        provider: "myanimelist",
+        label: "MyAnimeList",
+        url: "https://myanimelist.net/anime/35557/Houseki_no_Kuni",
+        externalId: "35557",
+      },
+      {
+        provider: "official",
+        label: "Official site",
+        url: "https://land-of-the-lustrous.com/",
+      },
+      {
+        provider: "wikipedia",
+        label: "Wikipedia",
+        url: "https://en.wikipedia.org/wiki/Land_of_the_Lustrous_(TV_series)",
+      },
+    ],
+    metadata: {
+      editorialDeck:
+        "A luminous science-fantasy about change, loss, and the unstable shape of the self",
+      releaseStart: "2017-10-07",
+      releaseEnd: "2017-12-23",
+      sourceMaterial: {
+        type: "manga",
+        started: 2012,
+        finished: 2024,
+        serialization: ["Monthly Afternoon"],
+        publication: "Kodansha",
+      },
+      publication: null,
+      contentWarnings:
+        "Fantasy violence, body fragmentation, grief, loss of identity, and unsettling transformation imagery.",
+      analysisNotes:
+        "Its crystalline premise makes physical change inseparable from character development: each alteration to Phosphophyllite's body also shifts memory, capability, and belonging. Orange's 3DCG staging gives the action a weightless clarity while preserving a deliberately alien emotional distance.",
+      riskProfile: {
+        sexuality: "low",
+        behavioral: "medium",
+        theology: "low",
+      },
+      curation: sharedCuration,
+    },
+    seasons: [
+      {
+        key: "season-1",
+        title: "Season 1",
+        number: 1,
+        position: 0,
+        releaseAt: epoch("2017-10-07"),
+        units: [
+          { key: "episode-1", type: "episode", number: 1, position: 0, title: "Phosphophyllite", releaseAt: epoch("2017-10-07") },
+          { key: "episode-2", type: "episode", number: 2, position: 1, title: "Diamond", releaseAt: epoch("2017-10-14") },
+          { key: "episode-3", type: "episode", number: 3, position: 2, title: "Metamorphose", releaseAt: epoch("2017-10-21") },
+          { key: "episode-4", type: "episode", number: 4, position: 3, title: "Soul - Flesh - Bone", releaseAt: epoch("2017-10-28") },
+          { key: "episode-5", type: "episode", number: 5, position: 4, title: "Return", releaseAt: epoch("2017-11-04") },
+          { key: "episode-6", type: "episode", number: 6, position: 5, title: "First Battle", releaseAt: epoch("2017-11-11") },
+          { key: "episode-7", type: "episode", number: 7, position: 6, title: "Hibernation", releaseAt: epoch("2017-11-18") },
+          { key: "episode-8", type: "episode", number: 8, position: 7, title: "Antarcticite", releaseAt: epoch("2017-11-25") },
+          { key: "episode-9", type: "episode", number: 9, position: 8, title: "Spring", releaseAt: epoch("2017-12-02") },
+          { key: "episode-10", type: "episode", number: 10, position: 9, title: "Shiro", releaseAt: epoch("2017-12-09") },
+          { key: "episode-11", type: "episode", number: 11, position: 10, title: "Secrets", releaseAt: epoch("2017-12-16") },
+          { key: "episode-12", type: "episode", number: 12, position: 11, title: "New Work", releaseAt: epoch("2017-12-23") },
+        ],
       },
     ],
   },
@@ -1068,6 +1193,7 @@ function upsertUnit(
     position: unit.position,
     runtimeMinutes: unit.runtimeMinutes ?? null,
     pageCount: unit.pageCount ?? null,
+    releaseAt: unit.releaseAt ?? null,
     createdAt: now,
     updatedAt: now,
   }
@@ -1083,16 +1209,26 @@ function upsertUnit(
         position: unit.position,
         runtimeMinutes: unit.runtimeMinutes ?? null,
         pageCount: unit.pageCount ?? null,
+        releaseAt: unit.releaseAt ?? null,
         updatedAt: now,
       },
     })
     .run()
 }
 
-for (const spec of goldWorks) curateWork(spec)
+const requestedWorkId = process.env.GOLD_WORK_ID
+const worksToCurate = requestedWorkId
+  ? goldWorks.filter(({ id }) => id === requestedWorkId)
+  : goldWorks
+
+if (requestedWorkId && worksToCurate.length === 0) {
+  throw new Error(`Unknown gold-standard work: ${requestedWorkId}`)
+}
+
+for (const spec of worksToCurate) curateWork(spec)
 
 console.log(
-  `Curated ${goldWorks.length} gold-standard records: ${goldWorks
+  `Curated ${worksToCurate.length} gold-standard records: ${worksToCurate
     .map(({ title }) => title)
     .join(", ")}`
 )

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import { Link } from "@tanstack/react-router"
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import {
+  ActivityIcon,
   ArrowLeftIcon,
   BracketsCurlyIcon,
   CheckIcon,
@@ -55,6 +56,7 @@ import { JsonEditorDialog } from "./components/json-editor"
 import { BulkEditDialog } from "./components/bulk-edit"
 import { TaxonomyManagerDialog } from "./components/taxonomy-manager"
 import { AddWorksDialog } from "./components/add-works-dialog"
+import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr"
 
 function createDefaultFilters(): WorkFilterState {
   return {
@@ -63,6 +65,7 @@ function createDefaultFilters(): WorkFilterState {
     statuses: [],
     excludedStatuses: [],
     minRating: 0,
+    minScores: {},
     favoriteOnly: false,
     yearFrom: null,
     yearTo: null,
@@ -144,62 +147,37 @@ export function AdminApp() {
     /* FIXED: Added 'h-screen overflow-y-auto' so the page always scrolls vertically */
     <div className="h-screen overflow-y-auto bg-background pb-12 text-foreground antialiased">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-30 border-b border-border/40 bg-background/95 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <DatabaseIcon className="size-4" weight="duotone" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs leading-none font-semibold tracking-tight">
-                إدارة أركاديا
-              </span>
-              <span className="mt-1 text-[10px] leading-none text-muted-foreground">
-                مساحة قاعدة البيانات المحلية
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
+      <header className="sticky top-2 z-20 mx-auto w-[95vw] max-w-7xl rounded-2xl border border-border/60 bg-background/80 shadow-sm backdrop-blur-xl">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Button
               variant="ghost"
-              size="sm"
+              size="icon-sm"
               nativeButton={false}
-              className="h-8 text-xs"
-              render={<Link to="/feed">سجل النشاط</Link>}
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              nativeButton={false}
-              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-              render={
-                <Link to="/">
-                  <span>العودة إلى المكتبة</span>
-                  <ArrowLeftIcon className="size-3.5" />
-                </Link>
-              }
-            />
-          </div>
-        </div>
-      </header>
+              render={<Link to="/" />}
+              className="rounded-full"
+            >
+              <span className="sr-only">العودة إلى المكتبة</span>
+              <ArrowRightIcon />
+            </Button>
 
-      <main className="mx-auto max-w-7xl space-y-0 px-4 pt-6 sm:px-6">
-        {/* Page Heading Section */}
-        <div className="flex flex-col justify-between gap-2 rounded-xl border border-border/50 bg-card p-5 shadow-2xs md:flex-row md:items-center">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-              <SparkleIcon className="size-3.5" />
-              <span>صيانة قاعدة البيانات</span>
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">إدارة الأعمال</h1>
-            <p className="text-xs text-muted-foreground">
-              عدّل البيانات الوصفية والحالة الشخصية دون التأثير في تجربة التصفح.
-            </p>
+            <h1 className="truncate font-heading text-lg font-medium tracking-tight">
+              لوحة الإدارة
+            </h1>
           </div>
 
-          {/* Heading Actions */}
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link to="/feed" />}
+              className="h-9 gap-1.5 border-border/60 text-xs"
+            >
+              <ActivityIcon data-icon="inline-start" />
+              النشاط
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
@@ -207,8 +185,9 @@ export function AdminApp() {
               className="h-9 gap-1.5 border-border/60 text-xs"
             >
               <TranslateIcon data-icon="inline-start" />
-              <span>قاموس التصنيفات</span>
+              قاموس التصنيفات
             </Button>
+
             <Button
               variant="outline"
               size="sm"
@@ -216,19 +195,22 @@ export function AdminApp() {
               className="h-9 gap-1.5 border-border/60 text-xs"
             >
               <BracketsCurlyIcon className="size-3.5 text-muted-foreground" />
-              <span>محرر JSON</span>
+              محرر JSON
             </Button>
+
             <Button
               size="sm"
               onClick={() => setBulkAddOpen(true)}
               className="h-9 gap-1.5 text-xs shadow-xs"
             >
               <PlusIcon className="size-3.5" />
-              <span>إضافة أعمال</span>
+              إضافة أعمال
             </Button>
           </div>
         </div>
+      </header>
 
+      <main className="mx-auto max-w-7xl space-y-0 px-4 pt-6 sm:px-6">
         {/* Floating Bulk Selection Toolbar */}
         {selectedIds.size > 0 && (
           <div className="sticky top-14 z-20 mx-auto flex w-[90%] animate-in items-center justify-between gap-4 rounded-b-lg border border-primary/20 bg-primary px-4 py-2 text-primary-foreground shadow-lg fade-in slide-in-from-top-2">

@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   CalendarBlankIcon,
   CheckIcon,
+  CircleNotchIcon,
   MinusIcon,
   PlusIcon,
 } from "@phosphor-icons/react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -21,18 +23,16 @@ import {
   ProgressLabel,
   ProgressValue,
 } from "@/components/ui/progress"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { personalStatuses } from "@/features/library/model"
 import type { Work, WorkStructure } from "@/features/library/model"
+import {
+  isDiscreteProgressWork,
+  progressSegments,
+  seasonCapacity,
+} from "@/features/library/tracking"
 import { statusLabelsAr } from "@/features/library/translations"
-import { recordTracking } from "@/server/library.functions"
+import { getTrackingBaseline, recordTracking } from "@/server/library.functions"
 
 export function TrackingForm({
   work,
@@ -46,32 +46,65 @@ export function TrackingForm({
   compact?: boolean
 }) {
   const queryClient = useQueryClient()
-  const total = structure?.totalUnits || work.progressTotal
-  const [progress, setProgress] = useState(Math.trunc(work.progress))
+  const statusOnly = !isDiscreteProgressWork(work)
+  const total = statusOnly
+    ? null
+    : ((structure?.totalUnits || work.progressTotal) ?? null)
+  const [progress, setProgress] = useState(
+    statusOnly ? 0 : Math.trunc(work.progress)
+  )
   const [status, setStatus] = useState<Work["status"]>(work.status)
   const [occurredOn, setOccurredOn] = useState(today())
-  const numericProgress = Math.max(0, Math.trunc(progress || 0))
+  const baselineQuery = useQuery({
+    queryKey: ["tracking-baseline", work.id, occurredOn],
+    queryFn: () =>
+      getTrackingBaseline({ data: { workId: work.id, occurredOn } }),
+    enabled: Boolean(occurredOn),
+  })
+  const baselineProgress = statusOnly
+    ? 0
+    : (baselineQuery.data?.progress ?? Math.trunc(work.progress))
+  const numericProgress = statusOnly
+    ? 0
+    : Math.max(0, Math.trunc(progress || 0))
   const error = useMemo(() => {
     if (!occurredOn) return "اختر تاريخ حدوث هذا التقدم."
     if (total !== null && numericProgress > total) {
       return `لا يمكن أن يتجاوز التقدم ${total}.`
     }
     if (status === "planned" && numericProgress !== 0) {
-      return "يجب أن يكون التقدم صفراً للعمل المخطط له."
+      return "يجب أن يكون التقدم صفراً للعمل المخطّط له."
     }
-    if (total && status === "completed" && numericProgress !== total) {
+    if (
+      total !== null &&
+      total > 0 &&
+      status === "completed" &&
+      numericProgress !== total
+    ) {
       return `يتطلب الاكتمال وصول التقدم إلى ${total}.`
     }
-    if (total && numericProgress === total && status !== "completed") {
+    if (
+      total !== null &&
+      total > 0 &&
+      numericProgress === total &&
+      status !== "completed"
+    ) {
       return "تتطلب الوحدة الأخيرة اختيار حالة مكتمل."
     }
     return ""
   }, [numericProgress, occurredOn, status, total])
 
   useEffect(() => {
-    setProgress(Math.trunc(work.progress))
+    setProgress(statusOnly ? 0 : Math.trunc(work.progress))
     setStatus(work.status)
-  }, [work.id, work.progress, work.status])
+    setOccurredOn(today())
+  }, [statusOnly, work.id, work.progress, work.status])
+
+  useEffect(() => {
+    if (!baselineQuery.data) return
+    setProgress(statusOnly ? 0 : baselineQuery.data.progress)
+    setStatus(baselineQuery.data.status)
+  }, [baselineQuery.data, statusOnly])
 
   const mutation = useMutation({
     mutationFn: recordTracking,
@@ -83,26 +116,38 @@ export function TrackingForm({
         queryClient.invalidateQueries({
           queryKey: ["work-structure", work.id],
         }),
+        queryClient.invalidateQueries({ queryKey: ["tracking-structures"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["tracking-baseline", work.id],
+        }),
       ])
       await onSaved?.()
     },
   })
 
   const chooseProgress = (next: number) => {
-    const bounded = Math.max(0, total ? Math.min(next, total) : next)
+    const bounded = Math.max(0, total !== null ? Math.min(next, total) : next)
     setProgress(bounded)
     if (status === "paused" || status === "dropped") return
     if (bounded === 0) setStatus("planned")
-    else if (total && bounded === total) setStatus("completed")
+    else if (total !== null && total > 0 && bounded === total)
+      setStatus("completed")
     else setStatus("in-progress")
   }
 
-  const unit = singularUnit(work.progressUnit)
-  const percentage = total ? Math.round((numericProgress / total) * 100) : 0
+  const percentage =
+    total !== null && total > 0
+      ? Math.round((numericProgress / total) * 100)
+      : 0
+  const segments = progressSegments(
+    structure,
+    baselineProgress,
+    numericProgress
+  )
 
   return (
     <form
-      className="relative flex flex-col gap-5"
+      className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault()
         if (error) return
@@ -116,7 +161,7 @@ export function TrackingForm({
         })
       }}
     >
-      {compact && (
+      {compact ? (
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -124,18 +169,18 @@ export function TrackingForm({
               <Badge variant="secondary">{statusLabelsAr[work.status]}</Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              احفظ نقطة تقدم لأي تاريخ.
+              اختر موضع النهاية، وسنحفظ كل ما بينه وبين الموضع السابق.
             </p>
           </div>
-          {total ? (
+          {!statusOnly && total !== null ? (
             <Badge variant="outline">
-              {numericProgress} / {total} {work.progressUnit}
+              {formatNumber(numericProgress)} / {formatNumber(total)}
             </Badge>
           ) : null}
         </div>
-      )}
+      ) : null}
 
-      {compact && total ? (
+      {!statusOnly && total !== null && total > 0 ? (
         <Progress value={percentage}>
           <ProgressLabel>التقدم الإجمالي</ProgressLabel>
           <ProgressValue />
@@ -143,69 +188,57 @@ export function TrackingForm({
       ) : null}
 
       <FieldGroup
-        className={compact ? "gap-4" : "gap-5 sm:grid sm:grid-cols-3"}
+        className={compact ? "gap-4" : "gap-5 sm:grid sm:grid-cols-2"}
       >
-        <Field data-invalid={Boolean(error && !error.includes("تاريخ"))}>
-          <FieldLabel htmlFor={`tracking-progress-${work.id}`}>
-            حتى {unit}
-          </FieldLabel>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => chooseProgress(numericProgress - 1)}
-              disabled={numericProgress === 0 || mutation.isPending}
-              aria-label={`إنقاص تقدم ${unit}`}
-            >
-              <MinusIcon />
-            </Button>
-            <Input
-              id={`tracking-progress-${work.id}`}
-              type="number"
-              min={0}
-              max={total ?? undefined}
-              step={1}
-              value={progress}
-              aria-invalid={Boolean(error && !error.includes("تاريخ"))}
-              onChange={(event) => chooseProgress(Number(event.target.value))}
-              className="text-center font-mono"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => chooseProgress(numericProgress + 1)}
-              disabled={
-                Boolean(total && numericProgress >= total) || mutation.isPending
-              }
-              aria-label={`زيادة تقدم ${unit}`}
-            >
-              <PlusIcon />
-            </Button>
-          </div>
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor={`tracking-status-${work.id}`}>الحالة</FieldLabel>
-          <Select
-            value={status}
-            onValueChange={(value) => value && setStatus(value)}
-          >
-            <SelectTrigger id={`tracking-status-${work.id}`} className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {personalStatuses.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {statusLabelsAr[value]}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
+        {!statusOnly ? (
+          <Field data-invalid={Boolean(error && !error.includes("تاريخ"))}>
+            <FieldLabel htmlFor={`tracking-progress-${work.id}`}>
+              موضع النهاية الإجمالي
+            </FieldLabel>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => chooseProgress(numericProgress - 1)}
+                disabled={numericProgress === 0 || mutation.isPending}
+                aria-label="إنقاص موضع التقدم"
+              >
+                <MinusIcon />
+              </Button>
+              <Input
+                id={`tracking-progress-${work.id}`}
+                type="number"
+                min={0}
+                max={total ?? undefined}
+                step={1}
+                value={progress}
+                aria-invalid={Boolean(error && !error.includes("تاريخ"))}
+                onChange={(event) => chooseProgress(Number(event.target.value))}
+                className="text-center font-mono"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => chooseProgress(numericProgress + 1)}
+                disabled={
+                  Boolean(total !== null && numericProgress >= total) ||
+                  mutation.isPending
+                }
+                aria-label="زيادة موضع التقدم"
+              >
+                <PlusIcon />
+              </Button>
+            </div>
+            <FieldDescription>
+              الموضع السابق في هذا التاريخ:{" "}
+              {baselineQuery.isPending
+                ? "جارٍ التحميل…"
+                : formatNumber(baselineProgress)}
+            </FieldDescription>
+          </Field>
+        ) : null}
 
         <Field data-invalid={Boolean(error && error.includes("تاريخ"))}>
           <FieldLabel htmlFor={`tracking-date-${work.id}`}>التاريخ</FieldLabel>
@@ -236,20 +269,64 @@ export function TrackingForm({
             </Button>
           </div>
         </Field>
+
+        <Field className="sm:col-span-2">
+          <FieldLabel>حالة المتابعة بعد الحفظ</FieldLabel>
+          <ToggleGroup
+            value={[status]}
+            multiple={false}
+            variant="outline"
+            size="sm"
+            className="w-full flex-wrap"
+            aria-label="حالة المتابعة"
+            onValueChange={(value) => {
+              if (value[0]) setStatus(value[0] as Work["status"])
+            }}
+          >
+            {personalStatuses.map((value) => (
+              <ToggleGroupItem
+                key={value}
+                value={value}
+                className="min-w-fit flex-1"
+              >
+                {statusLabelsAr[value]}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </Field>
       </FieldGroup>
 
-      {error ? (
-        <FieldError className="absolute bottom-12">{error}</FieldError>
-      ) : null}
+      <TrackingPreview
+        work={work}
+        structure={structure}
+        statusOnly={statusOnly}
+        baselineProgress={baselineProgress}
+        progress={numericProgress}
+        segments={segments}
+      />
+
+      {error ? <FieldError>{error}</FieldError> : null}
       {mutation.error ? (
         <Alert variant="destructive">
+          <AlertTitle>تعذر حفظ التحديث</AlertTitle>
           <AlertDescription>{mutation.error.message}</AlertDescription>
         </Alert>
       ) : null}
 
-      <Button type="submit" disabled={Boolean(error) || mutation.isPending}>
+      <Button
+        type="submit"
+        disabled={
+          Boolean(error) || mutation.isPending || baselineQuery.isPending
+        }
+      >
         {mutation.isPending ? (
-          "جارٍ الحفظ…"
+          <>
+            <CircleNotchIcon
+              data-icon="inline-start"
+              className="animate-spin"
+            />
+            جارٍ الحفظ…
+          </>
         ) : (
           <>
             {occurredOn === today() ? (
@@ -257,12 +334,133 @@ export function TrackingForm({
             ) : (
               <CalendarBlankIcon data-icon="inline-start" />
             )}
-            حفظ نقطة التقدم
+            حفظ التحديث
           </>
         )}
       </Button>
     </form>
   )
+}
+
+function TrackingPreview({
+  work,
+  structure,
+  statusOnly,
+  baselineProgress,
+  progress,
+  segments,
+}: {
+  work: Work
+  structure?: WorkStructure
+  statusOnly: boolean
+  baselineProgress: number
+  progress: number
+  segments: ReturnType<typeof progressSegments>
+}) {
+  const correction = progress < baselineProgress
+  const unchanged = progress === baselineProgress
+
+  return (
+    <Alert>
+      <AlertTitle>
+        {statusOnly
+          ? work.kind === "movie"
+            ? "تتبع الفيلم بالحالة فقط"
+            : "تتبع هذا العمل بالحالة فقط"
+          : correction
+            ? "سيُحفظ تصحيح للتقدم"
+            : unchanged
+              ? "لا توجد وحدات جديدة"
+              : "الوحدات التي ستُضاف إلى هذا اليوم"}
+      </AlertTitle>
+      <AlertDescription className="flex flex-col gap-3">
+        {statusOnly ? (
+          <p>لن تُستخدم مدة التشغيل أو الصفحات كوحدة تقدم.</p>
+        ) : correction ? (
+          <p>
+            سيتغير الموضع من {formatNumber(baselineProgress)} إلى{" "}
+            {formatNumber(progress)} من دون احتسابه كنشاط مشاهدة أو قراءة.
+          </p>
+        ) : unchanged ? (
+          <p>سيُحفظ تغيير الحالة فقط عند الموضع الحالي.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {segments.map((segment, index) => (
+              <div
+                key={`${segment.seasonId ?? "work"}-${segment.firstUnit}-${index}`}
+                className="flex flex-wrap items-center gap-2"
+              >
+                {segment.seasonTitle ? (
+                  <Badge variant="outline">
+                    {seasonLabel(segment.seasonTitle, segment.seasonNumber)}
+                  </Badge>
+                ) : null}
+                <strong className="font-medium text-foreground">
+                  {unitSequenceLabel(work, segment.firstUnit, segment.lastUnit)}
+                </strong>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!statusOnly && structure?.seasons.length ? (
+          <div className="flex flex-wrap gap-2">
+            {seasonProgressAt(structure, progress).map((season) => (
+              <Badge
+                key={season.id}
+                variant={
+                  season.total > 0 && season.progress === season.total
+                    ? "default"
+                    : "secondary"
+                }
+              >
+                {season.label}: {formatNumber(season.progress)}/
+                {formatNumber(season.total)}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+      </AlertDescription>
+    </Alert>
+  )
+}
+
+function seasonProgressAt(structure: WorkStructure, progress: number) {
+  let offset = 0
+  return structure.seasons.map((season) => {
+    const total = seasonCapacity(season)
+    const completed = Math.min(Math.max(progress - offset, 0), total)
+    offset += total
+    return {
+      id: season.id,
+      label: seasonLabel(season.title, season.seasonNumber),
+      progress: completed,
+      total,
+    }
+  })
+}
+
+function unitSequenceLabel(work: Work, first: number, last: number) {
+  const isChapter = work.progressUnit
+    .trim()
+    .toLocaleLowerCase()
+    .startsWith("chapter")
+  const unit = isChapter ? "الفصول" : "الحلقات"
+  const values =
+    last - first <= 5
+      ? Array.from({ length: last - first + 1 }, (_, index) =>
+          formatNumber(first + index)
+        ).join("، ")
+      : `${formatNumber(first)}–${formatNumber(last)}`
+  return `${unit} ${values}`
+}
+
+function seasonLabel(title: string, number: number | null) {
+  return number === null
+    ? title
+    : `الموسم ${new Intl.NumberFormat("ar", {
+        maximumFractionDigits: 1,
+      }).format(number)}`
 }
 
 export function statusLabel(status: Work["status"]) {
@@ -282,22 +480,6 @@ function daysAgo(days: number) {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10)
 }
 
-function singularUnit(value: string) {
-  const normalized = value.trim().toLocaleLowerCase()
-  const arabicUnits: Record<string, string> = {
-    episode: "الحلقة",
-    episodes: "الحلقة",
-    chapter: "الفصل",
-    chapters: "الفصل",
-    volume: "المجلد",
-    volumes: "المجلد",
-    page: "الصفحة",
-    pages: "الصفحة",
-    route: "المسار",
-    routes: "المسار",
-  }
-  if (arabicUnits[normalized]) return arabicUnits[normalized]
-  if (normalized.endsWith("ies")) return `${normalized.slice(0, -3)}y`
-  if (normalized.endsWith("s")) return normalized.slice(0, -1)
-  return normalized || "الوحدة"
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("ar").format(value)
 }

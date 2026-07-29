@@ -127,6 +127,7 @@ type SavedUserView = {
   statuses: Work["status"][]
   excludedStatuses?: Work["status"][]
   minRating: number
+  minScores: Work["scoreComponents"]
   favoriteOnly: boolean
   yearFrom: number | null
   yearTo: number | null
@@ -229,6 +230,7 @@ export function LibraryApp() {
     Work["status"][]
   >([])
   const [minRating, setMinRating] = useState(0)
+  const [minScores, setMinScores] = useState<Work["scoreComponents"]>({})
   const [favoriteOnly, setFavoriteOnly] = useState(false)
   const [yearFrom, setYearFrom] = useState<number | null>(null)
   const [yearTo, setYearTo] = useState<number | null>(null)
@@ -329,6 +331,7 @@ export function LibraryApp() {
       statuses: statusFilter,
       excludedStatuses: excludedStatusFilter,
       minRating,
+      minScores,
       favoriteOnly,
       yearFrom,
       yearTo,
@@ -341,6 +344,7 @@ export function LibraryApp() {
       favoriteOnly,
       kindFilter,
       minRating,
+      minScores,
       statusFilter,
       yearFrom,
       yearTo,
@@ -353,6 +357,7 @@ export function LibraryApp() {
     setStatusFilter(next.statuses)
     setExcludedStatusFilter(next.excludedStatuses)
     setMinRating(next.minRating)
+    setMinScores(next.minScores)
     setFavoriteOnly(next.favoriteOnly)
     setYearFrom(next.yearFrom)
     setYearTo(next.yearTo)
@@ -425,6 +430,7 @@ export function LibraryApp() {
     setStatusFilter([])
     setExcludedStatusFilter([])
     setMinRating(0)
+    setMinScores({})
     setFavoriteOnly(false)
     setYearFrom(null)
     setYearTo(null)
@@ -459,6 +465,7 @@ export function LibraryApp() {
       statuses: statusFilter,
       excludedStatuses: excludedStatusFilter,
       minRating,
+      minScores,
       favoriteOnly,
       yearFrom,
       yearTo,
@@ -481,6 +488,7 @@ export function LibraryApp() {
     setStatusFilter(view.statuses)
     setExcludedStatusFilter(view.excludedStatuses ?? [])
     setMinRating(view.minRating)
+    setMinScores(view.minScores ?? {})
     setFavoriteOnly(view.favoriteOnly)
     setYearFrom(view.yearFrom)
     setYearTo(view.yearTo)

@@ -102,7 +102,11 @@ function deriveProgressMetric(
   work: typeof works.$inferSelect,
   structure?: { count: number; unitType: string }
 ) {
-  if (structure && structure.count > 0) {
+  if (
+    structure &&
+    structure.count > 0 &&
+    ["episode", "chapter"].includes(structure.unitType)
+  ) {
     return {
       total: structure.count,
       unit: `${structure.unitType}${structure.unitType.endsWith("s") ? "" : "s"}`,
@@ -110,26 +114,18 @@ function deriveProgressMetric(
   }
   const candidates: Array<[number | null, string]> =
     work.kind === "movie"
-      ? [[work.runtimeMinutes, "minutes"]]
+      ? [[null, "movie"]]
       : work.kind === "series" || work.kind === "anime"
         ? [[work.episodeCount, "episodes"]]
-        : work.kind === "manga" || work.kind === "comic"
-          ? [
-              [work.chapterCount, "chapters"],
-              [work.pageCount, "pages"],
-            ]
-          : work.kind === "novel"
-            ? [[work.pageCount, "pages"]]
-            : [
-                [work.episodeCount, "episodes"],
-                [work.chapterCount, "chapters"],
-                [work.pageCount, "pages"],
-                [work.runtimeMinutes, "minutes"],
-              ]
+        : work.kind === "manga" ||
+            work.kind === "comic" ||
+            work.kind === "novel"
+          ? [[work.chapterCount, "chapters"]]
+          : [[null, "work"]]
   const known = candidates.find(([total]) => total !== null)
   return known
     ? { total: known[0], unit: known[1] }
-    : { total: null, unit: "unit" }
+    : { total: null, unit: candidates[0]?.[1] ?? "work" }
 }
 
 export function listWorks(): Work[] {
@@ -1087,6 +1083,7 @@ export function listSavedViews(): SavedUserView[] {
           | "statuses"
           | "excludedStatuses"
           | "minRating"
+          | "minScores"
           | "favoriteOnly"
           | "yearFrom"
           | "yearTo"
@@ -1107,6 +1104,7 @@ export function listSavedViews(): SavedUserView[] {
         statuses: filters.statuses ?? [],
         excludedStatuses: filters.excludedStatuses ?? [],
         minRating: filters.minRating ?? 0,
+        minScores: filters.minScores ?? {},
         favoriteOnly: filters.favoriteOnly ?? false,
         yearFrom: filters.yearFrom ?? null,
         yearTo: filters.yearTo ?? null,
@@ -1143,6 +1141,7 @@ export function createSavedView(
         statuses: input.statuses,
         excludedStatuses: input.excludedStatuses,
         minRating: input.minRating,
+        minScores: input.minScores,
         favoriteOnly: input.favoriteOnly,
         yearFrom: input.yearFrom,
         yearTo: input.yearTo,
@@ -1195,17 +1194,34 @@ export function getWorkStructure(workId: string): WorkStructure {
     values.push(unit)
     unitsBySeason.set(unit.seasonId, values)
   }
-  const orderedUnits = [
-    ...seasonRows.flatMap((season) => unitsBySeason.get(season.id) ?? []),
-    ...unitRows.filter((unit) => !unit.seasonId),
-  ]
-  const completedUnits = Math.min(
-    Math.max(Math.trunc(personal?.progress ?? 0), 0),
-    orderedUnits.length
+  const personalProgress = Math.max(Math.trunc(personal?.progress ?? 0), 0)
+  const seasonProgressById = new Map<
+    string,
+    { progress: number; total: number }
+  >()
+  const completedIds = new Set<string>()
+  let structureOffset = 0
+  for (const season of seasonRows) {
+    const units = unitsBySeason.get(season.id) ?? []
+    const total = Math.max(units.length, season.unitCount ?? 0)
+    const progress = Math.min(
+      Math.max(personalProgress - structureOffset, 0),
+      total
+    )
+    seasonProgressById.set(season.id, { progress, total })
+    for (const unit of units.slice(0, progress)) completedIds.add(unit.id)
+    structureOffset += total
+  }
+  const ungroupedUnits = unitRows.filter((unit) => !unit.seasonId)
+  const ungroupedProgress = Math.min(
+    Math.max(personalProgress - structureOffset, 0),
+    ungroupedUnits.length
   )
-  const completedIds = new Set(
-    orderedUnits.slice(0, completedUnits).map(({ id }) => id)
-  )
+  for (const unit of ungroupedUnits.slice(0, ungroupedProgress)) {
+    completedIds.add(unit.id)
+  }
+  const totalUnits = structureOffset + ungroupedUnits.length
+  const completedUnits = Math.min(personalProgress, totalUnits)
   const completedAt = personal?.completedAt ?? null
   const updatedAt = personal?.updatedAt ?? 0
   const completedProgress = (id: string) => ({
@@ -1235,11 +1251,13 @@ export function getWorkStructure(workId: string): WorkStructure {
     workId,
     seasons: seasonRows.map((season) => {
       const units = (unitsBySeason.get(season.id) ?? []).map(mapUnit)
+      const seasonProgress = seasonProgressById.get(season.id) ?? {
+        progress: 0,
+        total: 0,
+      }
       const seasonCompleted =
-        units.length > 0 && units.every((unit) => unit.progress !== null)
-      const seasonProgress = units.filter(
-        (unit) => unit.progress !== null
-      ).length
+        seasonProgress.total > 0 &&
+        seasonProgress.progress === seasonProgress.total
       return {
         id: season.id,
         workId: season.workId,
@@ -1250,11 +1268,11 @@ export function getWorkStructure(workId: string): WorkStructure {
         unitCount: season.unitCount,
         releaseAt: season.releaseAt,
         progress:
-          seasonProgress > 0
+          seasonProgress.progress > 0
             ? {
                 id: `tracking:${season.id}`,
                 status: seasonCompleted ? "completed" : "in-progress",
-                progress: seasonProgress,
+                progress: seasonProgress.progress,
                 completedAt: seasonCompleted ? completedAt : null,
                 updatedAt,
               }
@@ -1262,9 +1280,9 @@ export function getWorkStructure(workId: string): WorkStructure {
         units,
       }
     }),
-    ungroupedUnits: unitRows.filter((unit) => !unit.seasonId).map(mapUnit),
+    ungroupedUnits: ungroupedUnits.map(mapUnit),
     completedUnits,
-    totalUnits: orderedUnits.length,
+    totalUnits,
   }
 }
 
@@ -1508,12 +1526,15 @@ function currentWorkMetric(workId: string) {
     .from(workUnits)
     .where(eq(workUnits.workId, workId))
     .all()
-  return deriveProgressMetric(
-    work,
-    units.length > 0
-      ? { count: units.length, unitType: units[0].unitType }
-      : undefined
-  )
+  return {
+    ...deriveProgressMetric(
+      work,
+      units.length > 0
+        ? { count: units.length, unitType: units[0].unitType }
+        : undefined
+    ),
+    kind: work.kind as WorkKind,
+  }
 }
 
 function completedAtForDate(occurredOn: string) {
@@ -1527,7 +1548,8 @@ function rebuildCurrentProjection(workId: string) {
     .where(eq(trackingEntries.workId, workId))
     .orderBy(
       desc(trackingEntries.occurredOn),
-      desc(trackingEntries.daySequence)
+      desc(trackingEntries.daySequence),
+      desc(trackingEntries.id)
     )
     .limit(1)
     .get()
@@ -1564,13 +1586,45 @@ function rebuildCurrentProjection(workId: string) {
     .run()
 }
 
+function rebuildTrackingTransitions(workId: string) {
+  const entries = db
+    .select({
+      id: trackingEntries.id,
+      progress: trackingEntries.progress,
+      status: trackingEntries.status,
+    })
+    .from(trackingEntries)
+    .where(eq(trackingEntries.workId, workId))
+    .orderBy(
+      asc(trackingEntries.occurredOn),
+      asc(trackingEntries.daySequence),
+      asc(trackingEntries.id)
+    )
+    .all()
+
+  let progressBefore = 0
+  let statusBefore: TrackingEntry["status"] = "planned"
+  db.transaction((tx) => {
+    for (const entry of entries) {
+      tx.update(trackingEntries)
+        .set({ progressBefore, statusBefore })
+        .where(eq(trackingEntries.id, entry.id))
+        .run()
+      progressBefore = entry.progress
+      statusBefore = entry.status as TrackingEntry["status"]
+    }
+  })
+}
+
 function cleanTrackingEntry(
   row: typeof trackingEntries.$inferSelect
 ): TrackingEntry {
   return {
     id: row.id,
     workId: row.workId,
+    progressBefore: row.progressBefore,
     progress: row.progress,
+    statusBefore: row.statusBefore as TrackingEntry["statusBefore"],
     status: row.status as TrackingEntry["status"],
     occurredOn: row.occurredOn,
     daySequence: row.daySequence,
@@ -1581,6 +1635,12 @@ function cleanTrackingEntry(
 export function recordTrackingEntry(input: RecordTrackingEntry): TrackingEntry {
   const parsed = recordTrackingEntrySchema.parse(input)
   const metric = currentWorkMetric(parsed.workId)
+  if (
+    !["episodes", "chapters"].includes(metric.unit) &&
+    parsed.progress !== 0
+  ) {
+    throw new Error("This work uses status-only tracking.")
+  }
   if (metric.total !== null && parsed.progress > metric.total) {
     throw new Error(
       `Progress cannot exceed the known total of ${metric.total}.`
@@ -1628,6 +1688,7 @@ export function recordTrackingEntry(input: RecordTrackingEntry): TrackingEntry {
       })
       .run()
   })
+  rebuildTrackingTransitions(parsed.workId)
   rebuildCurrentProjection(parsed.workId)
   const created = db
     .select()
@@ -1649,11 +1710,36 @@ export function listWorkTrackingEntries(
     .where(eq(trackingEntries.workId, workId))
     .orderBy(
       desc(trackingEntries.occurredOn),
-      desc(trackingEntries.daySequence)
+      desc(trackingEntries.daySequence),
+      desc(trackingEntries.id)
     )
     .limit(Math.min(Math.max(limit, 1), 10_000))
     .all()
     .map(cleanTrackingEntry)
+}
+
+export function getTrackingBaseline(workId: string, occurredOn: string) {
+  databaseWorkExists(workId)
+  const entry = db
+    .select()
+    .from(trackingEntries)
+    .where(
+      and(
+        eq(trackingEntries.workId, workId),
+        lte(trackingEntries.occurredOn, occurredOn)
+      )
+    )
+    .orderBy(
+      desc(trackingEntries.occurredOn),
+      desc(trackingEntries.daySequence),
+      desc(trackingEntries.id)
+    )
+    .limit(1)
+    .get()
+  return {
+    progress: entry?.progress ?? 0,
+    status: (entry?.status ?? "planned") as TrackingEntry["status"],
+  }
 }
 
 export function listTrackingPage(input: TrackingPageInput) {
@@ -1684,7 +1770,7 @@ export function listTrackingPage(input: TrackingPageInput) {
     )
     if (cursorCondition) conditions.push(cursorCondition)
   }
-  const limit = Math.min(Math.max(input.limit, 1), 200)
+  const limit = Math.min(Math.max(input.limit, 1), 10_000)
   const rows = db
     .select()
     .from(trackingEntries)
@@ -1719,6 +1805,7 @@ export function removeTrackingEntry(entryId: string) {
     .get()
   if (!entry) return { entryId, removed: false }
   db.delete(trackingEntries).where(eq(trackingEntries.id, entryId)).run()
+  rebuildTrackingTransitions(entry.workId)
   rebuildCurrentProjection(entry.workId)
   return { entryId, workId: entry.workId, removed: true }
 }

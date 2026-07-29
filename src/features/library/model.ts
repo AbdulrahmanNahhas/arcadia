@@ -307,7 +307,9 @@ export const dateOnlySchema = z
 export const trackingEntrySchema = z.object({
   id: z.string(),
   workId: z.string(),
+  progressBefore: z.number().int().min(0),
   progress: z.number().int().min(0),
+  statusBefore: personalStatusSchema,
   status: personalStatusSchema,
   occurredOn: dateOnlySchema,
   daySequence: z.number().int().min(0),
@@ -322,7 +324,7 @@ export const recordTrackingEntrySchema = trackingEntrySchema.pick({
 })
 
 export const trackingPageInputSchema = z.object({
-  limit: z.number().int().min(1).max(200).default(50),
+  limit: z.number().int().min(1).max(10_000).default(200),
   cursor: z
     .object({
       occurredOn: dateOnlySchema,
@@ -662,6 +664,7 @@ export const savedUserViewSchema = z.object({
   statuses: z.array(workSchema.shape.status),
   excludedStatuses: z.array(workSchema.shape.status).default([]),
   minRating: z.number().min(0).max(10),
+  minScores: workSchema.shape.scoreComponents.default({}),
   favoriteOnly: z.boolean(),
   yearFrom: z.number().int().nullable(),
   yearTo: z.number().int().nullable(),

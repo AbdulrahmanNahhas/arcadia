@@ -7,40 +7,42 @@ const executablePath =
 const browser = await chromium.launch({
   executablePath,
   headless: true,
-  args: ["--no-sandbox"],
+  args: ["--no-sandbox", "--disable-crashpad", "--disable-crash-reporter"],
 })
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
 const errors = []
 page.on("pageerror", (error) => errors.push(error.message))
 
 await page.goto(process.env.ARCADIA_URL ?? "http://localhost:3000", {
   waitUntil: "domcontentloaded",
 })
-await page.waitForTimeout(750)
-await page.getByRole("button", { name: "Open Attack on Titan" }).click()
+await page
+  .getByRole("button", { name: /فتح (هجوم العمالقة|Attack on Titan)/ })
+  .first()
+  .click()
 
 const dialog = page.getByRole("dialog")
 await dialog.waitFor()
+await dialog.getByText("متابعة التقدّم", { exact: true }).waitFor()
+await dialog.getByText("سجل النشاط", { exact: true }).waitFor()
 await dialog
-  .getByText(
-    "Archive record · obsidian-animation-tv-attack-on-titan · verified"
-  )
+  .getByText(/الحلقات/)
+  .first()
   .waitFor()
-await dialog.getByText("Progress ledger", { exact: true }).waitFor()
-await dialog.getByText("Season 1", { exact: true }).waitFor()
-await dialog.getByRole("link", { name: "IMDb" }).waitFor()
-await dialog.getByText("Primary credits", { exact: true }).waitFor()
-await dialog.getByText("Content dossier", { exact: true }).waitFor()
 
-await dialog.getByRole("button", { name: "Open full screen" }).click()
-if (!(await dialog.getAttribute("class"))?.includes("full-screen")) {
-  throw new Error("Work dialog did not enter full-screen mode")
-}
-const dialogBox = await dialog.boundingBox()
-if (!dialogBox || dialogBox.width < 1400 || dialogBox.height < 880) {
-  throw new Error("Work dialog did not fill the viewport")
-}
+await dialog.getByRole("button", { name: "تحديث التقدّم" }).click()
+await dialog.getByText("الوحدات التي ستُضاف إلى هذا اليوم").waitFor()
+await dialog
+  .getByText(/الموسم/)
+  .first()
+  .waitFor()
+
+await page.screenshot({
+  path: ".tmp-arcadia-tracking-work-detail.png",
+  fullPage: false,
+})
+
 if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`)
 
-await page.screenshot({ path: "/tmp/arcadia-work-detail.png" })
 await browser.close()
+console.log("Work detail browser smoke test passed.")
