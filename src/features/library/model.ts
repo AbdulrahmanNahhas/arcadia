@@ -653,9 +653,43 @@ export const savedViewSchema = z.object({
   display: z.record(z.string(), z.unknown()),
 })
 
+export const savedViewIconIds = [
+  "bookmark",
+  "books",
+  "film",
+  "sparkle",
+  "game",
+  "heart",
+  "clock",
+  "star",
+  "grid",
+  "chart",
+  "calendar",
+  "lightning",
+] as const
+
+export const savedViewColorIds = [
+  "primary",
+  "coral",
+  "amber",
+  "green",
+  "blue",
+  "violet",
+  "danger",
+  "neutral",
+] as const
+
+export const savedViewIconSchema = z.enum(savedViewIconIds)
+export const savedViewColorSchema = z.enum(savedViewColorIds)
+export type SavedViewIconId = z.infer<typeof savedViewIconSchema>
+export type SavedViewColorId = z.infer<typeof savedViewColorSchema>
+
 export const savedUserViewSchema = z.object({
   id: z.string(),
   name: z.string().trim().min(1).max(100),
+  description: z.string().trim().max(240).default(""),
+  icon: savedViewIconSchema.default("bookmark"),
+  color: savedViewColorSchema.default("primary"),
   layout: z.enum(["gallery", "table", "timeline", "statistics"]),
   sort: z.enum(["title", "rating", "recent", "year"]),
   sortDirection: z.enum(["asc", "desc"]).default("asc"),
@@ -747,7 +781,19 @@ export const savedUserViewSchema = z.object({
 })
 
 export const createSavedUserViewSchema = savedUserViewSchema.omit({ id: true })
+export const updateSavedUserViewSchema = savedUserViewSchema.pick({
+  id: true,
+  name: true,
+  description: true,
+  icon: true,
+  color: true,
+  layout: true,
+  sort: true,
+  sortDirection: true,
+  isPinned: true,
+})
 export type SavedUserView = z.infer<typeof savedUserViewSchema>
+export type UpdateSavedUserView = z.infer<typeof updateSavedUserViewSchema>
 
 export const createWorkSchema = workSchema
   .pick({

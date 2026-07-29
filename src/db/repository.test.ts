@@ -426,3 +426,72 @@ describe("tracking core", () => {
     ).toThrow(/status-only/)
   })
 })
+
+describe("saved view destinations", () => {
+  it("persists identity metadata and updates promotion settings", () => {
+    const created = repository.createSavedView({
+      name: "قيد المتابعة",
+      description: "الأعمال التي أتابعها الآن",
+      icon: "clock",
+      color: "blue",
+      layout: "gallery",
+      sort: "recent",
+      sortDirection: "desc",
+      kinds: [],
+      excludedKinds: [],
+      statuses: ["in-progress"],
+      excludedStatuses: [],
+      minRating: 0,
+      minScores: {},
+      favoriteOnly: false,
+      yearFrom: null,
+      yearTo: null,
+      cardSize: 154,
+      gallery: {
+        mode: "full",
+        imageType: "poster",
+        showType: true,
+        showRating: true,
+        showTitle: true,
+        showFavorite: true,
+        showCreator: false,
+        showYear: true,
+        showGenres: true,
+        showProgress: false,
+      },
+      tableDensity: "comfortable",
+      search: "",
+      visibleColumns: ["artwork", "title", "status"],
+      isPinned: false,
+    })
+
+    const updated = repository.updateSavedView({
+      id: created.id,
+      name: "أتابعها الآن",
+      description: "وجهة رئيسية للمتابعة",
+      icon: "lightning",
+      color: "amber",
+      layout: "table",
+      sort: "title",
+      sortDirection: "asc",
+      isPinned: true,
+    })
+
+    expect(updated).toMatchObject({
+      name: "أتابعها الآن",
+      description: "وجهة رئيسية للمتابعة",
+      icon: "lightning",
+      color: "amber",
+      layout: "table",
+      sort: "title",
+      sortDirection: "asc",
+      isPinned: true,
+      statuses: ["in-progress"],
+    })
+    expect(repository.listSavedViews()[0]?.id).toBe(created.id)
+    expect(repository.deleteSavedView(created.id)).toEqual({
+      id: created.id,
+      deleted: true,
+    })
+  })
+})

@@ -18,21 +18,19 @@ import {
   workMatchesFilters,
 } from "./filtering"
 import type { WorkFilterState } from "./filtering"
-import { getCollection, workBelongsToCollection } from "./collections"
-import type { CollectionId } from "./collections"
+
 import type { SavedUserView, Work } from "./model"
 import { defaultTableColumns, tableColumnIds } from "./view-types"
 import type {
   GalleryOptions,
   Layout,
-  LibraryView,
   Sort,
   SortDirection,
   TableColumnId,
   TableDensity,
 } from "./view-types"
 import { AddWorkDialog } from "./components/add-work-dialog"
-import { CollectionToolbar } from "./components/collection-toolbar"
+import { LibraryToolbar } from "./components/library-toolbar"
 import { EmptyState } from "./components/empty-state"
 import { Gallery } from "./components/gallery"
 import { Statistics } from "./components/statistics"
@@ -40,7 +38,7 @@ import { Timeline } from "./components/timeline"
 import { WorkDetailDialog } from "./components/work-detail-dialog"
 import { WorkTable } from "./components/work-table"
 
-export type { Layout, LibraryView, Sort } from "./view-types"
+export type { Layout, Sort } from "./view-types"
 
 function createDefaultFilters(): WorkFilterState {
   return {
@@ -74,26 +72,17 @@ function isTableColumnId(value: string): value is TableColumnId {
   return tableColumnIds.includes(value as TableColumnId)
 }
 
-export function CollectionView({
-  collectionId,
-  view,
+export function LibraryViewPage({
+  viewId,
   workId,
-  savedViewId,
-  onCollectionChange,
   onViewChange,
   onWorkChange,
-  onSavedViewChange,
 }: {
-  collectionId: CollectionId
-  view: LibraryView
+  viewId?: string
   workId?: string
-  savedViewId?: string
-  onCollectionChange: (collectionId: CollectionId) => void
-  onViewChange: (view: LibraryView) => void
+  onViewChange: (viewId?: string) => void
   onWorkChange: (workId?: string) => void
-  onSavedViewChange: (savedViewId?: string) => void
 }) {
-  const collection = getCollection(collectionId)
   const queryClient = useQueryClient()
   const { data: works } = useSuspenseQuery({
     queryKey: ["works"],
@@ -117,11 +106,21 @@ export function CollectionView({
     useState<TableColumnId[]>(defaultTableColumns)
   const [tableDensity, setTableDensity] = useState<TableDensity>("comfortable")
 
-  const activeSavedView = savedViews.find((item) => item.id === savedViewId)
+  const activeSavedView = savedViews.find((item) => item.id === viewId)
 
   useEffect(() => {
-    if (!savedViewId) return
-    const savedView = savedViews.find((item) => item.id === savedViewId)
+    if (!viewId) {
+      setSearch("")
+      setLayout("gallery")
+      setSort("title")
+      setSortDirection("asc")
+      setFilters(createDefaultFilters())
+      setGalleryOptions(defaultGalleryOptions)
+      setTableColumns(defaultTableColumns)
+      setTableDensity("comfortable")
+      return
+    }
+    const savedView = savedViews.find((item) => item.id === viewId)
     if (!savedView) return
 
     setSearch(savedView.search)
@@ -145,32 +144,25 @@ export function CollectionView({
       yearTo: savedView.yearTo,
       facets: normalizeFacetFilters(savedView.facets),
     })
-  }, [savedViewId, savedViews])
+  }, [viewId, savedViews])
 
   useEffect(() => {
     const stored = window.localStorage.getItem("arcadia:gallery-card-size")
-    if (stored && !savedViewId) {
+    if (stored && !viewId) {
       setCardSize(Math.min(220, Math.max(110, Number(stored))))
     }
-  }, [savedViewId])
+  }, [viewId])
 
   const changeCardSize = (value: number) => {
     setCardSize(value)
     window.localStorage.setItem("arcadia:gallery-card-size", String(value))
   }
 
-  const collectionWorks = useMemo(
-    () => works.filter((work) => workBelongsToCollection(work, collection)),
-    [collection, works]
-  )
-  const facetOptions = useMemo(
-    () => buildFacetOptions(collectionWorks),
-    [collectionWorks]
-  )
+  const facetOptions = useMemo(() => buildFacetOptions(works), [works])
 
   const filteredWorks = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase()
-    const matches = collectionWorks.filter((work) => {
+    const matches = works.filter((work) => {
       const searchable = [
         work.title,
         work.arabicTitle ?? "",
@@ -183,15 +175,8 @@ export function CollectionView({
       ]
         .join(" ")
         .toLocaleLowerCase()
-      const matchesView =
-        Boolean(activeSavedView) ||
-        view === "all" ||
-        (view === "progress" && work.status === "in-progress") ||
-        (view === "favorites" && work.favorite)
-
       return (
         (!normalizedSearch || searchable.includes(normalizedSearch)) &&
-        matchesView &&
         workMatchesFilters(work, filters)
       )
     })
@@ -213,15 +198,7 @@ export function CollectionView({
       }
       return sortDirection === "asc" ? comparison : -comparison
     })
-  }, [
-    activeSavedView,
-    collectionWorks,
-    filters,
-    search,
-    sort,
-    sortDirection,
-    view,
-  ])
+  }, [works, filters, search, sort, sortDirection])
 
   const selectedWork = works.find((work) => work.id === workId) ?? null
 
@@ -235,13 +212,16 @@ export function CollectionView({
     mutationFn: addSavedView,
     onSuccess: async (savedView) => {
       await queryClient.invalidateQueries({ queryKey: ["saved-views"] })
-      onSavedViewChange(savedView.id)
+      onViewChange(savedView.id)
     },
   })
 
   const saveCurrentView = (name: string) => {
     const next: Omit<SavedUserView, "id"> = {
       name,
+      description: "",
+      icon: "bookmark",
+      color: "primary",
       layout,
       sort,
       sortDirection,
@@ -272,26 +252,17 @@ export function CollectionView({
   const clearFilters = () => {
     setSearch("")
     setFilters(createDefaultFilters())
-    onSavedViewChange()
-    onViewChange("all")
-  }
-
-  const chooseStandardView = (nextView: LibraryView) => {
-    onSavedViewChange()
-    onViewChange(nextView)
+    onViewChange()
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="sticky top-0 z-20">
-        <CollectionToolbar
-          collectionId={collectionId}
-          onCollectionChange={onCollectionChange}
-          activeViewName={activeSavedView?.name}
+        <LibraryToolbar
+          activeView={activeSavedView}
           search={search}
           onSearchChange={setSearch}
-          view={view}
-          onViewChange={chooseStandardView}
+
           layout={layout}
           onLayoutChange={setLayout}
           sort={sort}
@@ -300,8 +271,7 @@ export function CollectionView({
           onSortDirectionChange={setSortDirection}
           resultCount={filteredWorks.length}
           savedViews={savedViews}
-          activeSavedViewId={savedViewId}
-          onSavedViewChange={onSavedViewChange}
+          onSavedViewChange={onViewChange}
           onSaveView={saveCurrentView}
           cardSize={cardSize}
           onCardSizeChange={changeCardSize}

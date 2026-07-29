@@ -5,13 +5,14 @@ import {
   ArrowRightIcon,
   ArrowsDownUpIcon,
   ArrowUpIcon,
-  BookmarkSimpleIcon,
   CalendarBlankIcon,
   ChartDonutIcon,
+  CheckIcon,
   FadersHorizontalIcon,
   FloppyDiskIcon,
   GridFourIcon,
   MagnifyingGlassIcon,
+  SquaresFourIcon,
   TableIcon,
   XIcon,
 } from "@phosphor-icons/react"
@@ -44,31 +45,32 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select"
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
-import { getCollection, libraryCollections } from "../collections"
-import type { CollectionId } from "../collections"
+
 import type { SavedUserView } from "../model"
 import { defaultTableColumns, tableColumnIds } from "../view-types"
 import type {
   GalleryMode,
   GalleryOptions,
   Layout,
-  LibraryView,
   Sort,
   SortDirection,
   TableColumnId,
   TableDensity,
 } from "../view-types"
+import { getSavedViewAccentStyle, getSavedViewIcon } from "../view-meta"
 import { tableColumnLabels } from "./work-table"
 
 const sortLabels: Record<Sort, string> = {
@@ -85,12 +87,6 @@ const layoutItems = [
   { id: "statistics", label: "الإحصاءات", icon: ChartDonutIcon },
 ] as const
 
-const viewItems = [
-  { id: "all", label: "الكل" },
-  { id: "progress", label: "قيد المتابعة" },
-  { id: "favorites", label: "المفضلة" },
-] as const
-
 const galleryModeLabels: Record<Exclude<GalleryMode, "custom">, string> = {
   cover: "الغلاف فقط",
   title: "غلاف وعنوان",
@@ -103,14 +99,10 @@ const densityLabels: Record<TableDensity, string> = {
   spacious: "واسع",
 }
 
-export function CollectionToolbar({
-  collectionId,
-  onCollectionChange,
-  activeViewName,
+export function LibraryToolbar({
+  activeView,
   search,
   onSearchChange,
-  view,
-  onViewChange,
   layout,
   onLayoutChange,
   sort,
@@ -121,7 +113,7 @@ export function CollectionToolbar({
   addWork,
   resultCount,
   savedViews,
-  activeSavedViewId,
+
   onSavedViewChange,
   onSaveView,
   cardSize,
@@ -135,13 +127,9 @@ export function CollectionToolbar({
   timelineNewestFirst,
   onTimelineOrderChange,
 }: {
-  collectionId: CollectionId
-  onCollectionChange: (value: CollectionId) => void
-  activeViewName?: string
+  activeView?: SavedUserView
   search: string
   onSearchChange: (value: string) => void
-  view: LibraryView
-  onViewChange: (value: LibraryView) => void
   layout: Layout
   onLayoutChange: (value: Layout) => void
   sort: Sort
@@ -152,7 +140,7 @@ export function CollectionToolbar({
   addWork: React.ReactNode
   resultCount: number
   savedViews: SavedUserView[]
-  activeSavedViewId?: string
+
   onSavedViewChange: (id?: string) => void
   onSaveView: (name: string) => void
   cardSize: number
@@ -166,9 +154,6 @@ export function CollectionToolbar({
   timelineNewestFirst: boolean
   onTimelineOrderChange: (value: boolean) => void
 }) {
-  const collection = getCollection(collectionId)
-  const CurrentCollectionIcon = collection.icon
-
   return (
     <nav
       className="border-b border-border/70 bg-background/95 shadow-sm backdrop-blur-xl"
@@ -187,43 +172,13 @@ export function CollectionToolbar({
             <ArrowRightIcon />
           </Link>
 
-          <Select
-            value={collectionId}
-            onValueChange={(value) => value && onCollectionChange(value)}
-          >
-            <SelectTrigger
-              className="h-10 max-w-52 min-w-0 flex-1 border-transparent bg-muted/60 sm:max-w-64 lg:flex-none"
-              aria-label="تبديل المجموعة"
-            >
-              <CurrentCollectionIcon className="shrink-0" />
-              <span className="flex min-w-0 flex-1 flex-col items-start leading-tight">
-                <span className="w-full truncate font-medium">
-                  {collection.shortTitle}
-                </span>
-                <span
-                  className="w-full truncate text-[10px] text-muted-foreground"
-                  aria-live="polite"
-                >
-                  {resultCount} نتيجة
-                </span>
-              </span>
-            </SelectTrigger>
-            <SelectContent align="start" alignItemWithTrigger={false}>
-              <SelectGroup>
-                {libraryCollections.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    <item.icon />
-                    <span className="flex flex-col">
-                      <span>{item.shortTitle}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {item.eyebrow}
-                      </span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <ViewsSelector
+            views={savedViews}
+            activeView={activeView}
+            resultCount={resultCount}
+            onApply={onSavedViewChange}
+            onSave={onSaveView}
+          />
 
           <SearchControl
             search={search}
@@ -259,31 +214,6 @@ export function CollectionToolbar({
         <div className="flex min-w-0 items-center gap-2">
           <div className="min-w-0 flex-1 overflow-x-auto pb-0.5">
             <div className="flex w-max items-center gap-2 pe-2">
-              <SingleToggleGroup
-                value={view}
-                onValueChange={(value) => onViewChange(value as LibraryView)}
-                ariaLabel="نطاق عرض الأعمال"
-              >
-                {viewItems.map((item) => (
-                  <ToggleGroupItem key={item.id} value={item.id}>
-                    {item.label}
-                  </ToggleGroupItem>
-                ))}
-              </SingleToggleGroup>
-
-              {activeViewName && (
-                <Badge variant="secondary" className="max-w-44 truncate">
-                  <BookmarkSimpleIcon weight="fill" />
-                  {activeViewName}
-                </Badge>
-              )}
-
-              <SavedViewsControl
-                views={savedViews}
-                activeId={activeSavedViewId}
-                onApply={onSavedViewChange}
-                onSave={onSaveView}
-              />
               {filter}
 
               {layout !== "statistics" && (
@@ -451,19 +381,60 @@ function SortControl({
   )
 }
 
-function SavedViewsControl({
+function ViewOption({
+  icon,
+  accentStyle,
+  title,
+  subtitle,
+  active,
+}: {
+  icon: React.ReactNode
+  accentStyle?: React.CSSProperties
+  title: string
+  subtitle?: string
+  active: boolean
+}) {
+  return (
+    <>
+      <span
+        className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-muted"
+        style={accentStyle}
+      >
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col items-start">
+        <span className="w-full truncate">{title}</span>
+        {subtitle ? (
+          <span className="w-full truncate text-[10px] text-muted-foreground">
+            {subtitle}
+          </span>
+        ) : null}
+      </span>
+      {active ? (
+        <CheckIcon className="size-4 shrink-0 text-primary" weight="bold" />
+      ) : null}
+    </>
+  )
+}
+
+function ViewsSelector({
   views,
-  activeId,
+  activeView,
+  resultCount,
   onApply,
   onSave,
 }: {
   views: SavedUserView[]
-  activeId?: string
+  activeView?: SavedUserView
+  resultCount: number
   onApply: (id?: string) => void
   onSave: (name: string) => void
 }) {
   const [name, setName] = useState("")
   const [open, setOpen] = useState(false)
+  const ActiveIcon = activeView
+    ? getSavedViewIcon(activeView.icon)
+    : SquaresFourIcon
   const save = () => {
     if (!name.trim()) return
     onSave(name.trim())
@@ -474,70 +445,99 @@ function SavedViewsControl({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
-          <Button variant={activeId ? "secondary" : "outline"} size="sm" />
+          <Button
+            variant="ghost"
+            className="h-10 max-w-56 min-w-0 flex-1 justify-start bg-muted/60 px-3 sm:max-w-72 lg:flex-none"
+            aria-label="تبديل العرض"
+          />
         }
       >
-        <BookmarkSimpleIcon
-          data-icon="inline-start"
-          weight={activeId ? "fill" : "regular"}
-        />
-        العروض
-        {views.length > 0 && <Badge variant="secondary">{views.length}</Badge>}
+        <span
+          className="flex size-7 shrink-0 items-center justify-center rounded-lg border"
+          style={
+            activeView ? getSavedViewAccentStyle(activeView.color) : undefined
+          }
+        >
+          <ActiveIcon />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col items-start leading-tight">
+          <span className="w-full truncate font-medium">
+            {activeView?.name ?? "كل الأعمال"}
+          </span>
+          <span className="w-full truncate text-[10px] text-muted-foreground">
+            {resultCount} نتيجة
+          </span>
+        </span>
       </PopoverTrigger>
+
       <PopoverContent
         align="start"
-        className="w-[calc(100vw-1.5rem)] max-w-80 gap-0 p-0"
+        className="w-[calc(100vw-1.5rem)] max-w-88 gap-0 overflow-hidden p-0"
       >
-        <PopoverHeader className="p-4">
-          <PopoverTitle>العروض المحفوظة</PopoverTitle>
+        <PopoverHeader className="p-4 pb-3">
+          <PopoverTitle>انتقل إلى عرض</PopoverTitle>
           <PopoverDescription className="text-xs">
-            احفظ البحث والفلاتر والتخطيط وخيارات العرض معاً.
+            كل عرض هو مساحة حية تحفظ الفلاتر والترتيب والشكل.
           </PopoverDescription>
         </PopoverHeader>
-        <Separator />
-        {activeId && (
-          <div className="p-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start"
-              onClick={() => {
-                onApply()
-                setOpen(false)
-              }}
-            >
-              <XIcon data-icon="inline-start" />
-              الخروج من العرض المحفوظ
-            </Button>
+
+        <Command className="bg-transparent" loop>
+          <div className="px-3 pb-2">
+            <CommandInput placeholder="ابحث عن عرض…" className="h-9" />
           </div>
-        )}
-        <div className="flex max-h-56 flex-col gap-1 overflow-y-auto p-2">
-          {views.length ? (
-            views.map((savedView) => (
-              <Button
-                key={savedView.id}
-                variant={activeId === savedView.id ? "secondary" : "ghost"}
-                className="h-auto justify-between py-2"
-                onClick={() => {
-                  onApply(savedView.id)
+          <Separator />
+          <CommandList className="max-h-64 p-2">
+            <CommandEmpty className="py-6 text-center text-xs text-muted-foreground">
+              لا توجد نتائج مطابقة
+            </CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="all-works كل الأعمال"
+                className="h-auto gap-2 py-2.5"
+                onSelect={() => {
+                  onApply()
                   setOpen(false)
                 }}
               >
-                <span className="truncate">{savedView.name}</span>
-                <span className="text-[10px] text-muted-foreground">
-                  {
-                    layoutItems.find((item) => item.id === savedView.layout)
-                      ?.label
-                  }
-                </span>
-              </Button>
-            ))
-          ) : (
-            <p className="p-3 text-center text-xs text-muted-foreground">
-              لا توجد عروض محفوظة بعد.
-            </p>
-          )}
-        </div>
+                <ViewOption
+                  icon={<SquaresFourIcon />}
+                  title="كل الأعمال"
+                  subtitle="المكتبة من دون فلاتر محفوظة"
+                  active={!activeView}
+                />
+              </CommandItem>
+
+              {views.map((savedView) => {
+                const Icon = getSavedViewIcon(savedView.icon)
+                const layoutLabel = layoutItems.find(
+                  (item) => item.id === savedView.layout
+                )?.label
+                return (
+                  <CommandItem
+                    key={savedView.id}
+                    value={`${savedView.name} ${layoutLabel ?? ""}`}
+                    className="h-auto gap-2 py-2.5"
+                    onSelect={() => {
+                      onApply(savedView.id)
+                      setOpen(false)
+                    }}
+                  >
+                    <ViewOption
+                      icon={<Icon />}
+                      accentStyle={getSavedViewAccentStyle(savedView.color)}
+                      title={savedView.name}
+                      subtitle={[layoutLabel, savedView.isPinned && "رئيسي"]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      active={activeView?.id === savedView.id}
+                    />
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+
         <Separator />
         <FieldGroup className="gap-2 p-3">
           <Field>
@@ -549,13 +549,13 @@ function SavedViewsControl({
               value={name}
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && save()}
-              placeholder="اسم العرض الجديد"
+              placeholder="احفظ الإعداد الحالي باسم…"
               className="h-9"
             />
           </Field>
           <Button size="sm" onClick={save} disabled={!name.trim()}>
             <FloppyDiskIcon data-icon="inline-start" />
-            حفظ الإعداد الحالي
+            إنشاء عرض جديد
           </Button>
         </FieldGroup>
       </PopoverContent>

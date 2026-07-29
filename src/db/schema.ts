@@ -9,7 +9,6 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core"
-import type { FilterNode } from "@/features/library/model"
 
 const timestamps = {
   createdAt: integer("created_at")
@@ -482,46 +481,14 @@ export const assets = sqliteTable(
   ]
 )
 
-export const collections = sqliteTable(
-  "collections",
-  {
-    id: text("id").primaryKey(),
-    name: text("name").notNull(),
-    collectionType: text("collection_type").notNull().default("manual"),
-    description: text("description").notNull().default(""),
-    filterTree: text("filter_tree", { mode: "json" }).$type<FilterNode>(),
-    coverAssetId: text("cover_asset_id"),
-    settings: text("settings", { mode: "json" })
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default({}),
-    ...timestamps,
-  },
-  (table) => [index("collections_type_idx").on(table.collectionType)]
-)
-
-export const collectionItems = sqliteTable(
-  "collection_items",
-  {
-    collectionId: text("collection_id")
-      .notNull()
-      .references(() => collections.id, { onDelete: "cascade" }),
-    workId: text("work_id")
-      .notNull()
-      .references(() => works.id, { onDelete: "cascade" }),
-    position: integer("position").notNull().default(0),
-    addedAt: integer("added_at")
-      .notNull()
-      .default(sql`(unixepoch())`),
-  },
-  (table) => [primaryKey({ columns: [table.collectionId, table.workId] })]
-)
-
 export const savedViews = sqliteTable(
   "saved_views",
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    icon: text("icon").notNull().default("bookmark"),
+    color: text("color").notNull().default("primary"),
     layout: text("layout").notNull().default("gallery"),
     filterTree: text("filter_tree", { mode: "json" })
       .$type<Record<string, unknown>>()

@@ -1,5 +1,9 @@
 import { and, asc, desc, eq, gte, inArray, lt, lte, or } from "drizzle-orm"
-import { recordTrackingEntrySchema } from "@/features/library/model"
+import {
+  recordTrackingEntrySchema,
+  savedViewColorSchema,
+  savedViewIconSchema,
+} from "@/features/library/model"
 import {
   calculatedRating,
   scoreCriteria,
@@ -14,6 +18,7 @@ import type {
   SavedUserView,
   TrackingEntry,
   TrackingPageInput,
+  UpdateSavedUserView,
   Work,
   WorkCredit,
   WorkKind,
@@ -1072,7 +1077,7 @@ export function listSavedViews(): SavedUserView[] {
   return db
     .select()
     .from(savedViews)
-    .orderBy(asc(savedViews.name))
+    .orderBy(desc(savedViews.isPinned), asc(savedViews.name))
     .all()
     .map((row) => {
       const filters = row.filterTree as Partial<
@@ -1095,9 +1100,14 @@ export function listSavedViews(): SavedUserView[] {
         tableDensity?: SavedUserView["tableDensity"]
       }
       const galleryMode = display.gallery?.mode ?? "full"
+      const icon = savedViewIconSchema.safeParse(row.icon)
+      const color = savedViewColorSchema.safeParse(row.color)
       return {
         id: row.id,
         name: row.name,
+        description: row.description,
+        icon: icon.success ? icon.data : "bookmark",
+        color: color.success ? color.data : "primary",
         layout: row.layout as SavedUserView["layout"],
         sort: row.sortField as SavedUserView["sort"],
         sortDirection: row.sortDirection as SavedUserView["sortDirection"],
@@ -1142,6 +1152,9 @@ export function createSavedView(
     .values({
       id,
       name: input.name,
+      description: input.description,
+      icon: input.icon,
+      color: input.color,
       layout: input.layout,
       filterTree: {
         kinds: input.kinds,
@@ -1172,6 +1185,29 @@ export function createSavedView(
   const created = listSavedViews().find((view) => view.id === id)
   if (!created) throw new Error("Could not create saved view")
   return created
+}
+
+export function updateSavedView(input: UpdateSavedUserView): SavedUserView {
+  const now = Math.floor(Date.now() / 1000)
+  const result = db
+    .update(savedViews)
+    .set({
+      name: input.name,
+      description: input.description,
+      icon: input.icon,
+      color: input.color,
+      layout: input.layout,
+      sortField: input.sort,
+      sortDirection: input.sortDirection,
+      isPinned: input.isPinned,
+      updatedAt: now,
+    })
+    .where(eq(savedViews.id, input.id))
+    .run()
+  if (result.changes === 0) throw new Error("Saved view not found")
+  const updated = listSavedViews().find((view) => view.id === input.id)
+  if (!updated) throw new Error("Could not update saved view")
+  return updated
 }
 
 export function deleteSavedView(id: string) {

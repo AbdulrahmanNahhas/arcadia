@@ -1,5 +1,5 @@
 export type Layout = "gallery" | "table" | "timeline" | "statistics"
-export type LibraryView = "all" | "progress" | "favorites"
+
 export type Sort = "title" | "rating" | "recent" | "year"
 export type SortDirection = "asc" | "desc"
 

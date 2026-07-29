@@ -10,6 +10,7 @@ import {
   editableWorkStructureSchema,
   recordTrackingEntrySchema,
   trackingPageInputSchema,
+  updateSavedUserViewSchema,
 } from "@/features/library/model"
 
 export const getWorks = createServerFn({ method: "GET" }).handler(async () => {
@@ -151,6 +152,13 @@ export const addSavedView = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { createSavedView } = await import("@/db/repository")
     return createSavedView(data)
+  })
+
+export const editSavedView = createServerFn({ method: "POST" })
+  .validator(updateSavedUserViewSchema)
+  .handler(async ({ data }) => {
+    const { updateSavedView } = await import("@/db/repository")
+    return updateSavedView(data)
   })
 
 export const removeSavedView = createServerFn({ method: "POST" })

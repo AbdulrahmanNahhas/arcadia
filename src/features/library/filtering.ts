@@ -1,4 +1,4 @@
-import type { Work, WorkKind } from "./model"
+import type { SavedUserView, Work, WorkKind } from "./model"
 import { scoreCriteria } from "./scoring"
 import type { ScoreComponents } from "./scoring"
 
@@ -229,16 +229,49 @@ export function workMatchesFilters(work: Work, filters: WorkFilterState) {
   )
 }
 
+export function workMatchesSavedView(work: Work, view: SavedUserView) {
+  const normalizedSearch = view.search.trim().toLocaleLowerCase()
+  const matchesSearch =
+    !normalizedSearch ||
+    [
+      work.title,
+      work.arabicTitle ?? "",
+      work.creator,
+      work.summary,
+      ...work.tags,
+      ...work.genres,
+      ...work.aliases,
+      ...work.studios,
+    ]
+      .join(" ")
+      .toLocaleLowerCase()
+      .includes(normalizedSearch)
+
+  return (
+    matchesSearch &&
+    workMatchesFilters(work, {
+      kinds: view.kinds,
+      excludedKinds: view.excludedKinds,
+      statuses: view.statuses,
+      excludedStatuses: view.excludedStatuses,
+      minRating: view.minRating,
+      minScores: view.minScores,
+      favoriteOnly: view.favoriteOnly,
+      yearFrom: view.yearFrom,
+      yearTo: view.yearTo,
+      facets: normalizeFacetFilters(view.facets),
+    })
+  )
+}
+
 export function matchesScoreFilters(
   scores: ScoreComponents,
   minimums: ScoreComponents
 ) {
   return scoreCriteria.every((criterion) => {
     const minimum = minimums[criterion]
-    return (
-      minimum === undefined ||
-      (scores[criterion] !== undefined && scores[criterion]! >= minimum)
-    )
+    const score = scores[criterion]
+    return minimum === undefined || (score !== undefined && score >= minimum)
   })
 }
 

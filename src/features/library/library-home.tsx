@@ -23,10 +23,9 @@ import {
 } from "@/components/ui/card"
 import { getSavedViews, getWorks } from "@/server/library.functions"
 import { cn } from "@/lib/utils"
-import { libraryCollections, workBelongsToCollection } from "./collections"
-import type { LibraryCollection } from "./collections"
-import { normalizeFacetFilters, workMatchesFilters } from "./filtering"
+import { workMatchesSavedView } from "./filtering"
 import type { SavedUserView, Work } from "./model"
+import { getSavedViewAccentStyle, getSavedViewIcon } from "./view-meta"
 import { LibraryHeader } from "./components/library-header"
 
 const layoutMeta = {
@@ -97,7 +96,7 @@ export function LibraryHome() {
   return (
     <div className="min-h-screen bg-background">
       <LibraryHeader />
-      <main className="mx-auto flex max-w-[1500px] flex-col gap-12 px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+      <main className="mx-auto flex max-w-375 flex-col gap-12 px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         <section className="relative isolate overflow-hidden rounded-3xl border border-border bg-card px-6 py-8 sm:px-9 sm:py-10 lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:items-center lg:gap-10 lg:px-12 lg:py-12">
           <div className="relative z-10 max-w-2xl">
             <div className="mb-5 flex items-center gap-2">
@@ -110,13 +109,12 @@ export function LibraryHome() {
               مكتبة واحدة لكل العوالم التي مررت بها.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
-              افتح مجموعة أو عرضاً محفوظاً، ثم واصل من حيث توقفت. كل سجل يحتفظ
-              بالتقييم والتقدم والتفاصيل والعلاقات في مكان واحد.
+              افتح كل الأعمال أو عرضاً محفوظاً، ثم واصل من حيث توقفت. كل سجل
+              يحتفظ بالتقييم والتقدم والتفاصيل والعلاقات في مكان واحد.
             </p>
             <Link
-              to="/library/$collection"
-              params={{ collection: "all" }}
-              search={{ view: "all" }}
+              to="/library"
+              search={{}}
               className={cn(
                 buttonVariants({ size: "lg" }),
                 "mt-7 rounded-full px-5"
@@ -124,14 +122,28 @@ export function LibraryHome() {
             >
               <SquaresFourIcon data-icon="inline-start" />
               افتح المكتبة كاملة
-              <span className="text-primary-foreground/70">{summary.total}</span>
+              <span className="text-primary-foreground/70">
+                {summary.total}
+              </span>
               <ArrowLeftIcon data-icon="inline-end" />
             </Link>
 
             <dl className="mt-9 flex flex-wrap gap-x-8 gap-y-4 border-t border-border/70 pt-6">
-              <SummaryItem label="قيد المتابعة" value={summary.active} tone="primary" />
-              <SummaryItem label="مكتمل" value={summary.completed} tone="emerald" />
-              <SummaryItem label="في المفضلة" value={summary.favorites} tone="amber" />
+              <SummaryItem
+                label="قيد المتابعة"
+                value={summary.active}
+                tone="primary"
+              />
+              <SummaryItem
+                label="مكتمل"
+                value={summary.completed}
+                tone="emerald"
+              />
+              <SummaryItem
+                label="في المفضلة"
+                value={summary.favorites}
+                tone="amber"
+              />
             </dl>
           </div>
 
@@ -158,7 +170,7 @@ export function LibraryHome() {
                     className="size-full object-cover"
                   />
                 ) : (
-                  <div className="flex size-full flex-col justify-end bg-gradient-to-t from-black/80 via-black/10 to-transparent p-3">
+                  <div className="flex size-full flex-col justify-end bg-linear-to-t from-black/80 via-black/10 to-transparent p-3">
                     <span className="text-xs font-semibold text-white">
                       {work.arabicTitle || work.title}
                     </span>
@@ -170,40 +182,38 @@ export function LibraryHome() {
         </section>
 
         <HomeSection
-          id="collections-heading"
-          title="مجموعات المكتبة"
-          description="مساحات ثابتة ومرتبة حسب نوع الوسائط."
+          id="pinned-views-heading"
+          title="العروض المثبّتة"
+          description="وجهاتك الأساسية للوصول السريع إلى المكتبة."
+          badge={`${savedViews.filter((view) => view.isPinned).length + 1}`}
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {libraryCollections
-              .filter((collection) => collection.id !== "all")
-              .map((collection) => (
-                <CollectionCard
-                  key={collection.id}
-                  collection={collection}
-                  works={works.filter((work) =>
-                    workBelongsToCollection(work, collection)
-                  )}
-                />
+            <LargeViewCard works={works} />
+            {savedViews
+              .filter((view) => view.isPinned)
+              .map((view) => (
+                <LargeViewCard key={view.id} view={view} works={works} />
               ))}
           </div>
         </HomeSection>
 
         <HomeSection
-          id="saved-views-heading"
-          title="عروضك المحفوظة"
-          description="اختصارات حية تحفظ الفلاتر والترتيب وطريقة العرض."
-          badge={savedViews.length ? `${savedViews.length}` : undefined}
+          id="other-views-heading"
+          title="عروض أخرى"
+          description="عروض محفوظة للفلاتر والترتيب وطريقة العرض التي تحتاجها لاحقاً."
+          badge={
+            savedViews.some((view) => !view.isPinned)
+              ? `${savedViews.filter((view) => !view.isPinned).length}`
+              : undefined
+          }
         >
-          {savedViews.length ? (
+          {savedViews.some((view) => !view.isPinned) ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {savedViews.map((savedView) => (
-                <SavedViewCard
-                  key={savedView.id}
-                  view={savedView}
-                  works={works}
-                />
-              ))}
+              {savedViews
+                .filter((view) => !view.isPinned)
+                .map((view) => (
+                  <CompactViewCard key={view.id} view={view} works={works} />
+                ))}
             </div>
           ) : (
             <Card className="border-dashed bg-muted/20 py-10 text-center">
@@ -213,10 +223,11 @@ export function LibraryHome() {
                   weight="duotone"
                 />
                 <p className="mt-3 text-sm font-medium">
-                  لا توجد عروض محفوظة بعد
+                  لا توجد عروض إضافية بعد
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  افتح أي مجموعة واضبطها، ثم احفظ العرض من شريط الأدوات.
+                  أنشئ عرضاً من شريط أدوات المكتبة، أو أدر عروضك وتثبيتها من
+                  صفحة الإدارة.
                 </p>
               </CardContent>
             </Card>
@@ -232,9 +243,8 @@ export function LibraryHome() {
             {recentWorks.map((work) => (
               <Link
                 key={work.id}
-                to="/library/$collection"
-                params={{ collection: "all" }}
-                search={{ view: "all", work: work.id }}
+                to="/library"
+                search={{ work: work.id }}
                 className="group min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div className="relative aspect-2/3 overflow-hidden rounded-xl bg-muted shadow-sm ring-1 ring-foreground/10 transition duration-300 group-hover:-translate-y-1 group-hover:shadow-lg">
@@ -245,14 +255,14 @@ export function LibraryHome() {
                       className="size-full object-cover transition duration-500 group-hover:scale-[1.04]"
                     />
                   ) : (
-                    <div className="flex size-full items-end bg-gradient-to-br from-muted to-muted/60 p-3">
+                    <div className="flex size-full items-end bg-linear-to-br from-muted to-muted/60 p-3">
                       <span className="text-xs font-semibold text-muted-foreground">
                         {work.arabicTitle || work.title}
                       </span>
                     </div>
                   )}
                   {work.calculatedRating ? (
-                    <span className="absolute end-1.5 top-1.5 rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+                    <span className="absolute inset-e-1.5 top-1.5 rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
                       {work.calculatedRating.toFixed(1)}
                     </span>
                   ) : null}
@@ -321,74 +331,90 @@ function SummaryItem({
         <span className={cn("size-1.5 rounded-full", dot)} />
         {label}
       </dt>
-      <dd className="mt-1.5 text-2xl font-semibold tabular-nums tracking-tight">
+      <dd className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums">
         {value}
       </dd>
     </div>
   )
 }
 
-function CollectionCard({
-  collection,
+function LargeViewCard({
+  view,
   works,
 }: {
-  collection: LibraryCollection
+  view?: SavedUserView
   works: Work[]
 }) {
-  const Icon = collection.icon
-  const covers = works
+  const Icon = view ? getSavedViewIcon(view.icon) : SquaresFourIcon
+  const matchingWorks = view
+    ? works.filter((work) => workMatchesSavedView(work, view))
+    : works
+  const covers = matchingWorks
     .filter((work) => work.imagePath)
     .sort(
       (left, right) =>
         (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0)
     )
     .slice(0, 3)
+  const meta = view ? layoutMeta[view.layout] : layoutMeta.gallery
+  const LayoutIcon = meta.icon
 
   return (
     <Link
-      to="/library/$collection"
-      params={{ collection: collection.id }}
-      search={{ view: "all" }}
+      to="/library"
+      search={view ? { view: view.id } : {}}
       className="group rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
     >
       <Card className="h-full overflow-hidden py-0 transition duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-foreground/10">
-        {/* Poster shelf */}
         <div className="relative flex h-36 items-center justify-center overflow-hidden bg-muted/30">
           {covers.length > 0 ? (
             <div className="flex items-end justify-center [direction:ltr]">
-              {covers.map((work, i) => (
+              {covers.map((work, index) => (
                 <div
                   key={work.id}
                   style={
                     {
-                      "--rotate": `${(i - 1) * 10}deg`,
-                      "--spread": `${(i - 1) * 12}px`,
-                      marginInlineStart: i === 0 ? 0 : 0,
-                      zIndex: i === 1 ? 3 : i,
-                      transitionDelay: `${i * 15}ms`,
+                      "--rotate": `${(index - 1) * 10}deg`,
+                      "--spread": `${(index - 1) * 12}px`,
+                      zIndex: index === 1 ? 3 : index,
+                      transitionDelay: `${index * 15}ms`,
                     } as React.CSSProperties
                   }
-                  className="relative h-28 w-20 shrink-0 overflow-hidden rounded-md border border-border/50 bg-muted shadow-md ring-1 ring-black/5 transition-[transform,box-shadow] duration-300 ease-out [transform:rotate(var(--rotate))] group-hover:shadow-lg group-hover:[transform:translate(var(--spread),10px)_rotate(0deg)]"
+                  className="relative h-28 w-20 shrink-0 transform-[rotate(var(--rotate))] overflow-hidden rounded-md border border-border/50 bg-muted shadow-md ring-1 ring-black/5 transition-[transform,box-shadow] duration-300 ease-out group-hover:transform-[translate(var(--spread),10px)_rotate(0deg)] group-hover:shadow-lg"
                 >
-                  <img src={work.imagePath!} alt="" className="size-full object-cover" />
+                  <img
+                    src={work.imagePath!}
+                    alt=""
+                    className="size-full object-cover"
+                  />
                 </div>
               ))}
             </div>
           ) : (
-            <Icon weight="duotone" className="size-10 text-muted-foreground/40" />
+            <Icon
+              weight="duotone"
+              className="size-10 text-muted-foreground/40"
+            />
           )}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-card to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-linear-to-t from-card to-transparent" />
         </div>
 
         <CardHeader className="pt-0">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <span
+              className={cn(
+                "flex size-8 items-center justify-center rounded-lg border",
+                !view && "border-primary/20 bg-primary/10 text-primary"
+              )}
+              style={view ? getSavedViewAccentStyle(view.color) : undefined}
+            >
               <Icon weight="duotone" />
             </span>
-            {collection.title}
+            {view?.name ?? "كل الأعمال"}
           </CardTitle>
           <CardDescription className="line-clamp-2">
-            {collection.description}
+            {view?.description ||
+              "العرض الشامل لكل الأعمال المحفوظة في مكتبتك."}
           </CardDescription>
           <CardAction>
             <ArrowLeftIcon className="text-muted-foreground transition-transform group-hover:-translate-x-1 group-hover:text-foreground" />
@@ -396,15 +422,18 @@ function CollectionCard({
         </CardHeader>
 
         <CardFooter className="justify-between pb-5 text-muted-foreground">
-          <span className="text-xs">{collection.eyebrow}</span>
-          <Badge variant="secondary">{works.length} عمل</Badge>
+          <span className="flex items-center gap-1.5 text-xs">
+            <LayoutIcon className="size-3.5" weight="duotone" />
+            {meta.label}
+          </span>
+          <Badge variant="secondary">{matchingWorks.length} عمل</Badge>
         </CardFooter>
       </Card>
     </Link>
   )
 }
 
-function SavedViewCard({
+function CompactViewCard({
   view,
   works,
 }: {
@@ -413,49 +442,22 @@ function SavedViewCard({
 }) {
   const meta = layoutMeta[view.layout]
   const LayoutIcon = meta.icon
-
-  const matchingWorks = works.filter((work) => {
-    const normalizedSearch = view.search.trim().toLocaleLowerCase()
-    const matchesSearch =
-      !normalizedSearch ||
-      [
-        work.title,
-        work.arabicTitle ?? "",
-        work.creator,
-        ...work.tags,
-        ...work.genres,
-      ]
-        .join(" ")
-        .toLocaleLowerCase()
-        .includes(normalizedSearch)
-    return (
-      matchesSearch &&
-      workMatchesFilters(work, {
-        kinds: view.kinds,
-        excludedKinds: view.excludedKinds,
-        statuses: view.statuses,
-        excludedStatuses: view.excludedStatuses,
-        minRating: view.minRating,
-        minScores: view.minScores,
-        favoriteOnly: view.favoriteOnly,
-        yearFrom: view.yearFrom,
-        yearTo: view.yearTo,
-        facets: normalizeFacetFilters(view.facets),
-      })
-    )
-  })
+  const Icon = getSavedViewIcon(view.icon)
+  const matchingWorks = works.filter((work) => workMatchesSavedView(work, view))
 
   const covers = matchingWorks
     .filter((work) => work.imagePath)
-    .sort((left, right) => (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0))
+    .sort(
+      (left, right) =>
+        (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0)
+    )
     .slice(0, 8)
   const overflow = matchingWorks.length - covers.length
 
   return (
     <Link
-      to="/library/$collection"
-      params={{ collection: "all" }}
-      search={{ view: "all", saved: view.id }}
+      to="/library"
+      search={{ view: view.id }}
       className="group/card relative block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Card
@@ -464,19 +466,16 @@ function SavedViewCard({
       >
         <CardHeader>
           <CardTitle className="flex min-w-0 items-center gap-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <BookmarkSimpleIcon weight="fill" />
+            <span
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg border"
+              style={getSavedViewAccentStyle(view.color)}
+            >
+              <Icon weight="duotone" />
             </span>
             <span className="truncate">{view.name}</span>
           </CardTitle>
-          <CardDescription className="flex items-center gap-1.5">
-            <span className="font-medium text-foreground/80">
-              {matchingWorks.length}
-            </span>
-            نتيجة
-            <span className="text-border">·</span>
-            <LayoutIcon className="size-3.5" weight="duotone" />
-            {meta.label}
+          <CardDescription className="line-clamp-2">
+            {view.description || "عرض محفوظ بإعداداتك المفضلة."}
           </CardDescription>
           <CardAction>
             <ArrowLeftIcon className="text-muted-foreground transition-transform group-hover/card:-translate-x-1" />
@@ -497,7 +496,7 @@ function SavedViewCard({
                       transitionDelay: `${i * 18}ms`,
                     } as React.CSSProperties
                   }
-                  className="relative aspect-2/3 h-20 shrink-0 overflow-hidden rounded-lg bg-muted shadow-sm ring-2 ring-card transition-[transform,height] duration-300 ease-out group-hover/card:h-24 group-hover/card:[transform:translateX(var(--shift))]"
+                  className="relative aspect-2/3 h-20 shrink-0 overflow-hidden rounded-lg bg-muted shadow-sm ring-2 ring-card transition-[transform,height] duration-300 ease-out group-hover/card:h-24 group-hover/card:transform-[translateX(var(--shift))]"
                 >
                   <img
                     src={work.imagePath!}
@@ -515,7 +514,7 @@ function SavedViewCard({
                       transitionDelay: `${covers.length * 18}ms`,
                     } as React.CSSProperties
                   }
-                  className="relative flex aspect-2/3 h-20 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground ring-2 ring-card transition-[transform,height] duration-300 ease-out group-hover/card:h-24 group-hover/card:[transform:translateX(var(--shift))]"
+                  className="relative flex aspect-2/3 h-20 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground ring-2 ring-card transition-[transform,height] duration-300 ease-out group-hover/card:h-24 group-hover/card:transform-[translateX(var(--shift))]"
                 >
                   +{overflow}
                 </div>
@@ -528,6 +527,13 @@ function SavedViewCard({
             </div>
           )}
         </CardContent>
+        <CardFooter className="justify-between text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-xs">
+            <LayoutIcon className="size-3.5" weight="duotone" />
+            {meta.label}
+          </span>
+          <Badge variant="secondary">{matchingWorks.length} نتيجة</Badge>
+        </CardFooter>
       </Card>
     </Link>
   )
