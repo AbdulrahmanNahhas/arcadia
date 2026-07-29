@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { ReactNode, UIEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
@@ -23,13 +23,22 @@ import {
   ProgressLabel,
   ProgressValue,
 } from "@/components/ui/progress"
+import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import {
+  activityAmount,
+  isMovieStatusEvent,
+  progressDirection,
+  progressSegments,
+  seasonCapacity,
+} from "@/features/library/tracking"
 import {
   getWorkStructure,
   getWorkTrackingEntries,
 } from "@/server/library.functions"
 
-import type { Work, WorkStructure } from "../model"
+import type { TrackingEntry, Work, WorkStructure } from "../model"
+import { scoreCriteria, scoreLabel } from "../scoring"
 import { useArabicTranslations } from "../translations"
 import { WorkArtwork } from "./work-artwork"
 import { TrackingForm, statusLabel } from "./tracking-form"
@@ -67,7 +76,7 @@ export function WorkDetailDialog({
       getWorkTrackingEntries({
         data: {
           workId: work!.id,
-          limit: 12,
+          limit: 1_000,
         },
       }),
     enabled: open && Boolean(work),
@@ -120,7 +129,7 @@ export function WorkDetailDialog({
       <DialogContent
         showCloseButton={false}
         className={cn(
-          "overflow-x-hidden! isolate grid h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)]",
+          "isolate grid h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] overflow-x-hidden!",
           "w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)]",
           "grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden p-0",
           "rounded-3xl border bg-background shadow-2xl",
@@ -156,16 +165,14 @@ export function WorkDetailDialog({
           />
           <div
             className={cn(
-              "relative mx-auto grid w-full max-w-[1480px] gap-5 px-4 py-5 overflow-x-clip",
+              "relative mx-auto grid w-full max-w-[1480px] gap-5 overflow-x-clip px-4 py-5",
               "bg-background/40 backdrop-blur-xl",
               "sm:px-6 sm:py-7",
               "lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start",
               "xl:gap-7 xl:px-8"
             )}
           >
-            <aside
-              className="order-2 flex min-w-0 flex-col gap-5 lg:sticky lg:top-5 lg:order-2"
-            >
+            <aside className="order-2 flex min-w-0 flex-col gap-5 lg:sticky lg:top-5 lg:order-2">
               <Panel title="معلومات العمل">
                 <dl>
                   <Property label="صنّاع العمل">{work.creator || "—"}</Property>
@@ -251,10 +258,9 @@ export function WorkDetailDialog({
               </Panel>
             </aside>
 
-            <main
-              className="order-1 flex min-w-0 flex-col gap-5 lg:order-1"
-            >
+            <main className="order-1 flex min-w-0 flex-col gap-5 lg:order-1">
               <TrackerLedger work={work} structure={structure} />
+              <ScorePreview work={work} />
 
               <div
                 className={cn(
@@ -264,9 +270,7 @@ export function WorkDetailDialog({
                 )}
               >
                 {/* Right Column: Summary, Classification, Content Dossier, Relations */}
-                <div
-                  className="order-1 flex min-w-0 flex-col gap-5 xl:order-1"
-                >
+                <div className="order-1 flex min-w-0 flex-col gap-5 xl:order-1">
                   <Panel
                     title="النبذة"
                     size="large"
@@ -274,9 +278,7 @@ export function WorkDetailDialog({
                     emptyText="لم تُكتب نبذة لهذا العمل بعد."
                   >
                     {hasSummary && (
-                      <p
-                        className="text-sm leading-7 text-foreground/85 sm:text-[15px]"
-                      >
+                      <p className="text-sm leading-7 text-foreground/85 sm:text-[15px]">
                         {work.summary}
                       </p>
                     )}
@@ -335,9 +337,7 @@ export function WorkDetailDialog({
                               "border-r-2 border-amber-500/70 pr-4"
                             )}
                           >
-                            <p
-                              className="text-sm leading-7 text-muted-foreground"
-                            >
+                            <p className="text-sm leading-7 text-muted-foreground">
                               {work.analysisNotes}
                             </p>
                           </ContentSection>
@@ -428,9 +428,7 @@ export function WorkDetailDialog({
                                 </span>
                               </Badge>
 
-                              <strong
-                                className="line-clamp-2 text-sm leading-6 font-semibold"
-                              >
+                              <strong className="line-clamp-2 text-sm leading-6 font-semibold">
                                 {relation.work.title}
                               </strong>
 
@@ -451,9 +449,7 @@ export function WorkDetailDialog({
                 </div>
 
                 {/* Left Column: Publication, Credits, Activity, Links */}
-                <div
-                  className="order-2 flex min-w-0 flex-col gap-5 xl:order-2"
-                >
+                <div className="order-2 flex min-w-0 flex-col gap-5 xl:order-2">
                   <Panel
                     title="النشر والمصدر"
                     empty={!hasPublication}
@@ -512,9 +508,7 @@ export function WorkDetailDialog({
                             key={`${credit.entityId}-${credit.role}`}
                             className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
                           >
-                            <span
-                              className="min-w-0 truncate text-sm font-medium"
-                            >
+                            <span className="min-w-0 truncate text-sm font-medium">
                               {credit.name}
                             </span>
 
@@ -536,35 +530,11 @@ export function WorkDetailDialog({
                     emptyText="لم تُسجّل أي تحديثات للتقدّم بعد."
                   >
                     {hasActivity && (
-                      <ol className="space-y-1">
-                        {activityQuery.data!.map((event, index) => (
-                          <li
-                            key={event.id}
-                            className="relative grid grid-cols-[18px_minmax(0,1fr)] gap-3 pb-5 last:pb-0"
-                          >
-                            {index < activityQuery.data!.length - 1 && (
-                              <span className="absolute top-4 right-[5px] h-[calc(100%-0.5rem)] w-px bg-border" />
-                            )}
-
-                            <span className="relative z-10 mt-1 size-3 rounded-full border-[3px] border-background bg-amber-500 ring-1 ring-amber-500/30" />
-
-                            <div className="min-w-0">
-                              <strong className="block text-sm font-medium">
-                                تحديث التقدّم
-                              </strong>
-
-                              <small className="mt-1 block leading-5 text-muted-foreground">
-                                {formatDateString(event.occurredOn)}
-                                {" · "}
-                                {formatNumber(event.progress)}{" "}
-                                {progressUnitLabel(work.progressUnit)}
-                                {" · "}
-                                {translatedStatus(statusLabel(event.status))}
-                              </small>
-                            </div>
-                          </li>
-                        ))}
-                      </ol>
+                      <WorkActivityLedger
+                        work={work}
+                        structure={structure}
+                        entries={activityQuery.data!}
+                      />
                     )}
                   </Panel>
 
@@ -609,6 +579,255 @@ export function WorkDetailDialog({
   )
 }
 
+function WorkActivityLedger({
+  work,
+  structure,
+  entries,
+}: {
+  work: Work
+  structure?: WorkStructure
+  entries: TrackingEntry[]
+}) {
+  const days = useMemo(() => {
+    const grouped = new Map<string, TrackingEntry[]>()
+
+    const sortedEntries = [...entries].sort(
+      (left, right) =>
+        right.occurredOn.localeCompare(left.occurredOn) ||
+        left.daySequence - right.daySequence ||
+        left.id.localeCompare(right.id)
+    )
+
+    for (const entry of sortedEntries) {
+      grouped.set(entry.occurredOn, [
+        ...(grouped.get(entry.occurredOn) ?? []),
+        entry,
+      ])
+    }
+
+    return [...grouped.entries()]
+  }, [entries])
+
+  return (
+    <div className="flex flex-col">
+      {days.map(([date, dayEntries], dayIndex) => {
+        const orderedEntries = [...dayEntries].sort(
+          (left, right) =>
+            left.daySequence - right.daySequence ||
+            left.id.localeCompare(right.id)
+        )
+
+        const watchEntries = orderedEntries.filter((entry) => {
+          if (isMovieStatusEvent(entry, work)) return true
+          return entry.progress > entry.progressBefore
+        })
+
+        const statusEntries = orderedEntries.filter(
+          (entry) =>
+            entry.statusBefore !== entry.status &&
+            !isMovieStatusEvent(entry, work) &&
+            entry.progress === entry.progressBefore
+        )
+
+        const watchedAmount = watchEntries.reduce(
+          (total, entry) => total + activityAmount(entry),
+          0
+        )
+
+        const unitLabel =
+          work.kind === "movie" ? "فيلم" : progressUnitLabel(work.progressUnit)
+
+        const latestWatch = watchEntries.at(-1)
+        const latestStatus = statusEntries.at(-1)
+
+        const daySummary =
+          watchEntries.length > 0
+            ? `${formatNumber(watchedAmount)} ${unitLabel}`
+            : statusEntries.length > 0
+              ? "تحديث حالة"
+              : "سجل"
+
+        return (
+          <section
+            key={date}
+            className="border-t border-border/50 py-2 first:border-t-0 first:pt-0"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row-reverse sm:items-start sm:gap-6">
+              <aside className="shrink-0 sm:w-36">
+                <time
+                  className="block text-sm font-medium tracking-tight text-foreground"
+                  dateTime={date}
+                >
+                  {formatDateString(date)}
+                </time>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {daySummary}
+                </p>
+              </aside>
+
+              <div className="min-w-0 flex-1">
+                <div className="space-y-3 border-l border-border/60 pr-4">
+                  {watchEntries.length > 0 ? (
+                    <LedgerEvent
+                      tone="primary"
+                      title={
+                        latestWatch && isMovieStatusEvent(latestWatch, work)
+                          ? "اكتملت مشاهدة الفيلم"
+                          : "سجل مشاهدة"
+                      }
+                      description={
+                        latestWatch && isMovieStatusEvent(latestWatch, work)
+                          ? "سُجّل كاكتمل."
+                          : latestWatch && watchEntries.length > 0
+                            ? `من ${formatNumber(
+                                watchEntries[0].progressBefore
+                              )} إلى ${formatNumber(latestWatch.progress)}`
+                            : ""
+                      }
+                    />
+                  ) : null}
+
+                  {latestStatus ? (
+                    <LedgerEvent
+                      title="تحديث الحالة"
+                      description={`${statusLabel(
+                        latestStatus.statusBefore
+                      )} ← ${statusLabel(latestStatus.status)}`}
+                    />
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
+function LedgerEvent({
+  title,
+  description,
+  tone = "muted",
+}: {
+  title: string
+  description: string
+  tone?: "muted" | "primary"
+}) {
+  return (
+    <div className="relative pr-4">
+      <span
+        className={[
+          "absolute top-2 -right-[9px] size-2 rounded-full",
+          tone === "primary" ? "bg-primary" : "bg-border",
+        ].join(" ")}
+      />
+      <p className="text-sm leading-tight font-medium text-foreground">
+        {title}
+      </p>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+        {description}
+      </p>
+    </div>
+  )
+}
+
+function WorkActivityEntry({
+  work,
+  structure,
+  entry,
+}: {
+  work: Work
+  structure?: WorkStructure
+  entry: TrackingEntry
+}) {
+  const direction = progressDirection(entry)
+  const segments = progressSegments(
+    structure,
+    entry.progressBefore,
+    entry.progress
+  )
+  const movieWatched = isMovieStatusEvent(entry, work)
+
+  return (
+    <div className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <strong className="text-sm font-medium">
+          {movieWatched
+            ? "تمت مشاهدة الفيلم"
+            : direction === "forward"
+              ? `أُضيف ${formatNumber(activityAmount(entry))} ${progressUnitLabel(work.progressUnit)}`
+              : direction === "correction"
+                ? "تصحيح موضع التقدم"
+                : "تغيير حالة المتابعة"}
+        </strong>
+        <Badge variant="outline">
+          {translatedStatus(statusLabel(entry.status))}
+        </Badge>
+      </div>
+
+      {direction === "forward" ? (
+        <div className="flex flex-col gap-1.5">
+          {segments.map((segment, index) => (
+            <div
+              key={`${segment.seasonId ?? "work"}-${segment.firstUnit}-${index}`}
+              className="flex flex-wrap items-center gap-2 text-xs"
+            >
+              {segment.seasonTitle ? (
+                <Badge variant="secondary">
+                  {activitySeasonLabel(
+                    segment.seasonTitle,
+                    segment.seasonNumber
+                  )}
+                </Badge>
+              ) : null}
+              <span className="font-medium">
+                {activityUnitSequenceLabel(
+                  work,
+                  segment.firstUnit,
+                  segment.lastUnit
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : direction === "correction" ? (
+        <p className="text-xs text-muted-foreground">
+          من {formatNumber(entry.progressBefore)} إلى{" "}
+          {formatNumber(entry.progress)}؛ لا يُحتسب كنشاط.
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          بقي موضع التقدم عند {formatNumber(entry.progress)}.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function activityUnitSequenceLabel(work: Work, first: number, last: number) {
+  const chapter = work.progressUnit
+    .trim()
+    .toLocaleLowerCase()
+    .startsWith("chapter")
+  const unit = chapter ? "الفصول" : "الحلقات"
+  const values =
+    last - first <= 5
+      ? Array.from({ length: last - first + 1 }, (_, index) =>
+          formatNumber(first + index)
+        ).join("، ")
+      : `${formatNumber(first)}–${formatNumber(last)}`
+  return `${unit} ${values}`
+}
+
+function activitySeasonLabel(title: string, number: number | null) {
+  return number === null
+    ? title
+    : `الموسم ${new Intl.NumberFormat("ar", {
+        maximumFractionDigits: 1,
+      }).format(number)}`
+}
+
 function DialogFloatingActions({
   fullScreen,
   onToggleFullScreen,
@@ -620,7 +839,6 @@ function DialogFloatingActions({
 }) {
   return (
     <div
-
       className={cn(
         "absolute top-3 right-3 z-30 flex items-center gap-1 rounded-full",
         "border bg-background/85 p-1 shadow-lg backdrop-blur-xl",
@@ -732,7 +950,6 @@ function WorkHero({
       </div>
 
       <div
-
         className={cn(
           "relative mx-auto -mt-16 grid w-full max-w-[1440px] items-end overflow-x-hidden!",
           "grid-cols-[112px_minmax(0,1fr)] gap-x-4 gap-y-5 px-4 pb-6",
@@ -753,7 +970,7 @@ function WorkHero({
           <div className="pointer-events-none absolute inset-x-[12%] -bottom-4 -z-10 h-10 rounded-full bg-black/25 blur-xl" />
         </div>
 
-        <div  className="min-w-0 pb-1 text-right lg:pb-3">
+        <div className="min-w-0 pb-1 text-right lg:pb-3">
           <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4">
             <Badge className="shadow-sm">{translatedKind(work.kind)}</Badge>
 
@@ -780,7 +997,6 @@ function WorkHero({
             </div>
           ) : (
             <h1
-
               className={cn(
                 "max-w-3xl text-2xl leading-tight font-bold tracking-tight",
                 "sm:text-4xl lg:text-5xl"
@@ -791,19 +1007,13 @@ function WorkHero({
           )}
 
           {work.logoPath && (
-            <p
-
-              className="mt-2 text-sm font-medium text-foreground/75 sm:mt-3"
-            >
+            <p className="mt-2 text-sm font-medium text-foreground/75 sm:mt-3">
               {work.title}
             </p>
           )}
 
           {work.arabicTitle && (
-            <p
-
-              className="mt-2 max-w-2xl text-sm leading-6 text-foreground/70 sm:mt-3 sm:text-base sm:leading-7"
-            >
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground/70 sm:mt-3 sm:text-base sm:leading-7">
               {work.arabicTitle}
             </p>
           )}
@@ -848,10 +1058,7 @@ function HeroStat({ label, value }: { label: string; value: ReactNode }) {
     <div className="min-w-0 rounded-xl border bg-muted/35 px-3 py-2.5">
       <p className="text-[10px] font-medium text-muted-foreground">{label}</p>
 
-      <p
-
-        className="mt-1 truncate text-xs font-semibold text-foreground"
-      >
+      <p className="mt-1 truncate text-xs font-semibold text-foreground">
         {value}
       </p>
     </div>
@@ -930,48 +1137,81 @@ function TrackerLedger({
           <TrackingForm work={work} structure={structure} />
 
           {structure?.seasons.length ? (
-            <div className="mt-5 grid gap-2.5 border-t pt-5 sm:grid-cols-2 xl:grid-cols-3">
-              {structure.seasons.map((season) => {
-                const completed = season.units.filter(
-                  (unit) => unit.progress
-                ).length
+            <>
+              <Separator className="my-5" />
+              <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                {structure.seasons.map((season) => {
+                  const completed = season.progress?.progress ?? 0
 
-                const seasonTotal = season.units.length || season.unitCount || 0
+                  const seasonTotal = seasonCapacity(season)
 
-                const seasonCompleted =
-                  seasonTotal > 0 && completed === seasonTotal
+                  const seasonCompleted =
+                    seasonTotal > 0 && completed === seasonTotal
 
-                return (
-                  <div
-                    key={season.id}
-                    className={cn(
-                      "flex items-center justify-between gap-3 rounded-xl border",
-                      "bg-background px-3.5 py-3"
-                    )}
-                  >
-                    <span
-
-                      className="min-w-0 truncate text-sm font-medium"
+                  return (
+                    <div
+                      key={season.id}
+                      className={cn(
+                        "flex items-center justify-between gap-3 rounded-xl border",
+                        "bg-background px-3.5 py-3"
+                      )}
                     >
-                      {season.title}
-                    </span>
+                      <span className="min-w-0 truncate text-sm font-medium">
+                        {season.title}
+                      </span>
 
-                    <Badge
-                      variant={seasonCompleted ? "default" : "outline"}
-                      className="shrink-0"
-                    >
-                      {formatNumber(completed)}
-                      {" / "}
-                      {seasonTotal ? formatNumber(seasonTotal) : "—"}
-                    </Badge>
-                  </div>
-                )
-              })}
-            </div>
+                      <Badge
+                        variant={seasonCompleted ? "default" : "outline"}
+                        className="shrink-0"
+                      >
+                        {formatNumber(completed)}
+                        {" / "}
+                        {seasonTotal ? formatNumber(seasonTotal) : "—"}
+                      </Badge>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           ) : null}
         </CollapsibleContent>
       </Collapsible>
     </section>
+  )
+}
+
+function ScorePreview({ work }: { work: Work }) {
+  return (
+    <Panel title="تفاصيل التقييم" size="large">
+      <div className="grid gap-5 sm:grid-cols-[112px_minmax(0,1fr)] sm:items-center">
+        <div className="flex flex-col items-center justify-center rounded-2xl border bg-muted/25 px-4 py-5">
+          <span className="font-mono text-3xl font-semibold tabular-nums">
+            {work.calculatedRating?.toFixed(1) ?? "—"}
+          </span>
+          <span className="mt-1 text-xs text-muted-foreground">من 10</span>
+        </div>
+
+        <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
+          {scoreCriteria.map((criterion) => {
+            const score = work.scoreComponents[criterion]
+            return (
+              <Progress
+                key={criterion}
+                value={score === undefined ? null : score * 10}
+                className={cn(score === undefined && "opacity-55")}
+              >
+                <ProgressLabel>
+                  {scoreLabel(criterion, work.kind).ar}
+                </ProgressLabel>
+                <ProgressValue>
+                  {() => (score === undefined ? "—" : score.toFixed(1))}
+                </ProgressValue>
+              </Progress>
+            )
+          })}
+        </div>
+      </div>
+    </Panel>
   )
 }
 
@@ -1039,7 +1279,7 @@ function Property({ label, children }: { label: string; children: ReactNode }) {
     >
       <dt className="rtl text-start text-muted-foreground">{label}</dt>
 
-      <dd  className="rtl min-w-0 text-start font-medium break-words">
+      <dd className="rtl min-w-0 text-start font-medium break-words">
         {children}
       </dd>
     </div>
