@@ -1,13 +1,11 @@
+import { useState } from "react"
 import {
   BookOpenTextIcon,
-  BooksIcon,
-  CalendarCheckIcon,
+  CalendarBlankIcon,
   CalendarDotsIcon,
   ChartBarIcon,
-  CheckCircleIcon,
   FilmSlateIcon,
   TelevisionSimpleIcon,
-  TrendUpIcon,
 } from "@phosphor-icons/react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -25,12 +23,16 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { Progress } from "@/components/ui/progress"
-import { kindLabels } from "@/features/library/filtering"
+import { Separator } from "@/components/ui/separator"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { statusLabel } from "@/features/library/components/tracking-form"
 import type { Work } from "@/features/library/model"
 import { cn } from "@/lib/utils"
-import type { FeedSummary } from "../activity-feed-utils"
+import type {
+  ActivityPeriod,
+  FeedGrouping,
+  FeedSummary,
+} from "../activity-feed-utils"
 import {
   formatNumber,
   monthBarHeight,
@@ -45,25 +47,16 @@ export function SummaryPanel({
   summary: FeedSummary
   worksById: Map<string, Work>
 }) {
+  const [grouping, setGrouping] = useState<FeedGrouping>("week")
   const latestWorkTitles = summary.latestWorkIds
     .map((workId) => worksById.get(workId))
     .filter((work): work is Work => Boolean(work))
-  const activeWorks = summary.activeWorkIds
-    .map((workId) => worksById.get(workId))
-    .filter((work): work is Work => Boolean(work))
-  const kindCounts = activeWorks.reduce(
-    (counts, work) => counts.set(work.kind, (counts.get(work.kind) ?? 0) + 1),
-    new Map<Work["kind"], number>()
-  )
-  const kindMix = [...kindCounts.entries()].sort(
-    ([, left], [, right]) => right - left
-  )
   const busiestMonth = summary.months.reduce(
     (busiest, month) => (month.count > busiest.count ? month : busiest),
     summary.months[0]
   )
 
-  if (summary.entryCount === 0) {
+  if (summary.updateCount === 0) {
     return (
       <Empty className="border">
         <EmptyHeader>
@@ -72,7 +65,7 @@ export function SummaryPanel({
           </EmptyMedia>
           <EmptyTitle>لا توجد بيانات للملخص</EmptyTitle>
           <EmptyDescription>
-            سيظهر هنا إيقاع الشهر والسنة بعد إضافة نشاط إلى السجل.
+            سيظهر هنا عدد الحلقات والفصول والأفلام لكل يوم وأسبوع وشهر.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -83,71 +76,71 @@ export function SummaryPanel({
     <div className="flex flex-col gap-6">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryMetric
+          icon={TelevisionSimpleIcon}
+          label="حلقات شوهدت"
+          value={summary.media.episodesWatched}
+          note="فروق التقدم الموجبة فقط"
+        />
+        <SummaryMetric
+          icon={BookOpenTextIcon}
+          label="فصول قُرئت"
+          value={summary.media.chaptersRead}
+          note="من دون احتساب التصحيحات"
+        />
+        <SummaryMetric
+          icon={FilmSlateIcon}
+          label="أفلام شوهدت"
+          value={summary.media.moviesWatched}
+          note="عند الانتقال إلى مكتمل"
+        />
+        <SummaryMetric
           icon={CalendarDotsIcon}
-          label="هذا الشهر"
-          value={summary.monthEntryCount}
-          note="نقاط تقدم موثقة"
-        />
-        <SummaryMetric
-          icon={TrendUpIcon}
-          label={`سنة ${summary.year}`}
-          value={summary.yearEntryCount}
-          note="إدخالاً في السجل"
-        />
-        <SummaryMetric
-          icon={BooksIcon}
-          label="أعمال في السجل"
-          value={summary.uniqueWorkCount}
+          label="أيام نشطة"
+          value={summary.activeDayCount}
           note="ضمن السجل المعروض"
-        />
-        <SummaryMetric
-          icon={CheckCircleIcon}
-          label="مكتمل"
-          value={summary.completedCount}
-          note="بحسب آخر حالة"
         />
       </div>
 
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle>لقطة الوسائط</CardTitle>
+      <Card className="min-w-0">
+        <CardHeader className="border-b">
+          <CardTitle>دفتر النشاط</CardTitle>
           <CardDescription>
-            أرقام مباشرة من أحدث تقدم للأعمال الظاهرة، بلا تحويل إلى وقت مشاهدة.
+            الأعداد الفعلية في كل فترة؛ لا تُحسب نقطة التقدم الواحدة كحلقة
+            واحدة.
           </CardDescription>
+          <CardAction>
+            <ToggleGroup
+              value={[grouping]}
+              multiple={false}
+              variant="outline"
+              size="sm"
+              spacing={0}
+              aria-label="فترة ملخص النشاط"
+              onValueChange={(value) => {
+                if (value[0]) setGrouping(value[0] as FeedGrouping)
+              }}
+            >
+              <ToggleGroupItem value="day">يوم</ToggleGroupItem>
+              <ToggleGroupItem value="week">أسبوع</ToggleGroupItem>
+              <ToggleGroupItem value="month">شهر</ToggleGroupItem>
+            </ToggleGroup>
+          </CardAction>
         </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <MediaStat
-            icon={FilmSlateIcon}
-            label="أفلام"
-            value={summary.media.movieCount}
-            note="أعمال ظاهرة"
-          />
-          <MediaStat
-            icon={TelevisionSimpleIcon}
-            label="أنمي"
-            value={summary.media.animeCount}
-            note="أعمال ظاهرة"
-          />
-          <MediaStat
-            icon={CalendarCheckIcon}
-            label="حلقات"
-            value={summary.media.episodeProgress}
-            note="إجمالي التقدم المسجل"
-          />
-          <MediaStat
-            icon={BookOpenTextIcon}
-            label="فصول"
-            value={summary.media.chapterProgress}
-            note="إجمالي التقدم المسجل"
-          />
+        <CardContent className="flex flex-col">
+          {summary.periods[grouping].map((period, index) => (
+            <div key={period.key}>
+              {index > 0 ? <Separator /> : null}
+              <PeriodRow period={period} />
+            </div>
+          ))}
         </CardContent>
       </Card>
 
       <Card size="sm" className="min-w-0">
         <CardHeader>
-          <CardTitle>إيقاع السنة</CardTitle>
+          <CardTitle>إيقاع سنة {formatNumber(summary.year)}</CardTitle>
           <CardDescription>
-            نظرة مختصرة إلى توزيع نقاط التقدم على أشهر السنة الحالية.
+            مجموع الحلقات والفصول والأفلام المسجلة فعلياً في كل شهر.
           </CardDescription>
           {busiestMonth.count > 0 ? (
             <CardAction>
@@ -169,7 +162,7 @@ export function SummaryPanel({
                   <div
                     className={cn(
                       "w-full rounded-md bg-primary/80 transition-all",
-                      monthBarHeight(month.count, summary.maxMonthEntryCount)
+                      monthBarHeight(month.count, summary.maxMonthActivityCount)
                     )}
                     title={`${month.label}: ${month.count}`}
                   />
@@ -183,12 +176,12 @@ export function SummaryPanel({
         </CardContent>
       </Card>
 
-      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-3">
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>الحالة الأخيرة</CardTitle>
             <CardDescription>
-              أحدث حالة لكل عمل ظاهر في السجل الحالي.
+              أحدث حالة لكل عمل ضمن نطاق التصفية الحالي.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
@@ -197,32 +190,6 @@ export function SummaryPanel({
                 {statusLabel(value)}{" "}
                 {formatNumber(summary.statusCounts[value] ?? 0)}
               </Badge>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="min-w-0">
-          <CardHeader>
-            <CardTitle>تنوع السجل</CardTitle>
-            <CardDescription>
-              توزيع الأعمال الظاهرة حسب صيغتها، بأرقام واضحة.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            {kindMix.map(([kind, count]) => (
-              <div key={kind} className="flex min-w-0 items-center gap-3">
-                <Badge variant="outline" className="shrink-0">
-                  {kindLabels[kind]}
-                </Badge>
-                <Progress
-                  value={(count / Math.max(activeWorks.length, 1)) * 100}
-                  className="min-w-0 flex-1"
-                  aria-label={`${kindLabels[kind]}: ${count}`}
-                />
-                <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
-                  {formatNumber(count)}
-                </span>
-              </div>
             ))}
           </CardContent>
         </Card>
@@ -247,28 +214,29 @@ export function SummaryPanel({
   )
 }
 
-function MediaStat({
-  icon: Icon,
-  label,
-  value,
-  note,
-}: {
-  icon: typeof CalendarDotsIcon
-  label: string
-  value: number
-  note: string
-}) {
+function PeriodRow({ period }: { period: ActivityPeriod }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-xl bg-muted/50 p-3">
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background text-muted-foreground">
-        <Icon />
-      </div>
+    <div className="grid gap-3 py-4 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
       <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="font-heading text-xl font-semibold tabular-nums">
-          {formatNumber(value)}
+        <p className="font-heading text-sm font-semibold">{period.label}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {formatNumber(period.total)} وحدات نشاط
         </p>
-        <p className="truncate text-xs text-muted-foreground">{note}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {period.episodes > 0 ? (
+          <Badge variant="secondary">
+            {formatNumber(period.episodes)} حلقات
+          </Badge>
+        ) : null}
+        {period.chapters > 0 ? (
+          <Badge variant="secondary">
+            {formatNumber(period.chapters)} فصول
+          </Badge>
+        ) : null}
+        {period.movies > 0 ? (
+          <Badge variant="secondary">{formatNumber(period.movies)} أفلام</Badge>
+        ) : null}
       </div>
     </div>
   )
@@ -280,7 +248,7 @@ function SummaryMetric({
   value,
   note,
 }: {
-  icon: typeof CalendarDotsIcon
+  icon: typeof CalendarBlankIcon
   label: string
   value: number
   note: string

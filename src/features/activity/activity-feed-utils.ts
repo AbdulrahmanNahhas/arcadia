@@ -1,4 +1,9 @@
 import type { TrackingEntry, Work } from "@/features/library/model"
+import {
+  activityAmount,
+  isDiscreteProgressWork,
+  isMovieStatusEvent,
+} from "@/features/library/tracking"
 
 export const trackingStatuses = [
   "planned",
@@ -9,38 +14,51 @@ export const trackingStatuses = [
 ] as const
 
 export type FeedSummary = {
-  entryCount: number
-  monthEntryCount: number
-  yearEntryCount: number
+  updateCount: number
+  activeDayCount: number
+  monthActivityCount: number
+  yearActivityCount: number
   uniqueWorkCount: number
   completedCount: number
   year: number
-  maxMonthEntryCount: number
+  maxMonthActivityCount: number
   months: Array<{ key: string; label: string; count: number }>
   latestWorkIds: string[]
   activeWorkIds: string[]
   statusCounts: Partial<Record<Work["status"], number>>
+  periods: Record<FeedGrouping, ActivityPeriod[]>
   media: {
-    movieCount: number
-    animeCount: number
-    episodeProgress: number
-    chapterProgress: number
+    moviesWatched: number
+    episodesWatched: number
+    chaptersRead: number
   }
 }
 
 export type FeedGrouping = "day" | "week" | "month"
 
+export type ActivityPeriod = {
+  key: string
+  label: string
+  episodes: number
+  chapters: number
+  movies: number
+  total: number
+}
+
 export type FeedItem = {
-  workId: string
-  latestEntry: TrackingEntry
-  startProgress: number
-  entryCount: number
+  entry: TrackingEntry
+}
+
+export type FeedDay = {
+  date: string
+  label: string
+  items: FeedItem[]
 }
 
 export type FeedGroup = {
   key: string
   label: string
-  items: FeedItem[]
+  days: FeedDay[]
 }
 
 export type CalendarDay = {
@@ -83,39 +101,43 @@ export function summarizeEntries(
     return {
       key,
       label: formatMonth(month),
-      count: yearEntries.filter((entry) => entry.occurredOn.startsWith(key))
-        .length,
+      count: activityCount(
+        yearEntries.filter((entry) => entry.occurredOn.startsWith(key)),
+        worksById
+      ),
     }
   })
   const media = {
-    movieCount: 0,
-    animeCount: 0,
-    episodeProgress: 0,
-    chapterProgress: 0,
+    moviesWatched: 0,
+    episodesWatched: 0,
+    chaptersRead: 0,
   }
-  for (const [workId, entry] of latestByWork) {
-    const work = worksById.get(workId)
+  for (const entry of entries) {
+    const work = worksById.get(entry.workId)
     if (!work) continue
-    if (work.kind === "movie") media.movieCount += 1
-    if (work.kind === "anime") media.animeCount += 1
-    if (isProgressUnit(work.progressUnit, "episode")) {
-      media.episodeProgress += entry.progress
-    }
-    if (isProgressUnit(work.progressUnit, "chapter")) {
-      media.chapterProgress += entry.progress
-    }
+    if (isMovieStatusEvent(entry, work)) media.moviesWatched += 1
+    if (isProgressUnit(work.progressUnit, "episode"))
+      media.episodesWatched += activityAmount(entry)
+    if (isProgressUnit(work.progressUnit, "chapter"))
+      media.chaptersRead += activityAmount(entry)
   }
 
   return {
-    entryCount: entries.length,
-    monthEntryCount: entries.filter((entry) =>
-      entry.occurredOn.startsWith(monthPrefix)
-    ).length,
-    yearEntryCount: yearEntries.length,
+    updateCount: entries.length,
+    activeDayCount: new Set(
+      entries
+        .filter((entry) => entryActivityCount(entry, worksById) > 0)
+        .map((entry) => entry.occurredOn)
+    ).size,
+    monthActivityCount: activityCount(
+      entries.filter((entry) => entry.occurredOn.startsWith(monthPrefix)),
+      worksById
+    ),
+    yearActivityCount: activityCount(yearEntries, worksById),
     uniqueWorkCount: latestByWork.size,
     completedCount: statusCounts.completed ?? 0,
     year,
-    maxMonthEntryCount: Math.max(...months.map((month) => month.count), 1),
+    maxMonthActivityCount: Math.max(...months.map((month) => month.count), 1),
     months,
     latestWorkIds: [...new Set(entries.map((entry) => entry.workId))].slice(
       0,
@@ -123,8 +145,49 @@ export function summarizeEntries(
     ),
     activeWorkIds: [...latestByWork.keys()],
     statusCounts,
+    periods: {
+      day: summarizePeriods(entries, worksById, "day"),
+      week: summarizePeriods(entries, worksById, "week"),
+      month: summarizePeriods(entries, worksById, "month"),
+    },
     media,
   }
+}
+
+function summarizePeriods(
+  entries: TrackingEntry[],
+  worksById: Map<string, Work>,
+  grouping: FeedGrouping
+) {
+  const periods = new Map<
+    string,
+    Omit<ActivityPeriod, "key" | "label" | "total">
+  >()
+  for (const entry of entries) {
+    const work = worksById.get(entry.workId)
+    if (!work) continue
+    const key = getGroupKey(entry.occurredOn, grouping)
+    const current = periods.get(key) ?? {
+      episodes: 0,
+      chapters: 0,
+      movies: 0,
+    }
+    if (isMovieStatusEvent(entry, work)) current.movies += 1
+    if (isProgressUnit(work.progressUnit, "episode"))
+      current.episodes += activityAmount(entry)
+    if (isProgressUnit(work.progressUnit, "chapter"))
+      current.chapters += activityAmount(entry)
+    periods.set(key, current)
+  }
+  return [...periods.entries()]
+    .map(([key, values]) => ({
+      key,
+      label: formatGroupLabel(key, grouping),
+      ...values,
+      total: values.episodes + values.chapters + values.movies,
+    }))
+    .filter((period) => period.total > 0)
+    .sort((left, right) => right.key.localeCompare(left.key))
 }
 
 export function statusBadgeVariant(status: Work["status"]) {
@@ -147,16 +210,32 @@ export function groupEntries(
   entries: TrackingEntry[],
   grouping: FeedGrouping
 ): FeedGroup[] {
-  const groups = new Map<string, TrackingEntry[]>()
+  const groups = new Map<string, Map<string, TrackingEntry[]>>()
   for (const entry of entries) {
     const key = getGroupKey(entry.occurredOn, grouping)
-    groups.set(key, [...(groups.get(key) ?? []), entry])
+    const days = groups.get(key) ?? new Map<string, TrackingEntry[]>()
+    days.set(entry.occurredOn, [...(days.get(entry.occurredOn) ?? []), entry])
+    groups.set(key, days)
   }
-  return [...groups.entries()].map(([key, groupEntries]) => ({
-    key,
-    label: formatGroupLabel(key, grouping),
-    items: consolidateEntries(groupEntries),
-  }))
+  return [...groups.entries()]
+    .sort(([left], [right]) => right.localeCompare(left))
+    .map(([key, days]) => ({
+      key,
+      label: formatGroupLabel(key, grouping),
+      days: [...days.entries()]
+        .sort(([left], [right]) => right.localeCompare(left))
+        .map(([date, dayEntries]) => ({
+          date,
+          label: formatDate(date),
+          items: [...dayEntries]
+            .sort(
+              (left, right) =>
+                left.daySequence - right.daySequence ||
+                left.id.localeCompare(right.id)
+            )
+            .map((entry) => ({ entry })),
+        })),
+    }))
 }
 
 export function getGroupKey(value: string, grouping: FeedGrouping) {
@@ -179,39 +258,6 @@ export function formatGroupLabel(value: string, grouping: FeedGrouping) {
   return `أسبوع ${formatShortDate(weekStart)} – ${formatShortDate(weekEnd)}`
 }
 
-export function consolidateEntries(entries: TrackingEntry[]): FeedItem[] {
-  const items = new Map<string, FeedItem>()
-  for (const entry of entries) {
-    const current = items.get(entry.workId)
-    if (!current) {
-      items.set(entry.workId, {
-        workId: entry.workId,
-        latestEntry: entry,
-        startProgress: entry.progress,
-        entryCount: 1,
-      })
-      continue
-    }
-    current.startProgress = entry.progress
-    current.entryCount += 1
-  }
-  return [...items.values()]
-}
-
-export function progressChangeLabel(item: FeedItem) {
-  if (item.startProgress === item.latestEntry.progress) {
-    return `التقدم: ${item.latestEntry.progress}`
-  }
-  return `التقدم: ${item.startProgress} ← ${item.latestEntry.progress}`
-}
-
-export function progressWithTotalLabel(item: FeedItem, total: number) {
-  if (item.startProgress === item.latestEntry.progress) {
-    return `${item.latestEntry.progress} من ${total}`
-  }
-  return `${item.startProgress} ← ${item.latestEntry.progress} من ${total}`
-}
-
 export function isProgressUnit(value: string, unit: "episode" | "chapter") {
   const normalized = value.trim().toLocaleLowerCase()
   return normalized === unit || normalized === `${unit}s`
@@ -232,6 +278,41 @@ export function countEntriesByWork(entries: TrackingEntry[]) {
   const counts = new Map<string, number>()
   for (const entry of entries) {
     counts.set(entry.workId, (counts.get(entry.workId) ?? 0) + 1)
+  }
+  return counts
+}
+
+export function entryActivityCount(
+  entry: TrackingEntry,
+  worksById: Map<string, Work>
+) {
+  const work = worksById.get(entry.workId)
+  if (!work) return 0
+  if (isMovieStatusEvent(entry, work)) return 1
+  if (isDiscreteProgressWork(work)) return activityAmount(entry)
+  return 0
+}
+
+export function activityCount(
+  entries: TrackingEntry[],
+  worksById: Map<string, Work>
+) {
+  return entries.reduce(
+    (total, entry) => total + entryActivityCount(entry, worksById),
+    0
+  )
+}
+
+export function activityByWork(
+  entries: TrackingEntry[],
+  worksById: Map<string, Work>
+) {
+  const counts = new Map<string, number>()
+  for (const entry of entries) {
+    const amount = entryActivityCount(entry, worksById)
+    if (amount > 0) {
+      counts.set(entry.workId, (counts.get(entry.workId) ?? 0) + amount)
+    }
   }
   return counts
 }
@@ -273,13 +354,20 @@ export function shiftMonth(monthKey: string, offset: number) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`
 }
 
-export function summarizeCalendarYear(entries: TrackingEntry[], year: number) {
+export function summarizeCalendarYear(
+  entries: TrackingEntry[],
+  year: number,
+  worksById: Map<string, Work>
+) {
   return Array.from({ length: 12 }, (_, month) => {
     const key = `${year}-${String(month + 1).padStart(2, "0")}`
     return {
       key,
       label: formatMonth(month),
-      count: entries.filter((entry) => entry.occurredOn.startsWith(key)).length,
+      count: activityCount(
+        entries.filter((entry) => entry.occurredOn.startsWith(key)),
+        worksById
+      ),
     }
   })
 }

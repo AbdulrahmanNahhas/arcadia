@@ -31,11 +31,12 @@ import type { TrackingEntry, Work } from "@/features/library/model"
 import { cn } from "@/lib/utils"
 import { formatYear } from "@/features/library/components/work-detail-dialog"
 import {
+  activityByWork,
+  activityCount,
   buildCalendarDays,
   calendarActivityClass,
   calendarWeekdays,
-  countEntriesByWork,
-  countLatestStatus,
+  entryActivityCount,
   formatDate,
   formatMonthYear,
   formatNumber,
@@ -52,41 +53,50 @@ export function ActivityCalendarPanel({
   entries: TrackingEntry[]
   worksById: Map<string, Work>
 }) {
+  const activityEntries = entries.filter(
+    (entry) => entryActivityCount(entry, worksById) > 0
+  )
   const currentMonthKey = new Date().toISOString().slice(0, 7)
-  const suggestedMonth = entries.some((entry) =>
+  const suggestedMonth = activityEntries.some((entry) =>
     entry.occurredOn.startsWith(currentMonthKey)
   )
     ? currentMonthKey
-    : (entries[0]?.occurredOn.slice(0, 7) ?? currentMonthKey)
+    : (activityEntries[0]?.occurredOn.slice(0, 7) ?? currentMonthKey)
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
   const monthKey = selectedMonth ?? suggestedMonth
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const monthEntries = entries.filter((entry) =>
+  const monthEntries = activityEntries.filter((entry) =>
     entry.occurredOn.startsWith(monthKey)
   )
   const entriesByDay = groupEntriesByDate(monthEntries)
   const calendarDays = buildCalendarDays(monthKey)
   const maxDayActivity = Math.max(
-    ...[...entriesByDay.values()].map((dayEntries) => dayEntries.length),
+    ...[...entriesByDay.values()].map((dayEntries) =>
+      activityCount(dayEntries, worksById)
+    ),
     1
   )
   const focusedEntries = selectedDate
     ? (entriesByDay.get(selectedDate) ?? [])
     : monthEntries
-  const focusedWorkCounts = countEntriesByWork(focusedEntries)
+  const focusedWorkCounts = activityByWork(focusedEntries, worksById)
   const focusedWorks = [...focusedWorkCounts.entries()]
     .map(([workId, count]) => ({ work: worksById.get(workId), count }))
     .filter((item): item is { work: Work; count: number } => Boolean(item.work))
     .sort((left, right) => right.count - left.count)
   const activeYear = Number(monthKey.slice(0, 4))
-  const yearMonths = summarizeCalendarYear(entries, activeYear)
+  const yearMonths = summarizeCalendarYear(
+    activityEntries,
+    activeYear,
+    worksById
+  )
 
   const changeMonth = (offset: number) => {
     setSelectedMonth(shiftMonth(monthKey, offset))
     setSelectedDate(null)
   }
 
-  if (entries.length === 0) {
+  if (activityEntries.length === 0) {
     return (
       <Empty className="border">
         <EmptyHeader>
@@ -147,11 +157,12 @@ export function ActivityCalendarPanel({
               }
 
               const dayEntries = entriesByDay.get(day.date) ?? []
+              const dayActivity = activityCount(dayEntries, worksById)
               const workCount = new Set(dayEntries.map((entry) => entry.workId))
                 .size
               const isSelected = selectedDate === day.date
 
-              if (dayEntries.length === 0) {
+              if (dayActivity === 0) {
                 return (
                   <span
                     key={day.date}
@@ -170,13 +181,10 @@ export function ActivityCalendarPanel({
                         variant="ghost"
                         className={cn(
                           "aspect-square h-auto w-full rounded-full px-0 text-xs tabular-nums",
-                          calendarActivityClass(
-                            dayEntries.length,
-                            maxDayActivity
-                          ),
+                          calendarActivityClass(dayActivity, maxDayActivity),
                           isSelected && "ring-2 ring-ring ring-offset-2"
                         )}
-                        aria-label={`${formatDate(day.date)}: ${dayEntries.length} نقاط تقدم`}
+                        aria-label={`${formatDate(day.date)}: ${dayActivity} وحدات نشاط`}
                         onClick={() => setSelectedDate(day.date)}
                       />
                     }
@@ -187,7 +195,7 @@ export function ActivityCalendarPanel({
                     <div className="flex max-w-56 flex-col gap-1">
                       <strong>{formatDate(day.date)}</strong>
                       <span>
-                        {formatNumber(dayEntries.length)} نقاط تقدم ·{" "}
+                        {formatNumber(dayActivity)} وحدات نشاط ·{" "}
                         {formatNumber(workCount)} أعمال
                       </span>
                       <span className="truncate text-background/75">
@@ -241,8 +249,8 @@ export function ActivityCalendarPanel({
           <CardContent className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">
               <CalendarMetric
-                label="نقاط التقدم"
-                value={focusedEntries.length}
+                label="وحدات النشاط"
+                value={activityCount(focusedEntries, worksById)}
               />
               <CalendarMetric label="الأعمال" value={focusedWorkCounts.size} />
               <CalendarMetric
@@ -254,8 +262,8 @@ export function ActivityCalendarPanel({
                 }
               />
               <CalendarMetric
-                label="الحالات المكتملة"
-                value={countLatestStatus(focusedEntries, "completed")}
+                label="تحديثات السجل"
+                value={focusedEntries.length}
               />
             </div>
             {focusedWorks.length > 0 ? (

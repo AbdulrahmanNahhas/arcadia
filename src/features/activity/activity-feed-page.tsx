@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react"
 import { Link } from "@tanstack/react-router"
-import { useInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query"
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query"
 import {
   ArrowRightIcon,
   CalendarBlankIcon,
   ChartBarIcon,
-  ClockCounterClockwiseIcon,
+  GearIcon,
   ListBulletsIcon,
   PlusIcon,
 } from "@phosphor-icons/react"
@@ -34,7 +34,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { statusLabel } from "@/features/library/components/tracking-form"
 import type { Work } from "@/features/library/model"
-import { getTrackingPage, getWorks } from "@/server/library.functions"
+import {
+  getTrackingPage,
+  getWorks,
+  getWorkStructures,
+} from "@/server/library.functions"
 import { AddTrackingDialog } from "./activity-feed/add-tracking-dialog"
 import { ActivityCalendarPanel } from "./activity-feed/calendar-tab"
 import { FeedPanel } from "./activity-feed/feed-tab"
@@ -64,24 +68,39 @@ export function ActivityFeedPage() {
   const [dateTo, setDateTo] = useState("")
   const [grouping, setGrouping] = useState<FeedGrouping>("week")
   const [entryOpen, setEntryOpen] = useState(false)
-  const query = useInfiniteQuery({
+  const query = useQuery({
     queryKey: ["tracking-feed", workId, status, dateFrom, dateTo],
-    initialPageParam: undefined as
-      { occurredOn: string; daySequence: number; id: string } | undefined,
-    queryFn: ({ pageParam }) =>
+    queryFn: () =>
       getTrackingPage({
         data: {
-          limit: 50,
-          cursor: pageParam,
+          limit: 10_000,
           workId: workId === "all" ? undefined : workId,
           statuses: status === "all" ? undefined : [status as Work["status"]],
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
         },
       }),
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
   })
-  const entries = query.data?.pages.flatMap((page) => page.items) ?? []
+  const entries = query.data?.items ?? []
+  const activeWorkIds = useMemo(
+    () => [...new Set(entries.map((entry) => entry.workId))].sort(),
+    [entries]
+  )
+  const structuresQuery = useQuery({
+    queryKey: ["tracking-structures", activeWorkIds],
+    queryFn: () => getWorkStructures({ data: { workIds: activeWorkIds } }),
+    enabled: activeWorkIds.length > 0,
+  })
+  const structuresById = useMemo(
+    () =>
+      new Map(
+        (structuresQuery.data ?? []).map((structure) => [
+          structure.workId,
+          structure,
+        ])
+      ),
+    [structuresQuery.data]
+  )
   const worksById = useMemo(
     () => new Map(works.map((work) => [work.id, work])),
     [works]
@@ -109,28 +128,46 @@ export function ActivityFeedPage() {
       dir="rtl"
       className="min-h-screen overflow-x-clip bg-background text-foreground"
     >
-      <header className="sticky top-1 z-10 mx-auto max-w-6xl rounded-full border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-4">
-          <div className="flex min-w-0 items-center gap-3">
+      <header className="sticky top-2 z-20 mx-auto max-w-6xl w-[95vw] rounded-2xl border border-border/60 bg-background/80 shadow-sm backdrop-blur-xl">
+        <div className="flex min-h-14 items-center justify-between gap-4 p-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Button
               variant="ghost"
               size="icon-sm"
               nativeButton={false}
               render={<Link to="/" />}
+              className="rounded-full"
             >
               <span className="sr-only">العودة إلى المكتبة</span>
               <ArrowRightIcon />
             </Button>
-            <div className="min-w-0">
-              <h1 className="truncate font-heading text-lg font-semibold tracking-tight">
+
+              <h1 className="truncate font-heading text-lg font-medium tracking-tight">
                 النشاط
               </h1>
-            </div>
           </div>
-          <Button size="sm" onClick={() => setEntryOpen(true)}>
-            <PlusIcon data-icon="inline-start" />
-            إضافة تقدم
-          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link to="/admin" />}
+              className="h-9 gap-1.5 border-border/60 text-xs"
+            >
+              <GearIcon data-icon="inline-start" />
+              لوحة الإدارة
+            </Button>
+
+            <Button
+              size="sm"
+              onClick={() => setEntryOpen(true)}
+              className="h-9 gap-1.5 text-xs shadow-xs"
+            >
+              <PlusIcon data-icon="inline-start" />
+              إضافة تقدم
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -246,8 +283,8 @@ export function ActivityFeedPage() {
               <div>
                 <p className="text-sm font-medium">تنظيم السجل</p>
                 <p className="text-xs text-muted-foreground">
-                  تُجمع تحديثات العمل المتكررة في الفترة نفسها لتظهر نقطة
-                  البداية والنهاية بوضوح.
+                  كل يوم يحتفظ بترتيبه، وتظهر كل الحلقات والفصول بين نقطتي
+                  التقدم من دون قفزات مخفية.
                 </p>
               </div>
               <ToggleGroup
@@ -261,28 +298,19 @@ export function ActivityFeedPage() {
                   if (value[0]) setGrouping(value[0] as FeedGrouping)
                 }}
               >
-                <ToggleGroupItem value="week">أسبوعي</ToggleGroupItem>
                 <ToggleGroupItem value="day">يومي</ToggleGroupItem>
+                <ToggleGroupItem value="week">أسبوعي</ToggleGroupItem>
                 <ToggleGroupItem value="month">شهري</ToggleGroupItem>
               </ToggleGroup>
             </div>
             <FeedPanel
               groups={groups}
+              grouping={grouping}
               worksById={worksById}
+              structuresById={structuresById}
               isPending={query.isPending}
               filtersActive={filtersActive}
             />
-            {query.hasNextPage ? (
-              <Button
-                variant="outline"
-                className="mx-auto mt-6"
-                disabled={query.isFetchingNextPage}
-                onClick={() => query.fetchNextPage()}
-              >
-                <ClockCounterClockwiseIcon data-icon="inline-start" />
-                {query.isFetchingNextPage ? "جارٍ التحميل…" : "تحميل الأقدم"}
-              </Button>
-            ) : null}
           </TabsContent>
 
           <TabsContent value="summary" className="min-w-0">
