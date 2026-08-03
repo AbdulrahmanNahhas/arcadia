@@ -1,13 +1,13 @@
-import { useState } from "react"
 import {
   BookOpenTextIcon,
-  CalendarBlankIcon,
+  type CalendarBlankIcon,
   CalendarDotsIcon,
   ChartBarIcon,
   FilmSlateIcon,
   TelevisionSimpleIcon,
-} from "@phosphor-icons/react"
-import { Badge } from "@/components/ui/badge"
+} from "@phosphor-icons/react";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardAction,
@@ -15,46 +15,42 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty"
-import { Separator } from "@/components/ui/separator"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { statusLabel } from "@/features/library/components/tracking-form"
-import type { Work } from "@/features/library/model"
-import { cn } from "@/lib/utils"
-import type {
-  ActivityPeriod,
-  FeedGrouping,
-  FeedSummary,
-} from "../activity-feed-utils"
+} from "@/components/ui/empty";
+import { Separator } from "@/components/ui/separator";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { statusLabel } from "@/features/library/components/tracking-form";
+import type { Work } from "@/features/library/model";
+import { cn } from "@/lib/utils";
+import type { ActivityPeriod, FeedGrouping, FeedSummary } from "../activity-feed-utils";
 import {
   formatNumber,
   monthBarHeight,
   statusBadgeVariant,
   trackingStatuses,
-} from "../activity-feed-utils"
+} from "../activity-feed-utils";
 
 export function SummaryPanel({
   summary,
   worksById,
 }: {
-  summary: FeedSummary
-  worksById: Map<string, Work>
+  summary: FeedSummary;
+  worksById: Map<string, Work>;
 }) {
-  const [grouping, setGrouping] = useState<FeedGrouping>("week")
+  const [grouping, setGrouping] = useState<FeedGrouping>("week");
   const latestWorkTitles = summary.latestWorkIds
     .map((workId) => worksById.get(workId))
-    .filter((work): work is Work => Boolean(work))
+    .filter((work): work is Work => Boolean(work));
   const busiestMonth = summary.months.reduce(
     (busiest, month) => (month.count > busiest.count ? month : busiest),
-    summary.months[0]
-  )
+    summary.months[0],
+  );
 
   if (summary.updateCount === 0) {
     return (
@@ -69,7 +65,7 @@ export function SummaryPanel({
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
-    )
+    );
   }
 
   return (
@@ -105,8 +101,7 @@ export function SummaryPanel({
         <CardHeader className="border-b">
           <CardTitle>دفتر النشاط</CardTitle>
           <CardDescription>
-            الأعداد الفعلية في كل فترة؛ لا تُحسب نقطة التقدم الواحدة كحلقة
-            واحدة.
+            الأعداد الفعلية في كل فترة؛ لا تُحسب نقطة التقدم الواحدة كحلقة واحدة.
           </CardDescription>
           <CardAction>
             <ToggleGroup
@@ -117,7 +112,7 @@ export function SummaryPanel({
               spacing={0}
               aria-label="فترة ملخص النشاط"
               onValueChange={(value) => {
-                if (value[0]) setGrouping(value[0] as FeedGrouping)
+                if (value[0]) setGrouping(value[0] as FeedGrouping);
               }}
             >
               <ToggleGroupItem value="day">يوم</ToggleGroupItem>
@@ -139,14 +134,11 @@ export function SummaryPanel({
       <Card size="sm" className="min-w-0">
         <CardHeader>
           <CardTitle>إيقاع سنة {formatNumber(summary.year)}</CardTitle>
-          <CardDescription>
-            مجموع الحلقات والفصول والأفلام المسجلة فعلياً في كل شهر.
-          </CardDescription>
+          <CardDescription>مجموع الحلقات والفصول والأفلام المسجلة فعلياً في كل شهر.</CardDescription>
           {busiestMonth.count > 0 ? (
             <CardAction>
               <Badge variant="secondary">
-                الأعلى: {busiestMonth.label} ·{" "}
-                {formatNumber(busiestMonth.count)}
+                الأعلى: {busiestMonth.label} · {formatNumber(busiestMonth.count)}
               </Badge>
             </CardAction>
           ) : null}
@@ -162,7 +154,7 @@ export function SummaryPanel({
                   <div
                     className={cn(
                       "w-full rounded-md bg-primary/80 transition-all",
-                      monthBarHeight(month.count, summary.maxMonthActivityCount)
+                      monthBarHeight(month.count, summary.maxMonthActivityCount),
                     )}
                     title={`${month.label}: ${month.count}`}
                   />
@@ -180,15 +172,12 @@ export function SummaryPanel({
         <Card>
           <CardHeader>
             <CardTitle>الحالة الأخيرة</CardTitle>
-            <CardDescription>
-              أحدث حالة لكل عمل ضمن نطاق التصفية الحالي.
-            </CardDescription>
+            <CardDescription>أحدث حالة لكل عمل ضمن نطاق التصفية الحالي.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             {trackingStatuses.map((value) => (
               <Badge key={value} variant={statusBadgeVariant(value)}>
-                {statusLabel(value)}{" "}
-                {formatNumber(summary.statusCounts[value] ?? 0)}
+                {statusLabel(value)} {formatNumber(summary.statusCounts[value] ?? 0)}
               </Badge>
             ))}
           </CardContent>
@@ -197,9 +186,7 @@ export function SummaryPanel({
         <Card>
           <CardHeader>
             <CardTitle>آخر ما واصلتَه</CardTitle>
-            <CardDescription>
-              أحدث الأعمال في السجل الحالي، مرتبة زمنياً.
-            </CardDescription>
+            <CardDescription>أحدث الأعمال في السجل الحالي، مرتبة زمنياً.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             {latestWorkTitles.map((work) => (
@@ -211,7 +198,7 @@ export function SummaryPanel({
         </Card>
       </div>
     </div>
-  )
+  );
 }
 
 function PeriodRow({ period }: { period: ActivityPeriod }) {
@@ -225,21 +212,17 @@ function PeriodRow({ period }: { period: ActivityPeriod }) {
       </div>
       <div className="flex flex-wrap gap-2">
         {period.episodes > 0 ? (
-          <Badge variant="secondary">
-            {formatNumber(period.episodes)} حلقات
-          </Badge>
+          <Badge variant="secondary">{formatNumber(period.episodes)} حلقات</Badge>
         ) : null}
         {period.chapters > 0 ? (
-          <Badge variant="secondary">
-            {formatNumber(period.chapters)} فصول
-          </Badge>
+          <Badge variant="secondary">{formatNumber(period.chapters)} فصول</Badge>
         ) : null}
         {period.movies > 0 ? (
           <Badge variant="secondary">{formatNumber(period.movies)} أفلام</Badge>
         ) : null}
       </div>
     </div>
-  )
+  );
 }
 
 function SummaryMetric({
@@ -248,10 +231,10 @@ function SummaryMetric({
   value,
   note,
 }: {
-  icon: typeof CalendarBlankIcon
-  label: string
-  value: number
-  note: string
+  icon: typeof CalendarBlankIcon;
+  label: string;
+  value: number;
+  note: string;
 }) {
   return (
     <Card size="sm">
@@ -262,11 +245,9 @@ function SummaryMetric({
         </CardAction>
       </CardHeader>
       <CardContent>
-        <p className="font-heading text-3xl font-semibold tabular-nums">
-          {formatNumber(value)}
-        </p>
+        <p className="font-heading text-3xl font-semibold tabular-nums">{formatNumber(value)}</p>
         <p className="mt-1 text-xs text-muted-foreground">{note}</p>
       </CardContent>
     </Card>
-  )
+  );
 }

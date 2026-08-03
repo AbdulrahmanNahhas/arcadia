@@ -1,13 +1,13 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   BooksIcon,
   CalendarBlankIcon,
   CheckCircleIcon,
   PencilSimpleIcon,
   TrashIcon,
-} from "@phosphor-icons/react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+} from "@phosphor-icons/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -15,28 +15,28 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty"
-import { Separator } from "@/components/ui/separator"
-import { Skeleton } from "@/components/ui/skeleton"
-import { statusLabel } from "@/features/library/components/tracking-form"
-import { kindLabels } from "@/features/library/filtering"
-import type { Work, WorkStructure } from "@/features/library/model"
+} from "@/components/ui/empty";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { statusLabel } from "@/features/library/components/tracking-form";
+import { kindLabels } from "@/features/library/filtering";
+import type { Work, WorkStructure } from "@/features/library/model";
 import {
   activityAmount,
   isMovieStatusEvent,
   progressDirection,
   progressSegments,
-} from "@/features/library/tracking"
-import { removeTrackingEntry } from "@/server/library.functions"
-import type { FeedGroup, FeedGrouping, FeedItem } from "../activity-feed-utils"
-import { formatNumber, statusBadgeVariant } from "../activity-feed-utils"
+} from "@/features/library/tracking";
+import { removeTrackingEntry } from "@/server/library.functions";
+import type { FeedGroup, FeedGrouping, FeedItem } from "../activity-feed-utils";
+import { formatNumber, statusBadgeVariant } from "../activity-feed-utils";
 
 export function FeedPanel({
   groups,
@@ -46,14 +46,14 @@ export function FeedPanel({
   isPending,
   filtersActive,
 }: {
-  groups: FeedGroup[]
-  grouping: FeedGrouping
-  worksById: Map<string, Work>
-  structuresById: Map<string, WorkStructure>
-  isPending: boolean
-  filtersActive: boolean
+  groups: FeedGroup[];
+  grouping: FeedGrouping;
+  worksById: Map<string, Work>;
+  structuresById: Map<string, WorkStructure>;
+  isPending: boolean;
+  filtersActive: boolean;
 }) {
-  if (isPending) return <FeedLoadingState />
+  if (isPending) return <FeedLoadingState />;
   if (groups.length === 0) {
     return (
       <Empty className="border">
@@ -61,9 +61,7 @@ export function FeedPanel({
           <EmptyMedia variant="icon">
             <CalendarBlankIcon />
           </EmptyMedia>
-          <EmptyTitle>
-            {filtersActive ? "لا يوجد نشاط ضمن التصفية" : "لا يوجد تتبع بعد"}
-          </EmptyTitle>
+          <EmptyTitle>{filtersActive ? "لا يوجد نشاط ضمن التصفية" : "لا يوجد تتبع بعد"}</EmptyTitle>
           <EmptyDescription>
             {filtersActive
               ? "جرّب توسيع نطاق التاريخ أو اختيار حالة مختلفة."
@@ -71,16 +69,13 @@ export function FeedPanel({
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
-    )
+    );
   }
 
   return (
     <div className="flex flex-col gap-9">
       {groups.map((group) => {
-        const updateCount = group.days.reduce(
-          (total, day) => total + day.items.length,
-          0
-        )
+        const updateCount = group.days.reduce((total, day) => total + day.items.length, 0);
         const displayItems =
           grouping === "day"
             ? group.days.flatMap((day) =>
@@ -88,15 +83,13 @@ export function FeedPanel({
                   item,
                   combinedCount: 1,
                   combinedAmount: activityAmount(item.entry),
-                }))
+                })),
               )
-            : combinePeriodItems(group)
+            : combinePeriodItems(group);
         return (
           <section key={group.key} className="flex min-w-0 flex-col gap-4">
             <div className="flex items-center gap-3">
-              <h2 className="shrink-0 font-heading text-sm font-semibold">
-                {group.label}
-              </h2>
+              <h2 className="shrink-0 font-heading text-sm font-semibold">{group.label}</h2>
               <Separator />
               <Badge variant="outline">
                 {grouping === "day"
@@ -107,7 +100,7 @@ export function FeedPanel({
 
             <div dir="rtl" className="grid min-w-0 gap-3 md:grid-cols-2">
               {displayItems.map(({ item, combinedCount, combinedAmount }) => {
-                const work = worksById.get(item.entry.workId)
+                const work = worksById.get(item.entry.workId);
                 return work ? (
                   <TrackingCard
                     key={item.entry.id}
@@ -117,29 +110,30 @@ export function FeedPanel({
                     combinedCount={combinedCount}
                     combinedAmount={combinedAmount}
                   />
-                ) : null
+                ) : null;
               })}
             </div>
           </section>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
 function combinePeriodItems(group: FeedGroup) {
-  const byWork = new Map<string, FeedItem[]>()
+  const byWork = new Map<string, FeedItem[]>();
   for (const day of [...group.days].reverse()) {
     for (const item of day.items) {
-      byWork.set(item.entry.workId, [
-        ...(byWork.get(item.entry.workId) ?? []),
-        item,
-      ])
+      byWork.set(item.entry.workId, [...(byWork.get(item.entry.workId) ?? []), item]);
     }
   }
-  return [...byWork.values()].map((items) => {
-    const first = items[0].entry
-    const latest = items.at(-1)!.entry
+  return [...byWork.values()].flatMap((items) => {
+    const firstItem = items[0];
+    const latestItem = items.at(-1);
+    if (!firstItem || !latestItem) return [];
+
+    const first = firstItem.entry;
+    const latest = latestItem.entry;
     return {
       item: {
         entry: {
@@ -150,12 +144,9 @@ function combinePeriodItems(group: FeedGroup) {
         },
       },
       combinedCount: items.length,
-      combinedAmount: items.reduce(
-        (total, { entry }) => total + activityAmount(entry),
-        0
-      ),
-    }
-  })
+      combinedAmount: items.reduce((total, { entry }) => total + activityAmount(entry), 0),
+    };
+  });
 }
 
 function FeedLoadingState() {
@@ -172,7 +163,7 @@ function FeedLoadingState() {
         </section>
       ))}
     </div>
-  )
+  );
 }
 
 function TrackingCard({
@@ -182,14 +173,14 @@ function TrackingCard({
   combinedCount,
   combinedAmount,
 }: {
-  item: FeedItem
-  work: Work
-  structure?: WorkStructure
-  combinedCount: number
-  combinedAmount: number
+  item: FeedItem;
+  work: Work;
+  structure?: WorkStructure;
+  combinedCount: number;
+  combinedAmount: number;
 }) {
-  const entry = item.entry
-  const queryClient = useQueryClient()
+  const entry = item.entry;
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: removeTrackingEntry,
     onSuccess: async () => {
@@ -201,17 +192,13 @@ function TrackingCard({
           queryKey: ["work-structure", work.id],
         }),
         queryClient.invalidateQueries({ queryKey: ["tracking-structures"] }),
-      ])
+      ]);
     },
-  })
-  const title = work.arabicTitle || work.title
-  const direction = progressDirection(entry)
-  const segments = progressSegments(
-    structure,
-    entry.progressBefore,
-    entry.progress
-  )
-  const movieWatched = isMovieStatusEvent(entry, work)
+  });
+  const title = work.arabicTitle || work.title;
+  const direction = progressDirection(entry);
+  const segments = progressSegments(structure, entry.progressBefore, entry.progress);
+  const movieWatched = isMovieStatusEvent(entry, work);
 
   return (
     <Card className="group min-w-0 gap-0 overflow-hidden border-border/60 bg-card p-0 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
@@ -231,15 +218,10 @@ function TrackingCard({
           )}
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <CardTitle className="truncate text-lg leading-tight font-semibold">
-              {title}
-            </CardTitle>
+            <CardTitle className="truncate text-lg leading-tight font-semibold">{title}</CardTitle>
 
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge
-                variant="outline"
-                className="bg-transparent px-2 py-0 text-[10px] font-medium"
-              >
+              <Badge variant="outline" className="bg-transparent px-2 py-0 text-[10px] font-medium">
                 {kindLabels[work.kind]}
               </Badge>
 
@@ -329,7 +311,7 @@ function TrackingCard({
         </CardFooter>
       )}
     </Card>
-  )
+  );
 }
 
 function ActivityHeadline({
@@ -337,9 +319,9 @@ function ActivityHeadline({
   title,
   description,
 }: {
-  icon: typeof CheckCircleIcon
-  title: string
-  description: string
+  icon: typeof CheckCircleIcon;
+  title: string;
+  description: string;
 }) {
   return (
     <div className="flex items-start gap-3">
@@ -350,35 +332,31 @@ function ActivityHeadline({
       <div className="min-w-0">
         <p className="text-sm leading-none font-semibold">{title}</p>
 
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          {description}
-        </p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
       </div>
     </div>
-  )
+  );
 }
 
 function activityTitle(work: Work, amount: number) {
-  const unit = normalizedProgressUnit(work)
-  if (unit === "chapter") return `قُرئ ${formatNumber(amount)} فصول`
-  return `شُوهد ${formatNumber(amount)} حلقات`
+  const unit = normalizedProgressUnit(work);
+  if (unit === "chapter") return `قُرئ ${formatNumber(amount)} فصول`;
+  return `شُوهد ${formatNumber(amount)} حلقات`;
 }
 
 function unitSequenceLabel(work: Work, first: number, last: number) {
-  const unit = normalizedProgressUnit(work) === "chapter" ? "الفصول" : "الحلقات"
+  const unit = normalizedProgressUnit(work) === "chapter" ? "الفصول" : "الحلقات";
   const values =
     last - first <= 5
-      ? Array.from({ length: last - first + 1 }, (_, index) =>
-          formatNumber(first + index)
-        ).join("، ")
-      : `${formatNumber(first)}–${formatNumber(last)}`
-  return `${unit} ${values}`
+      ? Array.from({ length: last - first + 1 }, (_, index) => formatNumber(first + index)).join(
+          "، ",
+        )
+      : `${formatNumber(first)}–${formatNumber(last)}`;
+  return `${unit} ${values}`;
 }
 
 function normalizedProgressUnit(work: Work) {
-  return work.progressUnit.trim().toLocaleLowerCase().startsWith("chapter")
-    ? "chapter"
-    : "episode"
+  return work.progressUnit.trim().toLocaleLowerCase().startsWith("chapter") ? "chapter" : "episode";
 }
 
 function seasonLabel(title: string, number: number | null) {
@@ -386,5 +364,5 @@ function seasonLabel(title: string, number: number | null) {
     ? title
     : `الموسم ${new Intl.NumberFormat("ar", {
         maximumFractionDigits: 1,
-      }).format(number)}`
+      }).format(number)}`;
 }

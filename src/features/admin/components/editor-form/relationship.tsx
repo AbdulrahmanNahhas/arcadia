@@ -1,54 +1,84 @@
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { ArrowRightIcon, LinkIcon, TrashIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react/dist/ssr";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-
-import type { Work, WorkRelation } from "@/features/library/model"
-import { ArrowRightIcon, LinkIcon, TrashIcon } from "@phosphor-icons/react"
-import { PlusIcon } from "@phosphor-icons/react/dist/ssr"
+} from "@/components/ui/select";
+import type { Work, WorkRelation } from "@/features/library/model";
 
 export type RelationType =
-  "adaptation" | "sequel" | "prequel" | "spin-off" | "related"
+  | "adaptation"
+  | "sequel"
+  | "spin-off"
+  | "side-story"
+  | "compilation"
+  | "alternative"
+  | "related";
 
-export type RelationDirection = "outgoing" | "incoming"
+export type RelationDirection = "outgoing" | "incoming";
 
 const RELATION_TYPES: { value: RelationType; label: string }[] = [
   { value: "adaptation", label: "اقتباس" },
   { value: "sequel", label: "تكملة" },
-  { value: "prequel", label: "سابقة" },
   { value: "spin-off", label: "عمل مشتق" },
+  { value: "side-story", label: "قصة جانبية" },
+  { value: "compilation", label: "تجميع" },
+  { value: "alternative", label: "نسخة بديلة" },
   { value: "related", label: "مرتبط" },
-]
+];
 
 interface RelationshipEditorProps {
-  work: Work
-  works: Work[]
-  onChange: (relations: WorkRelation[]) => void
+  work: Work;
+  works: Work[];
+  onChange: (relations: WorkRelation[]) => void;
 }
 
-export function RelationshipEditor({
-  work,
-  works,
-  onChange,
-}: RelationshipEditorProps) {
-  const relations = work.relations
-  const candidates = works.filter((candidate) => candidate.id !== work.id)
+export function RelationshipEditor({ work, works, onChange }: RelationshipEditorProps) {
+  const relations = work.relations;
+  const candidates = works.filter((candidate) => candidate.id !== work.id);
+
+  const nextAvailable = () => {
+    for (const candidate of candidates) {
+      for (const type of RELATION_TYPES) {
+        if (
+          !relations.some(
+            (relation) => relation.workId === candidate.id && relation.relationType === type.value,
+          )
+        ) {
+          return { candidate, relationType: type.value };
+        }
+      }
+    }
+    return null;
+  };
 
   const addRelation = () => {
-    const candidate = candidates.at(0)
-    if (!candidate) return
+    const available = nextAvailable();
+    if (!available) return;
+    const { candidate, relationType } = available;
 
     const newRelation: WorkRelation = {
       id: crypto.randomUUID(),
       workId: candidate.id,
-      relationType: "related",
+      relationType,
       direction: "outgoing",
       notes: "",
+      provenance: "manual",
+      externalKey: null,
       work: {
         id: candidate.id,
         title: candidate.title,
@@ -57,18 +87,16 @@ export function RelationshipEditor({
         releaseStatus: candidate.releaseStatus,
         imagePath: candidate.imagePath,
       },
-    }
+    };
 
-    onChange([...relations, newRelation])
-  }
+    onChange([...relations, newRelation]);
+  };
 
   const update = (index: number, patch: Partial<WorkRelation>) => {
     const updated = relations.map((relation, current) => {
-      if (current !== index) return relation
+      if (current !== index) return relation;
 
-      const candidate = patch.workId
-        ? works.find((item) => item.id === patch.workId)
-        : undefined
+      const candidate = patch.workId ? works.find((item) => item.id === patch.workId) : undefined;
 
       return {
         ...relation,
@@ -85,42 +113,45 @@ export function RelationshipEditor({
               },
             }
           : {}),
-      }
-    })
+      };
+    });
 
-    onChange(updated)
-  }
+    onChange(updated);
+  };
 
   const remove = (index: number) => {
-    onChange(relations.filter((_, current) => current !== index))
-  }
+    onChange(relations.filter((_, current) => current !== index));
+  };
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       {relations.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center">
-          <LinkIcon className="mb-2 size-8 text-muted-foreground/40" />
-          <p className="mb-1 text-xs font-medium text-muted-foreground">
-            لا توجد علاقات مرتبطة بعد
-          </p>
-          <p className="mb-3 text-[11px] text-muted-foreground/70">
-            اربط هذا السجل بأعمال سابقة أو تكملات أو اقتباسات أو أعمال مشتقة.
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addRelation}
-            disabled={candidates.length === 0}
-            className="h-8 text-xs"
-          >
-            <PlusIcon className="mr-1 size-3.5" />
-            إضافة علاقة
-          </Button>
-        </div>
+        <Empty className="border bg-muted/20 p-6">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <LinkIcon />
+            </EmptyMedia>
+            <EmptyTitle>لا توجد علاقات مرتبطة بعد</EmptyTitle>
+            <EmptyDescription>
+              اربط هذا السجل بأعمال سابقة أو تكملات أو اقتباسات أو أعمال مشتقة.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addRelation}
+              disabled={!nextAvailable()}
+            >
+              <PlusIcon data-icon="inline-start" />
+              إضافة علاقة
+            </Button>
+          </EmptyContent>
+        </Empty>
       ) : (
         <>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {relations.map((relation, index) => (
               <div
                 key={relation.id || index}
@@ -129,31 +160,41 @@ export function RelationshipEditor({
                 {/* Target Work Dropdown */}
                 <div className="flex min-w-[200px]">
                   <Select
+                    items={candidates.map((candidate) => ({
+                      value: candidate.id,
+                      label: candidate.arabicTitle || candidate.title,
+                    }))}
                     value={relation.workId}
-                    onValueChange={(val) =>
-                      update(index, { workId: val ?? undefined })
-                    }
+                    onValueChange={(val) => update(index, { workId: val ?? undefined })}
                   >
                     <SelectTrigger className="h-8 bg-background text-xs">
                       <SelectValue placeholder="اختر العمل الهدف" />
                     </SelectTrigger>
                     <SelectContent>
-                      {candidates.map((candidate) => (
-                        <SelectItem
-                          key={candidate.id}
-                          value={candidate.id}
-                          className="text-xs"
-                        >
-                          <span className="font-medium">
-                            {candidate.arabicTitle || candidate.title}
-                          </span>
-                          {candidate.year && (
-                            <span className="ml-1.5 text-[10px] text-muted-foreground">
-                              ({candidate.year})
+                      <SelectGroup>
+                        {candidates.map((candidate) => (
+                          <SelectItem
+                            key={candidate.id}
+                            value={candidate.id}
+                            disabled={relations.some(
+                              (item, current) =>
+                                current !== index &&
+                                item.workId === candidate.id &&
+                                item.relationType === relation.relationType,
+                            )}
+                            className="text-xs"
+                          >
+                            <span className="font-medium">
+                              {candidate.arabicTitle || candidate.title}
                             </span>
-                          )}
-                        </SelectItem>
-                      ))}
+                            {candidate.year && (
+                              <span className="ml-1.5 text-[10px] text-muted-foreground">
+                                ({candidate.year})
+                              </span>
+                            )}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>
@@ -161,24 +202,31 @@ export function RelationshipEditor({
                 {/* Relation Type Dropdown */}
                 <div className="w-full shrink-0 lg:w-36">
                   <Select
+                    items={RELATION_TYPES}
                     value={relation.relationType}
-                    onValueChange={(val) =>
-                      update(index, { relationType: val as RelationType })
-                    }
+                    onValueChange={(val) => update(index, { relationType: val as RelationType })}
                   >
                     <SelectTrigger className="h-8 bg-background text-xs capitalize">
                       <SelectValue placeholder="النوع" />
                     </SelectTrigger>
                     <SelectContent>
-                      {RELATION_TYPES.map((type) => (
-                        <SelectItem
-                          key={type.value}
-                          value={type.value}
-                          className="text-xs capitalize"
-                        >
-                          {type.label}
-                        </SelectItem>
-                      ))}
+                      <SelectGroup>
+                        {RELATION_TYPES.map((type) => (
+                          <SelectItem
+                            key={type.value}
+                            value={type.value}
+                            disabled={relations.some(
+                              (item, current) =>
+                                current !== index &&
+                                item.workId === relation.workId &&
+                                item.relationType === type.value,
+                            )}
+                            className="text-xs capitalize"
+                          >
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>
@@ -186,29 +234,33 @@ export function RelationshipEditor({
                 {/* Direction Selector */}
                 <div className="w-full shrink-0 lg:w-44">
                   <Select
+                    items={[
+                      { value: "outgoing", label: "هذا العمل ← الهدف" },
+                      { value: "incoming", label: "الهدف ← هذا العمل" },
+                    ]}
                     value={relation.direction}
-                    onValueChange={(val) =>
-                      update(index, { direction: val as RelationDirection })
-                    }
+                    onValueChange={(val) => update(index, { direction: val as RelationDirection })}
                   >
                     <SelectTrigger className="h-8 bg-background text-xs">
                       <SelectValue placeholder="الاتجاه" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="outgoing" className="text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span>هذا العمل</span>
-                          <ArrowRightIcon className="size-3 text-muted-foreground" />
-                          <span>الهدف</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="incoming" className="text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span>الهدف</span>
-                          <ArrowRightIcon className="size-3 text-muted-foreground" />
-                          <span>هذا العمل</span>
-                        </div>
-                      </SelectItem>
+                      <SelectGroup>
+                        <SelectItem value="outgoing" className="text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span>هذا العمل</span>
+                            <ArrowRightIcon className="size-3 text-muted-foreground" />
+                            <span>الهدف</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="incoming" className="text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span>الهدف</span>
+                            <ArrowRightIcon className="size-3 text-muted-foreground" />
+                            <span>هذا العمل</span>
+                          </div>
+                        </SelectItem>
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>
@@ -223,6 +275,24 @@ export function RelationshipEditor({
                   />
                 </div>
 
+                <div className="min-w-[120px] flex-1">
+                  <Input
+                    value={relation.provenance}
+                    placeholder="مصدر العلاقة"
+                    onChange={(event) => update(index, { provenance: event.target.value })}
+                    className="h-8 bg-background text-xs"
+                  />
+                </div>
+
+                <div className="min-w-[120px] flex-1">
+                  <Input
+                    value={relation.externalKey ?? ""}
+                    placeholder="المعرّف الخارجي"
+                    onChange={(event) => update(index, { externalKey: event.target.value || null })}
+                    className="h-8 bg-background text-xs"
+                  />
+                </div>
+
                 {/* Remove Action */}
                 <Button
                   type="button"
@@ -231,7 +301,7 @@ export function RelationshipEditor({
                   onClick={() => remove(index)}
                   className="size-8 shrink-0 self-end text-muted-foreground hover:text-destructive lg:self-auto"
                 >
-                  <TrashIcon className="size-4" />
+                  <TrashIcon />
                   <span className="sr-only">إزالة العلاقة</span>
                 </Button>
               </div>
@@ -243,14 +313,14 @@ export function RelationshipEditor({
             variant="outline"
             size="sm"
             onClick={addRelation}
-            disabled={candidates.length === 0}
+            disabled={!nextAvailable()}
             className="flex h-8 w-full items-center justify-center gap-1.5 border-dashed text-xs"
           >
-            <PlusIcon className="size-3.5" />
+            <PlusIcon data-icon="inline-start" />
             إضافة علاقة
           </Button>
         </>
       )}
     </div>
-  )
+  );
 }

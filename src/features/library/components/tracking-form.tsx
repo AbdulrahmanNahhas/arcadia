@@ -1,38 +1,28 @@
-import { useEffect, useMemo, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   CalendarBlankIcon,
   CheckIcon,
   CircleNotchIcon,
   MinusIcon,
   PlusIcon,
-} from "@phosphor-icons/react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import {
-  Progress,
-  ProgressLabel,
-  ProgressValue,
-} from "@/components/ui/progress"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { personalStatuses } from "@/features/library/model"
-import type { Work, WorkStructure } from "@/features/library/model"
+} from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import type { Work, WorkStructure } from "@/features/library/model";
+import { personalStatuses } from "@/features/library/model";
 import {
   isDiscreteProgressWork,
   progressSegments,
   seasonCapacity,
-} from "@/features/library/tracking"
-import { statusLabelsAr } from "@/features/library/translations"
-import { getTrackingBaseline, recordTracking } from "@/server/library.functions"
+} from "@/features/library/tracking";
+import { statusLabelsAr } from "@/features/library/translations";
+import { getTrackingBaseline, recordTracking } from "@/server/library.functions";
 
 export function TrackingForm({
   work,
@@ -40,71 +30,54 @@ export function TrackingForm({
   onSaved,
   compact = false,
 }: {
-  work: Work
-  structure?: WorkStructure
-  onSaved?: () => void | Promise<void>
-  compact?: boolean
+  work: Work;
+  structure?: WorkStructure;
+  onSaved?: () => void | Promise<void>;
+  compact?: boolean;
 }) {
-  const queryClient = useQueryClient()
-  const statusOnly = !isDiscreteProgressWork(work)
-  const total = statusOnly
-    ? null
-    : ((structure?.totalUnits || work.progressTotal) ?? null)
-  const [progress, setProgress] = useState(
-    statusOnly ? 0 : Math.trunc(work.progress)
-  )
-  const [status, setStatus] = useState<Work["status"]>(work.status)
-  const [occurredOn, setOccurredOn] = useState(today())
+  const queryClient = useQueryClient();
+  const statusOnly = !isDiscreteProgressWork(work);
+  const total = statusOnly ? null : ((structure?.totalUnits || work.progressTotal) ?? null);
+  const [progress, setProgress] = useState(statusOnly ? 0 : Math.trunc(work.progress));
+  const [status, setStatus] = useState<Work["status"]>(work.status);
+  const [occurredOn, setOccurredOn] = useState(today());
   const baselineQuery = useQuery({
     queryKey: ["tracking-baseline", work.id, occurredOn],
-    queryFn: () =>
-      getTrackingBaseline({ data: { workId: work.id, occurredOn } }),
+    queryFn: () => getTrackingBaseline({ data: { workId: work.id, occurredOn } }),
     enabled: Boolean(occurredOn),
-  })
+  });
   const baselineProgress = statusOnly
     ? 0
-    : (baselineQuery.data?.progress ?? Math.trunc(work.progress))
-  const numericProgress = statusOnly
-    ? 0
-    : Math.max(0, Math.trunc(progress || 0))
+    : (baselineQuery.data?.progress ?? Math.trunc(work.progress));
+  const numericProgress = statusOnly ? 0 : Math.max(0, Math.trunc(progress || 0));
   const error = useMemo(() => {
-    if (!occurredOn) return "اختر تاريخ حدوث هذا التقدم."
+    if (!occurredOn) return "اختر تاريخ حدوث هذا التقدم.";
     if (total !== null && numericProgress > total) {
-      return `لا يمكن أن يتجاوز التقدم ${total}.`
+      return `لا يمكن أن يتجاوز التقدم ${total}.`;
     }
-    if (status === "planned" && numericProgress !== 0) {
-      return "يجب أن يكون التقدم صفراً للعمل المخطّط له."
+    if (["saved", "planned"].includes(status) && numericProgress !== 0) {
+      return "يجب أن يكون التقدم صفراً للعمل المحفوظ أو المخطّط له.";
     }
-    if (
-      total !== null &&
-      total > 0 &&
-      status === "completed" &&
-      numericProgress !== total
-    ) {
-      return `يتطلب الاكتمال وصول التقدم إلى ${total}.`
+    if (total !== null && total > 0 && status === "completed" && numericProgress !== total) {
+      return `يتطلب الاكتمال وصول التقدم إلى ${total}.`;
     }
-    if (
-      total !== null &&
-      total > 0 &&
-      numericProgress === total &&
-      status !== "completed"
-    ) {
-      return "تتطلب الوحدة الأخيرة اختيار حالة مكتمل."
+    if (total !== null && total > 0 && numericProgress === total && status !== "completed") {
+      return "تتطلب الوحدة الأخيرة اختيار حالة مكتمل.";
     }
-    return ""
-  }, [numericProgress, occurredOn, status, total])
+    return "";
+  }, [numericProgress, occurredOn, status, total]);
 
   useEffect(() => {
-    setProgress(statusOnly ? 0 : Math.trunc(work.progress))
-    setStatus(work.status)
-    setOccurredOn(today())
-  }, [statusOnly, work.id, work.progress, work.status])
+    setProgress(statusOnly ? 0 : Math.trunc(work.progress));
+    setStatus(work.status);
+    setOccurredOn(today());
+  }, [statusOnly, work.progress, work.status]);
 
   useEffect(() => {
-    if (!baselineQuery.data) return
-    setProgress(statusOnly ? 0 : baselineQuery.data.progress)
-    setStatus(baselineQuery.data.status)
-  }, [baselineQuery.data, statusOnly])
+    if (!baselineQuery.data) return;
+    setProgress(statusOnly ? 0 : baselineQuery.data.progress);
+    setStatus(baselineQuery.data.status);
+  }, [baselineQuery.data, statusOnly]);
 
   const mutation = useMutation({
     mutationFn: recordTracking,
@@ -120,37 +93,29 @@ export function TrackingForm({
         queryClient.invalidateQueries({
           queryKey: ["tracking-baseline", work.id],
         }),
-      ])
-      await onSaved?.()
+      ]);
+      await onSaved?.();
     },
-  })
+  });
 
   const chooseProgress = (next: number) => {
-    const bounded = Math.max(0, total !== null ? Math.min(next, total) : next)
-    setProgress(bounded)
-    if (status === "paused" || status === "dropped") return
-    if (bounded === 0) setStatus("planned")
-    else if (total !== null && total > 0 && bounded === total)
-      setStatus("completed")
-    else setStatus("in-progress")
-  }
+    const bounded = Math.max(0, total !== null ? Math.min(next, total) : next);
+    setProgress(bounded);
+    if (status === "paused" || status === "dropped") return;
+    if (bounded === 0) setStatus("planned");
+    else if (total !== null && total > 0 && bounded === total) setStatus("completed");
+    else setStatus("in-progress");
+  };
 
-  const percentage =
-    total !== null && total > 0
-      ? Math.round((numericProgress / total) * 100)
-      : 0
-  const segments = progressSegments(
-    structure,
-    baselineProgress,
-    numericProgress
-  )
+  const percentage = total !== null && total > 0 ? Math.round((numericProgress / total) * 100) : 0;
+  const segments = progressSegments(structure, baselineProgress, numericProgress);
 
   return (
     <form
       className="flex flex-col gap-5"
       onSubmit={(event) => {
-        event.preventDefault()
-        if (error) return
+        event.preventDefault();
+        if (error) return;
         mutation.mutate({
           data: {
             workId: work.id,
@@ -158,7 +123,7 @@ export function TrackingForm({
             status,
             occurredOn,
           },
-        })
+        });
       }}
     >
       {compact ? (
@@ -187,14 +152,10 @@ export function TrackingForm({
         </Progress>
       ) : null}
 
-      <FieldGroup
-        className={compact ? "gap-4" : "gap-5 sm:grid sm:grid-cols-2"}
-      >
+      <FieldGroup className={compact ? "gap-4" : "gap-5 sm:grid sm:grid-cols-2"}>
         {!statusOnly ? (
           <Field data-invalid={Boolean(error && !error.includes("تاريخ"))}>
-            <FieldLabel htmlFor={`tracking-progress-${work.id}`}>
-              موضع النهاية الإجمالي
-            </FieldLabel>
+            <FieldLabel htmlFor={`tracking-progress-${work.id}`}>موضع النهاية الإجمالي</FieldLabel>
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -222,10 +183,7 @@ export function TrackingForm({
                 variant="outline"
                 size="icon"
                 onClick={() => chooseProgress(numericProgress + 1)}
-                disabled={
-                  Boolean(total !== null && numericProgress >= total) ||
-                  mutation.isPending
-                }
+                disabled={Boolean(total !== null && numericProgress >= total) || mutation.isPending}
                 aria-label="زيادة موضع التقدم"
               >
                 <PlusIcon />
@@ -233,30 +191,23 @@ export function TrackingForm({
             </div>
             <FieldDescription>
               الموضع السابق في هذا التاريخ:{" "}
-              {baselineQuery.isPending
-                ? "جارٍ التحميل…"
-                : formatNumber(baselineProgress)}
+              {baselineQuery.isPending ? "جارٍ التحميل…" : formatNumber(baselineProgress)}
             </FieldDescription>
           </Field>
         ) : null}
 
-        <Field data-invalid={Boolean(error && error.includes("تاريخ"))}>
+        <Field data-invalid={Boolean(error?.includes("تاريخ"))}>
           <FieldLabel htmlFor={`tracking-date-${work.id}`}>التاريخ</FieldLabel>
           <Input
             id={`tracking-date-${work.id}`}
             type="date"
             value={occurredOn}
             max={today()}
-            aria-invalid={Boolean(error && error.includes("تاريخ"))}
+            aria-invalid={Boolean(error?.includes("تاريخ"))}
             onChange={(event) => setOccurredOn(event.target.value)}
           />
           <div className="flex gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              onClick={() => setOccurredOn(today())}
-            >
+            <Button type="button" variant="ghost" size="xs" onClick={() => setOccurredOn(today())}>
               اليوم
             </Button>
             <Button
@@ -280,15 +231,11 @@ export function TrackingForm({
             className="w-full flex-wrap"
             aria-label="حالة المتابعة"
             onValueChange={(value) => {
-              if (value[0]) setStatus(value[0] as Work["status"])
+              if (value[0]) setStatus(value[0] as Work["status"]);
             }}
           >
             {personalStatuses.map((value) => (
-              <ToggleGroupItem
-                key={value}
-                value={value}
-                className="min-w-fit flex-1"
-              >
+              <ToggleGroupItem key={value} value={value} className="min-w-fit flex-1">
                 {statusLabelsAr[value]}
               </ToggleGroupItem>
             ))}
@@ -315,16 +262,11 @@ export function TrackingForm({
 
       <Button
         type="submit"
-        disabled={
-          Boolean(error) || mutation.isPending || baselineQuery.isPending
-        }
+        disabled={Boolean(error) || mutation.isPending || baselineQuery.isPending}
       >
         {mutation.isPending ? (
           <>
-            <CircleNotchIcon
-              data-icon="inline-start"
-              className="animate-spin"
-            />
+            <CircleNotchIcon data-icon="inline-start" className="animate-spin" />
             جارٍ الحفظ…
           </>
         ) : (
@@ -339,7 +281,7 @@ export function TrackingForm({
         )}
       </Button>
     </form>
-  )
+  );
 }
 
 function TrackingPreview({
@@ -350,15 +292,15 @@ function TrackingPreview({
   progress,
   segments,
 }: {
-  work: Work
-  structure?: WorkStructure
-  statusOnly: boolean
-  baselineProgress: number
-  progress: number
-  segments: ReturnType<typeof progressSegments>
+  work: Work;
+  structure?: WorkStructure;
+  statusOnly: boolean;
+  baselineProgress: number;
+  progress: number;
+  segments: ReturnType<typeof progressSegments>;
 }) {
-  const correction = progress < baselineProgress
-  const unchanged = progress === baselineProgress
+  const correction = progress < baselineProgress;
+  const unchanged = progress === baselineProgress;
 
   return (
     <Alert>
@@ -378,8 +320,8 @@ function TrackingPreview({
           <p>لن تُستخدم مدة التشغيل أو الصفحات كوحدة تقدم.</p>
         ) : correction ? (
           <p>
-            سيتغير الموضع من {formatNumber(baselineProgress)} إلى{" "}
-            {formatNumber(progress)} من دون احتسابه كنشاط مشاهدة أو قراءة.
+            سيتغير الموضع من {formatNumber(baselineProgress)} إلى {formatNumber(progress)} من دون
+            احتسابه كنشاط مشاهدة أو قراءة.
           </p>
         ) : unchanged ? (
           <p>سيُحفظ تغيير الحالة فقط عند الموضع الحالي.</p>
@@ -409,50 +351,44 @@ function TrackingPreview({
               <Badge
                 key={season.id}
                 variant={
-                  season.total > 0 && season.progress === season.total
-                    ? "default"
-                    : "secondary"
+                  season.total > 0 && season.progress === season.total ? "default" : "secondary"
                 }
               >
-                {season.label}: {formatNumber(season.progress)}/
-                {formatNumber(season.total)}
+                {season.label}: {formatNumber(season.progress)}/{formatNumber(season.total)}
               </Badge>
             ))}
           </div>
         ) : null}
       </AlertDescription>
     </Alert>
-  )
+  );
 }
 
 function seasonProgressAt(structure: WorkStructure, progress: number) {
-  let offset = 0
+  let offset = 0;
   return structure.seasons.map((season) => {
-    const total = seasonCapacity(season)
-    const completed = Math.min(Math.max(progress - offset, 0), total)
-    offset += total
+    const total = seasonCapacity(season);
+    const completed = Math.min(Math.max(progress - offset, 0), total);
+    offset += total;
     return {
       id: season.id,
       label: seasonLabel(season.title, season.seasonNumber),
       progress: completed,
       total,
-    }
-  })
+    };
+  });
 }
 
 function unitSequenceLabel(work: Work, first: number, last: number) {
-  const isChapter = work.progressUnit
-    .trim()
-    .toLocaleLowerCase()
-    .startsWith("chapter")
-  const unit = isChapter ? "الفصول" : "الحلقات"
+  const isChapter = work.progressUnit.trim().toLocaleLowerCase().startsWith("chapter");
+  const unit = isChapter ? "الفصول" : "الحلقات";
   const values =
     last - first <= 5
-      ? Array.from({ length: last - first + 1 }, (_, index) =>
-          formatNumber(first + index)
-        ).join("، ")
-      : `${formatNumber(first)}–${formatNumber(last)}`
-  return `${unit} ${values}`
+      ? Array.from({ length: last - first + 1 }, (_, index) => formatNumber(first + index)).join(
+          "، ",
+        )
+      : `${formatNumber(first)}–${formatNumber(last)}`;
+  return `${unit} ${values}`;
 }
 
 function seasonLabel(title: string, number: number | null) {
@@ -460,26 +396,26 @@ function seasonLabel(title: string, number: number | null) {
     ? title
     : `الموسم ${new Intl.NumberFormat("ar", {
         maximumFractionDigits: 1,
-      }).format(number)}`
+      }).format(number)}`;
 }
 
 export function statusLabel(status: Work["status"]) {
-  return statusLabelsAr[status]
+  return statusLabelsAr[status];
 }
 
 export function today() {
-  const date = new Date()
-  const offset = date.getTimezoneOffset() * 60_000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10)
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 }
 
 function daysAgo(days: number) {
-  const date = new Date()
-  date.setDate(date.getDate() - days)
-  const offset = date.getTimezoneOffset() * 60_000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10)
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 }
 
 function formatNumber(value: number) {
-  return new Intl.NumberFormat("ar").format(value)
+  return new Intl.NumberFormat("ar").format(value);
 }

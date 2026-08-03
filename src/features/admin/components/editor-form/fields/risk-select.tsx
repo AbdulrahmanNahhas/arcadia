@@ -1,84 +1,73 @@
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/select";
 
-export type RiskLevel = "none" | "low" | "medium" | "high" | "unknown"
+export type RiskLevel = "none" | "low" | "medium" | "high" | "unknown";
 
 const RISK_CONFIG: Record<
   RiskLevel,
-  { label: string; dotColor: string; textColor: string }
+  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
 > = {
   none: {
     label: "لا يوجد",
-    dotColor: "bg-emerald-500",
-    textColor: "text-emerald-600 dark:text-emerald-400",
+    variant: "outline",
   },
   low: {
     label: "منخفض",
-    dotColor: "bg-sky-500",
-    textColor: "text-sky-600 dark:text-sky-400",
+    variant: "secondary",
   },
   medium: {
     label: "متوسط",
-    dotColor: "bg-amber-500",
-    textColor: "text-amber-600 dark:text-amber-400",
+    variant: "secondary",
   },
   high: {
     label: "مرتفع",
-    dotColor: "bg-rose-500",
-    textColor: "text-rose-600 dark:text-rose-400",
+    variant: "destructive",
   },
   unknown: {
     label: "غير معروف",
-    dotColor: "bg-slate-400",
-    textColor: "text-muted-foreground",
+    variant: "outline",
   },
-}
+};
 
 export function RiskSelect({
   value = "unknown",
   onChange,
 }: {
-  value: RiskLevel
-  onChange: (value: RiskLevel) => void
+  value: RiskLevel;
+  onChange: (value: RiskLevel) => void;
 }) {
-  const currentRisk = RISK_CONFIG[value]
+  const currentRisk = RISK_CONFIG[value];
 
   return (
-    <Select value={value} onValueChange={(val) => onChange(val as RiskLevel)}>
+    <Select
+      items={(Object.keys(RISK_CONFIG) as RiskLevel[]).map((risk) => ({
+        value: risk,
+        label: RISK_CONFIG[risk].label,
+      }))}
+      value={value}
+      onValueChange={(val) => onChange(val as RiskLevel)}
+    >
       <SelectTrigger className="w-full">
         <SelectValue placeholder="اختر مستوى المخاطر">
-          <div className="flex items-center gap-2">
-            <span className={cn("size-2 rounded-full", currentRisk.dotColor)} />
-            <span
-              className={cn(
-                "text-xs font-medium capitalize",
-                currentRisk.textColor
-              )}
-            >
-              {currentRisk.label}
-            </span>
-          </div>
+          <Badge variant={currentRisk.variant}>{currentRisk.label}</Badge>
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {(Object.keys(RISK_CONFIG) as RiskLevel[]).map((riskKey) => {
-          const config = RISK_CONFIG[riskKey]
-          return (
+        <SelectGroup>
+          {(Object.keys(RISK_CONFIG) as RiskLevel[]).map((riskKey) => (
             <SelectItem key={riskKey} value={riskKey}>
-              <div className="flex items-center gap-2">
-                <span className={cn("size-2 rounded-full", config.dotColor)} />
-                <span className="capitalize">{config.label}</span>
-              </div>
+              {RISK_CONFIG[riskKey].label}
             </SelectItem>
-          )
-        })}
+          ))}
+        </SelectGroup>
       </SelectContent>
     </Select>
-  )
+  );
 }

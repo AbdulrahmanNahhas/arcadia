@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useState } from "react"
-import type { ReactNode, UIEvent } from "react"
-import { useQuery } from "@tanstack/react-query"
 import {
+  ArrowSquareOutIcon,
   ArrowsInIcon,
   ArrowsOutIcon,
-  ArrowSquareOutIcon,
   CaretDownIcon,
   CheckIcon,
   CopyIcon,
@@ -13,16 +10,16 @@ import {
   TelegramLogoIcon,
   WhatsappLogoIcon,
   XIcon,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import type { ReactNode, UIEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,40 +27,27 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Progress,
-  ProgressLabel,
-  ProgressValue,
-} from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
-import { cn } from "@/lib/utils"
-import {
-  activityAmount,
-  isMovieStatusEvent,
-  progressDirection,
-  progressSegments,
-  seasonCapacity,
-} from "@/features/library/tracking"
-import {
-  getWorkStructure,
-  getWorkTrackingEntries,
-} from "@/server/library.functions"
+} from "@/components/ui/dropdown-menu";
+import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { activityAmount, isMovieStatusEvent, seasonCapacity } from "@/features/library/tracking";
+import { cn } from "@/lib/utils";
+import { getWorkStructure, getWorkTrackingEntries } from "@/server/library.functions";
 
-import type { TrackingEntry, Work, WorkStructure } from "../model"
-import { scoreCriteria, scoreLabel } from "../scoring"
-import { useArabicTranslations } from "../translations"
-import { WorkArtwork } from "./work-artwork"
-import { TrackingForm, statusLabel } from "./tracking-form"
+import type { TrackingEntry, Work, WorkStructure } from "../model";
+import { scoreCriteria, scoreLabel } from "../scoring";
+import { useArabicTranslations } from "../translations";
+import { statusLabel, TrackingForm } from "./tracking-form";
+import { WorkArtwork } from "./work-artwork";
 
 type WorkDetailDialogProps = {
-  work: Work | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  toggleFavorite: (work: Work) => void
-  favoritePending: boolean
-  openRelated: (id: string) => void
-}
+  work: Work | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  toggleFavorite: (work: Work) => void;
+  favoritePending: boolean;
+  openRelated: (id: string) => void;
+};
 
 export function WorkDetailDialog({
   work,
@@ -73,69 +57,67 @@ export function WorkDetailDialog({
   favoritePending,
   openRelated,
 }: WorkDetailDialogProps) {
-  const [fullScreen, setFullScreen] = useState(false)
-  const [hasScrolledPastHero, setHasScrolledPastHero] = useState(false)
-  const { taxonomyLabel } = useArabicTranslations()
+  const [fullScreen, setFullScreen] = useState(false);
+  const [hasScrolledPastHero, setHasScrolledPastHero] = useState(false);
+  const { taxonomyLabel } = useArabicTranslations();
 
   const structureQuery = useQuery({
     queryKey: ["work-structure", work?.id],
-    queryFn: () => getWorkStructure({ data: { workId: work!.id } }),
+    queryFn: () => {
+      if (!work) throw new Error("A work is required to load its structure.");
+      return getWorkStructure({ data: { workId: work.id } });
+    },
     enabled: open && Boolean(work),
-  })
+  });
 
   const activityQuery = useQuery({
     queryKey: ["work-tracking", work?.id],
-    queryFn: () =>
-      getWorkTrackingEntries({
+    queryFn: () => {
+      if (!work) throw new Error("A work is required to load its activity.");
+      return getWorkTrackingEntries({
         data: {
-          workId: work!.id,
+          workId: work.id,
           limit: 1_000,
         },
-      }),
+      });
+    },
     enabled: open && Boolean(work),
-  })
+  });
 
   useEffect(() => {
     if (!open) {
-      setFullScreen(false)
-      setHasScrolledPastHero(false)
+      setFullScreen(false);
+      setHasScrolledPastHero(false);
     }
-  }, [open, work?.id])
+  }, [open]);
 
-  if (!work) return null
+  if (!work) return null;
 
-  const structure = structureQuery.data
+  const structure = structureQuery.data;
 
   const releaseSpan =
-    work.releaseStart &&
-    work.releaseEnd &&
-    work.releaseStart !== work.releaseEnd
-      ? `${formatDateString(work.releaseStart)} — ${formatDateString(
-          work.releaseEnd
-        )}`
-      : formatDateString(work.releaseStart ?? work.releaseEnd)
+    work.releaseStart && work.releaseEnd && work.releaseStart !== work.releaseEnd
+      ? `${formatDateString(work.releaseStart)} — ${formatDateString(work.releaseEnd)}`
+      : formatDateString(work.releaseStart ?? work.releaseEnd);
 
-  const hasCredits = work.credits.length > 0
-  const hasSummary = Boolean(work.summary?.trim())
+  const hasContributors = work.contributors.length > 0;
+  const hasSummary = Boolean(work.summary?.trim());
 
-  const hasClassification =
-    work.genres.length > 0 || work.tags.length > 0 || work.tone.length > 0
+  const hasClassification = work.genres.length > 0 || work.tags.length > 0 || work.tone.length > 0;
 
   const hasPublication = Boolean(
     work.publication?.format ||
-    work.publication?.publisher ||
-    work.publication?.imprint ||
-    work.publication?.serialization.length ||
-    work.sourceMaterial
-  )
+      work.publication?.publisher ||
+      work.publication?.imprint ||
+      work.publication?.serialization.length ||
+      work.sourceMaterial,
+  );
 
-  const hasContentDossier = Boolean(
-    work.contentWarnings || work.analysisNotes || work.riskProfile
-  )
+  const hasContentDossier = Boolean(work.contentWarnings || work.analysisNotes || work.riskProfile);
 
-  const hasActivity = Boolean(activityQuery.data?.length)
-  const hasRelations = work.relations.length > 0
-  const hasExternalLinks = work.externalLinks.length > 0
+  const hasActivity = Boolean(activityQuery.data?.length);
+  const hasRelations = work.relations.length > 0;
+  const hasExternalLinks = work.externalLinks.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -149,15 +131,12 @@ export function WorkDetailDialog({
           "sm:h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-2rem)]",
           "sm:w-[calc(100vw-2rem)] sm:max-w-[1480px]",
           fullScreen &&
-            "h-screen! max-h-screen! w-screen max-w-none rounded-none border-0 sm:w-screen sm:max-w-none"
+            "h-screen! max-h-screen! w-screen max-w-none rounded-none border-0 sm:w-screen sm:max-w-none",
         )}
       >
         <DialogTitle className="sr-only">{work.title}</DialogTitle>
 
-        <DialogBackdrop
-          bannerPath={work.bannerPath}
-          visible={hasScrolledPastHero}
-        />
+        <DialogBackdrop bannerPath={work.bannerPath} visible={hasScrolledPastHero} />
 
         <DialogFloatingActions
           work={work}
@@ -169,22 +148,16 @@ export function WorkDetailDialog({
 
         <div
           className="relative min-h-0 overflow-y-auto overscroll-contain"
-          onScroll={(event) =>
-            handleDialogScroll(event, setHasScrolledPastHero)
-          }
+          onScroll={(event) => handleDialogScroll(event, setHasScrolledPastHero)}
         >
-          <WorkHero
-            work={work}
-            favoritePending={favoritePending}
-            toggleFavorite={toggleFavorite}
-          />
+          <WorkHero work={work} favoritePending={favoritePending} toggleFavorite={toggleFavorite} />
           <div
             className={cn(
               "relative mx-auto grid w-full max-w-[1480px] gap-5 overflow-x-clip px-4 py-5",
               "bg-background/40 backdrop-blur-xl",
               "sm:px-6 sm:py-7",
               "lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start",
-              "xl:gap-7 xl:px-8"
+              "xl:gap-7 xl:px-8",
             )}
           >
             <aside className="order-2 flex min-w-0 flex-col gap-5 lg:sticky lg:top-5 lg:order-2">
@@ -198,34 +171,24 @@ export function WorkDetailDialog({
 
                   <Property label="البلد">
                     {work.country.length > 0
-                      ? work.country
-                          .map((country) => taxonomyLabel("country", country))
-                          .join("، ")
+                      ? work.country.map((country) => taxonomyLabel("country", country)).join("، ")
                       : "—"}
                   </Property>
 
                   {work.runtimeMinutes !== null && (
-                    <Property label="المدة">
-                      {formatMinutes(work.runtimeMinutes)}
-                    </Property>
+                    <Property label="المدة">{formatMinutes(work.runtimeMinutes)}</Property>
                   )}
 
                   {work.pageCount !== null && (
-                    <Property label="الصفحات">
-                      {formatNumber(work.pageCount)}
-                    </Property>
+                    <Property label="الصفحات">{formatNumber(work.pageCount)}</Property>
                   )}
 
                   {work.episodeCount !== null && (
-                    <Property label="الحلقات">
-                      {formatNumber(work.episodeCount)}
-                    </Property>
+                    <Property label="الحلقات">{formatNumber(work.episodeCount)}</Property>
                   )}
 
                   {work.chapterCount !== null && (
-                    <Property label="الفصول">
-                      {formatNumber(work.chapterCount)}
-                    </Property>
+                    <Property label="الفصول">{formatNumber(work.chapterCount)}</Property>
                   )}
 
                   {work.aliases.length > 0 && (
@@ -238,18 +201,12 @@ export function WorkDetailDialog({
 
               <Panel title="السجل الشخصي">
                 <dl>
-                  <Property label="الحالة">
-                    {translatedStatus(statusLabel(work.status))}
-                  </Property>
+                  <Property label="الحالة">{translatedStatus(statusLabel(work.status))}</Property>
 
-                  <Property label="التقدّم">
-                    {localizedProgressText(work)}
-                  </Property>
+                  <Property label="التقدّم">{localizedProgressText(work)}</Property>
 
                   <Property label="تاريخ الإضافة">
-                    {work.trackedOn
-                      ? formatDateString(work.trackedOn)
-                      : "لم يُسجّل بعد"}
+                    {work.trackedOn ? formatDateString(work.trackedOn) : "لم يُسجّل بعد"}
                   </Property>
                 </dl>
               </Panel>
@@ -261,9 +218,7 @@ export function WorkDetailDialog({
               >
                 {work.curation && (
                   <dl>
-                    <Property label="الحالة">
-                      {curationStatusLabel(work.curation.status)}
-                    </Property>
+                    <Property label="الحالة">{curationStatusLabel(work.curation.status)}</Property>
 
                     <Property label="تاريخ المراجعة">
                       {formatDateString(work.curation.reviewedAt)}
@@ -281,7 +236,7 @@ export function WorkDetailDialog({
                 className={cn(
                   "grid min-w-0 gap-5",
                   "xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]",
-                  "xl:items-start"
+                  "xl:items-start",
                 )}
               >
                 {/* Right Column: Summary, Classification, Content Dossier, Relations */}
@@ -338,9 +293,7 @@ export function WorkDetailDialog({
                       <>
                         {work.contentWarnings && (
                           <ContentSection title="ملاحظات المحتوى">
-                            <p className="text-sm leading-7">
-                              {work.contentWarnings}
-                            </p>
+                            <p className="text-sm leading-7">{work.contentWarnings}</p>
                           </ContentSection>
                         )}
 
@@ -349,7 +302,7 @@ export function WorkDetailDialog({
                             title="التحليل العقدي"
                             className={cn(
                               work.contentWarnings && "mt-5",
-                              "border-r-2 border-amber-500/70 pr-4"
+                              "border-r-2 border-amber-500/70 pr-4",
                             )}
                           >
                             <p className="text-sm leading-7 text-muted-foreground">
@@ -361,25 +314,15 @@ export function WorkDetailDialog({
                         {work.riskProfile && (
                           <div
                             className={cn(
-                              (work.contentWarnings || work.analysisNotes) &&
-                                "mt-5 border-t pt-5",
-                              "grid gap-2.5 sm:grid-cols-2"
+                              (work.contentWarnings || work.analysisNotes) && "mt-5 border-t pt-5",
+                              "grid gap-2.5 sm:grid-cols-2",
                             )}
                           >
-                            <Risk
-                              label="المحتوى الجنسي"
-                              level={work.riskProfile.sexuality}
-                            />
+                            <Risk label="المحتوى الجنسي" level={work.riskProfile.sexuality} />
 
-                            <Risk
-                              label="السلوكيات"
-                              level={work.riskProfile.behavioral}
-                            />
+                            <Risk label="السلوكيات" level={work.riskProfile.behavioral} />
 
-                            <Risk
-                              label="المحتوى العقدي"
-                              level={work.riskProfile.theology}
-                            />
+                            <Risk label="المحتوى العقدي" level={work.riskProfile.theology} />
                           </div>
                         )}
                       </>
@@ -403,13 +346,13 @@ export function WorkDetailDialog({
                               "overflow-hidden rounded-2xl border bg-background p-2 text-right",
                               "shadow-xs transition-[border-color,box-shadow,transform]",
                               "hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md",
-                              "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                              "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
                             )}
                           >
                             <span
                               className={cn(
                                 "relative aspect-2/3 overflow-hidden rounded-xl",
-                                "border bg-muted/50"
+                                "border bg-muted/50",
                               )}
                             >
                               {relation.work.imagePath ? (
@@ -423,7 +366,7 @@ export function WorkDetailDialog({
                                   aria-hidden="true"
                                   className={cn(
                                     "flex size-full items-end bg-linear-to-br",
-                                    "from-muted via-muted/60 to-primary/20 p-2"
+                                    "from-muted via-muted/60 to-primary/20 p-2",
                                   )}
                                 >
                                   <span className="line-clamp-3 text-[10px] leading-4 font-semibold text-foreground/70">
@@ -434,24 +377,23 @@ export function WorkDetailDialog({
                             </span>
 
                             <span className="flex min-w-0 flex-col items-start py-1 ps-1">
-                              <Badge
-                                variant="secondary"
-                                className="mb-2 max-w-full font-normal"
-                              >
-                                <span className="truncate">
-                                  {relationContextLabel(relation)}
-                                </span>
+                              <Badge variant="secondary" className="mb-2 max-w-full font-normal">
+                                <span className="truncate">{relationContextLabel(relation)}</span>
                               </Badge>
 
                               <strong className="line-clamp-2 text-sm leading-6 font-semibold">
                                 {relation.work.title}
                               </strong>
 
+                              {relation.notes && (
+                                <span className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                  {relation.notes}
+                                </span>
+                              )}
+
                               <small className="mt-auto pt-2 text-xs text-muted-foreground">
                                 {translatedKind(relation.work.kind)}
-                                {relation.work.year
-                                  ? ` · ${formatYear(relation.work.year)}`
-                                  : ""}
+                                {relation.work.year ? ` · ${formatYear(relation.work.year)}` : ""}
                               </small>
                             </span>
 
@@ -463,7 +405,7 @@ export function WorkDetailDialog({
                   </Panel>
                 </div>
 
-                {/* Left Column: Publication, Credits, Activity, Links */}
+                {/* Left Column: Publication, Contributors, Activity, Links */}
                 <div className="order-2 flex min-w-0 flex-col gap-5 xl:order-2">
                   <Panel
                     title="النشر والمصدر"
@@ -473,21 +415,15 @@ export function WorkDetailDialog({
                     {hasPublication && (
                       <dl>
                         {work.publication?.format && (
-                          <Property label="الصيغة">
-                            {work.publication.format}
-                          </Property>
+                          <Property label="الصيغة">{work.publication.format}</Property>
                         )}
 
                         {work.publication?.publisher && (
-                          <Property label="الناشر">
-                            {work.publication.publisher}
-                          </Property>
+                          <Property label="الناشر">{work.publication.publisher}</Property>
                         )}
 
                         {work.publication?.imprint && (
-                          <Property label="العلامة">
-                            {work.publication.imprint}
-                          </Property>
+                          <Property label="العلامة">{work.publication.imprint}</Property>
                         )}
 
                         {work.publication?.serialization.length ? (
@@ -513,25 +449,28 @@ export function WorkDetailDialog({
 
                   <Panel
                     title="طاقم العمل الأساسي"
-                    empty={!hasCredits}
+                    empty={!hasContributors}
                     emptyText="لم يُضف طاقم العمل بعد."
                   >
-                    {hasCredits && (
+                    {hasContributors && (
                       <div className="divide-y divide-border/70">
-                        {work.credits.map((credit) => (
+                        {work.contributors.map((contributor) => (
                           <div
-                            key={`${credit.entityId}-${credit.role}`}
+                            key={`${contributor.entityId}-${contributor.role}`}
                             className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
                           >
                             <span className="min-w-0 truncate text-sm font-medium">
-                              {credit.name}
+                              <Link
+                                to="/entities/$entityId"
+                                params={{ entityId: contributor.entityId }}
+                                className="hover:underline"
+                              >
+                                {contributor.name}
+                              </Link>
                             </span>
 
-                            <Badge
-                              variant="secondary"
-                              className="shrink-0 font-normal"
-                            >
-                              {creditRoleLabel(credit.role)}
+                            <Badge variant="secondary" className="shrink-0 font-normal">
+                              {contributorRoleLabel(contributor.role)}
                             </Badge>
                           </div>
                         ))}
@@ -544,12 +483,8 @@ export function WorkDetailDialog({
                     empty={!hasActivity}
                     emptyText="لم تُسجّل أي تحديثات للتقدّم بعد."
                   >
-                    {hasActivity && (
-                      <WorkActivityLedger
-                        work={work}
-                        structure={structure}
-                        entries={activityQuery.data!}
-                      />
+                    {hasActivity && activityQuery.data && (
+                      <WorkActivityLedger work={work} entries={activityQuery.data} />
                     )}
                   </Panel>
 
@@ -559,7 +494,7 @@ export function WorkDetailDialog({
                     emptyText="لا توجد روابط خارجية مسجلة."
                   >
                     {hasExternalLinks && (
-                      <div className="space-y-2">
+                      <div className="flex flex-col gap-2">
                         {work.externalLinks.map((link) => (
                           <a
                             key={link.url}
@@ -571,12 +506,10 @@ export function WorkDetailDialog({
                               "rounded-xl border bg-background px-3.5 py-3",
                               "text-sm font-medium transition-colors",
                               "hover:border-primary/30 hover:bg-accent/50",
-                              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                             )}
                           >
-                            <span className="min-w-0 truncate">
-                              {link.label}
-                            </span>
+                            <span className="min-w-0 truncate">{link.label}</span>
 
                             <ArrowSquareOutIcon className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
                           </a>
@@ -591,76 +524,62 @@ export function WorkDetailDialog({
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
-function WorkActivityLedger({
-  work,
-  structure,
-  entries,
-}: {
-  work: Work
-  structure?: WorkStructure
-  entries: TrackingEntry[]
-}) {
+function WorkActivityLedger({ work, entries }: { work: Work; entries: TrackingEntry[] }) {
   const days = useMemo(() => {
-    const grouped = new Map<string, TrackingEntry[]>()
+    const grouped = new Map<string, TrackingEntry[]>();
 
     const sortedEntries = [...entries].sort(
       (left, right) =>
         right.occurredOn.localeCompare(left.occurredOn) ||
         left.daySequence - right.daySequence ||
-        left.id.localeCompare(right.id)
-    )
+        left.id.localeCompare(right.id),
+    );
 
     for (const entry of sortedEntries) {
-      grouped.set(entry.occurredOn, [
-        ...(grouped.get(entry.occurredOn) ?? []),
-        entry,
-      ])
+      grouped.set(entry.occurredOn, [...(grouped.get(entry.occurredOn) ?? []), entry]);
     }
 
-    return [...grouped.entries()]
-  }, [entries])
+    return [...grouped.entries()];
+  }, [entries]);
 
   return (
     <div className="flex flex-col">
-      {days.map(([date, dayEntries], dayIndex) => {
+      {days.map(([date, dayEntries]) => {
         const orderedEntries = [...dayEntries].sort(
-          (left, right) =>
-            left.daySequence - right.daySequence ||
-            left.id.localeCompare(right.id)
-        )
+          (left, right) => left.daySequence - right.daySequence || left.id.localeCompare(right.id),
+        );
 
         const watchEntries = orderedEntries.filter((entry) => {
-          if (isMovieStatusEvent(entry, work)) return true
-          return entry.progress > entry.progressBefore
-        })
+          if (isMovieStatusEvent(entry, work)) return true;
+          return entry.progress > entry.progressBefore;
+        });
 
         const statusEntries = orderedEntries.filter(
           (entry) =>
             entry.statusBefore !== entry.status &&
             !isMovieStatusEvent(entry, work) &&
-            entry.progress === entry.progressBefore
-        )
+            entry.progress === entry.progressBefore,
+        );
 
         const watchedAmount = watchEntries.reduce(
           (total, entry) => total + activityAmount(entry),
-          0
-        )
+          0,
+        );
 
-        const unitLabel =
-          work.kind === "movie" ? "فيلم" : progressUnitLabel(work.progressUnit)
+        const unitLabel = work.kind === "movie" ? "فيلم" : progressUnitLabel(work.progressUnit);
 
-        const latestWatch = watchEntries.at(-1)
-        const latestStatus = statusEntries.at(-1)
+        const latestWatch = watchEntries.at(-1);
+        const latestStatus = statusEntries.at(-1);
 
         const daySummary =
           watchEntries.length > 0
             ? `${formatNumber(watchedAmount)} ${unitLabel}`
             : statusEntries.length > 0
               ? "تحديث حالة"
-              : "سجل"
+              : "سجل";
 
         return (
           <section
@@ -675,13 +594,11 @@ function WorkActivityLedger({
                 >
                   {formatDateString(date)}
                 </time>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {daySummary}
-                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{daySummary}</p>
               </aside>
 
               <div className="min-w-0 flex-1">
-                <div className="space-y-3 border-l border-border/60 pr-4">
+                <div className="flex flex-col gap-3 border-l border-border/60 pr-4">
                   {watchEntries.length > 0 ? (
                     <LedgerEvent
                       tone="primary"
@@ -695,7 +612,7 @@ function WorkActivityLedger({
                           ? "سُجّل كاكتمل."
                           : latestWatch && watchEntries.length > 0
                             ? `من ${formatNumber(
-                                watchEntries[0].progressBefore
+                                watchEntries[0].progressBefore,
                               )} إلى ${formatNumber(latestWatch.progress)}`
                             : ""
                       }
@@ -706,7 +623,7 @@ function WorkActivityLedger({
                     <LedgerEvent
                       title="تحديث الحالة"
                       description={`${statusLabel(
-                        latestStatus.statusBefore
+                        latestStatus.statusBefore,
                       )} ← ${statusLabel(latestStatus.status)}`}
                     />
                   ) : null}
@@ -714,10 +631,10 @@ function WorkActivityLedger({
               </div>
             </div>
           </section>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
 function LedgerEvent({
@@ -725,9 +642,9 @@ function LedgerEvent({
   description,
   tone = "muted",
 }: {
-  title: string
-  description: string
-  tone?: "muted" | "primary"
+  title: string;
+  description: string;
+  tone?: "muted" | "primary";
 }) {
   return (
     <div className="relative pr-4">
@@ -737,110 +654,10 @@ function LedgerEvent({
           tone === "primary" ? "bg-primary" : "bg-border",
         ].join(" ")}
       />
-      <p className="text-sm leading-tight font-medium text-foreground">
-        {title}
-      </p>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-        {description}
-      </p>
+      <p className="text-sm leading-tight font-medium text-foreground">{title}</p>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
     </div>
-  )
-}
-
-function WorkActivityEntry({
-  work,
-  structure,
-  entry,
-}: {
-  work: Work
-  structure?: WorkStructure
-  entry: TrackingEntry
-}) {
-  const direction = progressDirection(entry)
-  const segments = progressSegments(
-    structure,
-    entry.progressBefore,
-    entry.progress
-  )
-  const movieWatched = isMovieStatusEvent(entry, work)
-
-  return (
-    <div className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
-      <div className="flex flex-wrap items-center gap-2">
-        <strong className="text-sm font-medium">
-          {movieWatched
-            ? "تمت مشاهدة الفيلم"
-            : direction === "forward"
-              ? `أُضيف ${formatNumber(activityAmount(entry))} ${progressUnitLabel(work.progressUnit)}`
-              : direction === "correction"
-                ? "تصحيح موضع التقدم"
-                : "تغيير حالة المتابعة"}
-        </strong>
-        <Badge variant="outline">
-          {translatedStatus(statusLabel(entry.status))}
-        </Badge>
-      </div>
-
-      {direction === "forward" ? (
-        <div className="flex flex-col gap-1.5">
-          {segments.map((segment, index) => (
-            <div
-              key={`${segment.seasonId ?? "work"}-${segment.firstUnit}-${index}`}
-              className="flex flex-wrap items-center gap-2 text-xs"
-            >
-              {segment.seasonTitle ? (
-                <Badge variant="secondary">
-                  {activitySeasonLabel(
-                    segment.seasonTitle,
-                    segment.seasonNumber
-                  )}
-                </Badge>
-              ) : null}
-              <span className="font-medium">
-                {activityUnitSequenceLabel(
-                  work,
-                  segment.firstUnit,
-                  segment.lastUnit
-                )}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : direction === "correction" ? (
-        <p className="text-xs text-muted-foreground">
-          من {formatNumber(entry.progressBefore)} إلى{" "}
-          {formatNumber(entry.progress)}؛ لا يُحتسب كنشاط.
-        </p>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          بقي موضع التقدم عند {formatNumber(entry.progress)}.
-        </p>
-      )}
-    </div>
-  )
-}
-
-function activityUnitSequenceLabel(work: Work, first: number, last: number) {
-  const chapter = work.progressUnit
-    .trim()
-    .toLocaleLowerCase()
-    .startsWith("chapter")
-  const unit = chapter ? "الفصول" : "الحلقات"
-  const values =
-    last - first <= 5
-      ? Array.from({ length: last - first + 1 }, (_, index) =>
-          formatNumber(first + index)
-        ).join("، ")
-      : `${formatNumber(first)}–${formatNumber(last)}`
-  return `${unit} ${values}`
-}
-
-function activitySeasonLabel(title: string, number: number | null) {
-  return number === null
-    ? title
-    : `الموسم ${new Intl.NumberFormat("ar", {
-        maximumFractionDigits: 1,
-      }).format(number)}`
+  );
 }
 
 function DialogFloatingActions({
@@ -850,38 +667,36 @@ function DialogFloatingActions({
   onToggleFullScreen,
   onClose,
 }: {
-  work: Work
-  taxonomyLabel: ReturnType<typeof useArabicTranslations>["taxonomyLabel"]
-  fullScreen: boolean
-  onToggleFullScreen: () => void
-  onClose: () => void
+  work: Work;
+  taxonomyLabel: ReturnType<typeof useArabicTranslations>["taxonomyLabel"];
+  fullScreen: boolean;
+  onToggleFullScreen: () => void;
+  onClose: () => void;
 }) {
-  const [copiedFormat, setCopiedFormat] = useState<ShareFormat | null>(null)
+  const [copiedFormat, setCopiedFormat] = useState<ShareFormat | null>(null);
 
   useEffect(() => {
-    if (!copiedFormat) return
+    if (!copiedFormat) return;
 
-    const timeout = window.setTimeout(() => setCopiedFormat(null), 2_000)
-    return () => window.clearTimeout(timeout)
-  }, [copiedFormat])
+    const timeout = window.setTimeout(() => setCopiedFormat(null), 2_000);
+    return () => window.clearTimeout(timeout);
+  }, [copiedFormat]);
 
   const handleCopy = async (format: ShareFormat) => {
     try {
-      await copyTextToClipboard(
-        formatWorkShareText(work, format, taxonomyLabel)
-      )
-      setCopiedFormat(format)
+      await copyTextToClipboard(formatWorkShareText(work, format, taxonomyLabel));
+      setCopiedFormat(format);
     } catch {
-      setCopiedFormat(null)
+      setCopiedFormat(null);
     }
-  }
+  };
 
   return (
     <div
       className={cn(
         "absolute top-3 right-3 z-30 flex items-center gap-1 rounded-full",
         "border bg-background/85 p-1 shadow-lg backdrop-blur-xl",
-        "supports-[backdrop-filter]:bg-background/75 sm:top-4 sm:right-4"
+        "supports-[backdrop-filter]:bg-background/75 sm:top-4 sm:right-4",
       )}
     >
       <Button
@@ -944,24 +759,18 @@ function DialogFloatingActions({
         {fullScreen ? <ArrowsInIcon /> : <ArrowsOutIcon />}
       </Button>
     </div>
-  )
+  );
 }
 
-function DialogBackdrop({
-  bannerPath,
-  visible,
-}: {
-  bannerPath: string | null
-  visible: boolean
-}) {
-  if (!bannerPath) return null
+function DialogBackdrop({ bannerPath, visible }: { bannerPath: string | null; visible: boolean }) {
+  if (!bannerPath) return null;
 
   return (
     <div
       aria-hidden="true"
       className={cn(
         "pointer-events-none absolute inset-0 overflow-hidden transition-opacity duration-500",
-        visible ? "opacity-100" : "opacity-0"
+        visible ? "opacity-100" : "opacity-0",
       )}
     >
       <img
@@ -971,14 +780,14 @@ function DialogBackdrop({
       />
       <div className="absolute inset-0 bg-background/82" />
     </div>
-  )
+  );
 }
 
 function handleDialogScroll(
   event: UIEvent<HTMLDivElement>,
-  setHasScrolledPastHero: (value: boolean) => void
+  setHasScrolledPastHero: (value: boolean) => void,
 ) {
-  setHasScrolledPastHero(event.currentTarget.scrollTop > 240)
+  setHasScrolledPastHero(event.currentTarget.scrollTop > 240);
 }
 
 function WorkHero({
@@ -986,18 +795,16 @@ function WorkHero({
   favoritePending,
   toggleFavorite,
 }: {
-  work: Work
-  favoritePending: boolean
-  toggleFavorite: (work: Work) => void
+  work: Work;
+  favoritePending: boolean;
+  toggleFavorite: (work: Work) => void;
 }) {
   return (
     <section className="relative isolate overflow-hidden border-b bg-background">
       <div
         className={cn(
           "relative overflow-hidden border-b bg-muted/40",
-          work.bannerPath
-            ? "h-[clamp(260px,46vw,620px)]"
-            : "h-[260px] sm:h-[340px]"
+          work.bannerPath ? "h-[clamp(260px,46vw,620px)]" : "h-[260px] sm:h-[340px]",
         )}
       >
         {work.bannerPath ? (
@@ -1034,7 +841,7 @@ function WorkHero({
           "grid-cols-[112px_minmax(0,1fr)] gap-x-4 gap-y-5 px-4 pb-6",
           "sm:-mt-20 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-x-6 sm:px-6 sm:pb-8",
           "lg:-mt-28 lg:grid-cols-[200px_minmax(0,1fr)_220px] lg:gap-8",
-          "xl:grid-cols-[220px_minmax(0,1fr)_230px] xl:px-8"
+          "xl:grid-cols-[220px_minmax(0,1fr)_230px] xl:px-8",
         )}
       >
         <div className="relative">
@@ -1042,7 +849,7 @@ function WorkHero({
             work={work}
             className={cn(
               "w-full overflow-hidden rounded-2xl border-2 border-background",
-              "shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]"
+              "shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]",
             )}
           />
 
@@ -1053,9 +860,7 @@ function WorkHero({
           <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4">
             <Badge className="shadow-sm">{translatedKind(work.kind)}</Badge>
 
-            <Badge variant="secondary">
-              {work.year ? formatYear(work.year) : "لم يصدر بعد"}
-            </Badge>
+            <Badge variant="secondary">{work.year ? formatYear(work.year) : "لم يصدر بعد"}</Badge>
 
             <Badge variant="outline" className="bg-background/80">
               {releaseStatusLabel(work.releaseStatus)}
@@ -1070,7 +875,7 @@ function WorkHero({
                 className={cn(
                   "max-h-16 max-w-full object-contain object-right sm:max-h-24",
                   "drop-shadow-[0_4px_18px_rgba(0,0,0,0.22)]",
-                  "dark:brightness-110"
+                  "dark:brightness-110",
                 )}
               />
             </div>
@@ -1078,7 +883,7 @@ function WorkHero({
             <h1
               className={cn(
                 "max-w-3xl text-2xl leading-tight font-bold tracking-tight",
-                "sm:text-4xl lg:text-5xl"
+                "sm:text-4xl lg:text-5xl",
               )}
             >
               {work.title}
@@ -1086,9 +891,7 @@ function WorkHero({
           )}
 
           {work.logoPath && (
-            <p className="mt-2 text-sm font-medium text-foreground/75 sm:mt-3">
-              {work.title}
-            </p>
+            <p className="mt-2 text-sm font-medium text-foreground/75 sm:mt-3">{work.title}</p>
           )}
 
           {work.arabicTitle && (
@@ -1101,7 +904,7 @@ function WorkHero({
         <div
           className={cn(
             "col-span-2 rounded-2xl border bg-background/88 p-3 shadow-lg",
-            "backdrop-blur-xl lg:col-span-1"
+            "backdrop-blur-xl lg:col-span-1",
           )}
         >
           <Button
@@ -1110,26 +913,20 @@ function WorkHero({
             disabled={favoritePending}
             onClick={() => toggleFavorite(work)}
           >
-            <HeartIcon
-              weight={work.favorite ? "fill" : "regular"}
-              data-icon="inline-start"
-            />
+            <HeartIcon weight={work.favorite ? "fill" : "regular"} data-icon="inline-start" />
 
             {work.favorite ? "إزالة من المفضلة" : "إضافة إلى المفضلة"}
           </Button>
 
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <HeroStat
-              label="الحالة"
-              value={translatedStatus(statusLabel(work.status))}
-            />
+            <HeroStat label="الحالة" value={translatedStatus(statusLabel(work.status))} />
 
             <HeroStat label="التقدّم" value={localizedProgressText(work)} />
           </div>
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 function HeroStat({ label, value }: { label: string; value: ReactNode }) {
@@ -1137,35 +934,25 @@ function HeroStat({ label, value }: { label: string; value: ReactNode }) {
     <div className="min-w-0 rounded-xl border bg-muted/35 px-3 py-2.5">
       <p className="text-[10px] font-medium text-muted-foreground">{label}</p>
 
-      <p className="mt-1 truncate text-xs font-semibold text-foreground">
-        {value}
-      </p>
+      <p className="mt-1 truncate text-xs font-semibold text-foreground">{value}</p>
     </div>
-  )
+  );
 }
 
-function TrackerLedger({
-  work,
-  structure,
-}: {
-  work: Work
-  structure?: WorkStructure
-}) {
-  const total = structure?.totalUnits || work.progressTotal
+function TrackerLedger({ work, structure }: { work: Work; structure?: WorkStructure }) {
+  const total = structure?.totalUnits || work.progressTotal;
 
-  const percentage = total
-    ? Math.min(100, Math.round((work.progress / total) * 100))
-    : 0
+  const percentage = total ? Math.min(100, Math.round((work.progress / total) * 100)) : 0;
 
   return (
     <section
       className={cn(
         "overflow-hidden rounded-2xl border bg-card shadow-sm",
-        "ring-1 ring-border/30"
+        "ring-1 ring-border/30",
       )}
     >
       <Collapsible>
-        <div className="space-y-5 p-5 pb-0 sm:p-6 sm:pb-0">
+        <div className="flex flex-col gap-5 p-5 pb-0 sm:p-6 sm:pb-0">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="font-semibold">متابعة التقدّم</h2>
@@ -1176,9 +963,7 @@ function TrackerLedger({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">
-                {translatedStatus(statusLabel(work.status))}
-              </Badge>
+              <Badge variant="secondary">{translatedStatus(statusLabel(work.status))}</Badge>
 
               <Badge variant="outline">{localizedProgressText(work)}</Badge>
             </div>
@@ -1187,9 +972,7 @@ function TrackerLedger({
           <Progress value={percentage}>
             <ProgressLabel>التقدّم الكلي</ProgressLabel>
 
-            <ProgressValue>
-              {() => `${formatNumber(percentage)}٪`}
-            </ProgressValue>
+            <ProgressValue>{() => `${formatNumber(percentage)}٪`}</ProgressValue>
           </Progress>
 
           <CollapsibleTrigger
@@ -1199,7 +982,7 @@ function TrackerLedger({
                 size="sm"
                 className={cn(
                   "group mx-auto flex w-full rounded-t-md! rounded-b-none! border-b-0",
-                  "sm:w-fit sm:min-w-32"
+                  "sm:w-fit sm:min-w-32",
                 )}
               />
             }
@@ -1220,35 +1003,29 @@ function TrackerLedger({
               <Separator className="my-5" />
               <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
                 {structure.seasons.map((season) => {
-                  const completed = season.progress?.progress ?? 0
+                  const completed = season.progress?.progress ?? 0;
 
-                  const seasonTotal = seasonCapacity(season)
+                  const seasonTotal = seasonCapacity(season);
 
-                  const seasonCompleted =
-                    seasonTotal > 0 && completed === seasonTotal
+                  const seasonCompleted = seasonTotal > 0 && completed === seasonTotal;
 
                   return (
                     <div
                       key={season.id}
                       className={cn(
                         "flex items-center justify-between gap-3 rounded-xl border",
-                        "bg-background px-3.5 py-3"
+                        "bg-background px-3.5 py-3",
                       )}
                     >
-                      <span className="min-w-0 truncate text-sm font-medium">
-                        {season.title}
-                      </span>
+                      <span className="min-w-0 truncate text-sm font-medium">{season.title}</span>
 
-                      <Badge
-                        variant={seasonCompleted ? "default" : "outline"}
-                        className="shrink-0"
-                      >
+                      <Badge variant={seasonCompleted ? "default" : "outline"} className="shrink-0">
                         {formatNumber(completed)}
                         {" / "}
                         {seasonTotal ? formatNumber(seasonTotal) : "—"}
                       </Badge>
                     </div>
-                  )
+                  );
                 })}
               </div>
             </>
@@ -1256,7 +1033,7 @@ function TrackerLedger({
         </CollapsibleContent>
       </Collapsible>
     </section>
-  )
+  );
 }
 
 function ScorePreview({ work }: { work: Work }) {
@@ -1272,26 +1049,24 @@ function ScorePreview({ work }: { work: Work }) {
 
         <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
           {scoreCriteria.map((criterion) => {
-            const score = work.scoreComponents[criterion]
+            const score = work.scoreComponents[criterion];
             return (
               <Progress
                 key={criterion}
                 value={score === undefined ? null : score * 10}
                 className={cn(score === undefined && "opacity-55")}
               >
-                <ProgressLabel>
-                  {scoreLabel(criterion, work.kind).ar}
-                </ProgressLabel>
+                <ProgressLabel>{scoreLabel(criterion, work.kind).ar}</ProgressLabel>
                 <ProgressValue>
                   {() => (score === undefined ? "—" : score.toFixed(1))}
                 </ProgressValue>
               </Progress>
-            )
+            );
           })}
         </div>
       </div>
     </Panel>
-  )
+  );
 }
 
 function Panel({
@@ -1302,12 +1077,12 @@ function Panel({
   empty = false,
   emptyText = "لا توجد بيانات مسجلة.",
 }: {
-  title: string
-  children?: ReactNode
-  className?: string
-  size?: "default" | "large"
-  empty?: boolean
-  emptyText?: string
+  title: string;
+  children?: ReactNode;
+  className?: string;
+  size?: "default" | "large";
+  empty?: boolean;
+  emptyText?: string;
 }) {
   return (
     <section
@@ -1318,25 +1093,20 @@ function Panel({
         "data-[empty=true]:opacity-65",
         "hover:data-[empty=true]:opacity-90",
         empty ? "p-4" : size === "large" ? "p-5 sm:p-6" : "p-4 sm:p-5",
-        className
+        className,
       )}
     >
       <div className={cn("flex items-center gap-3", empty ? "mb-3" : "mb-4")}>
         <span
-          className={cn(
-            "h-4 w-1 rounded-full",
-            empty ? "bg-muted-foreground/35" : "bg-primary"
-          )}
+          className={cn("h-4 w-1 rounded-full", empty ? "bg-muted-foreground/35" : "bg-primary")}
         />
 
-        <h2 className="text-xs font-semibold tracking-wide text-muted-foreground">
-          {title}
-        </h2>
+        <h2 className="text-xs font-semibold tracking-wide text-muted-foreground">{title}</h2>
       </div>
 
       {empty ? <EmptySection>{emptyText}</EmptySection> : children}
     </section>
-  )
+  );
 }
 
 function EmptySection({ children }: { children: ReactNode }) {
@@ -1344,7 +1114,7 @@ function EmptySection({ children }: { children: ReactNode }) {
     <div className="rounded-xl border border-dashed border-border/70 bg-muted/15 px-3.5 py-3">
       <p className="text-xs leading-5 text-muted-foreground/75">{children}</p>
     </div>
-  )
+  );
 }
 
 function Property({ label, children }: { label: string; children: ReactNode }) {
@@ -1353,16 +1123,14 @@ function Property({ label, children }: { label: string; children: ReactNode }) {
       className={cn(
         "grid grid-cols-[minmax(88px,auto)_minmax(0,1fr)] gap-4",
         "border-b border-border/70 py-3 text-sm last:border-0",
-        "first:pt-0 last:pb-0"
+        "first:pt-0 last:pb-0",
       )}
     >
       <dt className="rtl text-start text-muted-foreground">{label}</dt>
 
-      <dd className="rtl min-w-0 text-start font-medium break-words">
-        {children}
-      </dd>
+      <dd className="rtl min-w-0 text-start font-medium break-words">{children}</dd>
     </div>
-  )
+  );
 }
 
 function ContentSection({
@@ -1370,19 +1138,17 @@ function ContentSection({
   children,
   className,
 }: {
-  title: string
-  children: ReactNode
-  className?: string
+  title: string;
+  children: ReactNode;
+  className?: string;
 }) {
   return (
     <div className={className}>
-      <p className="mb-2 text-xs font-semibold text-muted-foreground">
-        {title}
-      </p>
+      <p className="mb-2 text-xs font-semibold text-muted-foreground">{title}</p>
 
       {children}
     </div>
-  )
+  );
 }
 
 function TaxonomyRow({
@@ -1391,12 +1157,12 @@ function TaxonomyRow({
   itemLabel,
   emphasized = false,
 }: {
-  label: string
-  items: string[]
-  itemLabel: (value: string) => string
-  emphasized?: boolean
+  label: string;
+  items: string[];
+  itemLabel: (value: string) => string;
+  emphasized?: boolean;
 }) {
-  if (items.length === 0) return null
+  if (items.length === 0) return null;
 
   return (
     <div className="mb-4 last:mb-0">
@@ -1406,7 +1172,6 @@ function TaxonomyRow({
         {items.map((item) => (
           <Badge
             key={`${label}-${item}`}
-
             variant={emphasized ? "default" : "secondary"}
             className="max-w-full font-normal"
           >
@@ -1415,18 +1180,18 @@ function TaxonomyRow({
         ))}
       </div>
     </div>
-  )
+  );
 }
 
-type RiskLevel = "none" | "low" | "medium" | "high" | "unknown"
+type RiskLevel = "none" | "low" | "medium" | "high" | "unknown";
 
 const riskConfig: Record<
   RiskLevel,
   {
-    label: string
-    dotColor: string
-    textColor: string
-    backgroundColor: string
+    label: string;
+    dotColor: string;
+    textColor: string;
+    backgroundColor: string;
   }
 > = {
   none: {
@@ -1459,24 +1224,16 @@ const riskConfig: Record<
     textColor: "text-muted-foreground",
     backgroundColor: "bg-muted/30",
   },
-}
+};
 
-function Risk({
-  label,
-  level,
-  value,
-}: {
-  label: string
-  level: RiskLevel
-  value?: string
-}) {
-  const config = riskConfig[level]
+function Risk({ label, level, value }: { label: string; level: RiskLevel; value?: string }) {
+  const config = riskConfig[level];
 
   return (
     <div
       className={cn(
         "flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5",
-        config.backgroundColor
+        config.backgroundColor,
       )}
     >
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
@@ -1490,10 +1247,11 @@ function Risk({
         {value ?? config.label}
       </Badge>
     </div>
-  )
+  );
 }
 
 const statusTranslations: Record<string, string> = {
+  saved: "محفوظ",
   planned: "مخطط له",
   planning: "مخطط له",
   backlog: "في القائمة",
@@ -1509,7 +1267,7 @@ const statusTranslations: Record<string, string> = {
   dropped: "متروك",
   abandoned: "متروك",
   unknown: "غير معروف",
-}
+};
 
 const releaseStatusTranslations: Record<string, string> = {
   released: "صدر",
@@ -1527,7 +1285,7 @@ const releaseStatusTranslations: Record<string, string> = {
   canceled: "ملغى",
   hiatus: "متوقف",
   unknown: "غير معروف",
-}
+};
 
 const kindTranslations: Record<string, string> = {
   anime: "أنمي",
@@ -1545,25 +1303,29 @@ const kindTranslations: Record<string, string> = {
   animation: "رسوم متحركة",
   documentary: "وثائقي",
   comic: "قصص مصورة",
-}
+};
 
-const creditRoleTranslations: Record<string, string> = {
+const contributorRoleTranslations: Record<string, string> = {
   author: "المؤلف",
+  "original-author": "المؤلف الأصلي",
   writer: "الكاتب",
+  screenwriter: "كاتب السيناريو",
   director: "المخرج",
   producer: "المنتج",
   studio: "الاستوديو",
+  "animation-studio": "استوديو الرسوم المتحركة",
+  "production-company": "شركة الإنتاج",
   publisher: "الناشر",
   developer: "المطوّر",
-  artist: "الرسام",
   illustrator: "الرسام",
-  creator: "صاحب العمل",
-  composer: "الملحن",
+  artist: "الفنان",
   editor: "المحرر",
   translator: "المترجم",
+  creator: "صاحب العمل",
+  composer: "الملحن",
   screenplay: "كاتب السيناريو",
   "original-creator": "المؤلف الأصلي",
-}
+};
 
 const sourceTypeTranslations: Record<string, string> = {
   original: "عمل أصلي",
@@ -1578,7 +1340,7 @@ const sourceTypeTranslations: Record<string, string> = {
   "web-novel": "رواية ويب",
   visualnovel: "رواية مرئية",
   "visual-novel": "رواية مرئية",
-}
+};
 
 const curationStatusTranslations: Record<string, string> = {
   verified: "موثّق",
@@ -1591,28 +1353,28 @@ const curationStatusTranslations: Record<string, string> = {
   archived: "مؤرشف",
   complete: "مكتمل",
   completed: "مكتمل",
-}
+};
 
 function normalizeLabel(value: string) {
-  return value.trim().toLowerCase().replaceAll("_", " ")
+  return value.trim().toLowerCase().replaceAll("_", " ");
 }
 
 function translatedStatus(value: string) {
-  return statusTranslations[normalizeLabel(value)] ?? value
+  return statusTranslations[normalizeLabel(value)] ?? value;
 }
 
 function releaseStatusLabel(value: string) {
-  return releaseStatusTranslations[normalizeLabel(String(value))] ?? "غير معروف"
+  return releaseStatusTranslations[normalizeLabel(String(value))] ?? "غير معروف";
 }
 
 function translatedKind(kind: string) {
-  return kindTranslations[normalizeLabel(String(kind))] ?? "نوع غير معروف"
+  return kindTranslations[normalizeLabel(String(kind))] ?? "نوع غير معروف";
 }
 
-function creditRoleLabel(value: string) {
-  const normalized = normalizeLabel(value).replaceAll(" ", "-")
+function contributorRoleLabel(value: string) {
+  const normalized = normalizeLabel(value).replaceAll(" ", "-");
 
-  return creditRoleTranslations[normalized] ?? "دور غير معروف"
+  return contributorRoleTranslations[normalized] ?? "دور غير معروف";
 }
 
 function relationContextLabel(relation: Work["relations"][number]) {
@@ -1628,31 +1390,39 @@ function relationContextLabel(relation: Work["relations"][number]) {
       outgoing: "تكملة لهذا العمل",
       incoming: "العمل السابق له",
     },
-    prequel: {
-      outgoing: "عمل سابق لهذا العمل",
-      incoming: "تكملة لهذا العمل",
-    },
     "spin-off": {
       outgoing: "عمل مشتق من هذا العمل",
       incoming: "العمل الأصلي",
+    },
+    "side-story": {
+      outgoing: "قصة جانبية لهذا العمل",
+      incoming: "العمل الأصلي",
+    },
+    compilation: {
+      outgoing: "تجميع يتضمن هذا العمل",
+      incoming: "عمل مصدر في هذا التجميع",
+    },
+    alternative: {
+      outgoing: "نسخة بديلة",
+      incoming: "نسخة بديلة",
     },
     related: {
       outgoing: "عمل ذو صلة",
       incoming: "عمل ذو صلة",
     },
-  }
+  };
 
-  return labels[relation.relationType][relation.direction]
+  return labels[relation.relationType][relation.direction];
 }
 
 function sourceTypeLabel(value: string) {
-  const normalized = normalizeLabel(value).replaceAll(" ", "-")
+  const normalized = normalizeLabel(value).replaceAll(" ", "-");
 
-  return sourceTypeTranslations[normalized] ?? "مصدر غير معروف"
+  return sourceTypeTranslations[normalized] ?? "مصدر غير معروف";
 }
 
 function curationStatusLabel(value: string) {
-  return curationStatusTranslations[normalizeLabel(value)] ?? "غير معروف"
+  return curationStatusTranslations[normalizeLabel(value)] ?? "غير معروف";
 }
 
 function progressUnitLabel(value: string) {
@@ -1672,135 +1442,109 @@ function progressUnitLabel(value: string) {
     season: "موسم",
     seasons: "موسم",
     percent: "بالمئة",
-  }
+  };
 
-  return labels[normalizeLabel(value)] ?? "وحدة"
+  return labels[normalizeLabel(value)] ?? "وحدة";
 }
 
 function localizedProgressText(work: Work) {
-  if (work.status === "completed" && !work.progressTotal) return "مكتمل"
+  if (work.status === "completed" && !work.progressTotal) return "مكتمل";
   if (!work.progressTotal) {
     return work.progress
       ? `${formatNumber(work.progress)} ${progressUnitLabel(work.progressUnit)}`
-      : "لم يبدأ بعد"
+      : "لم يبدأ بعد";
   }
   return `${formatNumber(work.progress)} / ${formatNumber(
-    work.progressTotal
-  )} ${progressUnitLabel(work.progressUnit)}`
+    work.progressTotal,
+  )} ${progressUnitLabel(work.progressUnit)}`;
 }
 
 function formatDateString(value: string | null) {
-  if (!value) return ""
+  if (!value) return "";
 
-  const date = new Date(`${value}T00:00:00Z`)
+  const date = new Date(`${value}T00:00:00Z`);
 
-  if (Number.isNaN(date.valueOf())) return "تاريخ غير صالح"
+  if (Number.isNaN(date.valueOf())) return "تاريخ غير صالح";
 
   return new Intl.DateTimeFormat("ar", {
     year: "numeric",
     month: "long",
     day: "numeric",
     timeZone: "UTC",
-  }).format(date)
+  }).format(date);
 }
 
 function formatNumber(value: number) {
-  return new Intl.NumberFormat("ar").format(value)
+  return new Intl.NumberFormat("ar").format(value);
 }
 
 export function formatYear(value: number | string) {
-  const numericValue = Number(value)
+  const numericValue = Number(value);
 
-  if (!Number.isFinite(numericValue)) return "غير محدد"
+  if (!Number.isFinite(numericValue)) return "غير محدد";
 
   return new Intl.NumberFormat("ar", {
     useGrouping: false,
     maximumFractionDigits: 0,
-  }).format(numericValue)
+  }).format(numericValue);
 }
 
 function formatMinutes(value: number) {
-  const hours = Math.floor(value / 60)
-  const minutes = value % 60
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
 
   if (!hours) {
-    return `${formatNumber(value)} دقيقة`
+    return `${formatNumber(value)} دقيقة`;
   }
 
   if (!minutes) {
-    return `${formatNumber(hours)} ساعة`
+    return `${formatNumber(hours)} ساعة`;
   }
 
-  return `${formatNumber(hours)} ساعة و${formatNumber(minutes)} دقيقة`
+  return `${formatNumber(hours)} ساعة و${formatNumber(minutes)} دقيقة`;
 }
 
-type ShareFormat = "plain" | "whatsapp" | "telegram" | "markdown"
+type ShareFormat = "plain" | "whatsapp" | "telegram" | "markdown";
 
 type ShareField = {
-  label: string
-  value: string
-}
+  label: string;
+  value: string;
+};
 
 type ShareSection = {
-  title: string
-  fields: ShareField[]
-}
+  title: string;
+  fields: ShareField[];
+};
 
 function formatWorkShareText(
   work: Work,
   format: ShareFormat,
-  taxonomyLabel: ReturnType<typeof useArabicTranslations>["taxonomyLabel"]
+  taxonomyLabel: ReturnType<typeof useArabicTranslations>["taxonomyLabel"],
 ) {
   const releaseSpan =
-    work.releaseStart &&
-    work.releaseEnd &&
-    work.releaseStart !== work.releaseEnd
-      ? `${formatDateString(work.releaseStart)} — ${formatDateString(
-          work.releaseEnd
-        )}`
-      : formatDateString(work.releaseStart ?? work.releaseEnd)
+    work.releaseStart && work.releaseEnd && work.releaseStart !== work.releaseEnd
+      ? `${formatDateString(work.releaseStart)} — ${formatDateString(work.releaseEnd)}`
+      : formatDateString(work.releaseStart ?? work.releaseEnd);
 
   const sections = [
     makeShareSection("معلومات العمل", [
       [
         "العنوان العربي",
-        work.arabicTitle && work.arabicTitle !== work.title
-          ? work.arabicTitle
-          : null,
+        work.arabicTitle && work.arabicTitle !== work.title ? work.arabicTitle : null,
       ],
       ["أسماء أخرى", work.aliases.join("، ")],
       ["النوع", translatedKind(work.kind)],
       [
         "حالة الإصدار",
-        work.releaseStatus === "unknown"
-          ? null
-          : releaseStatusLabel(work.releaseStatus),
+        work.releaseStatus === "unknown" ? null : releaseStatusLabel(work.releaseStatus),
       ],
       ["الإصدار", releaseSpan || (work.year ? formatYear(work.year) : null)],
       ["صنّاع العمل", work.creator],
-      [
-        "البلد",
-        work.country
-          .map((country) => taxonomyLabel("country", country))
-          .join("، "),
-      ],
-      [
-        "الفئة العمرية",
-        work.audience ? taxonomyLabel("audience", work.audience) : null,
-      ],
+      ["البلد", work.country.map((country) => taxonomyLabel("country", country)).join("، ")],
+      ["الفئة العمرية", work.audience ? taxonomyLabel("audience", work.audience) : null],
       ["الاستوديوهات", work.studios.join("، ")],
-      [
-        "المدة",
-        work.runtimeMinutes === null
-          ? null
-          : formatMinutes(work.runtimeMinutes),
-      ],
-      [
-        "مدة اللعب",
-        work.playtimeMinutes === null
-          ? null
-          : formatMinutes(work.playtimeMinutes),
-      ],
+      ["المدة", work.runtimeMinutes === null ? null : formatMinutes(work.runtimeMinutes)],
+      ["مدة اللعب", work.playtimeMinutes === null ? null : formatMinutes(work.playtimeMinutes)],
       ["الصفحات", shareNumber(work.pageCount)],
       ["الحلقات", shareNumber(work.episodeCount)],
       ["الفصول", shareNumber(work.chapterCount)],
@@ -1825,23 +1569,14 @@ function formatWorkShareText(
           [
             scoreLabel(criterion, work.kind).ar,
             shareRating(work.scoreComponents[criterion]),
-          ] as const
+          ] as const,
       ),
     ]),
     makeShareSection("النبذة", [["الوصف", work.summary]]),
     makeShareSection("التصنيف", [
-      [
-        "التصنيفات",
-        work.genres.map((genre) => taxonomyLabel("genre", genre)).join("، "),
-      ],
-      [
-        "الطابع",
-        work.tone.map((tone) => taxonomyLabel("tone", tone)).join("، "),
-      ],
-      [
-        "الموضوعات",
-        work.tags.map((tag) => taxonomyLabel("tag", tag)).join("، "),
-      ],
+      ["التصنيفات", work.genres.map((genre) => taxonomyLabel("genre", genre)).join("، ")],
+      ["الطابع", work.tone.map((tone) => taxonomyLabel("tone", tone)).join("، ")],
+      ["الموضوعات", work.tags.map((tag) => taxonomyLabel("tag", tag)).join("، ")],
     ]),
     makeShareSection("النشر والمصدر", [
       ["الصيغة", work.publication?.format],
@@ -1849,22 +1584,17 @@ function formatWorkShareText(
       ["العلامة", work.publication?.imprint],
       ["التسلسل", work.publication?.serialization.join("، ")],
       ["المحتويات", work.publication?.contents.join("، ")],
-      [
-        "المادة الأصلية",
-        work.sourceMaterial ? sourceTypeLabel(work.sourceMaterial.type) : null,
-      ],
+      ["المادة الأصلية", work.sourceMaterial ? sourceTypeLabel(work.sourceMaterial.type) : null],
       ["منشور المصدر", work.sourceMaterial?.publication],
       [
         "بداية نشر المصدر",
-        work.sourceMaterial?.started === null ||
-        work.sourceMaterial?.started === undefined
+        work.sourceMaterial?.started === null || work.sourceMaterial?.started === undefined
           ? null
           : formatYear(work.sourceMaterial.started),
       ],
       [
         "نهاية نشر المصدر",
-        work.sourceMaterial?.finished === null ||
-        work.sourceMaterial?.finished === undefined
+        work.sourceMaterial?.finished === null || work.sourceMaterial?.finished === undefined
           ? null
           : formatYear(work.sourceMaterial.finished),
       ],
@@ -1872,31 +1602,19 @@ function formatWorkShareText(
     ]),
     makeShareSection(
       "طاقم العمل الأساسي",
-      work.credits.map(
-        (credit) => [creditRoleLabel(credit.role), credit.name] as const
-      )
+      work.contributors.map(
+        (contributor) => [contributorRoleLabel(contributor.role), contributor.name] as const,
+      ),
     ),
     makeShareSection("ملف المحتوى", [
       ["ملاحظات المحتوى", work.contentWarnings],
       ["التحليل العقدي", work.analysisNotes],
-      [
-        "المحتوى الجنسي",
-        work.riskProfile ? riskConfig[work.riskProfile.sexuality].label : null,
-      ],
-      [
-        "السلوكيات",
-        work.riskProfile ? riskConfig[work.riskProfile.behavioral].label : null,
-      ],
-      [
-        "المحتوى العقدي",
-        work.riskProfile ? riskConfig[work.riskProfile.theology].label : null,
-      ],
+      ["المحتوى الجنسي", work.riskProfile ? riskConfig[work.riskProfile.sexuality].label : null],
+      ["السلوكيات", work.riskProfile ? riskConfig[work.riskProfile.behavioral].label : null],
+      ["المحتوى العقدي", work.riskProfile ? riskConfig[work.riskProfile.theology].label : null],
     ]),
     makeShareSection("معلومات المراجعة", [
-      [
-        "الحالة",
-        work.curation ? curationStatusLabel(work.curation.status) : null,
-      ],
+      ["الحالة", work.curation ? curationStatusLabel(work.curation.status) : null],
       ["تاريخ المراجعة", formatDateString(work.curation?.reviewedAt ?? null)],
       ["ملاحظات المراجعة", work.curation?.notes],
     ]),
@@ -1914,36 +1632,32 @@ function formatWorkShareText(
             ]
               .filter(Boolean)
               .join(" · "),
-          ] as const
-      )
+          ] as const,
+      ),
     ),
     makeShareSection(
       "الروابط الخارجية",
-      work.externalLinks.map((link) => [link.label, link.url] as const)
+      work.externalLinks.map((link) => [link.label, link.url] as const),
     ),
-  ].filter((section): section is ShareSection => section !== null)
+  ].filter((section): section is ShareSection => section !== null);
 
-  return renderShareText(work.title, sections, format)
+  return renderShareText(work.title, sections, format);
 }
 
 function makeShareSection(
   title: string,
-  fields: ReadonlyArray<readonly [string, string | null | undefined]>
+  fields: ReadonlyArray<readonly [string, string | null | undefined]>,
 ): ShareSection | null {
   const populatedFields = fields.flatMap(([label, value]) => {
-    const normalizedValue = value?.trim()
-    return normalizedValue ? [{ label, value: normalizedValue }] : []
-  })
+    const normalizedValue = value?.trim();
+    return normalizedValue ? [{ label, value: normalizedValue }] : [];
+  });
 
-  return populatedFields.length > 0 ? { title, fields: populatedFields } : null
+  return populatedFields.length > 0 ? { title, fields: populatedFields } : null;
 }
 
-function renderShareText(
-  title: string,
-  sections: ShareSection[],
-  format: ShareFormat
-) {
-  const indented = (value: string) => value.replaceAll("\n", "\n  ")
+function renderShareText(title: string, sections: ShareSection[], format: ShareFormat) {
+  const indented = (value: string) => value.replaceAll("\n", "\n  ");
 
   if (format === "markdown") {
     return [
@@ -1952,9 +1666,9 @@ function renderShareText(
         (section) =>
           `## ${section.title}\n${section.fields
             .map((field) => `- **${field.label}:** ${indented(field.value)}`)
-            .join("\n")}`
+            .join("\n")}`,
       ),
-    ].join("\n\n")
+    ].join("\n\n");
   }
 
   if (format === "whatsapp") {
@@ -1964,9 +1678,9 @@ function renderShareText(
         (section) =>
           `*${section.title}*\n${section.fields
             .map((field) => `• *${field.label}:* ${indented(field.value)}`)
-            .join("\n")}`
+            .join("\n")}`,
       ),
-    ].join("\n\n")
+    ].join("\n\n");
   }
 
   if (format === "telegram") {
@@ -1976,9 +1690,9 @@ function renderShareText(
         (section) =>
           `▰ ${section.title}\n${section.fields
             .map((field) => `• ${field.label}: ${indented(field.value)}`)
-            .join("\n")}`
+            .join("\n")}`,
       ),
-    ].join("\n\n")
+    ].join("\n\n");
   }
 
   return [
@@ -1987,51 +1701,49 @@ function renderShareText(
       (section) =>
         `${section.title}\n${section.fields
           .map((field) => `${field.label}: ${indented(field.value)}`)
-          .join("\n")}`
+          .join("\n")}`,
     ),
-  ].join("\n\n")
+  ].join("\n\n");
 }
 
 function shareNumber(value: number | null) {
-  return value === null ? null : formatNumber(value)
+  return value === null ? null : formatNumber(value);
 }
 
 function shareRating(value: number | null | undefined) {
-  return value === null || value === undefined
-    ? null
-    : `${value.toFixed(1)} / 10`
+  return value === null || value === undefined ? null : `${value.toFixed(1)} / 10`;
 }
 
 function formatTimestamp(value: number | null) {
-  if (value === null) return null
+  if (value === null) return null;
 
-  const date = new Date(value)
-  if (Number.isNaN(date.valueOf())) return null
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return null;
 
   return new Intl.DateTimeFormat("ar", {
     year: "numeric",
     month: "long",
     day: "numeric",
-  }).format(date)
+  }).format(date);
 }
 
 async function copyTextToClipboard(text: string) {
   if ("clipboard" in navigator && window.isSecureContext) {
-    await navigator.clipboard.writeText(text)
-    return
+    await navigator.clipboard.writeText(text);
+    return;
   }
 
-  const textarea = document.createElement("textarea")
-  textarea.value = text
-  textarea.readOnly = true
-  textarea.dir = "rtl"
-  textarea.style.position = "fixed"
-  textarea.style.opacity = "0"
-  document.body.append(textarea)
-  textarea.select()
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.readOnly = true;
+  textarea.dir = "rtl";
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
 
-  const copied = document.execCommand("copy")
-  textarea.remove()
+  const copied = document.execCommand("copy");
+  textarea.remove();
 
-  if (!copied) throw new Error("Clipboard copy failed")
+  if (!copied) throw new Error("Clipboard copy failed");
 }

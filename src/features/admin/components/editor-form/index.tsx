@@ -1,32 +1,20 @@
-"use client"
+"use client";
 
-import { useMemo, useState } from "react"
-import type { FormEvent, ReactNode } from "react"
-import { useMutation, useQuery } from "@tanstack/react-query"
-import { InfoIcon, CodeIcon, CheckIcon } from "@phosphor-icons/react"
-
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Slider } from "@/components/ui/slider"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { CheckIcon, CodeIcon, InfoIcon } from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { FormEvent, ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Drawer,
   DrawerClose,
@@ -36,9 +24,28 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
-} from "@/components/ui/drawer"
+} from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
 
-import { kindLabels } from "@/features/library/filtering"
+import { kindLabels } from "@/features/library/filtering";
+import type {
+  AdminWorkUpdate,
+  EditableWorkStructure,
+  Entity,
+  Work,
+  WorkKind,
+  WorkStructure,
+} from "@/features/library/model";
 import {
   audiences,
   countries,
@@ -47,100 +54,92 @@ import {
   taxonomyLabels,
   tones,
   workKinds,
-} from "@/features/library/model"
+} from "@/features/library/model";
 import {
   calculatedRating,
   scoreCriteria,
   scoreLabel,
   scoreWeights,
-} from "@/features/library/scoring"
-import { fieldAppliesToKind } from "@/features/library/work-kind-fields"
-import { useArabicTranslations } from "@/features/library/translations"
-import type {
-  AdminWorkUpdate,
-  Work,
-  WorkKind,
-  WorkStructure,
-} from "@/features/library/model"
-import { getWorkStructure, saveWork } from "@/server/library.functions"
-import { RelationshipEditor } from "./relationship"
-import { Field } from "./fields/field"
-import { ArrayField } from "./fields/array-field"
-import { CreditField } from "./fields/credit-field"
-import { ContentField } from "./fields/content-field"
-import { RiskSelect } from "./fields/risk-select"
-import { cn } from "@/lib/utils"
-import { useMediaQuery } from "@/hooks/use-media-query"
+} from "@/features/library/scoring";
+import { useArabicTranslations } from "@/features/library/translations";
+import { fieldAppliesToKind } from "@/features/library/work-kind-fields";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { cn } from "@/lib/utils";
+import { getWorkStructure, saveWork, saveWorkStructure } from "@/server/library.functions";
+import { ArrayField } from "./fields/array-field";
+import { ContentField } from "./fields/content-field";
+import { ContributionField } from "./fields/credit-field";
+import { Field } from "./fields/field";
+import type { RiskLevel } from "./fields/risk-select";
+import { RiskSelect } from "./fields/risk-select";
+import { RelationshipEditor } from "./relationship";
 
 interface WorkEditorProps {
-  work: Work | null
-  works: Work[]
-  onOpenChange: (open: boolean) => void
-  onSaved: () => Promise<void>
+  work: Work | null;
+  works: Work[];
+  entities: Entity[];
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => Promise<void>;
 }
 
-export function WorkEditor({
-  work,
-  works,
-  onOpenChange,
-  onSaved,
-}: WorkEditorProps) {
-  if (!work) return null
+export function WorkEditor({ work, works, entities, onOpenChange, onSaved }: WorkEditorProps) {
+  if (!work) return null;
 
   return (
     <WorkEditorInner
       key={work.id}
       work={work}
       works={works}
+      entities={entities}
       open={Boolean(work)}
       onOpenChange={onOpenChange}
       onSaved={onSaved}
     />
-  )
+  );
 }
 
 function WorkEditorInner({
   work,
   works,
+  entities,
   open,
   onOpenChange,
   onSaved,
 }: {
-  work: Work
-  works: Work[]
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSaved: () => Promise<void>
+  work: Work;
+  works: Work[];
+  entities: Entity[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => Promise<void>;
 }) {
-  const isDesktop = useMediaQuery("(min-width: 768px)")
-  const [draft, setDraft] = useState<Work>(() => structuredClone(work))
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [draft, setDraft] = useState<Work>(() => structuredClone(work));
   const [links, setLinks] = useState(() =>
-    work.externalLinks
-      .map((link) => `${link.provider} | ${link.label} | ${link.url}`)
-      .join("\n")
-  )
+    work.externalLinks.map((link) => `${link.provider} | ${link.label} | ${link.url}`).join("\n"),
+  );
   const structureQuery = useQuery({
     queryKey: ["work-structure", work.id],
     queryFn: () => getWorkStructure({ data: { workId: work.id } }),
-  })
+  });
 
   const mutation = useMutation({
     mutationFn: saveWork,
     onSuccess: async () => {
-      await onSaved()
-      onOpenChange(false)
+      await onSaved();
+      onOpenChange(false);
     },
-  })
+  });
 
   const submit = (event: FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();
     const {
       addedAt: _addedAt,
       palette: _palette,
       calculatedRating: _calculatedRating,
       relations,
       ...editable
-    } = draft
+    } = draft;
 
     const externalLinks = links
       .split("\n")
@@ -150,32 +149,35 @@ function WorkEditorInner({
         provider,
         label,
         url: url.join("|"),
-      }))
+      }));
 
     mutation.mutate({
       data: {
         ...editable,
         externalLinks,
         relations: relations.map(
-          ({ workId, relationType, direction, notes }) => ({
+          ({ id, workId, relationType, direction, notes, provenance, externalKey }) => ({
+            id,
             workId,
             relationType,
             direction,
             notes,
-          })
+            provenance,
+            externalKey,
+          }),
         ),
       } as AdminWorkUpdate,
-    })
-  }
+    });
+  };
 
-  const title = `تعديل ${work.arabicTitle || work.title}`
-  const description =
-    "البيانات الوصفية والحالة الشخصية والإرشادات والروابط والملفات المحلية."
+  const title = `تعديل ${work.arabicTitle || work.title}`;
+  const description = "البيانات الوصفية والحالة الشخصية والإرشادات والروابط والملفات المحلية.";
 
   const formFields = (
     <WorkEditorFormFields
       work={work}
       works={works}
+      entities={entities}
       draft={draft}
       setDraft={setDraft}
       links={links}
@@ -184,7 +186,7 @@ function WorkEditorInner({
       structure={structureQuery.data}
       submit={submit}
     />
-  )
+  );
 
   if (isDesktop) {
     return (
@@ -195,9 +197,7 @@ function WorkEditorInner({
           className="flex h-[min(92dvh,56rem)] max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-none -translate-x-1/2 flex-col gap-0 overflow-hidden rounded-xl! bg-background p-0 text-foreground sm:max-w-none lg:w-[min(72rem,calc(100vw-3rem))]"
         >
           <DialogHeader className="z-10 shrink-0 border-e-4 border-b border-border border-e-amber-500 p-4 text-right shadow-sm">
-            <DialogTitle className="text-xl font-bold tracking-tight">
-              {title}
-            </DialogTitle>
+            <DialogTitle className="text-xl font-bold tracking-tight">{title}</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
               {description}
             </DialogDescription>
@@ -206,35 +206,23 @@ function WorkEditorInner({
           {formFields}
 
           <DialogFooter className="flex shrink-0 flex-row items-center justify-end gap-2 border-t border-border/60 bg-background p-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               إلغاء
             </Button>
-            <Button
-              type="submit"
-              form="admin-editor-form"
-              size="sm"
-              disabled={mutation.isPending}
-            >
+            <Button type="submit" form="admin-editor-form" size="sm" disabled={mutation.isPending}>
               {mutation.isPending ? "جارٍ الحفظ…" : "حفظ التغييرات"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    )
+    );
   }
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="flex h-[90vh] flex-col gap-0 bg-background p-0 text-foreground">
         <DrawerHeader className="shrink-0 border-b border-border/60 p-6 text-right">
-          <DrawerTitle className="text-xl font-bold tracking-tight">
-            {title}
-          </DrawerTitle>
+          <DrawerTitle className="text-xl font-bold tracking-tight">{title}</DrawerTitle>
           <DrawerDescription className="text-xs text-muted-foreground">
             {description}
           </DrawerDescription>
@@ -250,23 +238,19 @@ function WorkEditorInner({
               </Button>
             }
           />
-          <Button
-            type="submit"
-            form="admin-editor-form"
-            size="sm"
-            disabled={mutation.isPending}
-          >
+          <Button type="submit" form="admin-editor-form" size="sm" disabled={mutation.isPending}>
             {mutation.isPending ? "جارٍ الحفظ…" : "حفظ التغييرات"}
           </Button>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
-  )
+  );
 }
 
 function WorkEditorFormFields({
   work,
   works,
+  entities,
   draft,
   setDraft,
   links,
@@ -275,28 +259,29 @@ function WorkEditorFormFields({
   structure,
   submit,
 }: {
-  work: Work
-  works: Work[]
-  draft: Work
-  setDraft: React.Dispatch<React.SetStateAction<Work>>
-  links: string
-  setLinks: React.Dispatch<React.SetStateAction<string>>
-  mutation: any
-  structure?: WorkStructure
-  submit: (e: FormEvent) => void
+  work: Work;
+  works: Work[];
+  entities: Entity[];
+  draft: Work;
+  setDraft: React.Dispatch<React.SetStateAction<Work>>;
+  links: string;
+  setLinks: React.Dispatch<React.SetStateAction<string>>;
+  mutation: { isPending: boolean; error: Error | null };
+  structure?: WorkStructure;
+  submit: (e: FormEvent) => void;
 }) {
-  const { taxonomyLabel } = useArabicTranslations()
+  const { taxonomyLabel } = useArabicTranslations();
   const applies = (field: Parameters<typeof fieldAppliesToKind>[1]) =>
-    fieldAppliesToKind(draft.kind, field)
-  const showRuntime = applies("runtimeMinutes")
-  const showPlaytime = applies("playtimeMinutes")
-  const showPages = applies("pageCount")
-  const showEpisodes = applies("episodeCount")
-  const showChapters = applies("chapterCount")
-  const showVolumes = applies("volumeCount")
-  const showRoutes = applies("routeCount")
-  const showPublication = applies("publication")
-  const showSerialization = applies("serialization")
+    fieldAppliesToKind(draft.kind, field);
+  const showRuntime = applies("runtimeMinutes");
+  const showPlaytime = applies("playtimeMinutes");
+  const showPages = applies("pageCount");
+  const showEpisodes = applies("episodeCount");
+  const showChapters = applies("chapterCount");
+  const showVolumes = applies("volumeCount");
+  const showRoutes = applies("routeCount");
+  const showPublication = applies("publication");
+  const showSerialization = applies("serialization");
 
   const emptyPublication: NonNullable<Work["publication"]> = {
     format: null,
@@ -304,22 +289,20 @@ function WorkEditorFormFields({
     imprint: null,
     serialization: [],
     contents: [],
-  }
+  };
 
-  const updatePublication = (
-    changes: Partial<NonNullable<Work["publication"]>>
-  ) => {
+  const updatePublication = (changes: Partial<NonNullable<Work["publication"]>>) => {
     setDraft({
       ...draft,
       publication: { ...(draft.publication ?? emptyPublication), ...changes },
-    })
-  }
+    });
+  };
 
-  const changeKind = (kind: WorkKind) => setDraft({ ...draft, kind })
+  const changeKind = (kind: WorkKind) => setDraft({ ...draft, kind });
   const tagOptions = useMemo(
     () => [...new Set(works.flatMap((candidate) => candidate.tags))].sort(),
-    [works]
-  )
+    [works],
+  );
 
   return (
     <form
@@ -341,9 +324,7 @@ function WorkEditorFormFields({
                 onChange={(e) =>
                   setDraft({
                     ...draft,
-                    runtimeMinutes: e.target.value
-                      ? Number(e.target.value)
-                      : null,
+                    runtimeMinutes: e.target.value ? Number(e.target.value) : null,
                   })
                 }
               />
@@ -358,9 +339,7 @@ function WorkEditorFormFields({
                 onChange={(event) =>
                   setDraft({
                     ...draft,
-                    playtimeMinutes: event.target.value
-                      ? Number(event.target.value)
-                      : null,
+                    playtimeMinutes: event.target.value ? Number(event.target.value) : null,
                   })
                 }
               />
@@ -390,9 +369,7 @@ function WorkEditorFormFields({
                 onChange={(e) =>
                   setDraft({
                     ...draft,
-                    episodeCount: e.target.value
-                      ? Number(e.target.value)
-                      : null,
+                    episodeCount: e.target.value ? Number(e.target.value) : null,
                   })
                 }
               />
@@ -407,9 +384,7 @@ function WorkEditorFormFields({
                 onChange={(e) =>
                   setDraft({
                     ...draft,
-                    chapterCount: e.target.value
-                      ? Number(e.target.value)
-                      : null,
+                    chapterCount: e.target.value ? Number(e.target.value) : null,
                   })
                 }
               />
@@ -424,9 +399,7 @@ function WorkEditorFormFields({
                 onChange={(event) =>
                   setDraft({
                     ...draft,
-                    volumeCount: event.target.value
-                      ? Number(event.target.value)
-                      : null,
+                    volumeCount: event.target.value ? Number(event.target.value) : null,
                   })
                 }
               />
@@ -441,9 +414,7 @@ function WorkEditorFormFields({
                 onChange={(event) =>
                   setDraft({
                     ...draft,
-                    routeCount: event.target.value
-                      ? Number(event.target.value)
-                      : null,
+                    routeCount: event.target.value ? Number(event.target.value) : null,
                   })
                 }
               />
@@ -454,10 +425,7 @@ function WorkEditorFormFields({
       </div>
 
       {/* Identity Section */}
-      <EditorSection
-        title="الهوية"
-        description="الحقول الأساسية المستخدمة في جميع أنحاء أركاديا."
-      >
+      <EditorSection title="الهوية" description="الحقول الأساسية المستخدمة في جميع أنحاء أركاديا.">
         <Field label="العنوان الأصلي">
           <Input
             value={draft.title}
@@ -483,6 +451,7 @@ function WorkEditorFormFields({
 
         <Field label="النوع">
           <Select
+            items={workKinds.map((kind) => ({ value: kind, label: kindLabels[kind] }))}
             value={draft.kind}
             onValueChange={(value) => changeKind(value as WorkKind)}
           >
@@ -516,6 +485,10 @@ function WorkEditorFormFields({
 
         <Field label="حالة الإصدار">
           <Select
+            items={["announced", "releasing", "released", "ended", "unknown"].map((status) => ({
+              value: status,
+              label: taxonomyLabel("release-status", status),
+            }))}
             value={draft.releaseStatus}
             onValueChange={(value) =>
               setDraft({
@@ -529,17 +502,11 @@ function WorkEditorFormFields({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {["announced", "releasing", "released", "ended", "unknown"].map(
-                  (status) => (
-                    <SelectItem
-                      key={status}
-                      value={status}
-                      className="capitalize"
-                    >
-                      {taxonomyLabel("release-status", status)}
-                    </SelectItem>
-                  )
-                )}
+                {["announced", "releasing", "released", "ended", "unknown"].map((status) => (
+                  <SelectItem key={status} value={status} className="capitalize">
+                    {taxonomyLabel("release-status", status)}
+                  </SelectItem>
+                ))}
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -586,9 +553,7 @@ function WorkEditorFormFields({
         <ArrayField
           label="التصنيفات"
           value={draft.genres}
-          onChange={(nextGenres: string[]) =>
-            setDraft({ ...draft, genres: nextGenres })
-          }
+          onChange={(nextGenres: string[]) => setDraft({ ...draft, genres: nextGenres })}
           options={genres}
           optionLabels={taxonomyLabels.genres}
           maxItems={4}
@@ -620,6 +585,10 @@ function WorkEditorFormFields({
         />
         <Field label="الجمهور">
           <Select
+            items={audiences.map((audience) => ({
+              value: audience,
+              label: taxonomyLabels.audiences[audience],
+            }))}
             value={draft.audience}
             onValueChange={(audience) =>
               audience &&
@@ -646,14 +615,13 @@ function WorkEditorFormFields({
         <ArrayField
           label="مشاركة مع"
           value={draft.sharedWith}
-          onChange={(sharedWith: string[]) =>
-            setDraft({ ...draft, sharedWith })
-          }
+          onChange={(sharedWith: string[]) => setDraft({ ...draft, sharedWith })}
         />
 
-        <CreditField
-          value={draft.credits}
-          onChange={(credits: any) => setDraft({ ...draft, credits })}
+        <ContributionField
+          value={draft.contributors}
+          entities={entities}
+          onChange={(contributors) => setDraft({ ...draft, contributors })}
         />
       </EditorSection>
 
@@ -673,7 +641,7 @@ function WorkEditorFormFields({
         <Field label="مخاطر المحتوى الجنسي">
           <RiskSelect
             value={draft.riskProfile?.sexuality ?? "unknown"}
-            onChange={(sexuality: any) =>
+            onChange={(sexuality: RiskLevel) =>
               setDraft({
                 ...draft,
                 riskProfile: {
@@ -689,7 +657,7 @@ function WorkEditorFormFields({
         <Field label="المخاطر السلوكية">
           <RiskSelect
             value={draft.riskProfile?.behavioral ?? "unknown"}
-            onChange={(behavioral: any) =>
+            onChange={(behavioral: RiskLevel) =>
               setDraft({
                 ...draft,
                 riskProfile: {
@@ -705,7 +673,7 @@ function WorkEditorFormFields({
         <Field label="المخاطر الدينية">
           <RiskSelect
             value={draft.riskProfile?.theology ?? "unknown"}
-            onChange={(theology: any) =>
+            onChange={(theology: RiskLevel) =>
               setDraft({
                 ...draft,
                 riskProfile: {
@@ -724,9 +692,7 @@ function WorkEditorFormFields({
             lang="ar"
             rows={3}
             value={draft.contentWarnings ?? ""}
-            onChange={(e) =>
-              setDraft({ ...draft, contentWarnings: e.target.value || null })
-            }
+            onChange={(e) => setDraft({ ...draft, contentWarnings: e.target.value || null })}
           />
         </Field>
 
@@ -736,9 +702,7 @@ function WorkEditorFormFields({
             lang="ar"
             rows={4}
             value={draft.analysisNotes ?? ""}
-            onChange={(e) =>
-              setDraft({ ...draft, analysisNotes: e.target.value || null })
-            }
+            onChange={(e) => setDraft({ ...draft, analysisNotes: e.target.value || null })}
           />
         </Field>
       </EditorSection>
@@ -752,9 +716,7 @@ function WorkEditorFormFields({
           <Input
             type="date"
             value={draft.releaseStart ?? ""}
-            onChange={(e) =>
-              setDraft({ ...draft, releaseStart: e.target.value || null })
-            }
+            onChange={(e) => setDraft({ ...draft, releaseStart: e.target.value || null })}
           />
         </Field>
 
@@ -762,9 +724,7 @@ function WorkEditorFormFields({
           <Input
             type="date"
             value={draft.releaseEnd ?? ""}
-            onChange={(e) =>
-              setDraft({ ...draft, releaseEnd: e.target.value || null })
-            }
+            onChange={(e) => setDraft({ ...draft, releaseEnd: e.target.value || null })}
           />
         </Field>
 
@@ -864,34 +824,26 @@ function WorkEditorFormFields({
             <Field label="صيغة النشر">
               <Input
                 value={draft.publication?.format ?? ""}
-                onChange={(event) =>
-                  updatePublication({ format: event.target.value || null })
-                }
+                onChange={(event) => updatePublication({ format: event.target.value || null })}
               />
             </Field>
             <Field label="الناشر">
               <Input
                 value={draft.publication?.publisher ?? ""}
-                onChange={(event) =>
-                  updatePublication({ publisher: event.target.value || null })
-                }
+                onChange={(event) => updatePublication({ publisher: event.target.value || null })}
               />
             </Field>
             <Field label="العلامة الناشرة">
               <Input
                 value={draft.publication?.imprint ?? ""}
-                onChange={(event) =>
-                  updatePublication({ imprint: event.target.value || null })
-                }
+                onChange={(event) => updatePublication({ imprint: event.target.value || null })}
               />
             </Field>
             {showSerialization && (
               <ArrayField
                 label="التسلسل"
                 value={draft.publication?.serialization ?? []}
-                onChange={(serialization: string[]) =>
-                  updatePublication({ serialization })
-                }
+                onChange={(serialization: string[]) => updatePublication({ serialization })}
               />
             )}
             <ContentField
@@ -914,10 +866,7 @@ function WorkEditorFormFields({
         </Field>
       </EditorSection>
 
-      <EditorSection
-        title="مصدر المراجعة"
-        description="حالة التحقق من بيانات الفهرس الموضوعية."
-      >
+      <EditorSection title="مصدر المراجعة" description="حالة التحقق من بيانات الفهرس الموضوعية.">
         <Field label="تاريخ المراجعة">
           <Input
             type="date"
@@ -936,14 +885,16 @@ function WorkEditorFormFields({
         </Field>
         <Field label="التحقق">
           <Select
+            items={[
+              { value: "provisional", label: "مبدئي" },
+              { value: "verified", label: "موثّق" },
+            ]}
             value={draft.curation?.status ?? "provisional"}
             onValueChange={(status) =>
               setDraft({
                 ...draft,
                 curation: {
-                  reviewedAt:
-                    draft.curation?.reviewedAt ??
-                    new Date().toISOString().slice(0, 10),
+                  reviewedAt: draft.curation?.reviewedAt ?? new Date().toISOString().slice(0, 10),
                   status: status as "verified" | "provisional",
                   notes: draft.curation?.notes ?? null,
                 },
@@ -954,8 +905,10 @@ function WorkEditorFormFields({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="provisional">مبدئي</SelectItem>
-              <SelectItem value="verified">موثّق</SelectItem>
+              <SelectGroup>
+                <SelectItem value="provisional">مبدئي</SelectItem>
+                <SelectItem value="verified">موثّق</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
         </Field>
@@ -967,9 +920,7 @@ function WorkEditorFormFields({
               setDraft({
                 ...draft,
                 curation: {
-                  reviewedAt:
-                    draft.curation?.reviewedAt ??
-                    new Date().toISOString().slice(0, 10),
+                  reviewedAt: draft.curation?.reviewedAt ?? new Date().toISOString().slice(0, 10),
                   status: draft.curation?.status ?? "provisional",
                   notes: e.target.value || null,
                 },
@@ -987,27 +938,21 @@ function WorkEditorFormFields({
         <Field label="مسار الملصق">
           <Input
             value={draft.imagePath ?? ""}
-            onChange={(e) =>
-              setDraft({ ...draft, imagePath: e.target.value || null })
-            }
+            onChange={(e) => setDraft({ ...draft, imagePath: e.target.value || null })}
           />
         </Field>
 
         <Field label="مسار الغلاف">
           <Input
             value={draft.bannerPath ?? ""}
-            onChange={(e) =>
-              setDraft({ ...draft, bannerPath: e.target.value || null })
-            }
+            onChange={(e) => setDraft({ ...draft, bannerPath: e.target.value || null })}
           />
         </Field>
 
         <Field label="مسار الشعار">
           <Input
             value={draft.logoPath ?? ""}
-            onChange={(e) =>
-              setDraft({ ...draft, logoPath: e.target.value || null })
-            }
+            onChange={(e) => setDraft({ ...draft, logoPath: e.target.value || null })}
           />
         </Field>
       </EditorSection>
@@ -1022,7 +967,7 @@ function WorkEditorFormFields({
           <RelationshipEditor
             work={draft}
             works={works}
-            onChange={(relations: any) => setDraft({ ...draft, relations })}
+            onChange={(relations: Work["relations"]) => setDraft({ ...draft, relations })}
           />
         </EditorSection>
       </div>
@@ -1060,9 +1005,7 @@ function WorkEditorFormFields({
           <DrawerContent>
             <DrawerHeader className="text-right">
               <DrawerTitle>JSON الخام للسجل</DrawerTitle>
-              <DrawerDescription>
-                عارض بيانات للقراءة فقط لحالة السجل الحالية.
-              </DrawerDescription>
+              <DrawerDescription>عارض بيانات للقراءة فقط لحالة السجل الحالية.</DrawerDescription>
             </DrawerHeader>
             <div className="flex-1 overflow-y-auto p-4">
               <Textarea
@@ -1085,28 +1028,25 @@ function WorkEditorFormFields({
         </Drawer>
       </div>
     </form>
-  )
+  );
 }
 
-function StructureSummary({
-  structure,
-}: {
-  structure: WorkStructure | undefined
-}) {
+function StructureSummary({ structure }: { structure: WorkStructure | undefined }) {
   if (!structure) {
     return (
       <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground sm:col-span-2">
         جارٍ تحميل سجل البنية…
       </div>
-    )
+    );
   }
 
   if (structure.totalUnits === 0 && structure.seasons.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground sm:col-span-2">
-        لم تُعرّف مواسم أو وحدات مستقلة لهذا العمل بعد.
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground sm:col-span-2">
+        <span>لم تُعرّف مواسم أو وحدات مستقلة لهذا العمل بعد.</span>
+        <StructureJsonEditor structure={structure} />
       </div>
-    )
+    );
   }
 
   return (
@@ -1118,29 +1058,28 @@ function StructureSummary({
         <span className="text-xs text-muted-foreground">
           اكتمل {structure.completedUnits}/{structure.totalUnits}
         </span>
+        <StructureJsonEditor structure={structure} />
       </div>
       <div className="flex flex-wrap gap-2 p-3">
         {structure.seasons.map((season) => {
           const completed = season.units.filter(
-            (unit) => unit.progress?.status === "completed"
-          ).length
+            (unit) => unit.progress?.status === "completed",
+          ).length;
           const isComplete =
             season.progress?.status === "completed" ||
-            (season.units.length > 0 && completed === season.units.length)
+            (season.units.length > 0 && completed === season.units.length);
           return (
             <span
               key={season.id}
               className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-xs"
             >
-              {isComplete && (
-                <CheckIcon className="size-3.5 text-amber-600" weight="bold" />
-              )}
+              {isComplete && <CheckIcon className="size-3.5 text-amber-600" weight="bold" />}
               <strong className="font-medium">{season.title}</strong>
               <span className="font-mono text-[10px] text-muted-foreground">
                 {completed}/{season.units.length || season.unitCount || "—"}
               </span>
             </span>
-          )
+          );
         })}
         {structure.ungroupedUnits.length > 0 && (
           <span className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-xs">
@@ -1149,9 +1088,8 @@ function StructureSummary({
             </strong>
             <span className="font-mono text-[10px] text-muted-foreground">
               {
-                structure.ungroupedUnits.filter(
-                  (unit) => unit.progress?.status === "completed"
-                ).length
+                structure.ungroupedUnits.filter((unit) => unit.progress?.status === "completed")
+                  .length
               }
               /{structure.ungroupedUnits.length}
             </span>
@@ -1159,17 +1097,120 @@ function StructureSummary({
         )}
       </div>
     </div>
-  )
+  );
+}
+
+function editableStructure(structure: WorkStructure): EditableWorkStructure {
+  const unit = ({
+    id,
+    unitType,
+    title,
+    unitNumber,
+    position,
+    runtimeMinutes,
+    pageCount,
+    releaseAt,
+  }: WorkStructure["ungroupedUnits"][number]) => ({
+    id,
+    unitType,
+    title,
+    unitNumber,
+    position,
+    runtimeMinutes,
+    pageCount,
+    releaseAt,
+  });
+  return {
+    workId: structure.workId,
+    seasons: structure.seasons.map(
+      ({ id, title, seasonNumber, position, runtimeMinutes, unitCount, releaseAt, units }) => ({
+        id,
+        title,
+        seasonNumber,
+        position,
+        runtimeMinutes,
+        unitCount,
+        releaseAt,
+        units: units.map(unit),
+      }),
+    ),
+    ungroupedUnits: structure.ungroupedUnits.map(unit),
+  };
+}
+
+function StructureJsonEditor({ structure }: { structure: WorkStructure }) {
+  const queryClient = useQueryClient();
+  const [raw, setRaw] = useState(() => JSON.stringify(editableStructure(structure), null, 2));
+  const [parseError, setParseError] = useState<string | null>(null);
+  useEffect(() => {
+    setRaw(JSON.stringify(editableStructure(structure), null, 2));
+    setParseError(null);
+  }, [structure]);
+  const mutation = useMutation({
+    mutationFn: saveWorkStructure,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["work-structure", structure.workId] });
+    },
+  });
+  const save = () => {
+    try {
+      const data = JSON.parse(raw) as EditableWorkStructure;
+      setParseError(null);
+      mutation.mutate({ data });
+    } catch (error) {
+      setParseError(error instanceof Error ? error.message : "JSON غير صالح");
+    }
+  };
+  return (
+    <Drawer>
+      <DrawerTrigger
+        render={
+          <Button type="button" variant="outline" size="sm">
+            <CodeIcon data-icon="inline-start" />
+            تعديل البنية
+          </Button>
+        }
+      />
+      <DrawerContent className="flex h-[90dvh] flex-col" dir="rtl">
+        <DrawerHeader className="text-right">
+          <DrawerTitle>تحرير المواسم والوحدات</DrawerTitle>
+          <DrawerDescription>
+            جميع حقول البنية محفوظة بصيغة JSON موحّدة وتتحقق منها الخادم قبل الاستبدال.
+          </DrawerDescription>
+        </DrawerHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4">
+          <Textarea
+            value={raw}
+            onChange={(event) => setRaw(event.target.value)}
+            className="min-h-full font-mono text-xs"
+            dir="ltr"
+            aria-invalid={Boolean(parseError || mutation.error)}
+          />
+          {(parseError || mutation.error) && (
+            <Alert variant="destructive" className="mt-3">
+              <AlertDescription>{parseError ?? mutation.error?.message}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+        <DrawerFooter>
+          <Button type="button" onClick={save} disabled={mutation.isPending}>
+            {mutation.isPending ? "جارٍ الحفظ…" : "حفظ البنية"}
+          </Button>
+          <DrawerClose render={<Button type="button" variant="outline" />}>إغلاق</DrawerClose>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+  );
 }
 
 function ScoreLedger({
   draft,
   setDraft,
 }: {
-  draft: Work
-  setDraft: React.Dispatch<React.SetStateAction<Work>>
+  draft: Work;
+  setDraft: React.Dispatch<React.SetStateAction<Work>>;
 }) {
-  const rating = calculatedRating(draft.scoreComponents)
+  const rating = calculatedRating(draft.scoreComponents);
   return (
     <>
       <div className="flex flex-col gap-2 rounded-xl border bg-muted/30 p-4 sm:col-span-2 sm:flex-row sm:items-end sm:justify-between">
@@ -1179,10 +1220,7 @@ function ScoreLedger({
           </span>
           <strong className="text-3xl tabular-nums">
             {rating === null ? "—" : rating.toFixed(1)}
-            <span className="text-sm font-normal text-muted-foreground">
-              {" "}
-              / 10
-            </span>
+            <span className="text-sm font-normal text-muted-foreground"> / 10</span>
           </strong>
         </div>
         <Badge variant={rating === null ? "outline" : "secondary"}>
@@ -1192,14 +1230,12 @@ function ScoreLedger({
         </Badge>
       </div>
       {scoreCriteria.map((criterion) => {
-        const label = scoreLabel(criterion, draft.kind)
-        const value = draft.scoreComponents[criterion]
+        const label = scoreLabel(criterion, draft.kind);
+        const value = draft.scoreComponents[criterion];
         return (
           <Field
             key={criterion}
-            label={`${label.ar} (${Math.round(
-              scoreWeights[criterion] * 100
-            )}%)`}
+            label={`${label.ar} (${Math.round(scoreWeights[criterion] * 100)}%)`}
             wide
           >
             <div className="grid grid-cols-[1fr_4.5rem] items-center gap-3">
@@ -1209,14 +1245,14 @@ function ScoreLedger({
                 step={0.5}
                 value={[value ?? 0]}
                 onValueChange={(next) => {
-                  const nextValue = Array.isArray(next) ? next[0] : next
+                  const nextValue = Array.isArray(next) ? next[0] : next;
                   setDraft({
                     ...draft,
                     scoreComponents: {
                       ...draft.scoreComponents,
                       [criterion]: nextValue,
                     },
-                  })
+                  });
                 }}
                 aria-label={label.ar}
               />
@@ -1228,29 +1264,27 @@ function ScoreLedger({
                 value={value ?? ""}
                 aria-label={`تقييم ${label.ar}`}
                 onChange={(event) => {
-                  const next = event.target.value
-                    ? Number(event.target.value)
-                    : undefined
-                  const scoreComponents = { ...draft.scoreComponents }
-                  if (next === undefined) delete scoreComponents[criterion]
-                  else scoreComponents[criterion] = next
-                  setDraft({ ...draft, scoreComponents })
+                  const next = event.target.value ? Number(event.target.value) : undefined;
+                  const scoreComponents = { ...draft.scoreComponents };
+                  if (next === undefined) delete scoreComponents[criterion];
+                  else scoreComponents[criterion] = next;
+                  setDraft({ ...draft, scoreComponents });
                 }}
               />
             </div>
           </Field>
-        )
+        );
       })}
     </>
-  )
+  );
 }
 
 interface EditorSectionProps {
-  title: string
-  description?: string
-  children: ReactNode
-  className?: string
-  subClassname?: string
+  title: string;
+  description?: string;
+  children: ReactNode;
+  className?: string;
+  subClassname?: string;
 }
 export function EditorSection({
   title,
@@ -1263,7 +1297,7 @@ export function EditorSection({
     <section
       className={cn(
         "flex flex-col gap-4 rounded-lg border border-border bg-card p-5 shadow-xs",
-        className
+        className,
       )}
     >
       <div className="flex flex-col gap-1 border-b border-border/50 pb-3">
@@ -1271,21 +1305,14 @@ export function EditorSection({
           {title}
         </h3>
         {description && (
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {description}
-          </p>
+          <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>
         )}
       </div>
 
       {/* Internal Grid for child fields */}
-      <div
-        className={cn(
-          subClassname,
-          "grid grid-cols-1 items-start gap-4 sm:grid-cols-2"
-        )}
-      >
+      <div className={cn(subClassname, "grid grid-cols-1 items-start gap-4 sm:grid-cols-2")}>
         {children}
       </div>
     </section>
-  )
+  );
 }

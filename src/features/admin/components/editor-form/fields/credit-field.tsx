@@ -1,120 +1,190 @@
-import { Input } from "@/components/ui/input"
-import { Field } from "./field"
+import { MagnifyingGlassIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import { PlusIcon, TrashIcon } from "@phosphor-icons/react"
-import { creatorRoles } from "@/features/library/model"
-import type { WorkCredit } from "@/features/library/model"
-import { useArabicTranslations } from "@/features/library/translations"
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import type { Entity, WorkContribution } from "@/features/library/model";
+import { contributorRoles } from "@/features/library/model";
+import { useArabicTranslations } from "@/features/library/translations";
+import { Field } from "./field";
 
-export function CreditField({
+const organizationOnlyRoles = new Set<WorkContribution["role"]>([
+  "animation-studio",
+  "production-company",
+  "developer",
+  "publisher",
+]);
+
+export function ContributionField({
   value = [],
+  entities,
   onChange,
 }: {
-  value: WorkCredit[]
-  onChange: (value: WorkCredit[]) => void
+  value: WorkContribution[];
+  entities: Pick<Entity, "id" | "name" | "entityType">[];
+  onChange: (value: WorkContribution[]) => void;
 }) {
-  const { facetValueLabel } = useArabicTranslations()
-  const handleUpdate = (
-    index: number,
-    field: keyof WorkCredit,
-    fieldValue: string
-  ) => {
-    const updated = value.map((credit, i) => {
-      if (i !== index) return credit
-      const newCredit = { ...credit, [field]: fieldValue }
-      // Keep entityId sync'd
-      newCredit.entityId = `${newCredit.entityType}:${newCredit.name.trim() ? newCredit.name : "unnamed"}`
-      return newCredit
-    })
-    onChange(updated)
-  }
-
-  const handleAdd = () => {
-    onChange([
-      ...value,
-      {
-        entityId: "person:new",
-        name: "",
-        entityType: "person",
-        role: "creator",
-      },
-    ])
-  }
-
-  const handleRemove = (index: number) => {
-    onChange(value.filter((_, i) => i !== index))
-  }
+  const { facetValueLabel } = useArabicTranslations();
+  const update = (index: number, patch: Partial<WorkContribution>) => {
+    onChange(
+      value.map((contributor, current) => {
+        if (current !== index) return contributor;
+        const next = { ...contributor, ...patch };
+        if (patch.name !== undefined && !patch.entityId) {
+          next.entityId = `new:${next.entityType}:${patch.name.trim().toLocaleLowerCase()}`;
+        }
+        if (organizationOnlyRoles.has(next.role)) next.entityType = "organization";
+        return next;
+      }),
+    );
+  };
 
   return (
     <Field label="صنّاع العمل والمساهمون الرئيسيون" wide>
-      <div className="space-y-2">
-        {value.map((credit, index) => (
+      <div className="flex flex-col gap-2">
+        {value.map((contributor, index) => (
           <div
-            key={index}
-            className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/30 p-2"
+            key={`${contributor.entityId}:${contributor.role}`}
+            className="grid gap-2 rounded-md border border-border/50 bg-muted/30 p-2 sm:grid-cols-[minmax(12rem,2fr)_minmax(9rem,1fr)_7rem_auto_auto] sm:items-center"
           >
-            {/* Contributor Name */}
-            <Input
-              placeholder="الاسم، مثلاً ناوكي أوراساوا"
-              value={credit.name}
-              onChange={(e) => handleUpdate(index, "name", e.target.value)}
-              className="h-8 flex-2 bg-background text-xs"
-            />
+            <div className="flex min-w-0 gap-1">
+              <Input
+                placeholder="ابحث أو اكتب اسمًا جديدًا"
+                value={contributor.name}
+                onChange={(event) => update(index, { name: event.target.value })}
+                className="h-8 min-w-0 bg-background text-xs"
+              />
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label="بحث في الجهات الموجودة"
+                    >
+                      <MagnifyingGlassIcon data-icon="inline-start" />
+                    </Button>
+                  }
+                />
+                <PopoverContent className="w-80 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="ابحث عن شخص أو منظمة…" />
+                    <CommandList>
+                      <CommandEmpty>لا توجد نتيجة. اكتب الاسم لإنشاء سجل جديد.</CommandEmpty>
+                      <CommandGroup heading="السجلات الموجودة">
+                        {entities.map((entity) => (
+                          <CommandItem
+                            key={entity.id}
+                            value={`${entity.name} ${entity.entityType}`}
+                            data-checked={entity.id === contributor.entityId}
+                            onSelect={() =>
+                              update(index, {
+                                entityId: entity.id,
+                                name: entity.name,
+                                entityType: entity.entityType,
+                              })
+                            }
+                          >
+                            <span className="truncate">{entity.name}</span>
+                            <Badge variant="outline">
+                              {entity.entityType === "person" ? "شخص" : "منظمة"}
+                            </Badge>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
 
-            {/* Entity Type Selector */}
             <Select
-              value={credit.entityType}
-              onValueChange={(val) =>
-                handleUpdate(index, "entityType", val ?? "person")
-              }
-            >
-              <SelectTrigger className="h-8 w-28 bg-background text-xs">
-                <SelectValue placeholder="النوع" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="person">شخص</SelectItem>
-                <SelectItem value="studio">استوديو</SelectItem>
-                <SelectItem value="publisher">ناشر</SelectItem>
-                <SelectItem value="organization">مؤسسة</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Role */}
-            <Select
-              value={credit.role}
+              items={contributorRoles.map((role) => ({
+                value: role,
+                label: facetValueLabel("creatorRoles", role),
+              }))}
+              value={contributor.role}
               onValueChange={(role) =>
-                handleUpdate(index, "role", role ?? "creator")
+                update(index, { role: (role ?? "creator") as WorkContribution["role"] })
               }
             >
-              <SelectTrigger className="h-8 flex-[1.5] bg-background text-xs">
+              <SelectTrigger className="h-8 bg-background text-xs">
                 <SelectValue placeholder="الدور" />
               </SelectTrigger>
               <SelectContent>
-                {creatorRoles.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {facetValueLabel("creatorRoles", role)}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {contributorRoles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {facetValueLabel("creatorRoles", role)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
 
-            {/* Remove Action */}
+            <Select
+              items={[
+                { value: "person", label: "شخص" },
+                { value: "organization", label: "منظمة" },
+              ]}
+              value={contributor.entityType}
+              disabled={organizationOnlyRoles.has(contributor.role)}
+              onValueChange={(entityType) =>
+                update(index, {
+                  entityType: (entityType ?? "person") as WorkContribution["entityType"],
+                })
+              }
+            >
+              <SelectTrigger className="h-8 bg-background text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="person">شخص</SelectItem>
+                  <SelectItem value="organization">منظمة</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+
+            <label
+              htmlFor={`contribution-primary-${contributor.entityId}-${contributor.role}`}
+              className="flex items-center gap-2 text-xs text-muted-foreground"
+            >
+              <Switch
+                id={`contribution-primary-${contributor.entityId}-${contributor.role}`}
+                aria-label={`مساهمة رئيسية: ${contributor.name}`}
+                checked={contributor.isPrimary}
+                onCheckedChange={(isPrimary) => update(index, { isPrimary })}
+              />
+              رئيسي
+            </label>
+
             <Button
               type="button"
               variant="ghost"
-              size="icon"
-              onClick={() => handleRemove(index)}
-              className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+              size="icon-sm"
+              onClick={() => onChange(value.filter((_, current) => current !== index))}
+              aria-label="حذف المساهمة"
             >
-              <TrashIcon className="size-4" />
-              <span className="sr-only">حذف المساهمة</span>
+              <TrashIcon data-icon="inline-start" />
             </Button>
           </div>
         ))}
@@ -123,13 +193,24 @@ export function CreditField({
           type="button"
           variant="outline"
           size="sm"
-          onClick={handleAdd}
-          className="flex h-8 w-full items-center justify-center gap-1.5 border-dashed text-xs"
+          onClick={() =>
+            onChange([
+              ...value,
+              {
+                entityId: `new:person:${crypto.randomUUID()}`,
+                name: "",
+                entityType: "person",
+                role: "creator",
+                isPrimary: false,
+              },
+            ])
+          }
+          className="w-full border-dashed"
         >
-          <PlusIcon className="size-3.5" />
+          <PlusIcon data-icon="inline-start" />
           إضافة مساهم
         </Button>
       </div>
     </Field>
-  )
+  );
 }

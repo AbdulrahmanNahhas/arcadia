@@ -134,6 +134,41 @@
       "when": 1785324052463,
       "tag": "0018_slimy_tana_nile",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1785672000000,
+      "tag": "0019_rename_obsidian_work_ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1785673000000,
+      "tag": "0020_expand-contributor-roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1785674000000,
+      "tag": "0021_rename-work-contributions",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1785675000000,
+      "tag": "0022_entity-profile-images",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1785690021991,
+      "tag": "0023_neat_meltdown",
+      "breakpoints": true
     }
   ]
 }

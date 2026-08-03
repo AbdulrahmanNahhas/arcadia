@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { useMemo, useState } from "react"
-import { useMutation } from "@tanstack/react-query"
 import {
   CheckCircleIcon,
   ListPlusIcon,
   PlusIcon,
   RowsPlusBottomIcon,
   WarningCircleIcon,
-} from "@phosphor-icons/react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+} from "@phosphor-icons/react";
+import { useMutation } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -19,14 +19,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -34,48 +29,48 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { kindLabels, personalStatuses } from "@/features/library/filtering"
-import { genreSchema, workKinds } from "@/features/library/model"
-import type { Genre, Work, WorkKind } from "@/features/library/model"
-import { statusLabelsAr } from "@/features/library/translations"
-import { addWorksBulk } from "@/server/library.functions"
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { kindLabels, personalStatuses } from "@/features/library/filtering";
+import type { Genre, Work, WorkKind } from "@/features/library/model";
+import { genreSchema, workKinds } from "@/features/library/model";
+import { statusLabelsAr } from "@/features/library/translations";
+import { addWorksBulk } from "@/server/library.functions";
 
-type AddMode = "guided" | "paste"
+type AddMode = "guided" | "paste";
 
 type NewWork = {
-  title: string
-  kind: WorkKind
-  year: number | null
-  status: Work["status"]
-  summary: string
-  genres: Genre[]
-  tags: string[]
-  studios: string[]
-}
+  title: string;
+  kind: WorkKind;
+  year: number | null;
+  status: Work["status"];
+  summary: string;
+  genres: Genre[];
+  tags: string[];
+  studios: string[];
+};
 
 type ParseResult = {
-  works: NewWork[]
-  errors: string[]
-  ignored: number
-}
+  works: NewWork[];
+  errors: string[];
+  ignored: number;
+};
 
 const addModeItems = [
   { value: "guided", label: "عمل واحد — نموذج موجّه" },
   { value: "paste", label: "أعمال متعددة — لصق منظّم" },
-] as const
+] as const;
 const kindItems = workKinds.map((value) => ({
   value,
   label: kindLabels[value],
-}))
+}));
 const statusItems = personalStatuses.map((value) => ({
   value,
   label: statusLabelsAr[value],
-}))
+}));
 
 const pasteExample = `Frieren: Beyond Journey's End | anime | 2023 | planned | Adventure, Fantasy | Madhouse
-Pluto | anime | 2023 | completed | Mystery, Science Fiction | Studio M2`
+Pluto | anime | 2023 | completed | Mystery, Science Fiction | Studio M2`;
 
 function parseList(value: string) {
   return [
@@ -83,53 +78,50 @@ function parseList(value: string) {
       value
         .split(",")
         .map((item) => item.trim())
-        .filter(Boolean)
+        .filter(Boolean),
     ),
-  ]
+  ];
 }
 
 export function parsePastedWorks(value: string): ParseResult {
-  const works: NewWork[] = []
-  const errors: string[] = []
-  let ignored = 0
+  const works: NewWork[] = [];
+  const errors: string[] = [];
+  let ignored = 0;
 
   value.split("\n").forEach((line, index) => {
     if (!line.trim()) {
-      ignored++
-      return
+      ignored++;
+      return;
     }
     const [
       title,
       rawKind = "anime",
       rawYear = "",
-      rawStatus = "planned",
+      rawStatus = "saved",
       rawGenres = "",
       rawStudios = "",
-    ] = line.split("|").map((part) => part.trim())
-    const lineErrors: string[] = []
-    if (!title) lineErrors.push("العنوان مطلوب")
+    ] = line.split("|").map((part) => part.trim());
+    const lineErrors: string[] = [];
+    if (!title) lineErrors.push("العنوان مطلوب");
     if (!workKinds.includes(rawKind as WorkKind)) {
-      lineErrors.push(`النوع «${rawKind}» غير معروف`)
+      lineErrors.push(`النوع «${rawKind}» غير معروف`);
     }
     if (!personalStatuses.includes(rawStatus as Work["status"])) {
-      lineErrors.push(`الحالة «${rawStatus}» غير معروفة`)
+      lineErrors.push(`الحالة «${rawStatus}» غير معروفة`);
     }
-    const year = rawYear ? Number(rawYear) : null
-    if (
-      year !== null &&
-      (!Number.isInteger(year) || year < 1000 || year > 2200)
-    ) {
-      lineErrors.push("السنة يجب أن تكون بين 1000 و2200")
+    const year = rawYear ? Number(rawYear) : null;
+    if (year !== null && (!Number.isInteger(year) || year < 1000 || year > 2200)) {
+      lineErrors.push("السنة يجب أن تكون بين 1000 و2200");
     }
     const genres = parseList(rawGenres).flatMap((genre) => {
-      const result = genreSchema.safeParse(genre)
-      if (result.success) return [result.data]
-      lineErrors.push(`التصنيف «${genre}» غير معروف`)
-      return []
-    })
+      const result = genreSchema.safeParse(genre);
+      if (result.success) return [result.data];
+      lineErrors.push(`التصنيف «${genre}» غير معروف`);
+      return [];
+    });
     if (lineErrors.length) {
-      errors.push(`السطر ${index + 1}: ${lineErrors.join("، ")}`)
-      return
+      errors.push(`السطر ${index + 1}: ${lineErrors.join("، ")}`);
+      return;
     }
     works.push({
       title,
@@ -140,10 +132,10 @@ export function parsePastedWorks(value: string): ParseResult {
       genres,
       tags: [],
       studios: parseList(rawStudios),
-    })
-  })
+    });
+  });
 
-  return { works, errors, ignored }
+  return { works, errors, ignored };
 }
 
 export function AddWorksDialog({
@@ -151,62 +143,58 @@ export function AddWorksDialog({
   onOpenChange,
   onCreated,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onCreated: () => Promise<void>
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: () => Promise<void>;
 }) {
-  const [mode, setMode] = useState<AddMode>("guided")
-  const [title, setTitle] = useState("")
-  const [kind, setKind] = useState<WorkKind>("movie")
-  const [status, setStatus] = useState<Work["status"]>("planned")
-  const [year, setYear] = useState("")
-  const [summary, setSummary] = useState("")
-  const [genres, setGenres] = useState("")
-  const [studios, setStudios] = useState("")
-  const [rows, setRows] = useState(pasteExample)
-  const [formError, setFormError] = useState("")
-  const parsed = useMemo(() => parsePastedWorks(rows), [rows])
+  const [mode, setMode] = useState<AddMode>("guided");
+  const [title, setTitle] = useState("");
+  const [kind, setKind] = useState<WorkKind>("movie");
+  const [status, setStatus] = useState<Work["status"]>("saved");
+  const [year, setYear] = useState("");
+  const [summary, setSummary] = useState("");
+  const [genres, setGenres] = useState("");
+  const [studios, setStudios] = useState("");
+  const [rows, setRows] = useState(pasteExample);
+  const [formError, setFormError] = useState("");
+  const parsed = useMemo(() => parsePastedWorks(rows), [rows]);
   const mutation = useMutation({
     mutationFn: addWorksBulk,
     onSuccess: async () => {
-      await onCreated()
-      onOpenChange(false)
-      setFormError("")
-      setTitle("")
-      setSummary("")
-      setGenres("")
-      setStudios("")
+      await onCreated();
+      onOpenChange(false);
+      setFormError("");
+      setTitle("");
+      setSummary("");
+      setGenres("");
+      setStudios("");
     },
-  })
+  });
 
   const submit = () => {
     if (mode === "paste") {
       if (parsed.errors.length || !parsed.works.length) {
-        setFormError(
-          parsed.errors[0] ?? "أضف سطراً صالحاً واحداً على الأقل قبل الحفظ."
-        )
-        return
+        setFormError(parsed.errors[0] ?? "أضف سطراً صالحاً واحداً على الأقل قبل الحفظ.");
+        return;
       }
-      setFormError("")
-      mutation.mutate({ data: { works: parsed.works } })
-      return
+      setFormError("");
+      mutation.mutate({ data: { works: parsed.works } });
+      return;
     }
 
     if (!title.trim()) {
-      setFormError("أدخل عنوان العمل.")
-      return
+      setFormError("أدخل عنوان العمل.");
+      return;
     }
     const parsedGenres = parseList(genres).flatMap((genre) => {
-      const result = genreSchema.safeParse(genre)
-      return result.success ? [result.data] : []
-    })
+      const result = genreSchema.safeParse(genre);
+      return result.success ? [result.data] : [];
+    });
     if (parsedGenres.length !== parseList(genres).length) {
-      setFormError(
-        "يوجد تصنيف غير مسجل في القاموس. صححه أو أضفه إلى قاموس التصنيفات أولاً."
-      )
-      return
+      setFormError("يوجد تصنيف غير مسجل في القاموس. صححه أو أضفه إلى قاموس التصنيفات أولاً.");
+      return;
     }
-    setFormError("")
+    setFormError("");
     mutation.mutate({
       data: {
         works: [
@@ -222,10 +210,10 @@ export function AddWorksDialog({
           },
         ],
       },
-    })
-  }
+    });
+  };
 
-  const error = formError || mutation.error?.message
+  const error = formError || mutation.error?.message;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -241,8 +229,7 @@ export function AddWorksDialog({
             <div className="flex flex-col gap-1">
               <DialogTitle>إضافة أعمال إلى المكتبة</DialogTitle>
               <DialogDescription>
-                استخدم النموذج الموجّه لسجل واحد أو الصق قائمة كاملة في المكان
-                نفسه.
+                استخدم النموذج الموجّه لسجل واحد أو الصق قائمة كاملة في المكان نفسه.
               </DialogDescription>
             </div>
           </div>
@@ -256,8 +243,8 @@ export function AddWorksDialog({
                 items={addModeItems}
                 value={mode}
                 onValueChange={(value) => {
-                  if (value) setMode(value)
-                  setFormError("")
+                  if (value) setMode(value);
+                  setFormError("");
                 }}
               >
                 <SelectTrigger id="add-mode" className="w-full">
@@ -361,9 +348,7 @@ export function AddWorksDialog({
                   </FieldDescription>
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="new-work-studios">
-                    الاستوديوهات أو الناشرون
-                  </FieldLabel>
+                  <FieldLabel htmlFor="new-work-studios">الاستوديوهات أو الناشرون</FieldLabel>
                   <Input
                     id="new-work-studios"
                     value={studios}
@@ -389,8 +374,8 @@ export function AddWorksDialog({
                   <RowsPlusBottomIcon />
                   <AlertTitle>عمود واحد لكل قيمة</AlertTitle>
                   <AlertDescription>
-                    العنوان | النوع | السنة | الحالة | التصنيفات | الاستوديوهات.
-                    افصل القيم داخل العمود بفواصل.
+                    العنوان | النوع | السنة | الحالة | التصنيفات | الاستوديوهات. افصل القيم داخل
+                    العمود بفواصل.
                   </AlertDescription>
                 </Alert>
                 <Field data-invalid={parsed.errors.length > 0}>
@@ -467,5 +452,5 @@ export function AddWorksDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

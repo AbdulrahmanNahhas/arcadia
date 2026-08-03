@@ -1,26 +1,25 @@
-import { useEffect, useMemo, useState } from "react"
-import {
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query"
-import {
-  addSavedView,
-  getSavedViews,
-  getWorks,
-  setWorkFavorite,
-} from "@/server/library.functions"
-import { AdvancedFilter } from "./filter-sheet"
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { addSavedView, getSavedViews, getWorks, setWorkFavorite } from "@/server/library.functions";
+import { AddWorkDialog } from "./components/add-work-dialog";
+import { EmptyState } from "./components/empty-state";
+import { Gallery } from "./components/gallery";
+import { LibraryToolbar } from "./components/library-toolbar";
+import { Statistics } from "./components/statistics";
+import { Timeline } from "./components/timeline";
+import { WorkDetailDialog } from "./components/work-detail-dialog";
+import { WorkTable } from "./components/work-table";
+import { AdvancedFilter } from "./filter-sheet";
+import type { WorkFilterState } from "./filtering";
 import {
   buildFacetOptions,
-  createEmptyFacetFilters,
+  compareWorks,
+  createDefaultFilters,
+  isWorkVisibleByDefault,
   normalizeFacetFilters,
   workMatchesFilters,
-} from "./filtering"
-import type { WorkFilterState } from "./filtering"
-
-import type { SavedUserView, Work } from "./model"
-import { defaultTableColumns, tableColumnIds } from "./view-types"
+} from "./filtering";
+import type { SavedUserView, Work } from "./model";
 import type {
   GalleryOptions,
   Layout,
@@ -28,32 +27,10 @@ import type {
   SortDirection,
   TableColumnId,
   TableDensity,
-} from "./view-types"
-import { AddWorkDialog } from "./components/add-work-dialog"
-import { LibraryToolbar } from "./components/library-toolbar"
-import { EmptyState } from "./components/empty-state"
-import { Gallery } from "./components/gallery"
-import { Statistics } from "./components/statistics"
-import { Timeline } from "./components/timeline"
-import { WorkDetailDialog } from "./components/work-detail-dialog"
-import { WorkTable } from "./components/work-table"
+} from "./view-types";
+import { defaultTableColumns, tableColumnIds } from "./view-types";
 
-export type { Layout, Sort } from "./view-types"
-
-function createDefaultFilters(): WorkFilterState {
-  return {
-    kinds: [],
-    excludedKinds: [],
-    statuses: [],
-    excludedStatuses: [],
-    minRating: 0,
-    minScores: {},
-    favoriteOnly: false,
-    yearFrom: null,
-    yearTo: null,
-    facets: createEmptyFacetFilters(),
-  }
-}
+export type { Layout, Sort } from "./view-types";
 
 const defaultGalleryOptions: GalleryOptions = {
   mode: "full",
@@ -66,10 +43,10 @@ const defaultGalleryOptions: GalleryOptions = {
   showYear: true,
   showGenres: true,
   showProgress: false,
-}
+};
 
 function isTableColumnId(value: string): value is TableColumnId {
-  return tableColumnIds.includes(value as TableColumnId)
+  return tableColumnIds.includes(value as TableColumnId);
 }
 
 export function LibraryViewPage({
@@ -78,90 +55,90 @@ export function LibraryViewPage({
   onViewChange,
   onWorkChange,
 }: {
-  viewId?: string
-  workId?: string
-  onViewChange: (viewId?: string) => void
-  onWorkChange: (workId?: string) => void
+  viewId?: string;
+  workId?: string;
+  onViewChange: (viewId?: string) => void;
+  onWorkChange: (workId?: string) => void;
 }) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   const { data: works } = useSuspenseQuery({
     queryKey: ["works"],
     queryFn: () => getWorks(),
-  })
+  });
   const { data: savedViews } = useSuspenseQuery({
     queryKey: ["saved-views"],
     queryFn: () => getSavedViews(),
-  })
-  const [search, setSearch] = useState("")
-  const [layout, setLayout] = useState<Layout>("gallery")
-  const [sort, setSort] = useState<Sort>("title")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
-  const [filters, setFilters] = useState<WorkFilterState>(createDefaultFilters)
-  const [cardSize, setCardSize] = useState(154)
-  const [galleryOptions, setGalleryOptions] = useState<GalleryOptions>(
-    defaultGalleryOptions
-  )
-  const [timelineNewestFirst, setTimelineNewestFirst] = useState(true)
-  const [tableColumns, setTableColumns] =
-    useState<TableColumnId[]>(defaultTableColumns)
-  const [tableDensity, setTableDensity] = useState<TableDensity>("comfortable")
+  });
+  const [search, setSearch] = useState("");
+  const [layout, setLayout] = useState<Layout>("gallery");
+  const [sort, setSort] = useState<Sort>("rating");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [filters, setFilters] = useState<WorkFilterState>(createDefaultFilters);
+  const [cardSize, setCardSize] = useState(154);
+  const [galleryOptions, setGalleryOptions] = useState<GalleryOptions>(defaultGalleryOptions);
+  const [timelineNewestFirst, setTimelineNewestFirst] = useState(true);
+  const [tableColumns, setTableColumns] = useState<TableColumnId[]>(defaultTableColumns);
+  const [tableDensity, setTableDensity] = useState<TableDensity>("comfortable");
 
-  const activeSavedView = savedViews.find((item) => item.id === viewId)
+  const activeSavedView = savedViews.find((item) => item.id === viewId);
 
   useEffect(() => {
     if (!viewId) {
-      setSearch("")
-      setLayout("gallery")
-      setSort("title")
-      setSortDirection("asc")
-      setFilters(createDefaultFilters())
-      setGalleryOptions(defaultGalleryOptions)
-      setTableColumns(defaultTableColumns)
-      setTableDensity("comfortable")
-      return
+      setSearch("");
+      setLayout("gallery");
+      setSort("rating");
+      setSortDirection("desc");
+      setFilters(createDefaultFilters());
+      setGalleryOptions(defaultGalleryOptions);
+      setTableColumns(defaultTableColumns);
+      setTableDensity("comfortable");
+      return;
     }
-    const savedView = savedViews.find((item) => item.id === viewId)
-    if (!savedView) return
+    const savedView = savedViews.find((item) => item.id === viewId);
+    if (!savedView) return;
 
-    setSearch(savedView.search)
-    setLayout(savedView.layout)
-    setSort(savedView.sort)
-    setSortDirection(savedView.sortDirection)
-    setCardSize(savedView.cardSize)
-    setGalleryOptions(savedView.gallery)
-    const savedColumns = savedView.visibleColumns.filter(isTableColumnId)
-    setTableColumns(savedColumns.length ? savedColumns : defaultTableColumns)
-    setTableDensity(savedView.tableDensity)
+    setSearch(savedView.search);
+    setLayout(savedView.layout);
+    setSort(savedView.sort);
+    setSortDirection(savedView.sortDirection);
+    setCardSize(savedView.cardSize);
+    setGalleryOptions(savedView.gallery);
+    const savedColumns = savedView.visibleColumns.filter(isTableColumnId);
+    setTableColumns(savedColumns.length ? savedColumns : defaultTableColumns);
+    setTableDensity(savedView.tableDensity);
     setFilters({
       kinds: savedView.kinds,
       excludedKinds: savedView.excludedKinds,
       statuses: savedView.statuses,
       excludedStatuses: savedView.excludedStatuses,
+      showSaved: savedView.showSaved,
+      showAnnounced: savedView.showAnnounced,
+      showSequelMovies: savedView.showSequelMovies,
       minRating: savedView.minRating,
       minScores: savedView.minScores,
       favoriteOnly: savedView.favoriteOnly,
       yearFrom: savedView.yearFrom,
       yearTo: savedView.yearTo,
       facets: normalizeFacetFilters(savedView.facets),
-    })
-  }, [viewId, savedViews])
+    });
+  }, [viewId, savedViews]);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("arcadia:gallery-card-size")
+    const stored = window.localStorage.getItem("arcadia:gallery-card-size");
     if (stored && !viewId) {
-      setCardSize(Math.min(220, Math.max(110, Number(stored))))
+      setCardSize(Math.min(220, Math.max(110, Number(stored))));
     }
-  }, [viewId])
+  }, [viewId]);
 
   const changeCardSize = (value: number) => {
-    setCardSize(value)
-    window.localStorage.setItem("arcadia:gallery-card-size", String(value))
-  }
+    setCardSize(value);
+    window.localStorage.setItem("arcadia:gallery-card-size", String(value));
+  };
 
-  const facetOptions = useMemo(() => buildFacetOptions(works), [works])
+  const facetOptions = useMemo(() => buildFacetOptions(works), [works]);
 
   const filteredWorks = useMemo(() => {
-    const normalizedSearch = search.trim().toLocaleLowerCase()
+    const normalizedSearch = search.trim().toLocaleLowerCase();
     const matches = works.filter((work) => {
       const searchable = [
         work.title,
@@ -174,47 +151,30 @@ export function LibraryViewPage({
         ...work.studios,
       ]
         .join(" ")
-        .toLocaleLowerCase()
+        .toLocaleLowerCase();
       return (
         (!normalizedSearch || searchable.includes(normalizedSearch)) &&
         workMatchesFilters(work, filters)
-      )
-    })
+      );
+    });
 
-    return [...matches].sort((left, right) => {
-      let comparison: number
-      if (sort === "rating") {
-        comparison =
-          (left.calculatedRating ?? -1) - (right.calculatedRating ?? -1)
-      } else if (sort === "recent") {
-        comparison = left.addedAt - right.addedAt
-      } else if (sort === "year") {
-        comparison = (left.year ?? 0) - (right.year ?? 0)
-      } else {
-        comparison = (left.arabicTitle || left.title).localeCompare(
-          right.arabicTitle || right.title,
-          "ar"
-        )
-      }
-      return sortDirection === "asc" ? comparison : -comparison
-    })
-  }, [works, filters, search, sort, sortDirection])
+    return [...matches].sort((left, right) => compareWorks(left, right, sort, sortDirection));
+  }, [works, filters, search, sort, sortDirection]);
 
-  const selectedWork = works.find((work) => work.id === workId) ?? null
+  const selectedWork = works.find((work) => work.id === workId) ?? null;
 
   const favoriteMutation = useMutation({
     mutationFn: setWorkFavorite,
-    onSuccess: async () =>
-      queryClient.invalidateQueries({ queryKey: ["works"] }),
-  })
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["works"] }),
+  });
 
   const savedViewMutation = useMutation({
     mutationFn: addSavedView,
     onSuccess: async (savedView) => {
-      await queryClient.invalidateQueries({ queryKey: ["saved-views"] })
-      onViewChange(savedView.id)
+      await queryClient.invalidateQueries({ queryKey: ["saved-views"] });
+      onViewChange(savedView.id);
     },
-  })
+  });
 
   const saveCurrentView = (name: string) => {
     const next: Omit<SavedUserView, "id"> = {
@@ -229,6 +189,9 @@ export function LibraryViewPage({
       excludedKinds: filters.excludedKinds,
       statuses: filters.statuses,
       excludedStatuses: filters.excludedStatuses,
+      showSaved: filters.showSaved,
+      showAnnounced: filters.showAnnounced,
+      showSequelMovies: filters.showSequelMovies,
       minRating: filters.minRating,
       minScores: filters.minScores,
       favoriteOnly: filters.favoriteOnly,
@@ -241,19 +204,19 @@ export function LibraryViewPage({
       search,
       visibleColumns: tableColumns,
       isPinned: false,
-    }
-    savedViewMutation.mutate({ data: next })
-  }
+    };
+    savedViewMutation.mutate({ data: next });
+  };
 
   const refreshWorks = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["works"] })
-  }
+    await queryClient.invalidateQueries({ queryKey: ["works"] });
+  };
 
   const clearFilters = () => {
-    setSearch("")
-    setFilters(createDefaultFilters())
-    onViewChange()
-  }
+    setSearch("");
+    setFilters(createDefaultFilters());
+    onViewChange();
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -262,7 +225,6 @@ export function LibraryViewPage({
           activeView={activeSavedView}
           search={search}
           onSearchChange={setSearch}
-
           layout={layout}
           onLayoutChange={setLayout}
           sort={sort}
@@ -289,6 +251,7 @@ export function LibraryViewPage({
               facetOptions={facetOptions}
               onChange={setFilters}
               matchingCount={filteredWorks.length}
+              hiddenCount={works.filter((work) => !isWorkVisibleByDefault(work)).length}
             />
           }
           addWork={<AddWorkDialog onCreated={refreshWorks} />}
@@ -341,5 +304,5 @@ export function LibraryViewPage({
         openRelated={(id) => onWorkChange(id)}
       />
     </div>
-  )
+  );
 }

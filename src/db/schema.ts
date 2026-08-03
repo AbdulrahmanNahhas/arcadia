@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm"
+import { sql } from "drizzle-orm";
 import {
   check,
   index,
@@ -8,16 +8,12 @@ import {
   sqliteTable,
   text,
   uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+} from "drizzle-orm/sqlite-core";
 
 const timestamps = {
-  createdAt: integer("created_at")
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at")
-    .notNull()
-    .default(sql`(unixepoch())`),
-}
+  createdAt: integer("created_at").notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at").notNull().default(sql`(unixepoch())`),
+};
 
 export const works = sqliteTable(
   "works",
@@ -46,11 +42,11 @@ export const works = sqliteTable(
   (table) => [
     check(
       "works_kind_check",
-      sql`${table.kind} in ('movie', 'series', 'anime', 'manga', 'novel', 'game', 'visual-novel', 'comic')`
+      sql`${table.kind} in ('movie', 'series', 'anime', 'manga', 'novel', 'game', 'visual-novel', 'comic')`,
     ),
     check(
       "works_status_check",
-      sql`${table.status} in ('announced', 'releasing', 'released', 'ended', 'unknown')`
+      sql`${table.status} in ('announced', 'releasing', 'released', 'ended', 'unknown')`,
     ),
     check(
       "works_metrics_check",
@@ -60,7 +56,7 @@ export const works = sqliteTable(
         and (${table.episodeCount} is null or ${table.episodeCount} >= 0)
         and (${table.chapterCount} is null or ${table.chapterCount} >= 0)
         and (${table.volumeCount} is null or ${table.volumeCount} >= 0)
-        and (${table.routeCount} is null or ${table.routeCount} >= 0)`
+        and (${table.routeCount} is null or ${table.routeCount} >= 0)`,
     ),
     check(
       "works_metadata_normalized_check",
@@ -70,13 +66,13 @@ export const works = sqliteTable(
         and json_type(${table.metadata}, '$.tags') is null
         and json_type(${table.metadata}, '$.tone') is null
         and json_type(${table.metadata}, '$.studios') is null
-        and json_type(${table.metadata}, '$.creator') is null`
+        and json_type(${table.metadata}, '$.creator') is null`,
     ),
     index("works_kind_idx").on(table.kind),
     index("works_sort_title_idx").on(table.sortTitle),
     index("works_release_year_idx").on(table.releaseYear),
-  ]
-)
+  ],
+);
 
 export const workTitles = sqliteTable(
   "work_titles",
@@ -89,29 +85,25 @@ export const workTitles = sqliteTable(
     titleType: text("title_type").notNull().default("alias"),
     language: text("language"),
     script: text("script"),
-    isPreferred: integer("is_preferred", { mode: "boolean" })
-      .notNull()
-      .default(false),
+    isPreferred: integer("is_preferred", { mode: "boolean" }).notNull().default(false),
   },
   (table) => [
     check(
       "work_titles_type_check",
-      sql`${table.titleType} in ('canonical', 'alias', 'localized', 'original')`
+      sql`${table.titleType} in ('canonical', 'alias', 'localized', 'original')`,
     ),
     uniqueIndex("work_titles_identity_uq").on(
       table.workId,
       table.title,
       table.titleType,
-      table.language
+      table.language,
     ),
     uniqueIndex("work_titles_preferred_language_uq")
       .on(table.workId, table.language)
-      .where(
-        sql`${table.isPreferred} = true and ${table.language} is not null`
-      ),
+      .where(sql`${table.isPreferred} = true and ${table.language} is not null`),
     index("work_titles_work_idx").on(table.workId),
-  ]
-)
+  ],
+);
 
 export const entities = sqliteTable(
   "entities",
@@ -128,21 +120,15 @@ export const entities = sqliteTable(
     ...timestamps,
   },
   (table) => [
-    check(
-      "entities_type_check",
-      sql`${table.entityType} in ('person', 'studio', 'publisher', 'organization')`
-    ),
-    uniqueIndex("entities_type_sort_name_uq").on(
-      table.entityType,
-      table.sortName
-    ),
+    check("entities_type_check", sql`${table.entityType} in ('person', 'organization')`),
+    uniqueIndex("entities_type_sort_name_uq").on(table.entityType, table.sortName),
     index("entities_type_idx").on(table.entityType),
     index("entities_sort_name_idx").on(table.sortName),
-  ]
-)
+  ],
+);
 
-export const workCredits = sqliteTable(
-  "work_credits",
+export const workContributors = sqliteTable(
+  "work_contributions",
   {
     workId: text("work_id")
       .notNull()
@@ -151,17 +137,52 @@ export const workCredits = sqliteTable(
       .notNull()
       .references(() => entities.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
+    isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
     position: integer("position").notNull().default(0),
   },
   (table) => [
     check(
-      "work_credits_role_check",
-      sql`${table.role} in ('author', 'writer', 'director', 'illustrator', 'main-studio', 'developer', 'publisher', 'composer', 'creator')`
+      "work_contributions_role_check",
+      sql`${table.role} in ('author', 'original-author', 'writer', 'screenwriter', 'director', 'illustrator', 'artist', 'animation-studio', 'production-company', 'producer', 'developer', 'publisher', 'composer', 'editor', 'translator', 'creator')`,
     ),
     primaryKey({ columns: [table.workId, table.entityId, table.role] }),
-    index("work_credits_entity_idx").on(table.entityId),
-  ]
-)
+    index("work_contributions_entity_idx").on(table.entityId),
+  ],
+);
+
+export const entityAliases = sqliteTable(
+  "entity_aliases",
+  {
+    id: text("id").primaryKey(),
+    entityId: text("entity_id")
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    alias: text("alias").notNull(),
+    normalizedAlias: text("normalized_alias").notNull(),
+    language: text("language"),
+  },
+  (table) => [
+    uniqueIndex("entity_aliases_identity_uq").on(table.entityId, table.normalizedAlias),
+    index("entity_aliases_lookup_idx").on(table.normalizedAlias),
+  ],
+);
+
+export const entityExternalIdentities = sqliteTable(
+  "entity_external_identities",
+  {
+    id: text("id").primaryKey(),
+    entityId: text("entity_id")
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    externalId: text("external_id").notNull(),
+    url: text("url"),
+  },
+  (table) => [
+    uniqueIndex("entity_external_identity_uq").on(table.provider, table.externalId),
+    index("entity_external_identity_entity_idx").on(table.entityId),
+  ],
+);
 
 export const terms = sqliteTable(
   "terms",
@@ -179,7 +200,7 @@ export const terms = sqliteTable(
   (table) => [
     check(
       "terms_vocabulary_check",
-      sql`${table.vocabulary} in ('genre', 'tone', 'tag', 'audience', 'country', 'platform')`
+      sql`${table.vocabulary} in ('genre', 'tone', 'tag', 'audience', 'country', 'platform')`,
     ),
     check(
       "terms_controlled_values_check",
@@ -200,12 +221,12 @@ export const terms = sqliteTable(
       ) and (
         ${table.vocabulary} <> 'audience'
         or ${table.name} in ('Adult', 'Young Adult', 'Teen', 'General')
-      )`
+      )`,
     ),
     uniqueIndex("terms_vocabulary_slug_uq").on(table.vocabulary, table.slug),
     index("terms_parent_idx").on(table.parentId),
-  ]
-)
+  ],
+);
 
 export const workTerms = sqliteTable(
   "work_terms",
@@ -219,8 +240,8 @@ export const workTerms = sqliteTable(
     weight: real("weight").notNull().default(1),
     source: text("source").notNull().default("manual"),
   },
-  (table) => [primaryKey({ columns: [table.workId, table.termId] })]
-)
+  (table) => [primaryKey({ columns: [table.workId, table.termId] })],
+);
 
 export const termAliases = sqliteTable(
   "term_aliases",
@@ -234,13 +255,10 @@ export const termAliases = sqliteTable(
     normalizedAlias: text("normalized_alias").notNull(),
   },
   (table) => [
-    uniqueIndex("term_aliases_identity_uq").on(
-      table.termId,
-      table.normalizedAlias
-    ),
+    uniqueIndex("term_aliases_identity_uq").on(table.termId, table.normalizedAlias),
     index("term_aliases_lookup_idx").on(table.normalizedAlias),
-  ]
-)
+  ],
+);
 
 export const workRelations = sqliteTable(
   "work_relations",
@@ -253,21 +271,34 @@ export const workRelations = sqliteTable(
       .notNull()
       .references(() => works.id, { onDelete: "cascade" }),
     relationType: text("relation_type").notNull(),
-    isDirected: integer("is_directed", { mode: "boolean" })
-      .notNull()
-      .default(true),
+    isDirected: integer("is_directed", { mode: "boolean" }).notNull().default(true),
+    provenance: text("provenance").notNull().default("manual"),
+    externalKey: text("external_key"),
     notes: text("notes").notNull().default(""),
   },
   (table) => [
+    check(
+      "work_relations_type_check",
+      sql`${table.relationType} in ('sequel', 'adaptation', 'spin-off', 'side-story', 'compilation', 'alternative', 'related')`,
+    ),
+    check(
+      "work_relations_distinct_endpoints_check",
+      sql`${table.sourceWorkId} <> ${table.targetWorkId}`,
+    ),
+    check(
+      "work_relations_direction_check",
+      sql`(${table.relationType} in ('alternative', 'related') and ${table.isDirected} = false and ${table.sourceWorkId} < ${table.targetWorkId})
+        or (${table.relationType} not in ('alternative', 'related') and ${table.isDirected} = true)`,
+    ),
     uniqueIndex("work_relations_pair_type_uq").on(
       table.sourceWorkId,
       table.targetWorkId,
-      table.relationType
+      table.relationType,
     ),
     index("work_relations_source_idx").on(table.sourceWorkId),
     index("work_relations_target_idx").on(table.targetWorkId),
-  ]
-)
+  ],
+);
 
 export const personalState = sqliteTable(
   "personal_state",
@@ -275,7 +306,7 @@ export const personalState = sqliteTable(
     workId: text("work_id")
       .primaryKey()
       .references(() => works.id, { onDelete: "cascade" }),
-    status: text("status").notNull().default("planned"),
+    status: text("status").notNull().default("saved"),
     favorite: integer("favorite", { mode: "boolean" }).notNull().default(false),
     progress: real("progress").notNull().default(0),
     progressTotal: real("progress_total"),
@@ -290,17 +321,18 @@ export const personalState = sqliteTable(
   (table) => [
     check(
       "personal_state_status_check",
-      sql`${table.status} in ('planned', 'in-progress', 'completed', 'paused', 'dropped')`
+      sql`${table.status} in ('saved', 'planned', 'in-progress', 'completed', 'paused', 'dropped')`,
     ),
     check(
       "personal_state_values_check",
       sql`${table.progress} >= 0
         and (${table.progressTotal} is null or ${table.progressTotal} >= 0)
-        `
+        and (${table.status} not in ('saved', 'planned') or ${table.progress} = 0)
+        `,
     ),
     index("personal_state_status_idx").on(table.status),
-  ]
-)
+  ],
+);
 
 export const personalScores = sqliteTable(
   "personal_scores",
@@ -310,23 +342,18 @@ export const personalScores = sqliteTable(
       .references(() => works.id, { onDelete: "cascade" }),
     criterion: text("criterion").notNull(),
     value: real("value").notNull(),
-    updatedAt: integer("updated_at")
-      .notNull()
-      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch())`),
   },
   (table) => [
     check(
       "personal_scores_criterion_check",
-      sql`${table.criterion} in ('story', 'characters', 'depth', 'worldBuilding', 'originality', 'craft')`
+      sql`${table.criterion} in ('story', 'characters', 'depth', 'worldBuilding', 'originality', 'craft')`,
     ),
-    check(
-      "personal_scores_value_check",
-      sql`${table.value} >= 0 and ${table.value} <= 10`
-    ),
+    check("personal_scores_value_check", sql`${table.value} >= 0 and ${table.value} <= 10`),
     primaryKey({ columns: [table.workId, table.criterion] }),
     index("personal_scores_work_idx").on(table.workId),
-  ]
-)
+  ],
+);
 
 export const workSeasons = sqliteTable(
   "work_seasons",
@@ -348,13 +375,13 @@ export const workSeasons = sqliteTable(
       "work_seasons_values_check",
       sql`${table.position} >= 0
         and (${table.runtimeMinutes} is null or ${table.runtimeMinutes} >= 0)
-        and (${table.unitCount} is null or ${table.unitCount} >= 0)`
+        and (${table.unitCount} is null or ${table.unitCount} >= 0)`,
     ),
     uniqueIndex("work_seasons_position_uq").on(table.workId, table.position),
     uniqueIndex("work_seasons_title_uq").on(table.workId, table.title),
     index("work_seasons_work_idx").on(table.workId),
-  ]
-)
+  ],
+);
 
 export const workUnits = sqliteTable(
   "work_units",
@@ -376,25 +403,18 @@ export const workUnits = sqliteTable(
     ...timestamps,
   },
   (table) => [
-    check(
-      "work_units_type_check",
-      sql`${table.unitType} in ('episode', 'chapter', 'volume')`
-    ),
+    check("work_units_type_check", sql`${table.unitType} in ('episode', 'chapter', 'volume')`),
     check(
       "work_units_values_check",
       sql`${table.position} >= 0
         and (${table.runtimeMinutes} is null or ${table.runtimeMinutes} >= 0)
-        and (${table.pageCount} is null or ${table.pageCount} >= 0)`
+        and (${table.pageCount} is null or ${table.pageCount} >= 0)`,
     ),
-    uniqueIndex("work_units_season_position_uq").on(
-      table.workId,
-      table.seasonId,
-      table.position
-    ),
+    uniqueIndex("work_units_season_position_uq").on(table.workId, table.seasonId, table.position),
     index("work_units_work_idx").on(table.workId),
     index("work_units_season_idx").on(table.seasonId),
-  ]
-)
+  ],
+);
 
 export const trackingEntries = sqliteTable(
   "tracking_entries",
@@ -409,43 +429,34 @@ export const trackingEntries = sqliteTable(
     status: text("status").notNull(),
     occurredOn: text("occurred_on").notNull(),
     daySequence: integer("day_sequence").notNull(),
-    recordedAt: integer("recorded_at")
-      .notNull()
-      .default(sql`(unixepoch())`),
+    recordedAt: integer("recorded_at").notNull().default(sql`(unixepoch())`),
   },
   (table) => [
-    check(
-      "tracking_entries_progress_before_check",
-      sql`${table.progressBefore} >= 0`
-    ),
+    check("tracking_entries_progress_before_check", sql`${table.progressBefore} >= 0`),
     check("tracking_entries_progress_check", sql`${table.progress} >= 0`),
     check(
       "tracking_entries_status_before_check",
-      sql`${table.statusBefore} in ('planned', 'in-progress', 'completed', 'paused', 'dropped')`
+      sql`${table.statusBefore} in ('saved', 'planned', 'in-progress', 'completed', 'paused', 'dropped')`,
     ),
     check(
       "tracking_entries_status_check",
-      sql`${table.status} in ('planned', 'in-progress', 'completed', 'paused', 'dropped')`
+      sql`${table.status} in ('saved', 'planned', 'in-progress', 'completed', 'paused', 'dropped')`,
     ),
     check(
       "tracking_entries_date_check",
       sql`${table.occurredOn} glob '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
-        and date(${table.occurredOn}) = ${table.occurredOn}`
+        and date(${table.occurredOn}) = ${table.occurredOn}`,
     ),
     check("tracking_entries_sequence_check", sql`${table.daySequence} >= 0`),
     uniqueIndex("tracking_entries_work_day_sequence_uq").on(
       table.workId,
       table.occurredOn,
-      table.daySequence
+      table.daySequence,
     ),
-    index("tracking_entries_work_order_idx").on(
-      table.workId,
-      table.occurredOn,
-      table.daySequence
-    ),
+    index("tracking_entries_work_order_idx").on(table.workId, table.occurredOn, table.daySequence),
     index("tracking_entries_order_idx").on(table.occurredOn, table.daySequence),
-  ]
-)
+  ],
+);
 
 export const assets = sqliteTable(
   "assets",
@@ -460,26 +471,17 @@ export const assets = sqliteTable(
     height: integer("height"),
     blurhash: text("blurhash"),
     checksum: text("checksum"),
-    metadata: text("metadata", { mode: "json" }).$type<
-      Record<string, unknown>
-    >(),
+    metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
     ...timestamps,
   },
   (table) => [
-    check("assets_owner_type_check", sql`${table.ownerType} = 'work'`),
-    check(
-      "assets_type_check",
-      sql`${table.assetType} in ('poster', 'banner', 'logo')`
-    ),
-    uniqueIndex("assets_owner_type_uq").on(
-      table.ownerType,
-      table.ownerId,
-      table.assetType
-    ),
+    check("assets_owner_type_check", sql`${table.ownerType} in ('work', 'entity')`),
+    check("assets_type_check", sql`${table.assetType} in ('poster', 'banner', 'logo', 'profile')`),
+    uniqueIndex("assets_owner_type_uq").on(table.ownerType, table.ownerId, table.assetType),
     index("assets_owner_idx").on(table.ownerType, table.ownerId),
     index("assets_type_idx").on(table.assetType),
-  ]
-)
+  ],
+);
 
 export const savedViews = sqliteTable(
   "saved_views",
@@ -490,9 +492,7 @@ export const savedViews = sqliteTable(
     icon: text("icon").notNull().default("bookmark"),
     color: text("color").notNull().default("primary"),
     layout: text("layout").notNull().default("gallery"),
-    filterTree: text("filter_tree", { mode: "json" })
-      .$type<Record<string, unknown>>()
-      .notNull(),
+    filterTree: text("filter_tree", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
     sortField: text("sort_field").notNull().default("title"),
     sortDirection: text("sort_direction").notNull().default("asc"),
     groupBy: text("group_by"),
@@ -506,28 +506,20 @@ export const savedViews = sqliteTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default({}),
-    isPinned: integer("is_pinned", { mode: "boolean" })
-      .notNull()
-      .default(false),
+    isPinned: integer("is_pinned", { mode: "boolean" }).notNull().default(false),
     ...timestamps,
   },
   (table) => [
     check(
       "saved_views_layout_check",
-      sql`${table.layout} in ('gallery', 'table', 'timeline', 'statistics')`
+      sql`${table.layout} in ('gallery', 'table', 'timeline', 'statistics')`,
     ),
-    check(
-      "saved_views_sort_direction_check",
-      sql`${table.sortDirection} in ('asc', 'desc')`
-    ),
-    check(
-      "saved_views_card_size_check",
-      sql`${table.cardSize} >= 1 and ${table.cardSize} <= 300`
-    ),
+    check("saved_views_sort_direction_check", sql`${table.sortDirection} in ('asc', 'desc')`),
+    check("saved_views_card_size_check", sql`${table.cardSize} >= 1 and ${table.cardSize} <= 300`),
     uniqueIndex("saved_views_name_uq").on(table.name),
     index("saved_views_pinned_idx").on(table.isPinned),
-  ]
-)
+  ],
+);
 
 export const externalLinks = sqliteTable(
   "external_links",
@@ -546,11 +538,11 @@ export const externalLinks = sqliteTable(
       table.ownerType,
       table.ownerId,
       table.provider,
-      table.url
+      table.url,
     ),
     index("external_links_owner_idx").on(table.ownerType, table.ownerId),
-  ]
-)
+  ],
+);
 
 export const similarityArtifacts = sqliteTable(
   "similarity_artifacts",
@@ -564,12 +556,8 @@ export const similarityArtifacts = sqliteTable(
     dimensions: integer("dimensions"),
     vectorPath: text("vector_path"),
     fingerprint: text("fingerprint"),
-    features: text("features", { mode: "json" }).$type<
-      Record<string, number>
-    >(),
-    generatedAt: integer("generated_at")
-      .notNull()
-      .default(sql`(unixepoch())`),
+    features: text("features", { mode: "json" }).$type<Record<string, number>>(),
+    generatedAt: integer("generated_at").notNull().default(sql`(unixepoch())`),
   },
-  (table) => [index("similarity_artifacts_work_idx").on(table.workId)]
-)
+  (table) => [index("similarity_artifacts_work_idx").on(table.workId)],
+);

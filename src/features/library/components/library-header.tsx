@@ -1,8 +1,8 @@
-import { Link } from "@tanstack/react-router"
-import { BooksIcon } from "@phosphor-icons/react"
-import { buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-import { ThemeToggle } from "./theme-toggle"
+import { BooksIcon, UsersThreeIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { ThemeToggle } from "./theme-toggle";
 
 export function LibraryHeader({ compact = false }: { compact?: boolean }) {
   return (
@@ -10,7 +10,7 @@ export function LibraryHeader({ compact = false }: { compact?: boolean }) {
       <div
         className={cn(
           "flex items-center justify-between gap-4 px-3 sm:px-4",
-          compact ? "h-12" : "h-14"
+          compact ? "h-12" : "h-14",
         )}
       >
         <Link
@@ -22,23 +22,27 @@ export function LibraryHeader({ compact = false }: { compact?: boolean }) {
             <BooksIcon weight="duotone" />
           </span>
           <span className="flex flex-col leading-none">
-            <strong className="text-sm font-semibold tracking-tight">
-              أركاديا
-            </strong>
+            <strong className="text-sm font-semibold tracking-tight">أركاديا</strong>
             {!compact && (
-              <span className="mt-1 text-[10px] text-muted-foreground">
-                أرشيف القصص الشخصي
-              </span>
+              <span className="mt-1 text-[10px] text-muted-foreground">أرشيف القصص الشخصي</span>
             )}
           </span>
         </Link>
 
         <nav className="flex items-center gap-1.5" aria-label="التنقل الرئيسي">
           <Link
+            to="/entities"
+            search={{}}
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-9 text-xs")}
+          >
+            <UsersThreeIcon data-icon="inline-start" />
+            الصنّاع
+          </Link>
+          <Link
             to="/feed"
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
-              "hidden h-9 text-xs sm:inline-flex"
+              "hidden h-9 text-xs sm:inline-flex",
             )}
           >
             النشاط
@@ -47,7 +51,7 @@ export function LibraryHeader({ compact = false }: { compact?: boolean }) {
             to="/admin"
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
-              "hidden h-9 text-xs sm:inline-flex"
+              "hidden h-9 text-xs sm:inline-flex",
             )}
           >
             الإدارة
@@ -56,5 +60,5 @@ export function LibraryHeader({ compact = false }: { compact?: boolean }) {
         </nav>
       </div>
     </header>
-  )
+  );
 }

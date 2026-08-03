@@ -1,0 +1,4 @@
+interface:
+  display_name: "Arcadia CLI"
+  short_description: "Inspect the running Arcadia catalog via CLI"
+  default_prompt: "Use $arcadia-cli to inspect and filter the running Arcadia database."

@@ -1,94 +1,99 @@
-import { and, eq, inArray } from "drizzle-orm"
-import { db } from "@/db/client"
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "@/db/client";
 import {
   entities,
   externalLinks,
   terms,
-  workCredits,
-  works,
+  workContributors,
   workSeasons,
+  works,
   workTerms,
   workTitles,
   workUnits,
-} from "@/db/schema"
-import type { Genre, Tone, WorkCredit } from "@/features/library/model"
+} from "@/db/schema";
+import type { Genre, Tone, WorkContribution } from "@/features/library/model";
 
 type Link = {
-  provider: string
-  label: string
-  url: string
-  externalId?: string
-}
+  provider: string;
+  label: string;
+  url: string;
+  externalId?: string;
+};
 
 type UnitSpec = {
-  key: string
-  type: "episode" | "chapter" | "volume"
-  number: number
-  position: number
+  key: string;
+  type: "episode" | "chapter" | "volume";
+  number: number;
+  position: number;
   /** Optional enrichment only. Number and position are the canonical identity. */
-  title?: string
-  runtimeMinutes?: number
-  pageCount?: number
-  releaseAt?: number
-}
+  title?: string;
+  runtimeMinutes?: number;
+  pageCount?: number;
+  releaseAt?: number;
+};
 
 type SeasonSpec = {
-  key: string
-  title: string
-  number: number
-  position: number
-  releaseAt?: number
-  runtimeMinutes?: number
-  announcedUnitCount?: number
-  units: UnitSpec[]
-}
+  key: string;
+  title: string;
+  number: number;
+  position: number;
+  releaseAt?: number;
+  runtimeMinutes?: number;
+  announcedUnitCount?: number;
+  units: UnitSpec[];
+};
+
+type CuratedCredit = Omit<WorkContribution, "entityId" | "entityType" | "role" | "isPrimary"> & {
+  entityType: WorkContribution["entityType"] | "studio" | "publisher";
+  role: WorkContribution["role"] | "main-studio";
+  isPrimary?: boolean;
+};
 
 type GoldWork = {
-  id: string
-  title: string
+  id: string;
+  title: string;
   aliases: Array<{
-    title: string
-    titleType: "alias" | "localized" | "original"
-    language?: string
-    script?: string
-  }>
-  kind: "anime" | "manga" | "novel"
-  year: number
-  releaseStatus: "announced" | "releasing" | "released" | "ended" | "unknown"
-  summary: string
-  originalReleaseAt: number
-  runtimeMinutes?: number
-  pageCount?: number
-  episodeCount?: number
-  chapterCount?: number
-  metadata: Record<string, unknown>
-  genres: Genre[]
-  tones: Tone[]
-  tags: string[]
-  audiences: string[]
-  countries: string[]
-  credits: Array<Omit<WorkCredit, "entityId">>
-  links: Link[]
-  seasons?: SeasonSpec[]
-  units?: UnitSpec[]
-}
+    title: string;
+    titleType: "alias" | "localized" | "original";
+    language?: string;
+    script?: string;
+  }>;
+  kind: "anime" | "manga" | "novel";
+  year: number;
+  releaseStatus: "announced" | "releasing" | "released" | "ended" | "unknown";
+  summary: string;
+  originalReleaseAt: number;
+  runtimeMinutes?: number;
+  pageCount?: number;
+  episodeCount?: number;
+  chapterCount?: number;
+  metadata: Record<string, unknown>;
+  genres: Genre[];
+  tones: Tone[];
+  tags: string[];
+  audiences: string[];
+  countries: string[];
+  credits: CuratedCredit[];
+  links: Link[];
+  seasons?: SeasonSpec[];
+  units?: UnitSpec[];
+};
 
-const epoch = (date: string) =>
-  Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000)
+const epoch = (date: string) => Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000);
 const numberedUnits = (count: number, type: UnitSpec["type"]): UnitSpec[] =>
   Array.from({ length: count }, (_, index) => ({
     key: `${type}-${index + 1}`,
     type,
     number: index + 1,
     position: index,
-  }))
+  }));
 
 const sharedCuration = {
   reviewedAt: "2026-07-23",
   status: "verified",
   notes:
     "Reference-quality normalized record; factual fields verified against canonical catalog sources.",
-} as const
+} as const;
 
 const goldWorks: GoldWork[] = [
   {
@@ -188,8 +193,7 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      editorialDeck:
-        "A quiet fantasy about time, memory, and learning to know people",
+      editorialDeck: "A quiet fantasy about time, memory, and learning to know people",
       releaseStart: "2023-09-29",
       releaseEnd: null,
       sourceMaterial: {
@@ -344,8 +348,7 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      editorialDeck:
-        "A war epic about freedom, inherited violence, and the stories nations tell",
+      editorialDeck: "A war epic about freedom, inherited violence, and the stories nations tell",
       releaseStart: "2013-04-07",
       releaseEnd: "2023-11-05",
       sourceMaterial: {
@@ -510,18 +513,102 @@ const goldWorks: GoldWork[] = [
         position: 0,
         releaseAt: epoch("2017-10-07"),
         units: [
-          { key: "episode-1", type: "episode", number: 1, position: 0, title: "Phosphophyllite", releaseAt: epoch("2017-10-07") },
-          { key: "episode-2", type: "episode", number: 2, position: 1, title: "Diamond", releaseAt: epoch("2017-10-14") },
-          { key: "episode-3", type: "episode", number: 3, position: 2, title: "Metamorphose", releaseAt: epoch("2017-10-21") },
-          { key: "episode-4", type: "episode", number: 4, position: 3, title: "Soul - Flesh - Bone", releaseAt: epoch("2017-10-28") },
-          { key: "episode-5", type: "episode", number: 5, position: 4, title: "Return", releaseAt: epoch("2017-11-04") },
-          { key: "episode-6", type: "episode", number: 6, position: 5, title: "First Battle", releaseAt: epoch("2017-11-11") },
-          { key: "episode-7", type: "episode", number: 7, position: 6, title: "Hibernation", releaseAt: epoch("2017-11-18") },
-          { key: "episode-8", type: "episode", number: 8, position: 7, title: "Antarcticite", releaseAt: epoch("2017-11-25") },
-          { key: "episode-9", type: "episode", number: 9, position: 8, title: "Spring", releaseAt: epoch("2017-12-02") },
-          { key: "episode-10", type: "episode", number: 10, position: 9, title: "Shiro", releaseAt: epoch("2017-12-09") },
-          { key: "episode-11", type: "episode", number: 11, position: 10, title: "Secrets", releaseAt: epoch("2017-12-16") },
-          { key: "episode-12", type: "episode", number: 12, position: 11, title: "New Work", releaseAt: epoch("2017-12-23") },
+          {
+            key: "episode-1",
+            type: "episode",
+            number: 1,
+            position: 0,
+            title: "Phosphophyllite",
+            releaseAt: epoch("2017-10-07"),
+          },
+          {
+            key: "episode-2",
+            type: "episode",
+            number: 2,
+            position: 1,
+            title: "Diamond",
+            releaseAt: epoch("2017-10-14"),
+          },
+          {
+            key: "episode-3",
+            type: "episode",
+            number: 3,
+            position: 2,
+            title: "Metamorphose",
+            releaseAt: epoch("2017-10-21"),
+          },
+          {
+            key: "episode-4",
+            type: "episode",
+            number: 4,
+            position: 3,
+            title: "Soul - Flesh - Bone",
+            releaseAt: epoch("2017-10-28"),
+          },
+          {
+            key: "episode-5",
+            type: "episode",
+            number: 5,
+            position: 4,
+            title: "Return",
+            releaseAt: epoch("2017-11-04"),
+          },
+          {
+            key: "episode-6",
+            type: "episode",
+            number: 6,
+            position: 5,
+            title: "First Battle",
+            releaseAt: epoch("2017-11-11"),
+          },
+          {
+            key: "episode-7",
+            type: "episode",
+            number: 7,
+            position: 6,
+            title: "Hibernation",
+            releaseAt: epoch("2017-11-18"),
+          },
+          {
+            key: "episode-8",
+            type: "episode",
+            number: 8,
+            position: 7,
+            title: "Antarcticite",
+            releaseAt: epoch("2017-11-25"),
+          },
+          {
+            key: "episode-9",
+            type: "episode",
+            number: 9,
+            position: 8,
+            title: "Spring",
+            releaseAt: epoch("2017-12-02"),
+          },
+          {
+            key: "episode-10",
+            type: "episode",
+            number: 10,
+            position: 9,
+            title: "Shiro",
+            releaseAt: epoch("2017-12-09"),
+          },
+          {
+            key: "episode-11",
+            type: "episode",
+            number: 11,
+            position: 10,
+            title: "Secrets",
+            releaseAt: epoch("2017-12-16"),
+          },
+          {
+            key: "episode-12",
+            type: "episode",
+            number: 12,
+            position: 11,
+            title: "New Work",
+            releaseAt: epoch("2017-12-23"),
+          },
         ],
       },
     ],
@@ -583,8 +670,7 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      editorialDeck:
-        "A Cosmere standalone about art, duty, and two lives out of place",
+      editorialDeck: "A Cosmere standalone about art, duty, and two lives out of place",
       releaseStart: "2023-07-01",
       releaseEnd: "2023-07-01",
       sourceMaterial: null,
@@ -683,8 +769,7 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      editorialDeck:
-        "A dystopian novel about power, language, memory, and truth",
+      editorialDeck: "A dystopian novel about power, language, memory, and truth",
       releaseStart: "1949-06-08",
       releaseEnd: "1949-06-08",
       sourceMaterial: null,
@@ -804,8 +889,7 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      editorialDeck:
-        "A school sports romance built on practice, patience, and proximity",
+      editorialDeck: "A school sports romance built on practice, patience, and proximity",
       releaseStart: "2021-04-12",
       releaseEnd: "2026-07-13",
       sourceMaterial: null,
@@ -909,8 +993,7 @@ const goldWorks: GoldWork[] = [
       },
     ],
     metadata: {
-      editorialDeck:
-        "A brief existential romance about what makes a life valuable",
+      editorialDeck: "A brief existential romance about what makes a life valuable",
       releaseStart: "2016-08-10",
       releaseEnd: "2017-10-25",
       sourceMaterial: {
@@ -940,7 +1023,7 @@ const goldWorks: GoldWork[] = [
     },
     units: numberedUnits(18, "chapter"),
   },
-]
+];
 
 function slug(value: string) {
   return value
@@ -948,18 +1031,18 @@ function slug(value: string) {
     .toLocaleLowerCase()
     .normalize("NFKD")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
+    .replace(/^-|-$/g, "");
 }
 
 function stableId(...parts: string[]) {
-  return `gold-${parts.map(slug).join("-")}`
+  return `gold-${parts.map(slug).join("-")}`;
 }
 
 function curateWork(spec: GoldWork) {
-  const current = db.select().from(works).where(eq(works.id, spec.id)).get()
-  if (!current) throw new Error(`Required work not found: ${spec.id}`)
-  const now = Math.floor(Date.now() / 1000)
-  const currentMetadata = current.metadata
+  const current = db.select().from(works).where(eq(works.id, spec.id)).get();
+  if (!current) throw new Error(`Required work not found: ${spec.id}`);
+  const now = Math.floor(Date.now() / 1000);
+  const currentMetadata = current.metadata;
 
   db.transaction((tx) => {
     tx.update(works)
@@ -984,9 +1067,9 @@ function curateWork(spec: GoldWork) {
         updatedAt: now,
       })
       .where(eq(works.id, spec.id))
-      .run()
+      .run();
 
-    tx.delete(workTitles).where(eq(workTitles.workId, spec.id)).run()
+    tx.delete(workTitles).where(eq(workTitles.workId, spec.id)).run();
     tx.insert(workTitles)
       .values({
         id: stableId(spec.id, "title", "canonical"),
@@ -995,7 +1078,7 @@ function curateWork(spec: GoldWork) {
         titleType: "canonical",
         isPreferred: true,
       })
-      .run()
+      .run();
     for (const [index, alias] of spec.aliases.entries()) {
       tx.insert(workTitles)
         .values({
@@ -1006,15 +1089,15 @@ function curateWork(spec: GoldWork) {
           language: alias.language,
           script: alias.script,
         })
-        .run()
+        .run();
     }
 
-    const vocabularies = ["genre", "tone", "tag", "audience", "country"]
+    const vocabularies = ["genre", "tone", "tag", "audience", "country"];
     const existingTerms = tx
       .select({ id: terms.id })
       .from(terms)
       .where(inArray(terms.vocabulary, vocabularies))
-      .all()
+      .all();
     if (existingTerms.length > 0) {
       tx.delete(workTerms)
         .where(
@@ -1022,11 +1105,11 @@ function curateWork(spec: GoldWork) {
             eq(workTerms.workId, spec.id),
             inArray(
               workTerms.termId,
-              existingTerms.map(({ id }) => id)
-            )
-          )
+              existingTerms.map(({ id }) => id),
+            ),
+          ),
         )
-        .run()
+        .run();
     }
     for (const [vocabulary, values] of Object.entries({
       genre: spec.genres,
@@ -1036,54 +1119,45 @@ function curateWork(spec: GoldWork) {
       country: spec.countries,
     })) {
       for (const name of values) {
-        const termSlug = slug(name)
+        const termSlug = slug(name);
         let term = tx
           .select()
           .from(terms)
-          .where(
-            and(eq(terms.vocabulary, vocabulary), eq(terms.slug, termSlug))
-          )
-          .get()
+          .where(and(eq(terms.vocabulary, vocabulary), eq(terms.slug, termSlug)))
+          .get();
         if (!term) {
-          const id = stableId("term", vocabulary, termSlug)
-          tx.insert(terms)
-            .values({ id, vocabulary, name, slug: termSlug })
-            .run()
-          term = tx.select().from(terms).where(eq(terms.id, id)).get()
+          const id = stableId("term", vocabulary, termSlug);
+          tx.insert(terms).values({ id, vocabulary, name, slug: termSlug }).run();
+          term = tx.select().from(terms).where(eq(terms.id, id)).get();
         }
-        if (!term)
-          throw new Error(`Could not create term ${vocabulary}:${name}`)
+        if (!term) throw new Error(`Could not create term ${vocabulary}:${name}`);
         tx.insert(workTerms)
           .values({
             workId: spec.id,
             termId: term.id,
             source: "curated",
           })
-          .run()
+          .run();
       }
     }
 
-    tx.delete(workCredits).where(eq(workCredits.workId, spec.id)).run()
+    tx.delete(workContributors).where(eq(workContributors.workId, spec.id)).run();
     for (const [position, credit] of spec.credits.entries()) {
+      const role = credit.role === "main-studio" ? "animation-studio" : credit.role;
       const entityType =
-        credit.role === "main-studio"
-          ? "studio"
-          : credit.role === "publisher"
-            ? "publisher"
-            : credit.entityType
-      const sortName = credit.name.trim().toLocaleLowerCase()
+        credit.entityType === "studio" ||
+        credit.entityType === "publisher" ||
+        ["animation-studio", "production-company", "developer", "publisher"].includes(role)
+          ? "organization"
+          : credit.entityType;
+      const sortName = credit.name.trim().toLocaleLowerCase();
       let entity = tx
         .select()
         .from(entities)
-        .where(
-          and(
-            eq(entities.entityType, entityType),
-            eq(entities.sortName, sortName)
-          )
-        )
-        .get()
+        .where(and(eq(entities.entityType, entityType), eq(entities.sortName, sortName)))
+        .get();
       if (!entity) {
-        const id = stableId("entity", entityType, credit.name)
+        const id = stableId("entity", entityType, credit.name);
         tx.insert(entities)
           .values({
             id,
@@ -1091,28 +1165,24 @@ function curateWork(spec: GoldWork) {
             name: credit.name,
             sortName,
           })
-          .run()
-        entity = tx.select().from(entities).where(eq(entities.id, id)).get()
+          .run();
+        entity = tx.select().from(entities).where(eq(entities.id, id)).get();
       }
-      if (!entity) throw new Error(`Could not create entity ${credit.name}`)
-      tx.insert(workCredits)
+      if (!entity) throw new Error(`Could not create entity ${credit.name}`);
+      tx.insert(workContributors)
         .values({
           workId: spec.id,
           entityId: entity.id,
-          role: credit.role,
+          role,
+          isPrimary: credit.isPrimary ?? role === "animation-studio",
           position,
         })
-        .run()
+        .run();
     }
 
     tx.delete(externalLinks)
-      .where(
-        and(
-          eq(externalLinks.ownerType, "work"),
-          eq(externalLinks.ownerId, spec.id)
-        )
-      )
-      .run()
+      .where(and(eq(externalLinks.ownerType, "work"), eq(externalLinks.ownerId, spec.id)))
+      .run();
     for (const link of spec.links) {
       tx.insert(externalLinks)
         .values({
@@ -1121,16 +1191,15 @@ function curateWork(spec: GoldWork) {
           ownerId: spec.id,
           ...link,
         })
-        .run()
+        .run();
     }
 
     for (const season of spec.seasons ?? []) {
-      const seasonId = stableId(spec.id, season.key)
+      const seasonId = stableId(spec.id, season.key);
       const calculatedRuntime =
         season.runtimeMinutes ??
-        season.units.reduce((sum, unit) => sum + (unit.runtimeMinutes ?? 0), 0)
-      const calculatedUnitCount =
-        season.announcedUnitCount ?? season.units.length
+        season.units.reduce((sum, unit) => sum + (unit.runtimeMinutes ?? 0), 0);
+      const calculatedUnitCount = season.announcedUnitCount ?? season.units.length;
       tx.insert(workSeasons)
         .values({
           id: seasonId,
@@ -1156,22 +1225,15 @@ function curateWork(spec: GoldWork) {
             updatedAt: now,
           },
         })
-        .run()
+        .run();
       for (const unit of season.units) {
-        upsertUnit(
-          tx,
-          spec.id,
-          seasonId,
-          `${season.key}-${unit.key}`,
-          unit,
-          now
-        )
+        upsertUnit(tx, spec.id, seasonId, `${season.key}-${unit.key}`, unit, now);
       }
     }
     for (const unit of spec.units ?? []) {
-      upsertUnit(tx, spec.id, null, unit.key, unit, now)
+      upsertUnit(tx, spec.id, null, unit.key, unit, now);
     }
-  })
+  });
 }
 
 function upsertUnit(
@@ -1180,9 +1242,9 @@ function upsertUnit(
   seasonId: string | null,
   key: string,
   unit: UnitSpec,
-  now: number
+  now: number,
 ) {
-  const id = stableId(workId, key)
+  const id = stableId(workId, key);
   const values = {
     id,
     workId,
@@ -1196,7 +1258,7 @@ function upsertUnit(
     releaseAt: unit.releaseAt ?? null,
     createdAt: now,
     updatedAt: now,
-  }
+  };
   tx.insert(workUnits)
     .values(values)
     .onConflictDoUpdate({
@@ -1213,22 +1275,22 @@ function upsertUnit(
         updatedAt: now,
       },
     })
-    .run()
+    .run();
 }
 
-const requestedWorkId = process.env.GOLD_WORK_ID
+const requestedWorkId = process.env.GOLD_WORK_ID;
 const worksToCurate = requestedWorkId
   ? goldWorks.filter(({ id }) => id === requestedWorkId)
-  : goldWorks
+  : goldWorks;
 
 if (requestedWorkId && worksToCurate.length === 0) {
-  throw new Error(`Unknown gold-standard work: ${requestedWorkId}`)
+  throw new Error(`Unknown gold-standard work: ${requestedWorkId}`);
 }
 
-for (const spec of worksToCurate) curateWork(spec)
+for (const spec of worksToCurate) curateWork(spec);
 
 console.log(
   `Curated ${worksToCurate.length} gold-standard records: ${worksToCurate
     .map(({ title }) => title)
-    .join(", ")}`
-)
+    .join(", ")}`,
+);

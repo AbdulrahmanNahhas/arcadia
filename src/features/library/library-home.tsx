@@ -1,6 +1,3 @@
-import { useMemo } from "react"
-import { Link } from "@tanstack/react-router"
-import { useSuspenseQuery } from "@tanstack/react-query"
 import {
   ArrowLeftIcon,
   BookmarkSimpleIcon,
@@ -9,9 +6,12 @@ import {
   GridFourIcon,
   SquaresFourIcon,
   TableIcon,
-} from "@phosphor-icons/react"
-import { Badge } from "@/components/ui/badge"
-import { buttonVariants } from "@/components/ui/button"
+} from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -20,20 +20,20 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { getSavedViews, getWorks } from "@/server/library.functions"
-import { cn } from "@/lib/utils"
-import { workMatchesSavedView } from "./filtering"
-import type { SavedUserView, Work } from "./model"
-import { getSavedViewAccentStyle, getSavedViewIcon } from "./view-meta"
-import { LibraryHeader } from "./components/library-header"
+} from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { getSavedViews, getWorks } from "@/server/library.functions";
+import { LibraryHeader } from "./components/library-header";
+import { isWorkVisibleByDefault, workMatchesSavedView } from "./filtering";
+import type { SavedUserView, Work } from "./model";
+import { getSavedViewAccentStyle, getSavedViewIcon } from "./view-meta";
 
 const layoutMeta = {
   gallery: { label: "معرض", icon: GridFourIcon },
   table: { label: "جدول", icon: TableIcon },
   timeline: { label: "خط زمني", icon: CalendarBlankIcon },
   statistics: { label: "إحصاءات", icon: ChartDonutIcon },
-} as const
+} as const;
 
 const showcaseCoverClasses = [
   "right-0 -translate-y-1/2 -rotate-6 group-hover/showcase:translate-x-8 group-hover/showcase:-translate-y-[62%] group-hover/showcase:-rotate-12",
@@ -41,57 +41,50 @@ const showcaseCoverClasses = [
   "right-32 -translate-y-1/2 group-hover/showcase:-translate-y-[46%]",
   "right-48 -translate-y-1/2 rotate-3 group-hover/showcase:-translate-x-4 group-hover/showcase:-translate-y-[55%] group-hover/showcase:rotate-7",
   "right-64 -translate-y-1/2 rotate-6 group-hover/showcase:-translate-x-8 group-hover/showcase:-translate-y-[63%] group-hover/showcase:rotate-12",
-] as const
+] as const;
 
 function stableWorkOrder(id: string) {
-  let hash = 0
+  let hash = 0;
   for (const character of id) {
-    hash = (hash * 31 + character.charCodeAt(0)) | 0
+    hash = (hash * 31 + character.charCodeAt(0)) | 0;
   }
-  return hash
+  return hash;
 }
 
 export function LibraryHome() {
   const { data: works } = useSuspenseQuery({
     queryKey: ["works"],
     queryFn: () => getWorks(),
-  })
+  });
   const { data: savedViews } = useSuspenseQuery({
     queryKey: ["saved-views"],
     queryFn: () => getSavedViews(),
-  })
+  });
+  const visibleWorks = useMemo(() => works.filter(isWorkVisibleByDefault), [works]);
 
   const summary = useMemo(
     () => ({
-      total: works.length,
-      active: works.filter((work) => work.status === "in-progress").length,
-      completed: works.filter((work) => work.status === "completed").length,
-      favorites: works.filter((work) => work.favorite).length,
+      total: visibleWorks.length,
+      active: visibleWorks.filter((work) => work.status === "in-progress").length,
+      completed: visibleWorks.filter((work) => work.status === "completed").length,
+      favorites: visibleWorks.filter((work) => work.favorite).length,
     }),
-    [works]
-  )
+    [visibleWorks],
+  );
   const recentWorks = useMemo(
-    () =>
-      [...works]
-        .sort((left, right) => right.addedAt - left.addedAt)
-        .slice(0, 7),
-    [works]
-  )
+    () => [...visibleWorks].sort((left, right) => right.addedAt - left.addedAt).slice(0, 7),
+    [visibleWorks],
+  );
   const showcaseWorks = useMemo(
     () =>
-      [...works]
+      [...visibleWorks]
         .filter((work) => work.imagePath && work.calculatedRating !== null)
-        .sort(
-          (left, right) =>
-            (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0)
-        )
+        .sort((left, right) => (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0))
         .slice(0, 25)
-        .sort(
-          (left, right) => stableWorkOrder(left.id) - stableWorkOrder(right.id)
-        )
+        .sort((left, right) => stableWorkOrder(left.id) - stableWorkOrder(right.id))
         .slice(0, 5),
-    [works]
-  )
+    [visibleWorks],
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -109,48 +102,28 @@ export function LibraryHome() {
               مكتبة واحدة لكل العوالم التي مررت بها.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
-              افتح كل الأعمال أو عرضاً محفوظاً، ثم واصل من حيث توقفت. كل سجل
-              يحتفظ بالتقييم والتقدم والتفاصيل والعلاقات في مكان واحد.
+              افتح كل الأعمال أو عرضاً محفوظاً، ثم واصل من حيث توقفت. كل سجل يحتفظ بالتقييم والتقدم
+              والتفاصيل والعلاقات في مكان واحد.
             </p>
             <Link
               to="/library"
               search={{}}
-              className={cn(
-                buttonVariants({ size: "lg" }),
-                "mt-7 rounded-full px-5"
-              )}
+              className={cn(buttonVariants({ size: "lg" }), "mt-7 rounded-full px-5")}
             >
               <SquaresFourIcon data-icon="inline-start" />
               افتح المكتبة كاملة
-              <span className="text-primary-foreground/70">
-                {summary.total}
-              </span>
+              <span className="text-primary-foreground/70">{summary.total}</span>
               <ArrowLeftIcon data-icon="inline-end" />
             </Link>
 
             <dl className="mt-9 flex flex-wrap gap-x-8 gap-y-4 border-t border-border/70 pt-6">
-              <SummaryItem
-                label="قيد المتابعة"
-                value={summary.active}
-                tone="primary"
-              />
-              <SummaryItem
-                label="مكتمل"
-                value={summary.completed}
-                tone="emerald"
-              />
-              <SummaryItem
-                label="في المفضلة"
-                value={summary.favorites}
-                tone="amber"
-              />
+              <SummaryItem label="قيد المتابعة" value={summary.active} tone="primary" />
+              <SummaryItem label="مكتمل" value={summary.completed} tone="emerald" />
+              <SummaryItem label="في المفضلة" value={summary.favorites} tone="amber" />
             </dl>
           </div>
 
-          <div
-            className="group/showcase relative mt-10 hidden h-72 lg:block"
-            aria-hidden="true"
-          >
+          <div className="group/showcase relative mt-10 hidden h-72 lg:block" aria-hidden="true">
             {showcaseWorks.map((work, index) => (
               <div
                 key={work.id}
@@ -159,16 +132,12 @@ export function LibraryHome() {
                   "transition-all duration-300 ease-out motion-reduce:transition-none",
                   "group-hover/showcase:blur-[1.5px] group-hover/showcase:brightness-75 group-hover/showcase:saturate-75",
                   "hover:z-20! hover:scale-110! hover:blur-none! hover:brightness-100! hover:saturate-100!",
-                  showcaseCoverClasses[index]
+                  showcaseCoverClasses[index],
                 )}
                 style={{ zIndex: 10 - index }}
               >
                 {work.imagePath ? (
-                  <img
-                    src={work.imagePath}
-                    alt=""
-                    className="size-full object-cover"
-                  />
+                  <img src={work.imagePath} alt="" className="size-full object-cover" />
                 ) : (
                   <div className="flex size-full flex-col justify-end bg-linear-to-t from-black/80 via-black/10 to-transparent p-3">
                     <span className="text-xs font-semibold text-white">
@@ -222,12 +191,9 @@ export function LibraryHome() {
                   className="mx-auto size-8 text-muted-foreground"
                   weight="duotone"
                 />
-                <p className="mt-3 text-sm font-medium">
-                  لا توجد عروض إضافية بعد
-                </p>
+                <p className="mt-3 text-sm font-medium">لا توجد عروض إضافية بعد</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  أنشئ عرضاً من شريط أدوات المكتبة، أو أدر عروضك وتثبيتها من
-                  صفحة الإدارة.
+                  أنشئ عرضاً من شريط أدوات المكتبة، أو أدر عروضك وتثبيتها من صفحة الإدارة.
                 </p>
               </CardContent>
             </Card>
@@ -276,7 +242,7 @@ export function LibraryHome() {
         </HomeSection>
       </main>
     </div>
-  )
+  );
 }
 
 function HomeSection({
@@ -286,11 +252,11 @@ function HomeSection({
   badge,
   children,
 }: {
-  id: string
-  title: string
-  description: string
-  badge?: string
-  children: React.ReactNode
+  id: string;
+  title: string;
+  description: string;
+  badge?: string;
+  children: React.ReactNode;
 }) {
   return (
     <section aria-labelledby={id}>
@@ -307,7 +273,7 @@ function HomeSection({
       </div>
       {children}
     </section>
-  )
+  );
 }
 
 function SummaryItem({
@@ -315,15 +281,15 @@ function SummaryItem({
   value,
   tone,
 }: {
-  label: string
-  value: number
-  tone: "primary" | "emerald" | "amber"
+  label: string;
+  value: number;
+  tone: "primary" | "emerald" | "amber";
 }) {
   const dot = {
     primary: "bg-primary",
     emerald: "bg-emerald-500",
     amber: "bg-amber-500",
-  }[tone]
+  }[tone];
 
   return (
     <div className="min-w-24 flex-1 border-e border-border/70 pe-8 last:border-e-0 last:pe-0">
@@ -331,33 +297,22 @@ function SummaryItem({
         <span className={cn("size-1.5 rounded-full", dot)} />
         {label}
       </dt>
-      <dd className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums">
-        {value}
-      </dd>
+      <dd className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums">{value}</dd>
     </div>
-  )
+  );
 }
 
-function LargeViewCard({
-  view,
-  works,
-}: {
-  view?: SavedUserView
-  works: Work[]
-}) {
-  const Icon = view ? getSavedViewIcon(view.icon) : SquaresFourIcon
+function LargeViewCard({ view, works }: { view?: SavedUserView; works: Work[] }) {
+  const Icon = view ? getSavedViewIcon(view.icon) : SquaresFourIcon;
   const matchingWorks = view
     ? works.filter((work) => workMatchesSavedView(work, view))
-    : works
+    : works.filter(isWorkVisibleByDefault);
   const covers = matchingWorks
     .filter((work) => work.imagePath)
-    .sort(
-      (left, right) =>
-        (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0)
-    )
-    .slice(0, 3)
-  const meta = view ? layoutMeta[view.layout] : layoutMeta.gallery
-  const LayoutIcon = meta.icon
+    .sort((left, right) => (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0))
+    .slice(0, 3);
+  const meta = view ? layoutMeta[view.layout] : layoutMeta.gallery;
+  const LayoutIcon = meta.icon;
 
   return (
     <Link
@@ -382,19 +337,12 @@ function LargeViewCard({
                   }
                   className="relative h-28 w-20 shrink-0 transform-[rotate(var(--rotate))] overflow-hidden rounded-md border border-border/50 bg-muted shadow-md ring-1 ring-black/5 transition-[transform,box-shadow] duration-300 ease-out group-hover:transform-[translate(var(--spread),10px)_rotate(0deg)] group-hover:shadow-lg"
                 >
-                  <img
-                    src={work.imagePath!}
-                    alt=""
-                    className="size-full object-cover"
-                  />
+                  <img src={work.imagePath!} alt="" className="size-full object-cover" />
                 </div>
               ))}
             </div>
           ) : (
-            <Icon
-              weight="duotone"
-              className="size-10 text-muted-foreground/40"
-            />
+            <Icon weight="duotone" className="size-10 text-muted-foreground/40" />
           )}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-linear-to-t from-card to-transparent" />
         </div>
@@ -404,7 +352,7 @@ function LargeViewCard({
             <span
               className={cn(
                 "flex size-8 items-center justify-center rounded-lg border",
-                !view && "border-primary/20 bg-primary/10 text-primary"
+                !view && "border-primary/20 bg-primary/10 text-primary",
               )}
               style={view ? getSavedViewAccentStyle(view.color) : undefined}
             >
@@ -413,8 +361,7 @@ function LargeViewCard({
             {view?.name ?? "كل الأعمال"}
           </CardTitle>
           <CardDescription className="line-clamp-2">
-            {view?.description ||
-              "العرض الشامل لكل الأعمال المحفوظة في مكتبتك."}
+            {view?.description || "العرض الشامل لكل الأعمال المحفوظة في مكتبتك."}
           </CardDescription>
           <CardAction>
             <ArrowLeftIcon className="text-muted-foreground transition-transform group-hover:-translate-x-1 group-hover:text-foreground" />
@@ -430,29 +377,20 @@ function LargeViewCard({
         </CardFooter>
       </Card>
     </Link>
-  )
+  );
 }
 
-function CompactViewCard({
-  view,
-  works,
-}: {
-  view: SavedUserView
-  works: Work[]
-}) {
-  const meta = layoutMeta[view.layout]
-  const LayoutIcon = meta.icon
-  const Icon = getSavedViewIcon(view.icon)
-  const matchingWorks = works.filter((work) => workMatchesSavedView(work, view))
+function CompactViewCard({ view, works }: { view: SavedUserView; works: Work[] }) {
+  const meta = layoutMeta[view.layout];
+  const LayoutIcon = meta.icon;
+  const Icon = getSavedViewIcon(view.icon);
+  const matchingWorks = works.filter((work) => workMatchesSavedView(work, view));
 
   const covers = matchingWorks
     .filter((work) => work.imagePath)
-    .sort(
-      (left, right) =>
-        (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0)
-    )
-    .slice(0, 8)
-  const overflow = matchingWorks.length - covers.length
+    .sort((left, right) => (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0))
+    .slice(0, 8);
+  const overflow = matchingWorks.length - covers.length;
 
   return (
     <Link
@@ -498,11 +436,7 @@ function CompactViewCard({
                   }
                   className="relative aspect-2/3 h-20 shrink-0 overflow-hidden rounded-lg bg-muted shadow-sm ring-2 ring-card transition-[transform,height] duration-300 ease-out group-hover/card:h-24 group-hover/card:transform-[translateX(var(--shift))]"
                 >
-                  <img
-                    src={work.imagePath!}
-                    alt=""
-                    className="size-full object-cover"
-                  />
+                  <img src={work.imagePath!} alt="" className="size-full object-cover" />
                 </div>
               ))}
               {overflow > 0 ? (
@@ -536,5 +470,5 @@ function CompactViewCard({
         </CardFooter>
       </Card>
     </Link>
-  )
+  );
 }

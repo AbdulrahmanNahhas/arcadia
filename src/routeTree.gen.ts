@@ -11,8 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as EntitiesRouteImport } from './routes/entities'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as ApiAgentRouteImport } from './routes/api.agent'
+import { Route as EntitiesIndexRouteImport } from './routes/entities.index'
+import { Route as EntitiesEntityIdRouteImport } from './routes/entities.$entityId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EntitiesRoute = EntitiesRouteImport.update({
+  id: '/entities',
+  path: '/entities',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedRoute = FeedRouteImport.update({
@@ -34,39 +43,91 @@ const LibraryRoute = LibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAgentRoute = ApiAgentRouteImport.update({
+  id: '/api/agent',
+  path: '/api/agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EntitiesIndexRoute = EntitiesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EntitiesRoute,
+} as any)
+const EntitiesEntityIdRoute = EntitiesEntityIdRouteImport.update({
+  id: '/$entityId',
+  path: '/$entityId',
+  getParentRoute: () => EntitiesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/entities': typeof EntitiesRouteWithChildren
   '/feed': typeof FeedRoute
   '/library': typeof LibraryRoute
+  '/api/agent': typeof ApiAgentRoute
+  '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/entities/': typeof EntitiesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/feed': typeof FeedRoute
   '/library': typeof LibraryRoute
+  '/api/agent': typeof ApiAgentRoute
+  '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/entities': typeof EntitiesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/entities': typeof EntitiesRouteWithChildren
   '/feed': typeof FeedRoute
   '/library': typeof LibraryRoute
+  '/api/agent': typeof ApiAgentRoute
+  '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/entities/': typeof EntitiesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/feed' | '/library'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/entities'
+    | '/feed'
+    | '/library'
+    | '/api/agent'
+    | '/entities/$entityId'
+    | '/entities/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/feed' | '/library'
-  id: '__root__' | '/' | '/admin' | '/feed' | '/library'
+  to:
+    | '/'
+    | '/admin'
+    | '/feed'
+    | '/library'
+    | '/api/agent'
+    | '/entities/$entityId'
+    | '/entities'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/entities'
+    | '/feed'
+    | '/library'
+    | '/api/agent'
+    | '/entities/$entityId'
+    | '/entities/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  EntitiesRoute: typeof EntitiesRouteWithChildren
   FeedRoute: typeof FeedRoute
   LibraryRoute: typeof LibraryRoute
+  ApiAgentRoute: typeof ApiAgentRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -85,6 +146,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/entities': {
+      id: '/entities'
+      path: '/entities'
+      fullPath: '/entities'
+      preLoaderRoute: typeof EntitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/feed': {
       id: '/feed'
       path: '/feed'
@@ -99,14 +167,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/agent': {
+      id: '/api/agent'
+      path: '/api/agent'
+      fullPath: '/api/agent'
+      preLoaderRoute: typeof ApiAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/entities/': {
+      id: '/entities/'
+      path: '/'
+      fullPath: '/entities/'
+      preLoaderRoute: typeof EntitiesIndexRouteImport
+      parentRoute: typeof EntitiesRoute
+    }
+    '/entities/$entityId': {
+      id: '/entities/$entityId'
+      path: '/$entityId'
+      fullPath: '/entities/$entityId'
+      preLoaderRoute: typeof EntitiesEntityIdRouteImport
+      parentRoute: typeof EntitiesRoute
+    }
   }
 }
+
+interface EntitiesRouteChildren {
+  EntitiesEntityIdRoute: typeof EntitiesEntityIdRoute
+  EntitiesIndexRoute: typeof EntitiesIndexRoute
+}
+
+const EntitiesRouteChildren: EntitiesRouteChildren = {
+  EntitiesEntityIdRoute: EntitiesEntityIdRoute,
+  EntitiesIndexRoute: EntitiesIndexRoute,
+}
+
+const EntitiesRouteWithChildren = EntitiesRoute._addFileChildren(
+  EntitiesRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  EntitiesRoute: EntitiesRouteWithChildren,
   FeedRoute: FeedRoute,
   LibraryRoute: LibraryRoute,
+  ApiAgentRoute: ApiAgentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

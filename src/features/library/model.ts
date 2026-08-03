@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z } from "zod";
 
 export const workKinds = [
   "movie",
@@ -9,10 +9,10 @@ export const workKinds = [
   "game",
   "visual-novel",
   "comic",
-] as const
+] as const;
 
-export const workKindSchema = z.enum(workKinds)
-export type WorkKind = z.infer<typeof workKindSchema>
+export const workKindSchema = z.enum(workKinds);
+export type WorkKind = z.infer<typeof workKindSchema>;
 
 export const genres = [
   "Action",
@@ -34,9 +34,9 @@ export const genres = [
   "Supernatural",
   "Thriller",
   "War",
-] as const
+] as const;
 
-export const audiences = ["Adult", "Young Adult", "Teen", "General"] as const
+export const audiences = ["Adult", "Young Adult", "Teen", "General"] as const;
 
 export const countries = [
   "Australia",
@@ -45,7 +45,7 @@ export const countries = [
   "South Korea",
   "United Kingdom",
   "United States",
-] as const
+] as const;
 
 export const tones = [
   "Wholesome",
@@ -58,7 +58,7 @@ export const tones = [
   "Whimsical",
   "Epic",
   "Atmospheric",
-] as const
+] as const;
 
 export const taxonomyLabels = {
   genres: {
@@ -108,7 +108,7 @@ export const taxonomyLabels = {
     "United Kingdom": "المملكة المتحدة",
     "United States": "الولايات المتحدة",
   },
-} as const
+} as const;
 
 export const tagLabelsAr: Readonly<Record<string, string>> = {
   "Adult Cast": "شخصيات بالغة",
@@ -262,47 +262,52 @@ export const tagLabelsAr: Readonly<Record<string, string>> = {
   Witches: "الساحرات",
   Workplace: "مكان العمل",
   Writing: "الكتابة",
-}
+};
 
-export const creatorRoles = [
+export const contributorRoles = [
   "author",
+  "original-author",
   "writer",
+  "screenwriter",
   "director",
   "illustrator",
-  "main-studio",
+  "artist",
+  "animation-studio",
+  "production-company",
+  "producer",
   "developer",
   "publisher",
   "composer",
+  "editor",
+  "translator",
   "creator",
-] as const
+] as const;
 
 export const personalStatuses = [
+  "saved",
   "planned",
   "in-progress",
   "completed",
   "paused",
   "dropped",
-] as const
+] as const;
 
-export const genreSchema = z.enum(genres)
-export const toneSchema = z.enum(tones)
-export const audienceSchema = z.enum(audiences)
-export const countrySchema = z.enum(countries)
-export const creatorRoleSchema = z.enum(creatorRoles)
-export const personalStatusSchema = z.enum(personalStatuses)
+export const genreSchema = z.enum(genres);
+export const toneSchema = z.enum(tones);
+export const audienceSchema = z.enum(audiences);
+export const countrySchema = z.enum(countries);
+export const contributorRoleSchema = z.enum(contributorRoles);
+export const personalStatusSchema = z.enum(personalStatuses);
 
 function isCalendarDate(value: string) {
-  const parsed = new Date(`${value}T00:00:00.000Z`)
-  return (
-    !Number.isNaN(parsed.valueOf()) &&
-    parsed.toISOString().slice(0, 10) === value
-  )
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 export const dateOnlySchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "استخدم تاريخاً بصيغة YYYY-MM-DD.")
-  .refine(isCalendarDate, "استخدم تاريخاً صحيحاً.")
+  .refine(isCalendarDate, "استخدم تاريخاً صحيحاً.");
 
 export const trackingEntrySchema = z.object({
   id: z.string(),
@@ -314,14 +319,14 @@ export const trackingEntrySchema = z.object({
   occurredOn: dateOnlySchema,
   daySequence: z.number().int().min(0),
   recordedAt: z.number().int(),
-})
+});
 
 export const recordTrackingEntrySchema = trackingEntrySchema.pick({
   workId: true,
   progress: true,
   status: true,
   occurredOn: true,
-})
+});
 
 export const trackingPageInputSchema = z.object({
   limit: z.number().int().min(1).max(10_000).default(200),
@@ -336,26 +341,88 @@ export const trackingPageInputSchema = z.object({
   statuses: z.array(personalStatusSchema).optional(),
   dateFrom: dateOnlySchema.optional(),
   dateTo: dateOnlySchema.optional(),
-})
+});
 
-export type TrackingEntry = z.infer<typeof trackingEntrySchema>
-export type RecordTrackingEntry = z.infer<typeof recordTrackingEntrySchema>
-export type TrackingPageInput = z.infer<typeof trackingPageInputSchema>
+export type TrackingEntry = z.infer<typeof trackingEntrySchema>;
+export type RecordTrackingEntry = z.infer<typeof recordTrackingEntrySchema>;
+export type TrackingPageInput = z.infer<typeof trackingPageInputSchema>;
 
-export type Genre = z.infer<typeof genreSchema>
-export type Tone = z.infer<typeof toneSchema>
-export type Audience = z.infer<typeof audienceSchema>
-export type Country = z.infer<typeof countrySchema>
+export type Genre = z.infer<typeof genreSchema>;
+export type Tone = z.infer<typeof toneSchema>;
+export type Audience = z.infer<typeof audienceSchema>;
+export type Country = z.infer<typeof countrySchema>;
 
-export const workCreditSchema = z.object({
+export const workContributionSchema = z.object({
   entityId: z.string(),
   name: z.string().min(1),
-  entityType: z.enum(["person", "studio", "publisher", "organization"]),
-  role: creatorRoleSchema,
-})
+  entityType: z.enum(["person", "organization"]),
+  role: contributorRoleSchema,
+  isPrimary: z.boolean().default(false),
+});
 
-export const workCreditInputSchema = workCreditSchema.omit({ entityId: true })
-export type WorkCredit = z.infer<typeof workCreditSchema>
+export const workContributionInputSchema = workContributionSchema.omit({
+  entityId: true,
+});
+export type WorkContribution = z.infer<typeof workContributionSchema>;
+
+export const entitySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  sortName: z.string(),
+  entityType: z.enum(["person", "organization"]),
+  description: z.string(),
+  imagePath: z.string().nullable(),
+  malId: z.number().int().positive().nullable(),
+  sourceUrl: z.string().nullable(),
+  sourceProvider: z.string().nullable(),
+  establishedAt: z.string().nullable(),
+  favorites: z.number().int().min(0).nullable(),
+  alternativeNames: z.array(z.string()),
+  externalIdentities: z.array(
+    z.object({ provider: z.string(), externalId: z.string(), url: z.string().nullable() }),
+  ),
+  workCount: z.number().int().min(0),
+  roles: z.array(z.object({ role: contributorRoleSchema, count: z.number().int().min(1) })),
+  kinds: z.array(z.object({ kind: workKindSchema, count: z.number().int().min(1) })),
+  works: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      arabicTitle: z.string().nullable(),
+      kind: workKindSchema,
+      year: z.number().int().nullable(),
+      status: personalStatusSchema,
+      releaseStatus: z.enum(["announced", "releasing", "released", "ended", "unknown"]),
+      isSequelMovie: z.boolean(),
+      imagePath: z.string().nullable(),
+      roles: z.array(contributorRoleSchema),
+    }),
+  ),
+});
+export type Entity = z.infer<typeof entitySchema>;
+
+export const adminEntityInputSchema = z.object({
+  id: z.string().min(1).optional(),
+  name: z.string().trim().min(1),
+  sortName: z.string().trim().min(1),
+  entityType: z.enum(["person", "organization"]),
+  description: z.string(),
+  imagePath: z.string().trim().nullable(),
+  malId: z.number().int().positive().nullable(),
+  sourceUrl: z.url().nullable(),
+  sourceProvider: z.string().trim().nullable(),
+  establishedAt: z.string().trim().nullable(),
+  favorites: z.number().int().min(0).nullable(),
+  alternativeNames: z.array(z.string().trim().min(1)),
+  externalIdentities: z.array(
+    z.object({
+      provider: z.string().trim().min(1),
+      externalId: z.string().trim().min(1),
+      url: z.url().nullable(),
+    }),
+  ),
+});
+export type AdminEntityInput = z.infer<typeof adminEntityInputSchema>;
 
 export const publicationSchema = z.object({
   format: z.string().nullable(),
@@ -363,41 +430,40 @@ export const publicationSchema = z.object({
   imprint: z.string().nullable(),
   serialization: z.array(z.string()),
   contents: z.array(z.string()),
-})
+});
 
 export const workRelationInputSchema = z.object({
+  id: z.string().min(1).optional(),
   workId: z.string().min(1),
   relationType: z.enum([
     "adaptation",
     "sequel",
-    "prequel",
     "spin-off",
+    "side-story",
+    "compilation",
+    "alternative",
     "related",
   ]),
   direction: z.enum(["outgoing", "incoming"]),
   notes: z.string().default(""),
-})
+  provenance: z.string().default("manual"),
+  externalKey: z.string().nullable().default(null),
+});
 
 export const relatedWorkSchema = z.object({
   id: z.string(),
   title: z.string(),
   kind: workKindSchema,
   year: z.number().int().nullable(),
-  releaseStatus: z.enum([
-    "announced",
-    "releasing",
-    "released",
-    "ended",
-    "unknown",
-  ]),
+  releaseStatus: z.enum(["announced", "releasing", "released", "ended", "unknown"]),
   imagePath: z.string().nullable(),
-})
+});
 
 export const workRelationSchema = workRelationInputSchema.extend({
   id: z.string(),
   work: relatedWorkSchema,
-})
-export type WorkRelation = z.infer<typeof workRelationSchema>
+});
+export type WorkRelation = z.infer<typeof workRelationSchema>;
 
 export const workSchema = z.object({
   id: z.string(),
@@ -405,13 +471,7 @@ export const workSchema = z.object({
   arabicTitle: z.string().nullable().default(null),
   kind: workKindSchema,
   year: z.number().int().nullable(),
-  releaseStatus: z.enum([
-    "announced",
-    "releasing",
-    "released",
-    "ended",
-    "unknown",
-  ]),
+  releaseStatus: z.enum(["announced", "releasing", "released", "ended", "unknown"]),
   runtimeMinutes: z.number().int().min(0).nullable(),
   playtimeMinutes: z.number().int().min(0).nullable(),
   pageCount: z.number().int().min(0).nullable(),
@@ -459,7 +519,7 @@ export const workSchema = z.object({
       provider: z.string(),
       label: z.string(),
       url: z.url(),
-    })
+    }),
   ),
   releaseStart: z.string().nullable(),
   releaseEnd: z.string().nullable(),
@@ -488,8 +548,12 @@ export const workSchema = z.object({
       notes: z.string().nullable(),
     })
     .nullable(),
-  credits: z.array(workCreditSchema),
+  contributors: z.array(workContributionSchema),
+  animationStudios: z.array(workContributionSchema),
+  productionCompanies: z.array(workContributionSchema),
+  publishers: z.array(workContributionSchema),
   relations: z.array(workRelationSchema),
+  isSequelMovie: z.boolean(),
   creator: z.string(),
   imagePath: z.string().nullable(),
   bannerPath: z.string().nullable(),
@@ -498,52 +562,52 @@ export const workSchema = z.object({
   addedAt: z.number(),
   catalogUpdatedAt: z.number(),
   personalUpdatedAt: z.number(),
-})
+});
 
-export type Work = z.infer<typeof workSchema>
+export type Work = z.infer<typeof workSchema>;
 
 export type StructuralProgress = {
-  id: string
-  status: Work["status"]
-  progress: number
-  completedAt: number | null
-  updatedAt: number
-}
+  id: string;
+  status: Work["status"];
+  progress: number;
+  completedAt: number | null;
+  updatedAt: number;
+};
 
 export type WorkUnitDetail = {
-  id: string
-  workId: string
-  seasonId: string | null
-  unitType: "episode" | "chapter" | "volume"
-  title: string | null
-  unitNumber: number | null
-  position: number
-  runtimeMinutes: number | null
-  pageCount: number | null
-  releaseAt: number | null
-  progress: StructuralProgress | null
-}
+  id: string;
+  workId: string;
+  seasonId: string | null;
+  unitType: "episode" | "chapter" | "volume";
+  title: string | null;
+  unitNumber: number | null;
+  position: number;
+  runtimeMinutes: number | null;
+  pageCount: number | null;
+  releaseAt: number | null;
+  progress: StructuralProgress | null;
+};
 
 export type WorkSeasonDetail = {
-  id: string
-  workId: string
-  title: string
-  seasonNumber: number | null
-  position: number
-  runtimeMinutes: number | null
-  unitCount: number | null
-  releaseAt: number | null
-  progress: StructuralProgress | null
-  units: WorkUnitDetail[]
-}
+  id: string;
+  workId: string;
+  title: string;
+  seasonNumber: number | null;
+  position: number;
+  runtimeMinutes: number | null;
+  unitCount: number | null;
+  releaseAt: number | null;
+  progress: StructuralProgress | null;
+  units: WorkUnitDetail[];
+};
 
 export type WorkStructure = {
-  workId: string
-  seasons: WorkSeasonDetail[]
-  ungroupedUnits: WorkUnitDetail[]
-  completedUnits: number
-  totalUnits: number
-}
+  workId: string;
+  seasons: WorkSeasonDetail[];
+  ungroupedUnits: WorkUnitDetail[];
+  completedUnits: number;
+  totalUnits: number;
+};
 
 export const editableWorkUnitSchema = z.object({
   id: z.string().min(1).optional(),
@@ -554,7 +618,7 @@ export const editableWorkUnitSchema = z.object({
   runtimeMinutes: z.number().int().min(0).nullable().default(null),
   pageCount: z.number().int().min(0).nullable().default(null),
   releaseAt: z.number().int().nullable().default(null),
-})
+});
 
 export const editableWorkSeasonSchema = z.object({
   id: z.string().min(1).optional(),
@@ -565,15 +629,15 @@ export const editableWorkSeasonSchema = z.object({
   unitCount: z.number().int().min(0).nullable().default(null),
   releaseAt: z.number().int().nullable().default(null),
   units: z.array(editableWorkUnitSchema),
-})
+});
 
 export const editableWorkStructureSchema = z.object({
   workId: z.string().min(1),
   seasons: z.array(editableWorkSeasonSchema),
   ungroupedUnits: z.array(editableWorkUnitSchema),
-})
+});
 
-export type EditableWorkStructure = z.infer<typeof editableWorkStructureSchema>
+export type EditableWorkStructure = z.infer<typeof editableWorkStructureSchema>;
 
 export type FilterOperator =
   | "equals"
@@ -586,20 +650,20 @@ export type FilterOperator =
   | "is-empty"
   | "is-not-empty"
   | "includes"
-  | "regex"
+  | "regex";
 
 export type FilterNode =
   | {
-      type: "condition"
-      field: string
-      operator: FilterOperator
-      value?: unknown
+      type: "condition";
+      field: string;
+      operator: FilterOperator;
+      value?: unknown;
     }
   | {
-      type: "group"
-      conjunction: "and" | "or"
-      children: FilterNode[]
-    }
+      type: "group";
+      conjunction: "and" | "or";
+      children: FilterNode[];
+    };
 
 export const filterNodeSchema: z.ZodType<FilterNode> = z.lazy(() =>
   z.union([
@@ -626,8 +690,8 @@ export const filterNodeSchema: z.ZodType<FilterNode> = z.lazy(() =>
       conjunction: z.enum(["and", "or"]),
       children: z.array(filterNodeSchema),
     }),
-  ])
-)
+  ]),
+);
 
 export const savedViewSchema = z.object({
   id: z.string(),
@@ -643,15 +707,13 @@ export const savedViewSchema = z.object({
     "kanban",
   ]),
   filters: filterNodeSchema,
-  sort: z.array(
-    z.object({ field: z.string(), direction: z.enum(["asc", "desc"]) })
-  ),
+  sort: z.array(z.object({ field: z.string(), direction: z.enum(["asc", "desc"]) })),
   groupBy: z.string().nullable(),
   visibleColumns: z.array(z.string()),
   cardSize: z.number().int().min(1).max(5),
   search: z.string(),
   display: z.record(z.string(), z.unknown()),
-})
+});
 
 export const savedViewIconIds = [
   "bookmark",
@@ -666,7 +728,7 @@ export const savedViewIconIds = [
   "chart",
   "calendar",
   "lightning",
-] as const
+] as const;
 
 export const savedViewColorIds = [
   "primary",
@@ -677,12 +739,12 @@ export const savedViewColorIds = [
   "violet",
   "danger",
   "neutral",
-] as const
+] as const;
 
-export const savedViewIconSchema = z.enum(savedViewIconIds)
-export const savedViewColorSchema = z.enum(savedViewColorIds)
-export type SavedViewIconId = z.infer<typeof savedViewIconSchema>
-export type SavedViewColorId = z.infer<typeof savedViewColorSchema>
+export const savedViewIconSchema = z.enum(savedViewIconIds);
+export const savedViewColorSchema = z.enum(savedViewColorIds);
+export type SavedViewIconId = z.infer<typeof savedViewIconSchema>;
+export type SavedViewColorId = z.infer<typeof savedViewColorSchema>;
 
 export const savedUserViewSchema = z.object({
   id: z.string(),
@@ -697,6 +759,9 @@ export const savedUserViewSchema = z.object({
   excludedKinds: z.array(workKindSchema).default([]),
   statuses: z.array(workSchema.shape.status),
   excludedStatuses: z.array(workSchema.shape.status).default([]),
+  showSaved: z.boolean().default(false),
+  showAnnounced: z.boolean().default(false),
+  showSequelMovies: z.boolean().default(false),
   minRating: z.number().min(0).max(10),
   minScores: workSchema.shape.scoreComponents.default({}),
   favoriteOnly: z.boolean(),
@@ -715,9 +780,7 @@ export const savedUserViewSchema = z.object({
     showGenres: z.boolean().default(true),
     showProgress: z.boolean().default(false),
   }),
-  tableDensity: z
-    .enum(["compact", "comfortable", "spacious"])
-    .default("comfortable"),
+  tableDensity: z.enum(["compact", "comfortable", "spacious"]).default("comfortable"),
   facets: z
     .object(
       Object.fromEntries(
@@ -747,7 +810,7 @@ export const savedUserViewSchema = z.object({
             include: z.array(z.string()),
             exclude: z.array(z.string()),
           }),
-        ])
+        ]),
       ) as Record<
         | "genres"
         | "tags"
@@ -769,18 +832,18 @@ export const savedUserViewSchema = z.object({
         | "externalProviders"
         | "structureStates",
         z.ZodObject<{
-          include: z.ZodArray<z.ZodString>
-          exclude: z.ZodArray<z.ZodString>
+          include: z.ZodArray<z.ZodString>;
+          exclude: z.ZodArray<z.ZodString>;
         }>
-      >
+      >,
     )
     .optional(),
   search: z.string().default(""),
   visibleColumns: z.array(z.string()).default([]),
   isPinned: z.boolean().default(false),
-})
+});
 
-export const createSavedUserViewSchema = savedUserViewSchema.omit({ id: true })
+export const createSavedUserViewSchema = savedUserViewSchema.omit({ id: true });
 export const updateSavedUserViewSchema = savedUserViewSchema.pick({
   id: true,
   name: true,
@@ -791,9 +854,9 @@ export const updateSavedUserViewSchema = savedUserViewSchema.pick({
   sort: true,
   sortDirection: true,
   isPinned: true,
-})
-export type SavedUserView = z.infer<typeof savedUserViewSchema>
-export type UpdateSavedUserView = z.infer<typeof updateSavedUserViewSchema>
+});
+export type SavedUserView = z.infer<typeof savedUserViewSchema>;
+export type UpdateSavedUserView = z.infer<typeof updateSavedUserViewSchema>;
 
 export const createWorkSchema = workSchema
   .pick({
@@ -804,9 +867,10 @@ export const createWorkSchema = workSchema
   })
   .extend({
     summary: z.string().default(""),
-  })
+    status: personalStatusSchema.default("saved"),
+  });
 
-export type CreateWork = z.infer<typeof createWorkSchema>
+export type CreateWork = z.infer<typeof createWorkSchema>;
 
 export const adminWorkTransportSchema = workSchema
   .omit({
@@ -816,56 +880,58 @@ export const adminWorkTransportSchema = workSchema
     palette: true,
     relations: true,
     calculatedRating: true,
+    animationStudios: true,
+    productionCompanies: true,
+    publishers: true,
+    isSequelMovie: true,
   })
   .extend({
     genres: z.array(genreSchema),
     tone: z.array(toneSchema),
     relations: z.array(workRelationInputSchema),
-  })
+  });
 
-export const adminWorkUpdateSchema = adminWorkTransportSchema.superRefine(
-  (work, context) => {
-    if (work.tags.length > 12) {
-      context.addIssue({
-        code: "too_big",
-        maximum: 12,
-        origin: "array",
-        inclusive: true,
-        path: ["tags"],
-        message: "اختر 12 وسماً قابلاً لإعادة الاستخدام كحد أقصى.",
-      })
-    }
-    if (work.curation?.status !== "verified") return
-    if (work.genres.length === 0) {
-      context.addIssue({
-        code: "custom",
-        path: ["genres"],
-        message: "تحتاج الأعمال الموثّقة إلى تصنيف واحد على الأقل.",
-      })
-    }
-    if (work.tone.length === 0) {
-      context.addIssue({
-        code: "custom",
-        path: ["tone"],
-        message: "تحتاج الأعمال الموثّقة إلى طابع واحد على الأقل.",
-      })
-    }
-    if (work.audience === null) {
-      context.addIssue({
-        code: "custom",
-        path: ["audience"],
-        message: "تحتاج الأعمال الموثّقة إلى جمهور مستهدف.",
-      })
-    }
+export const adminWorkUpdateSchema = adminWorkTransportSchema.superRefine((work, context) => {
+  if (work.tags.length > 12) {
+    context.addIssue({
+      code: "too_big",
+      maximum: 12,
+      origin: "array",
+      inclusive: true,
+      path: ["tags"],
+      message: "اختر 12 وسماً قابلاً لإعادة الاستخدام كحد أقصى.",
+    });
   }
-)
-export type AdminWorkUpdate = z.infer<typeof adminWorkUpdateSchema>
+  if (work.curation?.status !== "verified") return;
+  if (work.genres.length === 0) {
+    context.addIssue({
+      code: "custom",
+      path: ["genres"],
+      message: "تحتاج الأعمال الموثّقة إلى تصنيف واحد على الأقل.",
+    });
+  }
+  if (work.tone.length === 0) {
+    context.addIssue({
+      code: "custom",
+      path: ["tone"],
+      message: "تحتاج الأعمال الموثّقة إلى طابع واحد على الأقل.",
+    });
+  }
+  if (work.audience === null) {
+    context.addIssue({
+      code: "custom",
+      path: ["audience"],
+      message: "تحتاج الأعمال الموثّقة إلى جمهور مستهدف.",
+    });
+  }
+});
+export type AdminWorkUpdate = z.infer<typeof adminWorkUpdateSchema>;
 
 export const adminRecordChangeSchema = z.object({
   workId: z.string().min(1),
   work: adminWorkTransportSchema.optional(),
   structure: editableWorkStructureSchema.optional(),
-})
+});
 
 export const bulkCreateWorkSchema = z.object({
   works: z
@@ -874,11 +940,11 @@ export const bulkCreateWorkSchema = z.object({
         genres: z.array(genreSchema).default([]),
         tags: z.array(z.string()).default([]),
         studios: z.array(z.string()).default([]),
-      })
+      }),
     )
     .min(1)
     .max(500),
-})
+});
 
 export const bulkUpdateWorksSchema = z.object({
   workIds: z.array(z.string()).min(1).max(1000),
@@ -888,4 +954,4 @@ export const bulkUpdateWorksSchema = z.object({
   removeGenres: z.array(genreSchema).default([]),
   addTags: z.array(z.string()).default([]),
   removeTags: z.array(z.string()).default([]),
-})
+});

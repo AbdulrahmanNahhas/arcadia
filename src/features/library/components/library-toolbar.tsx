@@ -1,5 +1,3 @@
-import { useId, useState } from "react"
-import { Link } from "@tanstack/react-router"
 import {
   ArrowDownIcon,
   ArrowRightIcon,
@@ -15,10 +13,20 @@ import {
   SquaresFourIcon,
   TableIcon,
   XIcon,
-} from "@phosphor-icons/react"
-import { Badge } from "@/components/ui/badge"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+} from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
+import { useId, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,15 +35,9 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/dropdown-menu";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
@@ -43,24 +45,16 @@ import {
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
+} from "@/components/ui/popover";
 
-import { Separator } from "@/components/ui/separator"
-import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { cn } from "@/lib/utils"
+import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { cn } from "@/lib/utils";
 
-import type { SavedUserView } from "../model"
-import { defaultTableColumns, tableColumnIds } from "../view-types"
+import type { SavedUserView } from "../model";
+import { getSavedViewAccentStyle, getSavedViewIcon } from "../view-meta";
 import type {
   GalleryMode,
   GalleryOptions,
@@ -69,35 +63,35 @@ import type {
   SortDirection,
   TableColumnId,
   TableDensity,
-} from "../view-types"
-import { getSavedViewAccentStyle, getSavedViewIcon } from "../view-meta"
-import { tableColumnLabels } from "./work-table"
+} from "../view-types";
+import { defaultTableColumns, tableColumnIds } from "../view-types";
+import { tableColumnLabels } from "./work-table";
 
 const sortLabels: Record<Sort, string> = {
   title: "العنوان",
   rating: "التقييم",
   recent: "المضاف حديثاً",
   year: "سنة الإصدار",
-}
+};
 
 const layoutItems = [
   { id: "gallery", label: "المعرض", icon: GridFourIcon },
   { id: "table", label: "الجدول", icon: TableIcon },
   { id: "timeline", label: "الخط الزمني", icon: CalendarBlankIcon },
   { id: "statistics", label: "الإحصاءات", icon: ChartDonutIcon },
-] as const
+] as const;
 
 const galleryModeLabels: Record<Exclude<GalleryMode, "custom">, string> = {
   cover: "الغلاف فقط",
   title: "غلاف وعنوان",
   full: "كامل",
-}
+};
 
 const densityLabels: Record<TableDensity, string> = {
   compact: "مضغوط",
   comfortable: "متوازن",
   spacious: "واسع",
-}
+};
 
 export function LibraryToolbar({
   activeView,
@@ -127,32 +121,32 @@ export function LibraryToolbar({
   timelineNewestFirst,
   onTimelineOrderChange,
 }: {
-  activeView?: SavedUserView
-  search: string
-  onSearchChange: (value: string) => void
-  layout: Layout
-  onLayoutChange: (value: Layout) => void
-  sort: Sort
-  sortDirection: SortDirection
-  onSortChange: (value: Sort) => void
-  onSortDirectionChange: (value: SortDirection) => void
-  filter: React.ReactNode
-  addWork: React.ReactNode
-  resultCount: number
-  savedViews: SavedUserView[]
+  activeView?: SavedUserView;
+  search: string;
+  onSearchChange: (value: string) => void;
+  layout: Layout;
+  onLayoutChange: (value: Layout) => void;
+  sort: Sort;
+  sortDirection: SortDirection;
+  onSortChange: (value: Sort) => void;
+  onSortDirectionChange: (value: SortDirection) => void;
+  filter: React.ReactNode;
+  addWork: React.ReactNode;
+  resultCount: number;
+  savedViews: SavedUserView[];
 
-  onSavedViewChange: (id?: string) => void
-  onSaveView: (name: string) => void
-  cardSize: number
-  onCardSizeChange: (value: number) => void
-  galleryOptions: GalleryOptions
-  onGalleryOptionsChange: (value: GalleryOptions) => void
-  tableColumns: TableColumnId[]
-  onTableColumnsChange: (value: TableColumnId[]) => void
-  tableDensity: TableDensity
-  onTableDensityChange: (value: TableDensity) => void
-  timelineNewestFirst: boolean
-  onTimelineOrderChange: (value: boolean) => void
+  onSavedViewChange: (id?: string) => void;
+  onSaveView: (name: string) => void;
+  cardSize: number;
+  onCardSizeChange: (value: number) => void;
+  galleryOptions: GalleryOptions;
+  onGalleryOptionsChange: (value: GalleryOptions) => void;
+  tableColumns: TableColumnId[];
+  onTableColumnsChange: (value: TableColumnId[]) => void;
+  tableDensity: TableDensity;
+  onTableDensityChange: (value: TableDensity) => void;
+  timelineNewestFirst: boolean;
+  onTimelineOrderChange: (value: boolean) => void;
 }) {
   return (
     <nav
@@ -163,10 +157,7 @@ export function LibraryToolbar({
         <div className="flex min-w-0 items-center gap-2">
           <Link
             to="/"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "icon" }),
-              "shrink-0 sm:size-9"
-            )}
+            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "shrink-0 sm:size-9")}
             aria-label="العودة إلى الصفحة الرئيسية"
           >
             <ArrowRightIcon />
@@ -205,11 +196,7 @@ export function LibraryToolbar({
           </div>
         </div>
 
-        <SearchControl
-          search={search}
-          onSearchChange={onSearchChange}
-          className="sm:hidden"
-        />
+        <SearchControl search={search} onSearchChange={onSearchChange} className="sm:hidden" />
 
         <div className="flex min-w-0 items-center gap-2">
           <div className="min-w-0 flex-1 overflow-x-auto pb-0.5">
@@ -235,7 +222,7 @@ export function LibraryToolbar({
         </div>
       </div>
     </nav>
-  )
+  );
 }
 
 function SearchControl({
@@ -243,9 +230,9 @@ function SearchControl({
   onSearchChange,
   className,
 }: {
-  search: string
-  onSearchChange: (value: string) => void
-  className?: string
+  search: string;
+  onSearchChange: (value: string) => void;
+  className?: string;
 }) {
   return (
     <div className={cn("relative min-w-0", className)}>
@@ -269,7 +256,7 @@ function SearchControl({
         </Button>
       )}
     </div>
-  )
+  );
 }
 
 function LayoutControl({
@@ -277,9 +264,9 @@ function LayoutControl({
   onLayoutChange,
   className,
 }: {
-  layout: Layout
-  onLayoutChange: (value: Layout) => void
-  className?: string
+  layout: Layout;
+  onLayoutChange: (value: Layout) => void;
+  className?: string;
 }) {
   return (
     <SingleToggleGroup
@@ -295,7 +282,7 @@ function LayoutControl({
         </ToggleGroupItem>
       ))}
     </SingleToggleGroup>
-  )
+  );
 }
 
 function SingleToggleGroup({
@@ -305,18 +292,18 @@ function SingleToggleGroup({
   className,
   children,
 }: {
-  value: string
-  onValueChange: (value: string) => void
-  ariaLabel: string
-  className?: string
-  children: React.ReactNode
+  value: string;
+  onValueChange: (value: string) => void;
+  ariaLabel: string;
+  className?: string;
+  children: React.ReactNode;
 }) {
   return (
     <ToggleGroup
       value={[value]}
       onValueChange={(values) => {
-        const next = values[0]
-        if (next) onValueChange(String(next))
+        const next = values[0];
+        if (next) onValueChange(String(next));
       }}
       variant="outline"
       size="sm"
@@ -326,7 +313,7 @@ function SingleToggleGroup({
     >
       {children}
     </ToggleGroup>
-  )
+  );
 }
 
 function SortControl({
@@ -335,18 +322,16 @@ function SortControl({
   onSortChange,
   onDirectionChange,
 }: {
-  sort: Sort
-  direction: SortDirection
-  onSortChange: (value: Sort) => void
-  onDirectionChange: (value: SortDirection) => void
+  sort: Sort;
+  direction: SortDirection;
+  onSortChange: (value: Sort) => void;
+  onDirectionChange: (value: SortDirection) => void;
 }) {
   return (
     <div className="flex items-center">
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={
-            <Button variant="outline" size="sm" className="rounded-e-none" />
-          }
+          render={<Button variant="outline" size="sm" className="rounded-e-none!" />}
         >
           <ArrowsDownUpIcon data-icon="inline-start" />
           {sortLabels[sort]}
@@ -370,7 +355,7 @@ function SortControl({
       <Button
         variant="outline"
         size="icon-sm"
-        className="rounded-s-none border-e-0"
+        className="rounded-s-none! border-s-0"
         onClick={() => onDirectionChange(direction === "asc" ? "desc" : "asc")}
         aria-label={direction === "asc" ? "ترتيب تصاعدي" : "ترتيب تنازلي"}
         title={direction === "asc" ? "تصاعدي" : "تنازلي"}
@@ -378,7 +363,7 @@ function SortControl({
         {direction === "asc" ? <ArrowUpIcon /> : <ArrowDownIcon />}
       </Button>
     </div>
-  )
+  );
 }
 
 function ViewOption({
@@ -388,11 +373,11 @@ function ViewOption({
   subtitle,
   active,
 }: {
-  icon: React.ReactNode
-  accentStyle?: React.CSSProperties
-  title: string
-  subtitle?: string
-  active: boolean
+  icon: React.ReactNode;
+  accentStyle?: React.CSSProperties;
+  title: string;
+  subtitle?: string;
+  active: boolean;
 }) {
   return (
     <>
@@ -405,16 +390,12 @@ function ViewOption({
       <span className="flex min-w-0 flex-1 flex-col items-start">
         <span className="w-full truncate">{title}</span>
         {subtitle ? (
-          <span className="w-full truncate text-[10px] text-muted-foreground">
-            {subtitle}
-          </span>
+          <span className="w-full truncate text-[10px] text-muted-foreground">{subtitle}</span>
         ) : null}
       </span>
-      {active ? (
-        <CheckIcon className="size-4 shrink-0 text-primary" weight="bold" />
-      ) : null}
+      {active ? <CheckIcon className="size-4 shrink-0 text-primary" weight="bold" /> : null}
     </>
-  )
+  );
 }
 
 function ViewsSelector({
@@ -424,22 +405,20 @@ function ViewsSelector({
   onApply,
   onSave,
 }: {
-  views: SavedUserView[]
-  activeView?: SavedUserView
-  resultCount: number
-  onApply: (id?: string) => void
-  onSave: (name: string) => void
+  views: SavedUserView[];
+  activeView?: SavedUserView;
+  resultCount: number;
+  onApply: (id?: string) => void;
+  onSave: (name: string) => void;
 }) {
-  const [name, setName] = useState("")
-  const [open, setOpen] = useState(false)
-  const ActiveIcon = activeView
-    ? getSavedViewIcon(activeView.icon)
-    : SquaresFourIcon
+  const [name, setName] = useState("");
+  const [open, setOpen] = useState(false);
+  const ActiveIcon = activeView ? getSavedViewIcon(activeView.icon) : SquaresFourIcon;
   const save = () => {
-    if (!name.trim()) return
-    onSave(name.trim())
-    setName("")
-  }
+    if (!name.trim()) return;
+    onSave(name.trim());
+    setName("");
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -447,23 +426,19 @@ function ViewsSelector({
         render={
           <Button
             variant="ghost"
-            className="h-10 max-w-56 min-w-0 flex-1 justify-start bg-muted/60 px-3 sm:max-w-72 lg:flex-none"
+            className="h-10 max-w-56 min-w-0 flex-1 border border-border justify-start bg-muted/60 pr-2 pl-3 sm:max-w-72 lg:flex-none rounded-full"
             aria-label="تبديل العرض"
           />
         }
       >
         <span
-          className="flex size-7 shrink-0 items-center justify-center rounded-lg border"
-          style={
-            activeView ? getSavedViewAccentStyle(activeView.color) : undefined
-          }
+          className="flex size-7 shrink-0 items-center justify-center rounded-xl border"
+          style={activeView ? getSavedViewAccentStyle(activeView.color) : undefined}
         >
           <ActiveIcon />
         </span>
-        <span className="flex min-w-0 flex-1 flex-col items-start leading-tight">
-          <span className="w-full truncate font-medium">
-            {activeView?.name ?? "كل الأعمال"}
-          </span>
+        <span className="flex min-w-0 flex-1 flex-col items-start justify-start text-start leading-tight">
+          <span className="w-full truncate font-medium">{activeView?.name ?? "كل الأعمال"}</span>
           <span className="w-full truncate text-[10px] text-muted-foreground">
             {resultCount} نتيجة
           </span>
@@ -495,8 +470,8 @@ function ViewsSelector({
                 value="all-works كل الأعمال"
                 className="h-auto gap-2 py-2.5"
                 onSelect={() => {
-                  onApply()
-                  setOpen(false)
+                  onApply();
+                  setOpen(false);
                 }}
               >
                 <ViewOption
@@ -508,18 +483,16 @@ function ViewsSelector({
               </CommandItem>
 
               {views.map((savedView) => {
-                const Icon = getSavedViewIcon(savedView.icon)
-                const layoutLabel = layoutItems.find(
-                  (item) => item.id === savedView.layout
-                )?.label
+                const Icon = getSavedViewIcon(savedView.icon);
+                const layoutLabel = layoutItems.find((item) => item.id === savedView.layout)?.label;
                 return (
                   <CommandItem
                     key={savedView.id}
                     value={`${savedView.name} ${layoutLabel ?? ""}`}
                     className="h-auto gap-2 py-2.5"
                     onSelect={() => {
-                      onApply(savedView.id)
-                      setOpen(false)
+                      onApply(savedView.id);
+                      setOpen(false);
                     }}
                   >
                     <ViewOption
@@ -532,7 +505,7 @@ function ViewsSelector({
                       active={activeView?.id === savedView.id}
                     />
                   </CommandItem>
-                )
+                );
               })}
             </CommandGroup>
           </CommandList>
@@ -560,7 +533,7 @@ function ViewsSelector({
         </FieldGroup>
       </PopoverContent>
     </Popover>
-  )
+  );
 }
 
 function DisplayOptions({
@@ -577,23 +550,23 @@ function DisplayOptions({
   timelineNewestFirst,
   onTimelineOrderChange,
 }: {
-  layout: Layout
-  onLayoutChange: (value: Layout) => void
-  cardSize: number
-  onCardSizeChange: (value: number) => void
-  galleryOptions: GalleryOptions
-  onGalleryOptionsChange: (value: GalleryOptions) => void
-  tableColumns: TableColumnId[]
-  onTableColumnsChange: (value: TableColumnId[]) => void
-  tableDensity: TableDensity
-  onTableDensityChange: (value: TableDensity) => void
-  timelineNewestFirst: boolean
-  onTimelineOrderChange: (value: boolean) => void
+  layout: Layout;
+  onLayoutChange: (value: Layout) => void;
+  cardSize: number;
+  onCardSizeChange: (value: number) => void;
+  galleryOptions: GalleryOptions;
+  onGalleryOptionsChange: (value: GalleryOptions) => void;
+  tableColumns: TableColumnId[];
+  onTableColumnsChange: (value: TableColumnId[]) => void;
+  tableDensity: TableDensity;
+  onTableDensityChange: (value: TableDensity) => void;
+  timelineNewestFirst: boolean;
+  onTimelineOrderChange: (value: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
   const setGalleryField = <TKey extends keyof GalleryOptions>(
     key: TKey,
-    value: GalleryOptions[TKey]
+    value: GalleryOptions[TKey],
   ) =>
     onGalleryOptionsChange({
       ...galleryOptions,
@@ -611,7 +584,7 @@ function DisplayOptions({
               ].includes(String(key))
             ? "custom"
             : galleryOptions.mode,
-    })
+    });
 
   const applyGalleryMode = (mode: Exclude<GalleryMode, "custom">) => {
     const visibility =
@@ -640,23 +613,22 @@ function DisplayOptions({
               showYear: true,
               showGenres: true,
               showProgress: false,
-            }
-    onGalleryOptionsChange({ ...galleryOptions, ...visibility, mode })
-  }
+            };
+    onGalleryOptionsChange({ ...galleryOptions, ...visibility, mode });
+  };
 
   const toggleColumn = (column: TableColumnId, checked: boolean) => {
     if (checked) {
       onTableColumnsChange(
         tableColumnIds.filter(
-          (candidate) =>
-            candidate === column || tableColumns.includes(candidate)
-        )
-      )
-      return
+          (candidate) => candidate === column || tableColumns.includes(candidate),
+        ),
+      );
+      return;
     }
-    if (tableColumns.length === 1) return
-    onTableColumnsChange(tableColumns.filter((item) => item !== column))
-  }
+    if (tableColumns.length === 1) return;
+    onTableColumnsChange(tableColumns.filter((item) => item !== column));
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -668,8 +640,8 @@ function DisplayOptions({
             className="sm:size-9"
             aria-label={`خيارات عرض ${layoutItems.find((item) => item.id === layout)?.label}`}
             onClickCapture={(event) => {
-              event.stopPropagation()
-              setOpen((current) => !current)
+              event.stopPropagation();
+              setOpen((current) => !current);
             }}
           />
         }
@@ -682,9 +654,7 @@ function DisplayOptions({
       >
         <PopoverHeader>
           <PopoverTitle>إعدادات العرض</PopoverTitle>
-          <PopoverDescription>
-            خصّص التخطيط الحالي والمعلومات الظاهرة.
-          </PopoverDescription>
+          <PopoverDescription>خصّص التخطيط الحالي والمعلومات الظاهرة.</PopoverDescription>
         </PopoverHeader>
 
         <FieldSet>
@@ -701,21 +671,18 @@ function DisplayOptions({
               <SingleToggleGroup
                 value={galleryOptions.mode}
                 onValueChange={(value) =>
-                  value !== "custom" &&
-                  applyGalleryMode(value as Exclude<GalleryMode, "custom">)
+                  value !== "custom" && applyGalleryMode(value as Exclude<GalleryMode, "custom">)
                 }
                 ariaLabel="نمط تفاصيل بطاقة المعرض"
                 className="flex-wrap"
               >
-                {(
-                  Object.keys(galleryModeLabels) as Array<
-                    Exclude<GalleryMode, "custom">
-                  >
-                ).map((mode) => (
-                  <ToggleGroupItem key={mode} value={mode}>
-                    {galleryModeLabels[mode]}
-                  </ToggleGroupItem>
-                ))}
+                {(Object.keys(galleryModeLabels) as Array<Exclude<GalleryMode, "custom">>).map(
+                  (mode) => (
+                    <ToggleGroupItem key={mode} value={mode}>
+                      {galleryModeLabels[mode]}
+                    </ToggleGroupItem>
+                  ),
+                )}
               </SingleToggleGroup>
               {galleryOptions.mode === "custom" && (
                 <Badge variant="secondary" className="w-fit">
@@ -729,10 +696,7 @@ function DisplayOptions({
               <SingleToggleGroup
                 value={galleryOptions.imageType}
                 onValueChange={(value) =>
-                  setGalleryField(
-                    "imageType",
-                    value as GalleryOptions["imageType"]
-                  )
+                  setGalleryField("imageType", value as GalleryOptions["imageType"])
                 }
                 ariaLabel="نوع صورة البطاقة"
               >
@@ -742,10 +706,7 @@ function DisplayOptions({
             </FieldSet>
 
             <Field>
-              <FieldLabel
-                htmlFor="gallery-card-size"
-                className="justify-between"
-              >
+              <FieldLabel htmlFor="gallery-card-size" className="justify-between">
                 <span>حجم البطاقة</span>
                 <span className="text-muted-foreground">{cardSize}px</span>
               </FieldLabel>
@@ -757,9 +718,7 @@ function DisplayOptions({
                 max={220}
                 step={2}
                 onValueChange={(value) =>
-                  onCardSizeChange(
-                    typeof value === "number" ? value : (value[0] ?? cardSize)
-                  )
+                  onCardSizeChange(typeof value === "number" ? value : (value[0] ?? cardSize))
                 }
               />
             </Field>
@@ -770,58 +729,42 @@ function DisplayOptions({
                 <DisplaySwitch
                   label="العنوان"
                   checked={galleryOptions.showTitle}
-                  onCheckedChange={(checked) =>
-                    setGalleryField("showTitle", checked)
-                  }
+                  onCheckedChange={(checked) => setGalleryField("showTitle", checked)}
                 />
                 <DisplaySwitch
                   label="علامة المفضلة"
                   checked={galleryOptions.showFavorite}
-                  onCheckedChange={(checked) =>
-                    setGalleryField("showFavorite", checked)
-                  }
+                  onCheckedChange={(checked) => setGalleryField("showFavorite", checked)}
                 />
                 <DisplaySwitch
                   label="المنشئ"
                   checked={galleryOptions.showCreator}
-                  onCheckedChange={(checked) =>
-                    setGalleryField("showCreator", checked)
-                  }
+                  onCheckedChange={(checked) => setGalleryField("showCreator", checked)}
                 />
                 <DisplaySwitch
                   label="سنة الإصدار"
                   checked={galleryOptions.showYear}
-                  onCheckedChange={(checked) =>
-                    setGalleryField("showYear", checked)
-                  }
+                  onCheckedChange={(checked) => setGalleryField("showYear", checked)}
                 />
                 <DisplaySwitch
                   label="التصنيفات"
                   checked={galleryOptions.showGenres}
-                  onCheckedChange={(checked) =>
-                    setGalleryField("showGenres", checked)
-                  }
+                  onCheckedChange={(checked) => setGalleryField("showGenres", checked)}
                 />
                 <DisplaySwitch
                   label="التقدم"
                   checked={galleryOptions.showProgress}
-                  onCheckedChange={(checked) =>
-                    setGalleryField("showProgress", checked)
-                  }
+                  onCheckedChange={(checked) => setGalleryField("showProgress", checked)}
                 />
                 <DisplaySwitch
                   label="شارة نوع العمل فوق الصورة"
                   checked={galleryOptions.showType}
-                  onCheckedChange={(checked) =>
-                    setGalleryField("showType", checked)
-                  }
+                  onCheckedChange={(checked) => setGalleryField("showType", checked)}
                 />
                 <DisplaySwitch
                   label="شارة التقييم فوق الصورة"
                   checked={galleryOptions.showRating}
-                  onCheckedChange={(checked) =>
-                    setGalleryField("showRating", checked)
-                  }
+                  onCheckedChange={(checked) => setGalleryField("showRating", checked)}
                 />
               </FieldGroup>
             </FieldSet>
@@ -834,18 +777,14 @@ function DisplayOptions({
               <FieldLegend variant="label">كثافة الصفوف</FieldLegend>
               <SingleToggleGroup
                 value={tableDensity}
-                onValueChange={(value) =>
-                  onTableDensityChange(value as TableDensity)
-                }
+                onValueChange={(value) => onTableDensityChange(value as TableDensity)}
                 ariaLabel="كثافة صفوف الجدول"
               >
-                {(Object.keys(densityLabels) as TableDensity[]).map(
-                  (density) => (
-                    <ToggleGroupItem key={density} value={density}>
-                      {densityLabels[density]}
-                    </ToggleGroupItem>
-                  )
-                )}
+                {(Object.keys(densityLabels) as TableDensity[]).map((density) => (
+                  <ToggleGroupItem key={density} value={density}>
+                    {densityLabels[density]}
+                  </ToggleGroupItem>
+                ))}
               </SingleToggleGroup>
             </FieldSet>
 
@@ -871,27 +810,22 @@ function DisplayOptions({
                   </Button>
                 </div>
               </div>
-              <FieldGroup
-                data-slot="checkbox-group"
-                className="grid grid-cols-2 gap-3"
-              >
+              <FieldGroup data-slot="checkbox-group" className="grid grid-cols-2 gap-3">
                 {tableColumnIds.map((column) => {
-                  const checked = tableColumns.includes(column)
+                  const checked = tableColumns.includes(column);
                   return (
                     <Field key={column} orientation="horizontal">
                       <Checkbox
                         id={`table-column-${column}`}
                         checked={checked}
                         disabled={checked && tableColumns.length === 1}
-                        onCheckedChange={(value) =>
-                          toggleColumn(column, Boolean(value))
-                        }
+                        onCheckedChange={(value) => toggleColumn(column, Boolean(value))}
                       />
                       <FieldLabel htmlFor={`table-column-${column}`}>
                         {tableColumnLabels[column]}
                       </FieldLabel>
                     </Field>
-                  )
+                  );
                 })}
               </FieldGroup>
             </FieldSet>
@@ -908,13 +842,13 @@ function DisplayOptions({
 
         {layout === "statistics" && (
           <p className="text-sm leading-6 text-muted-foreground">
-            الإحصاءات تتحدث تلقائياً مع البحث والفلاتر الحالية، لذلك لا تحتاج
-            إلى إعدادات ترتيب إضافية.
+            الإحصاءات تتحدث تلقائياً مع البحث والفلاتر الحالية، لذلك لا تحتاج إلى إعدادات ترتيب
+            إضافية.
           </p>
         )}
       </PopoverContent>
     </Popover>
-  )
+  );
 }
 
 function DisplaySwitch({
@@ -922,15 +856,15 @@ function DisplaySwitch({
   checked,
   onCheckedChange,
 }: {
-  label: string
-  checked: boolean
-  onCheckedChange: (value: boolean) => void
+  label: string;
+  checked: boolean;
+  onCheckedChange: (value: boolean) => void;
 }) {
-  const id = useId()
+  const id = useId();
   return (
     <Field orientation="horizontal">
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
     </Field>
-  )
+  );
 }

@@ -1,9 +1,8 @@
-import { genreSchema, workKinds } from "@/features/library/model"
-import type { WorkKind } from "@/features/library/model"
-import { editWorksBulk } from "@/server/library.functions"
-import { useMutation } from "@tanstack/react-query"
-import { useState } from "react"
-import type { FormEvent } from "react"
+import { NotePencilIcon } from "@phosphor-icons/react";
+import { useMutation } from "@tanstack/react-query";
+import type { FormEvent } from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,19 +10,20 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { kindLabels } from "@/features/library/filtering"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { NotePencilIcon } from "@phosphor-icons/react"
-import { Label } from "@/components/ui/label"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
+import { kindLabels } from "@/features/library/filtering";
+import type { WorkKind } from "@/features/library/model";
+import { genreSchema, workKinds } from "@/features/library/model";
+import { editWorksBulk } from "@/server/library.functions";
 
 function parseList(value: string) {
   return [
@@ -31,9 +31,9 @@ function parseList(value: string) {
       value
         .split(",")
         .map((item) => item.trim())
-        .filter(Boolean)
+        .filter(Boolean),
     ),
-  ]
+  ];
 }
 
 export function BulkEditDialog({
@@ -42,69 +42,62 @@ export function BulkEditDialog({
   workIds,
   onUpdated,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  workIds: string[]
-  onUpdated: () => Promise<void>
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  workIds: string[];
+  onUpdated: () => Promise<void>;
 }) {
-  const [kind, setKind] = useState("")
+  const [kind, setKind] = useState("");
 
-  const [favorite, setFavorite] = useState("")
-  const [addGenres, setAddGenres] = useState("")
-  const [removeGenres, setRemoveGenres] = useState("")
-  const [addTags, setAddTags] = useState("")
-  const [removeTags, setRemoveTags] = useState("")
+  const [favorite, setFavorite] = useState("");
+  const [addGenres, setAddGenres] = useState("");
+  const [removeGenres, setRemoveGenres] = useState("");
+  const [addTags, setAddTags] = useState("");
+  const [removeTags, setRemoveTags] = useState("");
   const mutation = useMutation({
     mutationFn: editWorksBulk,
     onSuccess: async () => {
-      onOpenChange(false)
-      await onUpdated()
+      onOpenChange(false);
+      await onUpdated();
     },
-  })
+  });
   const submit = (event: FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();
     mutation.mutate({
       data: {
         workIds,
         ...(kind && kind !== "unchanged" ? { kind: kind as WorkKind } : {}),
-        ...(favorite && favorite !== "unchanged"
-          ? { favorite: favorite === "true" }
-          : {}),
+        ...(favorite && favorite !== "unchanged" ? { favorite: favorite === "true" } : {}),
         addGenres: parseList(addGenres).flatMap((genre) => {
-          const result = genreSchema.safeParse(genre)
-          return result.success ? [result.data] : []
+          const result = genreSchema.safeParse(genre);
+          return result.success ? [result.data] : [];
         }),
         removeGenres: parseList(removeGenres).flatMap((genre) => {
-          const result = genreSchema.safeParse(genre)
-          return result.success ? [result.data] : []
+          const result = genreSchema.safeParse(genre);
+          return result.success ? [result.data] : [];
         }),
         addTags: parseList(addTags),
         removeTags: parseList(removeTags),
       },
-    })
-  }
+    });
+  };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            تعديل {workIds.length}{" "}
-            {workIds.length === 1 ? "عمل محدد" : "أعمال محددة"}
+            تعديل {workIds.length} {workIds.length === 1 ? "عمل محدد" : "أعمال محددة"}
           </DialogTitle>
 
           <DialogDescription>
-            لن تتغير إلا الحقول التي تضبطها هنا، وستبقى جميع البيانات الأخرى كما
-            هي.
+            لن تتغير إلا الحقول التي تضبطها هنا، وستبقى جميع البيانات الأخرى كما هي.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={submit} className="space-y-6">
+        <form onSubmit={submit} className="flex flex-col gap-6">
           <div className="grid gap-5 sm:grid-cols-2">
             <FormField label="تعيين النوع" htmlFor="bulk-kind">
-              <Select
-                value={kind}
-                onValueChange={(value) => setKind(value ?? "unchanged")}
-              >
+              <Select value={kind} onValueChange={(value) => setKind(value ?? "unchanged")}>
                 <SelectTrigger id="bulk-kind" className="w-full">
                   <SelectValue placeholder="دون تغيير" />
                 </SelectTrigger>
@@ -122,10 +115,7 @@ export function BulkEditDialog({
             </FormField>
 
             <FormField label="تعيين المفضلة" htmlFor="bulk-favorite">
-              <Select
-                value={favorite}
-                onValueChange={(value) => setFavorite(value ?? "unchanged")}
-              >
+              <Select value={favorite} onValueChange={(value) => setFavorite(value ?? "unchanged")}>
                 <SelectTrigger id="bulk-favorite" className="w-full">
                   <SelectValue placeholder="دون تغيير" />
                 </SelectTrigger>
@@ -203,14 +193,14 @@ export function BulkEditDialog({
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 type FormFieldProps = {
-  label: string
-  htmlFor: string
-  children: React.ReactNode
-}
+  label: string;
+  htmlFor: string;
+  children: React.ReactNode;
+};
 
 function FormField({ label, htmlFor, children }: FormFieldProps) {
   return (
@@ -218,5 +208,5 @@ function FormField({ label, htmlFor, children }: FormFieldProps) {
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
     </div>
-  )
+  );
 }

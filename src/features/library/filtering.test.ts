@@ -1,21 +1,91 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest";
+import {
+  compareWorks,
+  createDefaultFilters,
+  matchesScoreFilters,
+  workMatchesFilters,
+} from "./filtering";
+import type { Work } from "./model";
 
-import { matchesScoreFilters } from "./filtering"
+function work(overrides: Partial<Work> = {}): Work {
+  return {
+    id: "work",
+    title: "Work",
+    arabicTitle: null,
+    kind: "series",
+    year: 2026,
+    releaseStatus: "released",
+    status: "planned",
+    calculatedRating: null,
+    favorite: false,
+    scoreComponents: {},
+    genres: [],
+    tags: [],
+    tones: [],
+    tone: [],
+    studios: [],
+    contributors: [],
+    externalLinks: [],
+    sharedWith: [],
+    country: [],
+    audience: null,
+    publication: null,
+    sourceMaterial: null,
+    riskProfile: null,
+    aliases: [],
+    isSequelMovie: false,
+    addedAt: 0,
+    ...overrides,
+  } as Work;
+}
 
 describe("score filters", () => {
   it("matches scores at or above every active criterion minimum", () => {
-    expect(
-      matchesScoreFilters(
-        { story: 8, depth: 6, craft: 9 },
-        { story: 7, depth: 6 }
-      )
-    ).toBe(true)
-    expect(
-      matchesScoreFilters({ story: 8, depth: 5 }, { story: 7, depth: 6 })
-    ).toBe(false)
-  })
+    expect(matchesScoreFilters({ story: 8, depth: 6, craft: 9 }, { story: 7, depth: 6 })).toBe(
+      true,
+    );
+    expect(matchesScoreFilters({ story: 8, depth: 5 }, { story: 7, depth: 6 })).toBe(false);
+  });
 
   it("does not match when an active criterion has no score", () => {
-    expect(matchesScoreFilters({ story: 8 }, { depth: 6 })).toBe(false)
-  })
-})
+    expect(matchesScoreFilters({ story: 8 }, { depth: 6 })).toBe(false);
+  });
+});
+
+describe("default discovery visibility", () => {
+  it("hides saved, announced, and sequel movies while preserving other sequels", () => {
+    const filters = createDefaultFilters();
+    expect(workMatchesFilters(work(), filters)).toBe(true);
+    expect(workMatchesFilters(work({ status: "saved" }), filters)).toBe(false);
+    expect(workMatchesFilters(work({ releaseStatus: "announced" }), filters)).toBe(false);
+    expect(workMatchesFilters(work({ kind: "movie", isSequelMovie: true }), filters)).toBe(false);
+    expect(workMatchesFilters(work({ kind: "anime", isSequelMovie: false }), filters)).toBe(true);
+    expect(workMatchesFilters(work({ kind: "movie", isSequelMovie: false }), filters)).toBe(true);
+  });
+
+  it("allows every hidden rule to be overridden explicitly", () => {
+    const filters = {
+      ...createDefaultFilters(),
+      showSaved: true,
+      showAnnounced: true,
+      showSequelMovies: true,
+    };
+    expect(workMatchesFilters(work({ status: "saved" }), filters)).toBe(true);
+    expect(workMatchesFilters(work({ releaseStatus: "announced" }), filters)).toBe(true);
+    expect(workMatchesFilters(work({ kind: "movie", isSequelMovie: true }), filters)).toBe(true);
+  });
+});
+
+describe("work sorting", () => {
+  it("sorts rating descending with unrated works last and localized title ties", () => {
+    const values = [
+      work({ id: "u", title: "Unrated", calculatedRating: null }),
+      work({ id: "b", title: "Beta", calculatedRating: 8 }),
+      work({ id: "a", title: "Alpha", calculatedRating: 8 }),
+      work({ id: "top", title: "Top", calculatedRating: 9 }),
+    ];
+    expect(
+      values.sort((left, right) => compareWorks(left, right, "rating", "desc")).map(({ id }) => id),
+    ).toEqual(["top", "a", "b", "u"]);
+  });
+});

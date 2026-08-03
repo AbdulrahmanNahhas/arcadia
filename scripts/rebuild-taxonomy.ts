@@ -1,39 +1,37 @@
-import Database from "better-sqlite3"
-import { createHash } from "node:crypto"
-import { join, resolve } from "node:path"
-import { tagLabelsAr as uiTagLabelsAr } from "../src/features/library/model"
+import { createHash } from "node:crypto";
+import { join, resolve } from "node:path";
+import Database from "better-sqlite3";
+import { tagLabelsAr as uiTagLabelsAr } from "../src/features/library/model";
 
-type Vocabulary = "genre" | "tone" | "tag"
+type Vocabulary = "genre" | "tone" | "tag";
 
 type WorkRow = {
-  id: string
-  kind: string
-  title: string
-  summary: string
-}
+  id: string;
+  kind: string;
+  title: string;
+  summary: string;
+};
 
 type TermRow = {
-  workId: string
-  vocabulary: Vocabulary
-  name: string
-}
+  workId: string;
+  vocabulary: Vocabulary;
+  name: string;
+};
 
 type Taxonomy = {
-  genres: string[]
-  tones: string[]
-  tags: string[]
-}
+  genres: string[];
+  tones: string[];
+  tags: string[];
+};
 
 const databasePath = resolve(
-  process.env.ARCADIA_DB_PATH ?? join(process.cwd(), "data", "arcadia.db")
-)
-const dryRun = process.argv.includes("--dry-run")
-const sourceArgument = process.argv.find((argument) =>
-  argument.startsWith("--source=")
-)
+  process.env.ARCADIA_DB_PATH ?? join(process.cwd(), "data", "arcadia.db"),
+);
+const dryRun = process.argv.includes("--dry-run");
+const sourceArgument = process.argv.find((argument) => argument.startsWith("--source="));
 const sourceDatabasePath = sourceArgument
   ? resolve(sourceArgument.slice("--source=".length))
-  : databasePath
+  : databasePath;
 
 const genresAr = {
   Action: "أكشن",
@@ -55,7 +53,7 @@ const genresAr = {
   Supernatural: "خوارق",
   Thriller: "إثارة",
   War: "حرب",
-} as const
+} as const;
 
 const tonesAr = {
   Wholesome: "دافئ",
@@ -68,7 +66,7 @@ const tonesAr = {
   Whimsical: "خيالي مرح",
   Epic: "ملحمي",
   Atmospheric: "غني بالأجواء",
-} as const
+} as const;
 
 const tagsAr = {
   "Adult Cast": "شخصيات بالغة",
@@ -213,7 +211,7 @@ const tagsAr = {
   Witches: "الساحرات",
   Workplace: "مكان العمل",
   Writing: "الكتابة",
-} as const
+} as const;
 
 const tagAliases: Readonly<Record<string, string | null>> = {
   "Adult Cast": "Adult Cast",
@@ -394,66 +392,28 @@ const tagAliases: Readonly<Record<string, string | null>> = {
   Comedic: null,
   Cars: "Racing",
   Chaotic: null,
-} as const
+} as const;
 
 const genreOverrides: Readonly<Record<string, readonly string[]>> = {
   "70b8d9cf-196c-49b1-a14a-a3209b3a0010": ["Crime", "Mystery"],
-  "8e7c62b6-1e7b-43f1-bda7-11afeefc0e17": [
-    "Drama",
-    "Fantasy",
-    "Mystery",
-    "Romance",
-  ],
-  "d5b63412-6366-4865-9052-5ed06cddad04": [
-    "Crime",
-    "Mystery",
-    "Psychological",
-    "Thriller",
-  ],
-  "eb153062-3c72-4d07-9b47-386508ff2f29": [
-    "Drama",
-    "Psychological",
-    "Science Fiction",
-  ],
+  "8e7c62b6-1e7b-43f1-bda7-11afeefc0e17": ["Drama", "Fantasy", "Mystery", "Romance"],
+  "d5b63412-6366-4865-9052-5ed06cddad04": ["Crime", "Mystery", "Psychological", "Thriller"],
+  "eb153062-3c72-4d07-9b47-386508ff2f29": ["Drama", "Psychological", "Science Fiction"],
   "680e57b5-e62d-47e0-a0ee-7b909ef8c3b4": ["Adventure", "Drama", "Fantasy"],
-  "dba72dd6-6bd8-4798-92c7-26fdba168857": [
-    "Adventure",
-    "Drama",
-    "Fantasy",
-    "War",
-  ],
+  "dba72dd6-6bd8-4798-92c7-26fdba168857": ["Adventure", "Drama", "Fantasy", "War"],
   "50b48956-8e06-46ca-b0eb-998734aecb19": ["Crime", "Mystery"],
-  "8d5379b2-3587-4f41-8cb4-0829a7e1e1ce": [
-    "Adventure",
-    "Crime",
-    "Mystery",
-    "Thriller",
-  ],
+  "8d5379b2-3587-4f41-8cb4-0829a7e1e1ce": ["Adventure", "Crime", "Mystery", "Thriller"],
   "5e39d2de-35fd-41ea-a4b9-ccc93b032d06": ["Crime", "Horror", "Mystery"],
   "56430eb7-ddd8-4c03-b0f5-a15b6be65c46": ["Adventure", "Crime", "Mystery"],
   "e8f397a5-9add-4828-a321-eebbbd83b782": ["Crime", "Mystery", "Psychological"],
   "3977443b-6ef8-4a96-9846-071df75d5a54": ["Crime", "Mystery"],
-  "788073f2-8cb6-47ea-bcde-f639ca2395f6": [
-    "Drama",
-    "Fantasy",
-    "Mystery",
-    "Psychological",
-  ],
-  "5970dc26-40e8-4960-8b43-8210fb6f229e": [
-    "Adventure",
-    "Comedy",
-    "Fantasy",
-    "Romance",
-  ],
-}
+  "788073f2-8cb6-47ea-bcde-f639ca2395f6": ["Drama", "Fantasy", "Mystery", "Psychological"],
+  "5970dc26-40e8-4960-8b43-8210fb6f229e": ["Adventure", "Comedy", "Fantasy", "Romance"],
+};
 
 const toneOverrides: Readonly<Record<string, readonly string[]>> = {
   "70b8d9cf-196c-49b1-a14a-a3209b3a0010": ["Atmospheric", "Tense"],
-  "8e7c62b6-1e7b-43f1-bda7-11afeefc0e17": [
-    "Atmospheric",
-    "Tense",
-    "Reflective",
-  ],
+  "8e7c62b6-1e7b-43f1-bda7-11afeefc0e17": ["Atmospheric", "Tense", "Reflective"],
   "d5b63412-6366-4865-9052-5ed06cddad04": ["Dark", "Tense"],
   "eb153062-3c72-4d07-9b47-386508ff2f29": ["Dark", "Reflective", "Tense"],
   "680e57b5-e62d-47e0-a0ee-7b909ef8c3b4": ["Dark", "Epic", "Tense"],
@@ -465,19 +425,13 @@ const toneOverrides: Readonly<Record<string, readonly string[]>> = {
   "e8f397a5-9add-4828-a321-eebbbd83b782": ["Reflective", "Tense"],
   "3977443b-6ef8-4a96-9846-071df75d5a54": ["Atmospheric", "Tense"],
   "788073f2-8cb6-47ea-bcde-f639ca2395f6": ["Dark", "Tense", "Epic"],
-  "5970dc26-40e8-4960-8b43-8210fb6f229e": [
-    "Whimsical",
-    "Warm",
-    "Energetic",
-  ].map((value) => (value === "Warm" ? "Wholesome" : value)),
+  "5970dc26-40e8-4960-8b43-8210fb6f229e": ["Whimsical", "Warm", "Energetic"].map((value) =>
+    value === "Warm" ? "Wholesome" : value,
+  ),
   "obsidian-animation-tv-lona": ["Atmospheric", "Dark", "Tense"],
-  "obsidian-animation-tv-sparks-of-tomorrow": [
-    "Atmospheric",
-    "Emotional",
-    "Reflective",
-  ],
+  "obsidian-animation-tv-sparks-of-tomorrow": ["Atmospheric", "Emotional", "Reflective"],
   "obsidian-animation-movies-ghost-provisional-title": ["Atmospheric"],
-}
+};
 
 const extraTags: Readonly<Record<string, readonly string[]>> = {
   "obsidian-animation-tv-aesops-fables": [
@@ -910,16 +864,15 @@ const extraTags: Readonly<Record<string, readonly string[]>> = {
     "Nonhuman Characters",
     "Travel",
   ],
-  "obsidian-animation-tv-piperos-adventures-adventures-of-pepero-the-andes-boy":
-    [
-      "Child Cast",
-      "Childhood Classic",
-      "Lost Civilization",
-      "Male Protagonist",
-      "Rescue Mission",
-      "Rural Setting",
-      "Travel",
-    ],
+  "obsidian-animation-tv-piperos-adventures-adventures-of-pepero-the-andes-boy": [
+    "Child Cast",
+    "Childhood Classic",
+    "Lost Civilization",
+    "Male Protagonist",
+    "Rescue Mission",
+    "Rural Setting",
+    "Travel",
+  ],
   "obsidian-animation-movies-ratatouille": [
     "Animal Cast",
     "Art",
@@ -947,15 +900,14 @@ const extraTags: Readonly<Record<string, readonly string[]>> = {
     "Rebellion",
     "Rural Setting",
   ],
-  "obsidian-animation-tv-yokoyama-mitsuteru-sangokushi-romance-of-the-three-kingdoms":
-    [
-      "Adult Cast",
-      "Childhood Classic",
-      "Ensemble Cast",
-      "Literary Classic",
-      "Military",
-      "Political Intrigue",
-    ],
+  "obsidian-animation-tv-yokoyama-mitsuteru-sangokushi-romance-of-the-three-kingdoms": [
+    "Adult Cast",
+    "Childhood Classic",
+    "Ensemble Cast",
+    "Literary Classic",
+    "Military",
+    "Political Intrigue",
+  ],
   "literature-manga-solo-leveling": [
     "Dungeons",
     "Male Protagonist",
@@ -1089,16 +1041,15 @@ const extraTags: Readonly<Record<string, readonly string[]>> = {
     "Literary Classic",
     "Rural Setting",
   ],
-  "obsidian-animation-tv-the-swiss-family-robinson-flone-of-the-mysterious-island":
-    [
-      "Child Cast",
-      "Childhood Classic",
-      "Family Life",
-      "Island Setting",
-      "Literary Classic",
-      "Survival",
-      "Travel",
-    ],
+  "obsidian-animation-tv-the-swiss-family-robinson-flone-of-the-mysterious-island": [
+    "Child Cast",
+    "Childhood Classic",
+    "Family Life",
+    "Island Setting",
+    "Literary Classic",
+    "Survival",
+    "Travel",
+  ],
   "obsidian-animation-tv-world-famous-fairy-tale-series-wow-marchen-kingdom": [
     "Anthology",
     "Childhood Classic",
@@ -1382,11 +1333,8 @@ const extraTags: Readonly<Record<string, readonly string[]>> = {
     "Post-Apocalyptic",
     "Technology",
   ],
-  "obsidian-animation-movies-ghost-provisional-title": [
-    "Female Protagonist",
-    "Spirits",
-  ],
-}
+  "obsidian-animation-movies-ghost-provisional-title": ["Female Protagonist", "Spirits"],
+};
 
 const tagDefinitionExtensions = {
   "Anime Movie": "فيلم أنمي",
@@ -1398,12 +1346,12 @@ const tagDefinitionExtensions = {
   Neuroscience: "علم الأعصاب",
   "Parallel Worlds": "عوالم متوازية",
   "Rescue Mission": "مهمة إنقاذ",
-} as const
+} as const;
 
 const allTagsAr: Readonly<Record<string, string>> = {
   ...tagsAr,
   ...tagDefinitionExtensions,
-}
+};
 
 const animeMovieIds = new Set([
   "obsidian-animation-movies-silent-voice",
@@ -1423,145 +1371,136 @@ const animeMovieIds = new Set([
   "obsidian-animation-movies-violet-evergarden-the-movie",
   "obsidian-animation-movies-wasted-chef",
   "obsidian-animation-movies-weathering-with-you",
-])
+]);
 
-const db = new Database(databasePath)
-db.pragma("foreign_keys = ON")
-db.pragma("busy_timeout = 5000")
+const db = new Database(databasePath);
+db.pragma("foreign_keys = ON");
+db.pragma("busy_timeout = 5000");
 const sourceDb =
-  sourceDatabasePath === databasePath
-    ? db
-    : new Database(sourceDatabasePath, { readonly: true })
+  sourceDatabasePath === databasePath ? db : new Database(sourceDatabasePath, { readonly: true });
 
 const works = db
   .prepare<[], WorkRow>(
-    `SELECT id, kind, canonical_title AS title, summary FROM works ORDER BY canonical_title`
+    `SELECT id, kind, canonical_title AS title, summary FROM works ORDER BY canonical_title`,
   )
-  .all()
+  .all();
 
 const termRows = sourceDb
   .prepare<[], TermRow>(
     `SELECT wt.work_id AS workId, t.vocabulary, t.name
      FROM work_terms wt
      JOIN terms t ON t.id = wt.term_id
-     WHERE t.vocabulary IN ('genre', 'tone', 'tag')`
+     WHERE t.vocabulary IN ('genre', 'tone', 'tag')`,
   )
-  .all()
+  .all();
 
-if (sourceDb !== db) sourceDb.close()
+if (sourceDb !== db) sourceDb.close();
 
-const termsByWork = new Map<string, Map<Vocabulary, string[]>>()
+const termsByWork = new Map<string, Map<Vocabulary, string[]>>();
 for (const row of termRows) {
-  const vocabularies = termsByWork.get(row.workId) ?? new Map()
-  const values = vocabularies.get(row.vocabulary) ?? []
-  values.push(row.name)
-  vocabularies.set(row.vocabulary, values)
-  termsByWork.set(row.workId, vocabularies)
+  const vocabularies = termsByWork.get(row.workId) ?? new Map();
+  const values = vocabularies.get(row.vocabulary) ?? [];
+  values.push(row.name);
+  vocabularies.set(row.vocabulary, values);
+  termsByWork.set(row.workId, vocabularies);
 }
 
-const knownGenres = new Set(Object.keys(genresAr))
-const knownTones = new Set(Object.keys(tonesAr))
-const knownTags = new Set(Object.keys(allTagsAr))
+const knownGenres = new Set(Object.keys(genresAr));
+const knownTones = new Set(Object.keys(tonesAr));
+const knownTags = new Set(Object.keys(allTagsAr));
 
-const prepared = new Map<string, Taxonomy>()
+const prepared = new Map<string, Taxonomy>();
 
 for (const work of works) {
-  const current = termsByWork.get(work.id)
-  const oldGenres = current?.get("genre") ?? []
-  const oldTones = current?.get("tone") ?? []
-  const oldTags = current?.get("tag") ?? []
+  const current = termsByWork.get(work.id);
+  const oldGenres = current?.get("genre") ?? [];
+  const oldTones = current?.get("tone") ?? [];
+  const oldTags = current?.get("tag") ?? [];
 
-  const genres = new Set(oldGenres)
-  if (oldTags.includes("Psychological")) genres.add("Psychological")
-  if (
-    oldTags.some((tag) =>
-      ["Crime", "Crime Organization", "Detective", "Yakuza"].includes(tag)
-    )
-  ) {
-    genres.add("Crime")
+  const genres = new Set(oldGenres);
+  if (oldTags.includes("Psychological")) genres.add("Psychological");
+  if (oldTags.some((tag) => ["Crime", "Crime Organization", "Detective", "Yakuza"].includes(tag))) {
+    genres.add("Crime");
   }
-  if (oldTags.includes("Mecha")) genres.add("Mecha")
-  if (oldTags.includes("War")) genres.add("War")
+  if (oldTags.includes("Mecha")) genres.add("Mecha");
+  if (oldTags.includes("War")) genres.add("War");
 
-  const explicitGenres = genreOverrides[work.id]
+  const explicitGenres = genreOverrides[work.id];
   if (explicitGenres) {
-    genres.clear()
-    explicitGenres.forEach((genre) => genres.add(genre))
+    genres.clear();
+    explicitGenres.forEach((genre) => genres.add(genre));
   }
 
   const tones = new Set(
     oldTones.map((tone) => {
-      if (tone === "Hype / Energetic") return "Energetic"
-      if (tone === "Surreal / Whimsical") return "Whimsical"
-      return tone
-    })
-  )
-  if (tones.has("Dark")) tones.delete("Wholesome")
+      if (tone === "Hype / Energetic") return "Energetic";
+      if (tone === "Surreal / Whimsical") return "Whimsical";
+      return tone;
+    }),
+  );
+  if (tones.has("Dark")) tones.delete("Wholesome");
   if (tones.size === 0) {
-    if (genres.has("Comedy")) tones.add("Wholesome")
-    else if (genres.has("Thriller") || genres.has("Horror")) tones.add("Tense")
-    else if (genres.has("Drama")) tones.add("Emotional")
-    else tones.add("Atmospheric")
+    if (genres.has("Comedy")) tones.add("Wholesome");
+    else if (genres.has("Thriller") || genres.has("Horror")) tones.add("Tense");
+    else if (genres.has("Drama")) tones.add("Emotional");
+    else tones.add("Atmospheric");
   }
 
-  const explicitTones = toneOverrides[work.id]
+  const explicitTones = toneOverrides[work.id];
   if (explicitTones) {
-    tones.clear()
-    explicitTones.forEach((tone) => tones.add(tone))
+    tones.clear();
+    explicitTones.forEach((tone) => tones.add(tone));
   }
 
-  const tags = new Set<string>()
+  const tags = new Set<string>();
   for (const oldTag of oldTags) {
-    const replacement = tagAliases[oldTag]
-    if (replacement) tags.add(replacement)
+    const replacement = tagAliases[oldTag];
+    if (replacement) tags.add(replacement);
   }
-  extraTags[work.id]?.forEach((tag) => tags.add(tag))
-  if (animeMovieIds.has(work.id)) tags.add("Anime Movie")
-  else if (work.kind === "movie") tags.add("Animated Movie")
+  extraTags[work.id]?.forEach((tag) => tags.add(tag));
+  if (animeMovieIds.has(work.id)) tags.add("Anime Movie");
+  else if (work.kind === "movie") tags.add("Animated Movie");
 
   const taxonomy: Taxonomy = {
     genres: [...genres].filter((genre) => knownGenres.has(genre)).sort(),
     tones: [...tones].filter((tone) => knownTones.has(tone)).sort(),
     tags: [...tags].filter((tag) => knownTags.has(tag)).sort(),
-  }
-  prepared.set(work.id, taxonomy)
+  };
+  prepared.set(work.id, taxonomy);
 }
 
-const tagFrequency = new Map<string, number>()
+const tagFrequency = new Map<string, number>();
 for (const taxonomy of prepared.values()) {
   for (const tag of taxonomy.tags) {
-    tagFrequency.set(tag, (tagFrequency.get(tag) ?? 0) + 1)
+    tagFrequency.set(tag, (tagFrequency.get(tag) ?? 0) + 1);
   }
 }
 
-const problems: string[] = []
+const problems: string[] = [];
 for (const work of works) {
-  const taxonomy = prepared.get(work.id)!
-  if (taxonomy.genres.length === 0) problems.push(`${work.title}: no genres`)
-  if (taxonomy.tones.length === 0) problems.push(`${work.title}: no tones`)
-  const minimumTags =
-    work.id === "obsidian-animation-movies-ghost-provisional-title" ? 2 : 5
+  const taxonomy = prepared.get(work.id)!;
+  if (taxonomy.genres.length === 0) problems.push(`${work.title}: no genres`);
+  if (taxonomy.tones.length === 0) problems.push(`${work.title}: no tones`);
+  const minimumTags = work.id === "obsidian-animation-movies-ghost-provisional-title" ? 2 : 5;
   if (taxonomy.tags.length < minimumTags || taxonomy.tags.length > 15) {
-    problems.push(`${work.title}: ${taxonomy.tags.length} tags`)
+    problems.push(`${work.title}: ${taxonomy.tags.length} tags`);
   }
 }
 
 const singletonTags = [...tagFrequency]
   .filter(([, count]) => count === 1)
   .map(([tag]) => tag)
-  .sort()
-const unusedTags = [...knownTags].filter((tag) => !tagFrequency.has(tag)).sort()
-const missingUiTranslations = [...tagFrequency.keys()]
-  .filter((tag) => !uiTagLabelsAr[tag])
-  .sort()
+  .sort();
+const unusedTags = [...knownTags].filter((tag) => !tagFrequency.has(tag)).sort();
+const missingUiTranslations = [...tagFrequency.keys()].filter((tag) => !uiTagLabelsAr[tag]).sort();
 const staleUiTranslations = Object.keys(uiTagLabelsAr)
   .filter((tag) => !tagFrequency.has(tag))
-  .sort()
+  .sort();
 
 problems.push(
   ...missingUiTranslations.map((tag) => `missing Arabic UI label: ${tag}`),
-  ...staleUiTranslations.map((tag) => `stale Arabic UI label: ${tag}`)
-)
+  ...staleUiTranslations.map((tag) => `stale Arabic UI label: ${tag}`),
+);
 
 console.log({
   works: works.length,
@@ -1572,23 +1511,20 @@ console.log({
   singletonTags: singletonTags.length,
   dryRun,
   sourceDatabasePath,
-})
+});
 
-if (problems.length) console.log("PROBLEMS\n" + problems.join("\n"))
+if (problems.length) console.log(`PROBLEMS\n${problems.join("\n")}`);
 if (singletonTags.length) {
-  console.log("SINGLETON TAGS\n" + singletonTags.join("\n"))
+  console.log(`SINGLETON TAGS\n${singletonTags.join("\n")}`);
 }
-if (unusedTags.length) console.log("UNUSED TAGS\n" + unusedTags.join("\n"))
+if (unusedTags.length) console.log(`UNUSED TAGS\n${unusedTags.join("\n")}`);
 
 if (dryRun || problems.length) {
-  db.close()
-  if (problems.length) process.exitCode = 1
+  db.close();
+  if (problems.length) process.exitCode = 1;
 } else {
   const stableId = (...parts: string[]) =>
-    createHash("sha256")
-      .update(parts.join(":"), "utf8")
-      .digest("hex")
-      .slice(0, 32)
+    createHash("sha256").update(parts.join(":"), "utf8").digest("hex").slice(0, 32);
   const slug = (value: string) =>
     value
       .toLocaleLowerCase("en-US")
@@ -1596,47 +1532,43 @@ if (dryRun || problems.length) {
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/&/g, " and ")
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
+      .replace(/^-+|-+$/g, "");
 
   const rebuild = db.transaction(() => {
     const taxonomyTermIds = db
       .prepare<[], { id: string }>(
-        `SELECT id FROM terms WHERE vocabulary IN ('genre', 'tone', 'tag')`
+        `SELECT id FROM terms WHERE vocabulary IN ('genre', 'tone', 'tag')`,
       )
       .all()
-      .map(({ id }) => id)
+      .map(({ id }) => id);
 
-    const deleteLinks = db.prepare(`DELETE FROM work_terms WHERE term_id = ?`)
-    const deleteTerm = db.prepare(`DELETE FROM terms WHERE id = ?`)
+    const deleteLinks = db.prepare(`DELETE FROM work_terms WHERE term_id = ?`);
+    const deleteTerm = db.prepare(`DELETE FROM terms WHERE id = ?`);
     for (const id of taxonomyTermIds) {
-      deleteLinks.run(id)
-      deleteTerm.run(id)
+      deleteLinks.run(id);
+      deleteTerm.run(id);
     }
 
     const insertTerm = db.prepare(
       `INSERT INTO terms
        (id, vocabulary, name, slug, label_ar, description, description_ar)
-       VALUES (?, ?, ?, ?, ?, '', '')`
-    )
-    const insertLink = db.prepare(
-      `INSERT INTO work_terms (work_id, term_id) VALUES (?, ?)`
-    )
+       VALUES (?, ?, ?, ?, ?, '', '')`,
+    );
+    const insertLink = db.prepare(`INSERT INTO work_terms (work_id, term_id) VALUES (?, ?)`);
 
-    const registries: Array<
-      readonly [Vocabulary, Readonly<Record<string, string>>]
-    > = [
+    const registries: Array<readonly [Vocabulary, Readonly<Record<string, string>>]> = [
       ["genre", genresAr],
       ["tone", tonesAr],
       ["tag", allTagsAr],
-    ]
+    ];
 
-    const termIds = new Map<string, string>()
+    const termIds = new Map<string, string>();
     for (const [vocabulary, registry] of registries) {
       for (const [name, labelAr] of Object.entries(registry)) {
-        if (vocabulary === "tag" && !tagFrequency.has(name)) continue
-        const id = stableId("term", vocabulary, slug(name))
-        insertTerm.run(id, vocabulary, name, slug(name), labelAr)
-        termIds.set(`${vocabulary}:${name}`, id)
+        if (vocabulary === "tag" && !tagFrequency.has(name)) continue;
+        const id = stableId("term", vocabulary, slug(name));
+        insertTerm.run(id, vocabulary, name, slug(name), labelAr);
+        termIds.set(`${vocabulary}:${name}`, id);
       }
     }
 
@@ -1645,18 +1577,18 @@ if (dryRun || problems.length) {
         ["genre", taxonomy.genres],
         ["tone", taxonomy.tones],
         ["tag", taxonomy.tags],
-      ]
+      ];
       for (const [vocabulary, values] of assignments) {
         for (const value of values) {
-          const termId = termIds.get(`${vocabulary}:${value}`)
-          if (!termId) throw new Error(`Unknown ${vocabulary}: ${value}`)
-          insertLink.run(workId, termId)
+          const termId = termIds.get(`${vocabulary}:${value}`);
+          if (!termId) throw new Error(`Unknown ${vocabulary}: ${value}`);
+          insertLink.run(workId, termId);
         }
       }
     }
-  })
+  });
 
-  rebuild()
-  db.close()
-  console.log("Taxonomy rebuilt successfully.")
+  rebuild();
+  db.close();
+  console.log("Taxonomy rebuilt successfully.");
 }

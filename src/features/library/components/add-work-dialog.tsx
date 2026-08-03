@@ -1,8 +1,8 @@
-import { useState } from "react"
-import type { FormEvent } from "react"
-import { useMutation } from "@tanstack/react-query"
-import { PlusIcon } from "@phosphor-icons/react"
-import { Button } from "@/components/ui/button"
+import { PlusIcon } from "@phosphor-icons/react";
+import { useMutation } from "@tanstack/react-query";
+import type { FormEvent } from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,49 +11,45 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { addWork } from "@/server/library.functions"
-import { kindLabels } from "../filtering"
-import { workKinds } from "../model"
-import type { WorkKind } from "../model"
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { addWork } from "@/server/library.functions";
+import { kindLabels } from "../filtering";
+import type { WorkKind } from "../model";
+import { workKinds } from "../model";
 
-export function AddWorkDialog({
-  onCreated,
-}: {
-  onCreated: () => Promise<void>
-}) {
-  const [open, setOpen] = useState(false)
-  const [kind, setKind] = useState<WorkKind>("movie")
+export function AddWorkDialog({ onCreated }: { onCreated: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<WorkKind>("movie");
   const mutation = useMutation({
     mutationFn: addWork,
     onSuccess: async () => {
-      await onCreated()
-      setOpen(false)
+      await onCreated();
+      setOpen(false);
     },
-  })
+  });
 
   function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const data = new FormData(event.currentTarget)
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
     mutation.mutate({
       data: {
         title: String(data.get("title") ?? ""),
         kind,
         year: data.get("year") ? Number(data.get("year")) : null,
-        status: "planned",
+        status: "saved",
         summary: String(data.get("summary") ?? ""),
       },
-    })
+    });
   }
 
   return (
@@ -74,28 +70,18 @@ export function AddWorkDialog({
         <DialogHeader>
           <DialogTitle>إضافة إلى مكتبتك</DialogTitle>
           <DialogDescription>
-            أنشئ السجل الأساسي الآن، ويمكنك استكمال بياناته لاحقاً من مساحة
-            الإدارة.
+            أنشئ السجل الأساسي الآن، ويمكنك استكمال بياناته لاحقاً من مساحة الإدارة.
           </DialogDescription>
         </DialogHeader>
         <form id="add-work-form" onSubmit={submit} className="grid gap-4 py-2">
           <div className="grid gap-2">
             <Label htmlFor="work-title">العنوان</Label>
-            <Input
-              id="work-title"
-              name="title"
-              placeholder="عنوان العمل"
-              required
-              autoFocus
-            />
+            <Input id="work-title" name="title" placeholder="عنوان العمل" required autoFocus />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="work-kind">النوع</Label>
-              <Select
-                value={kind}
-                onValueChange={(value) => value && setKind(value)}
-              >
+              <Select value={kind} onValueChange={(value) => value && setKind(value)}>
                 <SelectTrigger id="work-kind" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -139,15 +125,11 @@ export function AddWorkDialog({
           <Button variant="ghost" onClick={() => setOpen(false)}>
             إلغاء
           </Button>
-          <Button
-            type="submit"
-            form="add-work-form"
-            disabled={mutation.isPending}
-          >
+          <Button type="submit" form="add-work-form" disabled={mutation.isPending}>
             {mutation.isPending ? "جارٍ الإضافة…" : "إضافة إلى المكتبة"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

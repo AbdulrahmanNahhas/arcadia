@@ -1,58 +1,58 @@
-import { createHash } from "node:crypto"
-import { and, eq } from "drizzle-orm"
-import { db } from "@/db/client"
-import { normalizeTaxonomy } from "@/features/library/taxonomy"
+import { createHash } from "node:crypto";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db/client";
 import {
   entities,
   externalLinks,
   personalState,
   terms,
-  workCredits,
+  workContributors,
   workRelations,
+  works,
   workTerms,
   workTitles,
-  works,
-} from "@/db/schema"
-import type { Audience } from "@/features/library/model"
+} from "@/db/schema";
+import type { Audience } from "@/features/library/model";
+import { normalizeTaxonomy } from "@/features/library/taxonomy";
 
 type LiteratureWork = {
-  id: string
-  title: string
-  aliases: string[]
-  kind: "manga" | "novel"
-  year: number
-  status: "planned" | "in-progress" | "completed"
-  summary: string
-  creator: string
-  credits: Array<{ name: string; role: string }>
-  genres: string[]
-  tags: string[]
-  tone: string[]
-  audience: Audience
-  country: string[]
-  releaseStart: string
-  releaseEnd?: string
+  id: string;
+  title: string;
+  aliases: string[];
+  kind: "manga" | "novel";
+  year: number;
+  status: "planned" | "in-progress" | "completed";
+  summary: string;
+  creator: string;
+  credits: Array<{ name: string; role: string }>;
+  genres: string[];
+  tags: string[];
+  tone: string[];
+  audience: Audience;
+  country: string[];
+  releaseStart: string;
+  releaseEnd?: string;
   publication: {
-    format: string
-    publisher: string
-    imprint?: string
-    serialization?: string[]
-    contents?: string[]
-  }
-  links: Array<{ provider: string; label: string; url: string }>
+    format: string;
+    publisher: string;
+    imprint?: string;
+    serialization?: string[];
+    contents?: string[];
+  };
+  links: Array<{ provider: string; label: string; url: string }>;
   sourceMaterial?: {
-    type: string
-    started: number | null
-    finished: number | null
-    serialization: string[]
-    publication: string | null
-  }
+    type: string;
+    started: number | null;
+    finished: number | null;
+    serialization: string[];
+    publication: string | null;
+  };
   riskProfile?: {
-    sexuality: "none" | "low" | "medium" | "high" | "unknown"
-    behavioral: "none" | "low" | "medium" | "high" | "unknown"
-    theology: "none" | "low" | "medium" | "high" | "unknown"
-  }
-}
+    sexuality: "none" | "low" | "medium" | "high" | "unknown";
+    behavioral: "none" | "low" | "medium" | "high" | "unknown";
+    theology: "none" | "low" | "medium" | "high" | "unknown";
+  };
+};
 
 const literature: LiteratureWork[] = [
   {
@@ -177,10 +177,7 @@ const literature: LiteratureWork[] = [
   {
     id: "literature-manga-three-days-of-happiness",
     title: "Three Days of Happiness",
-    aliases: [
-      "I Sold My Life for Ten Thousand Yen per Year",
-      "Mikkakan no Koufuku",
-    ],
+    aliases: ["I Sold My Life for Ten Thousand Yen per Year", "Mikkakan no Koufuku"],
     kind: "manga",
     year: 2016,
     status: "planned",
@@ -192,13 +189,7 @@ const literature: LiteratureWork[] = [
       { name: "Shouichi Taguchi", role: "artist" },
     ],
     genres: ["Drama", "Romance"],
-    tags: [
-      "Mortality",
-      "Regret",
-      "Loneliness",
-      "Life choices",
-      "Psychological",
-    ],
+    tags: ["Mortality", "Regret", "Loneliness", "Life choices", "Psychological"],
     tone: ["Melancholic", "Reflective", "Bittersweet"],
     audience: "Young Adult",
     country: ["Japan"],
@@ -359,11 +350,7 @@ const literature: LiteratureWork[] = [
     publication: {
       format: "Novel trilogy",
       publisher: "Tor Books",
-      contents: [
-        "Mistborn: The Final Empire",
-        "The Well of Ascension",
-        "The Hero of Ages",
-      ],
+      contents: ["Mistborn: The Final Empire", "The Well of Ascension", "The Hero of Ages"],
     },
     links: [
       {
@@ -378,13 +365,10 @@ const literature: LiteratureWork[] = [
       theology: "medium",
     },
   },
-]
+];
 
 function stableId(...parts: string[]) {
-  return createHash("sha256")
-    .update(parts.join(":"), "utf8")
-    .digest("hex")
-    .slice(0, 32)
+  return createHash("sha256").update(parts.join(":"), "utf8").digest("hex").slice(0, 32);
 }
 
 function slug(value: string) {
@@ -392,14 +376,14 @@ function slug(value: string) {
     .toLocaleLowerCase()
     .normalize("NFKD")
     .replace(/[^\w]+/g, "-")
-    .replace(/^-|-$/g, "")
+    .replace(/^-|-$/g, "");
 }
 
-const now = Math.floor(Date.now() / 1000)
+const now = Math.floor(Date.now() / 1000);
 
 db.transaction((tx) => {
   for (const item of literature) {
-    const taxonomy = normalizeTaxonomy(item)
+    const taxonomy = normalizeTaxonomy(item);
     tx.insert(works)
       .values({
         id: item.id,
@@ -408,9 +392,7 @@ db.transaction((tx) => {
         sortTitle: item.title.toLocaleLowerCase(),
         summary: item.summary,
         releaseYear: item.year,
-        originalReleaseAt: Math.floor(
-          new Date(`${item.releaseStart}T00:00:00Z`).getTime() / 1000
-        ),
+        originalReleaseAt: Math.floor(new Date(`${item.releaseStart}T00:00:00Z`).getTime() / 1000),
         status: item.releaseEnd ? "ended" : "releasing",
         metadata: {
           riskProfile: item.riskProfile ?? null,
@@ -439,7 +421,7 @@ db.transaction((tx) => {
           summary: item.summary,
           releaseYear: item.year,
           originalReleaseAt: Math.floor(
-            new Date(`${item.releaseStart}T00:00:00Z`).getTime() / 1000
+            new Date(`${item.releaseStart}T00:00:00Z`).getTime() / 1000,
           ),
           status: item.releaseEnd ? "ended" : "releasing",
           metadata: {
@@ -460,16 +442,16 @@ db.transaction((tx) => {
           updatedAt: now,
         },
       })
-      .run()
+      .run();
     tx.insert(personalState)
       .values({ workId: item.id, status: item.status, updatedAt: now })
       .onConflictDoUpdate({
         target: personalState.workId,
         set: { status: item.status, updatedAt: now },
       })
-      .run()
+      .run();
 
-    tx.delete(workTitles).where(eq(workTitles.workId, item.id)).run()
+    tx.delete(workTitles).where(eq(workTitles.workId, item.id)).run();
     for (const [position, title] of [item.title, ...item.aliases].entries()) {
       tx.insert(workTitles)
         .values({
@@ -479,23 +461,18 @@ db.transaction((tx) => {
           titleType: position === 0 ? "canonical" : "alias",
           isPreferred: position === 0,
         })
-        .run()
+        .run();
     }
 
-    tx.delete(workCredits).where(eq(workCredits.workId, item.id)).run()
+    tx.delete(workContributors).where(eq(workContributors.workId, item.id)).run();
     for (const credit of item.credits) {
-      const sortName = credit.name.toLocaleLowerCase()
+      const sortName = credit.name.toLocaleLowerCase();
       const entity = tx
         .select()
         .from(entities)
-        .where(
-          and(
-            eq(entities.entityType, "person"),
-            eq(entities.sortName, sortName)
-          )
-        )
-        .get()
-      const entityId = entity?.id ?? stableId("entity", "person", sortName)
+        .where(and(eq(entities.entityType, "person"), eq(entities.sortName, sortName)))
+        .get();
+      const entityId = entity?.id ?? stableId("entity", "person", sortName);
       if (!entity) {
         tx.insert(entities)
           .values({
@@ -504,33 +481,31 @@ db.transaction((tx) => {
             name: credit.name,
             sortName,
           })
-          .run()
+          .run();
       }
-      tx.insert(workCredits)
-        .values({
-          workId: item.id,
-          entityId,
-          role: [
-            "author",
-            "original-author",
-            "writer",
-            "writer-artist",
-            "artist",
-          ].includes(credit.role)
-            ? "author"
-            : "creator",
-        })
-        .run()
+      const roles =
+        credit.role === "writer-artist"
+          ? (["author", "illustrator"] as const)
+          : credit.role === "artist"
+            ? (["illustrator"] as const)
+            : credit.role === "original-author"
+              ? (["original-author"] as const)
+              : credit.role === "writer" || credit.role === "adaptation"
+                ? (["writer"] as const)
+                : credit.role === "author"
+                  ? (["author"] as const)
+                  : (["creator"] as const);
+      for (const role of roles) {
+        tx.insert(workContributors)
+          .values({ workId: item.id, entityId, role })
+          .onConflictDoNothing()
+          .run();
+      }
     }
 
     tx.delete(externalLinks)
-      .where(
-        and(
-          eq(externalLinks.ownerType, "work"),
-          eq(externalLinks.ownerId, item.id)
-        )
-      )
-      .run()
+      .where(and(eq(externalLinks.ownerType, "work"), eq(externalLinks.ownerId, item.id)))
+      .run();
     for (const link of item.links) {
       tx.insert(externalLinks)
         .values({
@@ -541,7 +516,7 @@ db.transaction((tx) => {
           label: link.label,
           url: link.url,
         })
-        .run()
+        .run();
     }
 
     const vocabularies: Array<[string, string[]]> = [
@@ -550,23 +525,20 @@ db.transaction((tx) => {
       ["tone", taxonomy.tone],
       ["audience", [item.audience]],
       ["country", item.country],
-    ]
+    ];
     for (const [vocabulary, values] of vocabularies) {
       for (const name of values) {
-        const generatedTermId = stableId("term", vocabulary, slug(name))
+        const generatedTermId = stableId("term", vocabulary, slug(name));
         tx.insert(terms)
           .values({ id: generatedTermId, vocabulary, name, slug: slug(name) })
           .onConflictDoNothing()
-          .run()
+          .run();
         const term = tx
           .select({ id: terms.id })
           .from(terms)
-          .where(
-            and(eq(terms.vocabulary, vocabulary), eq(terms.slug, slug(name)))
-          )
-          .get()
-        if (!term)
-          throw new Error(`Could not create term: ${vocabulary}/${name}`)
+          .where(and(eq(terms.vocabulary, vocabulary), eq(terms.slug, slug(name))))
+          .get();
+        if (!term) throw new Error(`Could not create term: ${vocabulary}/${name}`);
         tx.insert(workTerms)
           .values({
             workId: item.id,
@@ -574,7 +546,7 @@ db.transaction((tx) => {
             source: "arcadia-literature-seed",
           })
           .onConflictDoNothing()
-          .run()
+          .run();
       }
     }
   }
@@ -582,23 +554,19 @@ db.transaction((tx) => {
   const adaptations = [
     ["obsidian-animation-tv-blue-box", "literature-manga-blue-box"],
     ["obsidian-animation-tv-solo-leveling", "literature-manga-solo-leveling"],
-  ] as const
+  ] as const;
   for (const [sourceWorkId, targetWorkId] of adaptations) {
-    const sourceExists = tx
-      .select()
-      .from(works)
-      .where(eq(works.id, sourceWorkId))
-      .get()
-    if (!sourceExists) continue
+    const sourceExists = tx.select().from(works).where(eq(works.id, sourceWorkId)).get();
+    if (!sourceExists) continue;
     tx.delete(workRelations)
       .where(
         and(
           eq(workRelations.sourceWorkId, sourceWorkId),
           eq(workRelations.targetWorkId, targetWorkId),
-          eq(workRelations.relationType, "adaptation")
-        )
+          eq(workRelations.relationType, "adaptation"),
+        ),
       )
-      .run()
+      .run();
     tx.insert(workRelations)
       .values({
         id: stableId("relation", sourceWorkId, targetWorkId, "adaptation"),
@@ -607,8 +575,8 @@ db.transaction((tx) => {
         relationType: "adaptation",
         notes: "",
       })
-      .run()
+      .run();
   }
-})
+});
 
-console.log(`Seeded ${literature.length} literature records.`)
+console.log(`Seeded ${literature.length} literature records.`);
