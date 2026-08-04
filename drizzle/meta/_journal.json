@@ -169,6 +169,13 @@
       "when": 1785690021991,
       "tag": "0023_neat_meltdown",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1785792000000,
+      "tag": "0024_add_catalog_tags",
+      "breakpoints": true
     }
   ]
 }
