@@ -43,8 +43,11 @@ describe("literature model", () => {
     ])
     expect(countrySchema.options).toEqual([
       "Australia",
+      "Canada",
+      "China",
       "France",
       "Japan",
+      "Spain",
       "South Korea",
       "United Kingdom",
       "United States",
