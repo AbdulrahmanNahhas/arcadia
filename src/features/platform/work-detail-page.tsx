@@ -1,6 +1,7 @@
 import {
   ArrowRightIcon,
   CalendarBlankIcon,
+  CaretDownIcon,
   CheckCircleIcon,
   ClockIcon,
   FilmSlateIcon,
@@ -271,69 +272,115 @@ function WorkHero({
   );
 }
 
+const RISK_STYLES: Record<string, { badge: string; accent: string }> = {
+  high: {
+    badge: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400",
+    accent: "border-s-red-500/70",
+  },
+  medium: {
+    badge: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+    accent: "border-s-amber-500/70",
+  },
+  low: {
+    badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+    accent: "border-s-emerald-500/70",
+  },
+};
+
+function RiskBadge({ level }: { level: RiskAssessment["level"] }) {
+  const style = RISK_STYLES[level] ?? RISK_STYLES.low;
+  return (
+    <Badge variant="outline" className={`gap-1 font-normal ${style.badge}`}>
+      {level === "high" ? (
+        <WarningCircleIcon weight="fill" className="size-3" />
+      ) : (
+        <ShieldCheckIcon weight="fill" className="size-3" />
+      )}
+      {riskLabels[level]}
+    </Badge>
+  );
+}
+
 function ParentGuideDialog({ risks, work }: { risks: RiskAssessment[]; work: Work }) {
+  const [openId, setOpenId] = useState<string | null>(risks[0]?.dimensionId ?? null);
+  const notes = [work.contentWarnings, work.analysisNotes].filter(Boolean).join("\n\n");
+
   return (
     <Dialog>
-      <DialogTrigger render={<Button size="lg" />}>
-        <ShieldCheckIcon /> دليل المحتوى
+      <DialogTrigger render={<Button size="lg" className="gap-2" />}>
+        <ShieldCheckIcon className="size-4" />
+        دليل المحتوى
       </DialogTrigger>
-      <DialogContent className="platform-surface max-h-[90svh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-xl">دليل المحتوى والتحليل</DialogTitle>
+
+      <DialogContent className="platform-surface max-h-[90svh] overflow-y-auto p-0 sm:max-w-2xl">
+        <DialogHeader className="border-b px-6 py-5">
+          <DialogTitle className="font-heading text-xl">دليل المحتوى والتحليل</DialogTitle>
           <DialogDescription>
             قراءة منظّمة للمخاطر المحفوظة في قاعدة البيانات، وليست تصنيفاً عمرياً خارجياً.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
+
+        <div className="space-y-2 p-6 pt-0">
           {risks.length ? (
-            risks.map((risk) => (
-              <div key={risk.dimensionId} className="rounded-xl border bg-muted/30 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-heading text-sm font-semibold">{risk.nameAr}</h3>
-                    {risk.nameEn && (
-                      <p className="mt-1 font-mono text-xs text-muted-foreground" dir="ltr">
-                        {risk.nameEn}
-                      </p>
-                    )}
+            risks.map((risk) => {
+              const isOpen = openId === risk.dimensionId;
+              const style = RISK_STYLES[risk.level] ?? RISK_STYLES.low;
+              return (
+                <div
+                  key={risk.dimensionId}
+                  className={`overflow-hidden rounded-lg border border-s-2 ${style.accent}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenId(isOpen ? null : risk.dimensionId)}
+                    aria-expanded={isOpen}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-start"
+                  >
+                    <div>
+                      <h3 className="text-sm font-medium">{risk.nameAr}</h3>
+                      {risk.nameEn && (
+                        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground" dir="ltr">
+                          {risk.nameEn}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RiskBadge level={risk.level} />
+                      <CaretDownIcon
+                        className={`size-3.5 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+                      />
+                    </div>
+                  </button>
+                  <div
+                    className="grid transition-all duration-200"
+                    style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
+                  >
+                    <p className="overflow-hidden px-4 pb-3.5 text-sm leading-7 text-muted-foreground">
+                      {risk.explanation || risk.notes || risk.description}
+                    </p>
                   </div>
-                  <RiskBadge level={risk.level} />
                 </div>
-                <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                  {risk.explanation || risk.notes || risk.description}
-                </p>
-              </div>
-            ))
+              );
+            })
           ) : (
-            <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
+            <p className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
               لا توجد تقييمات مخاطر منظّمة لهذا العمل.
             </p>
           )}
+
+          {notes && (
+            <div className="mt-4 rounded-lg border-s-2 border-s-primary bg-primary/5 px-4 py-3.5">
+              <h3 className="flex items-center gap-1.5 text-sm font-medium text-primary">
+                <InfoIcon weight="fill" className="size-3.5" /> ملاحظات التحليل
+              </h3>
+              <p className="mt-1.5 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
+                {notes}
+              </p>
+            </div>
+          )}
         </div>
-        {(work.analysisNotes || work.contentWarnings) && (
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <h3 className="flex items-center gap-2 font-heading text-sm font-semibold">
-              <InfoIcon /> ملاحظات التحليل
-            </h3>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-              {[work.contentWarnings, work.analysisNotes].filter(Boolean).join("\n\n")}
-            </p>
-          </div>
-        )}
       </DialogContent>
     </Dialog>
-  );
-}
-
-function RiskBadge({ level }: { level: RiskAssessment["level"] }) {
-  const icon = level === "high" ? <WarningCircleIcon /> : <ShieldCheckIcon />;
-  return (
-    <Badge
-      variant={level === "high" ? "destructive" : level === "medium" ? "secondary" : "outline"}
-    >
-      {icon}
-      {riskLabels[level]}
-    </Badge>
   );
 }
 
@@ -382,7 +429,7 @@ function EpisodesSection({ structure }: { structure: WorkStructure }) {
                   <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                     <TelevisionIcon size={28} />
                   </div>
-                  <span className="absolute bottom-2 end-2 rounded bg-black/65 px-1.5 py-0.5 text-[10px] text-white">
+                  <span className="absolute bottom-2 inset-e-2 rounded bg-black/65 px-1.5 py-0.5 text-[10px] text-white">
                     {("runtimeMinutes" in episode && episode.runtimeMinutes) || 24} د
                   </span>
                 </div>
