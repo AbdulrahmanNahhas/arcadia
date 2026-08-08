@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "ff26d882-19ff-42a6-89e3-7a7b5d24a848",
-  "prevId": "d8c7becb-ef55-4024-a659-bf70f3307dcc",
+  "id": "5510427f-cc8a-404b-916a-9e415f1eb324",
+  "prevId": "e2a577d6-7622-479b-a602-7375c97dcc8e",
   "tables": {
     "assets": {
       "name": "assets",
@@ -125,80 +125,16 @@
       "checkConstraints": {
         "assets_owner_type_check": {
           "name": "assets_owner_type_check",
-          "value": "\"assets\".\"owner_type\" = 'work'"
+          "value": "\"assets\".\"owner_type\" in ('work', 'entity', 'planet')"
         },
         "assets_type_check": {
           "name": "assets_type_check",
-          "value": "\"assets\".\"asset_type\" in ('poster', 'banner', 'logo')"
+          "value": "\"assets\".\"asset_type\" in ('poster', 'banner', 'logo', 'profile')"
         }
       }
     },
-    "collection_items": {
-      "name": "collection_items",
-      "columns": {
-        "collection_id": {
-          "name": "collection_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "work_id": {
-          "name": "work_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "added_at": {
-          "name": "added_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch())"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "collection_items_collection_id_collections_id_fk": {
-          "name": "collection_items_collection_id_collections_id_fk",
-          "tableFrom": "collection_items",
-          "tableTo": "collections",
-          "columnsFrom": ["collection_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "collection_items_work_id_works_id_fk": {
-          "name": "collection_items_work_id_works_id_fk",
-          "tableFrom": "collection_items",
-          "tableTo": "works",
-          "columnsFrom": ["work_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "collection_items_collection_id_work_id_pk": {
-          "columns": ["collection_id", "work_id"],
-          "name": "collection_items_collection_id_work_id_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "collections": {
-      "name": "collections",
+    "contribution_roles": {
+      "name": "contribution_roles",
       "columns": {
         "id": {
           "name": "id",
@@ -207,79 +143,55 @@
           "notNull": true,
           "autoincrement": false
         },
-        "name": {
-          "name": "name",
+        "name_ar": {
+          "name": "name_ar",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "collection_type": {
-          "name": "collection_type",
+        "name_en": {
+          "name": "name_en",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'manual'"
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "''"
-        },
-        "filter_tree": {
-          "name": "filter_tree",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
-        "cover_asset_id": {
-          "name": "cover_asset_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "settings": {
-          "name": "settings",
+        "allowed_entity_type": {
+          "name": "allowed_entity_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'{}'"
+          "default": "'any'"
         },
-        "created_at": {
-          "name": "created_at",
+        "display_order": {
+          "name": "display_order",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "(unixepoch())"
+          "default": 0
         },
-        "updated_at": {
-          "name": "updated_at",
+        "is_active": {
+          "name": "is_active",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "(unixepoch())"
+          "default": true
         }
       },
-      "indexes": {
-        "collections_type_idx": {
-          "name": "collections_type_idx",
-          "columns": ["collection_type"],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "contribution_roles_entity_type_check": {
+          "name": "contribution_roles_entity_type_check",
+          "value": "\"contribution_roles\".\"allowed_entity_type\" in ('any', 'person', 'organization')"
+        }
+      }
     },
     "entities": {
       "name": "entities",
@@ -368,7 +280,369 @@
       "checkConstraints": {
         "entities_type_check": {
           "name": "entities_type_check",
-          "value": "\"entities\".\"entity_type\" in ('person', 'studio', 'publisher', 'organization')"
+          "value": "\"entities\".\"entity_type\" in ('person', 'organization')"
+        }
+      }
+    },
+    "entity_aliases": {
+      "name": "entity_aliases",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "alias": {
+          "name": "alias",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "normalized_alias": {
+          "name": "normalized_alias",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "language": {
+          "name": "language",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "entity_aliases_identity_uq": {
+          "name": "entity_aliases_identity_uq",
+          "columns": ["entity_id", "normalized_alias"],
+          "isUnique": true
+        },
+        "entity_aliases_lookup_idx": {
+          "name": "entity_aliases_lookup_idx",
+          "columns": ["normalized_alias"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "entity_aliases_entity_id_entities_id_fk": {
+          "name": "entity_aliases_entity_id_entities_id_fk",
+          "tableFrom": "entity_aliases",
+          "tableTo": "entities",
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "entity_external_identities": {
+      "name": "entity_external_identities",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "entity_external_identity_uq": {
+          "name": "entity_external_identity_uq",
+          "columns": ["provider", "external_id"],
+          "isUnique": true
+        },
+        "entity_external_identity_entity_idx": {
+          "name": "entity_external_identity_entity_idx",
+          "columns": ["entity_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "entity_external_identities_entity_id_entities_id_fk": {
+          "name": "entity_external_identities_entity_id_entities_id_fk",
+          "tableFrom": "entity_external_identities",
+          "tableTo": "entities",
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "entity_relationship_people": {
+      "name": "entity_relationship_people",
+      "columns": {
+        "relationship_id": {
+          "name": "relationship_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'participant'"
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "entity_relationship_people_entity_idx": {
+          "name": "entity_relationship_people_entity_idx",
+          "columns": ["entity_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "entity_relationship_people_relationship_id_entity_relationships_id_fk": {
+          "name": "entity_relationship_people_relationship_id_entity_relationships_id_fk",
+          "tableFrom": "entity_relationship_people",
+          "tableTo": "entity_relationships",
+          "columnsFrom": ["relationship_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "entity_relationship_people_entity_id_entities_id_fk": {
+          "name": "entity_relationship_people_entity_id_entities_id_fk",
+          "tableFrom": "entity_relationship_people",
+          "tableTo": "entities",
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "entity_relationship_people_relationship_id_entity_id_role_pk": {
+          "columns": ["relationship_id", "entity_id", "role"],
+          "name": "entity_relationship_people_relationship_id_entity_id_role_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "entity_relationships": {
+      "name": "entity_relationships",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_entity_id": {
+          "name": "source_entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_entity_id": {
+          "name": "target_entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "relationship_type_id": {
+          "name": "relationship_type_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "occurred_on": {
+          "name": "occurred_on",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "date_precision": {
+          "name": "date_precision",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'unknown'"
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "prominence": {
+          "name": "prominence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        }
+      },
+      "indexes": {
+        "entity_relationships_identity_uq": {
+          "name": "entity_relationships_identity_uq",
+          "columns": [
+            "source_entity_id",
+            "target_entity_id",
+            "relationship_type_id",
+            "occurred_on"
+          ],
+          "isUnique": true
+        },
+        "entity_relationships_source_idx": {
+          "name": "entity_relationships_source_idx",
+          "columns": ["source_entity_id"],
+          "isUnique": false
+        },
+        "entity_relationships_target_idx": {
+          "name": "entity_relationships_target_idx",
+          "columns": ["target_entity_id"],
+          "isUnique": false
+        },
+        "entity_relationships_date_idx": {
+          "name": "entity_relationships_date_idx",
+          "columns": ["occurred_on"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "entity_relationships_source_entity_id_entities_id_fk": {
+          "name": "entity_relationships_source_entity_id_entities_id_fk",
+          "tableFrom": "entity_relationships",
+          "tableTo": "entities",
+          "columnsFrom": ["source_entity_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "entity_relationships_target_entity_id_entities_id_fk": {
+          "name": "entity_relationships_target_entity_id_entities_id_fk",
+          "tableFrom": "entity_relationships",
+          "tableTo": "entities",
+          "columnsFrom": ["target_entity_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "entity_relationships_relationship_type_id_organization_relationship_types_id_fk": {
+          "name": "entity_relationships_relationship_type_id_organization_relationship_types_id_fk",
+          "tableFrom": "entity_relationships",
+          "tableTo": "organization_relationship_types",
+          "columnsFrom": ["relationship_type_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "entity_relationships_distinct_endpoints_check": {
+          "name": "entity_relationships_distinct_endpoints_check",
+          "value": "\"entity_relationships\".\"source_entity_id\" <> \"entity_relationships\".\"target_entity_id\""
+        },
+        "entity_relationships_date_precision_check": {
+          "name": "entity_relationships_date_precision_check",
+          "value": "\"entity_relationships\".\"date_precision\" in ('day', 'month', 'year', 'unknown')"
+        },
+        "entity_relationships_prominence_check": {
+          "name": "entity_relationships_prominence_check",
+          "value": "\"entity_relationships\".\"prominence\" >= 0 and \"entity_relationships\".\"prominence\" <= 3"
         }
       }
     },
@@ -448,54 +722,54 @@
         }
       }
     },
-    "field_definitions": {
-      "name": "field_definitions",
+    "organization_profiles": {
+      "name": "organization_profiles",
       "columns": {
-        "id": {
-          "name": "id",
+        "entity_id": {
+          "name": "entity_id",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
-        "key": {
-          "name": "key",
+        "native_name": {
+          "name": "native_name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "data_type": {
-          "name": "data_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "applies_to": {
-          "name": "applies_to",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "config": {
-          "name": "config",
+        "organization_type": {
+          "name": "organization_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'{}'"
+          "default": "'studio'"
         },
-        "position": {
-          "name": "position",
+        "founded_on": {
+          "name": "founded_on",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "closed_on": {
+          "name": "closed_on",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "country_term_id": {
+          "name": "country_term_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "prominence": {
+          "name": "prominence",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -520,73 +794,166 @@
         }
       },
       "indexes": {
-        "field_definitions_key_unique": {
-          "name": "field_definitions_key_unique",
-          "columns": ["key"],
-          "isUnique": true
+        "organization_profiles_type_idx": {
+          "name": "organization_profiles_type_idx",
+          "columns": ["organization_type"],
+          "isUnique": false
         },
-        "field_definitions_position_idx": {
-          "name": "field_definitions_position_idx",
-          "columns": ["position"],
+        "organization_profiles_country_idx": {
+          "name": "organization_profiles_country_idx",
+          "columns": ["country_term_id"],
           "isUnique": false
         }
       },
+      "foreignKeys": {
+        "organization_profiles_entity_id_entities_id_fk": {
+          "name": "organization_profiles_entity_id_entities_id_fk",
+          "tableFrom": "organization_profiles",
+          "tableTo": "entities",
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "organization_profiles_country_term_id_terms_id_fk": {
+          "name": "organization_profiles_country_term_id_terms_id_fk",
+          "tableFrom": "organization_profiles",
+          "tableTo": "terms",
+          "columnsFrom": ["country_term_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "organization_profiles_prominence_check": {
+          "name": "organization_profiles_prominence_check",
+          "value": "\"organization_profiles\".\"prominence\" >= 0 and \"organization_profiles\".\"prominence\" <= 3"
+        }
+      }
+    },
+    "organization_relationship_types": {
+      "name": "organization_relationship_types",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name_ar": {
+          "name": "name_ar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name_en": {
+          "name": "name_en",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "inverse_name_ar": {
+          "name": "inverse_name_ar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_directed": {
+          "name": "is_directed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "allows_cycles": {
+          "name": "allows_cycles",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "display_order": {
+          "name": "display_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        }
+      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "organization_relationship_types_category_check": {
+          "name": "organization_relationship_types_category_check",
+          "value": "\"organization_relationship_types\".\"category\" in ('corporate', 'historical', 'creative')"
+        }
+      }
     },
-    "field_values": {
-      "name": "field_values",
+    "person_profiles": {
+      "name": "person_profiles",
       "columns": {
-        "work_id": {
-          "name": "work_id",
+        "entity_id": {
+          "name": "entity_id",
           "type": "text",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
-        "field_id": {
-          "name": "field_id",
+        "native_name": {
+          "name": "native_name",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "born_on": {
+          "name": "born_on",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "died_on": {
+          "name": "died_on",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "text_value": {
-          "name": "text_value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "number_value": {
-          "name": "number_value",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "boolean_value": {
-          "name": "boolean_value",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "date_value": {
-          "name": "date_value",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "json_value": {
-          "name": "json_value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "(unixepoch())"
         },
         "updated_at": {
           "name": "updated_at",
@@ -597,33 +964,25 @@
           "default": "(unixepoch())"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "person_profiles_dates_idx": {
+          "name": "person_profiles_dates_idx",
+          "columns": ["born_on", "died_on"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
-        "field_values_work_id_works_id_fk": {
-          "name": "field_values_work_id_works_id_fk",
-          "tableFrom": "field_values",
-          "tableTo": "works",
-          "columnsFrom": ["work_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "field_values_field_id_field_definitions_id_fk": {
-          "name": "field_values_field_id_field_definitions_id_fk",
-          "tableFrom": "field_values",
-          "tableTo": "field_definitions",
-          "columnsFrom": ["field_id"],
+        "person_profiles_entity_id_entities_id_fk": {
+          "name": "person_profiles_entity_id_entities_id_fk",
+          "tableFrom": "person_profiles",
+          "tableTo": "entities",
+          "columnsFrom": ["entity_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "field_values_work_id_field_id_pk": {
-          "columns": ["work_id", "field_id"],
-          "name": "field_values_work_id_field_id_pk"
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -712,7 +1071,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'planned'"
+          "default": "'saved'"
         },
         "favorite": {
           "name": "favorite",
@@ -800,13 +1159,199 @@
       "checkConstraints": {
         "personal_state_status_check": {
           "name": "personal_state_status_check",
-          "value": "\"personal_state\".\"status\" in ('planned', 'in-progress', 'completed', 'paused', 'dropped')"
+          "value": "\"personal_state\".\"status\" in ('saved', 'planned', 'in-progress', 'completed', 'paused', 'dropped')"
         },
         "personal_state_values_check": {
           "name": "personal_state_values_check",
-          "value": "\"personal_state\".\"progress\" >= 0\n        and (\"personal_state\".\"progress_total\" is null or \"personal_state\".\"progress_total\" >= 0)\n        "
+          "value": "\"personal_state\".\"progress\" >= 0\n        and (\"personal_state\".\"progress_total\" is null or \"personal_state\".\"progress_total\" >= 0)\n        and (\"personal_state\".\"status\" not in ('saved', 'planned') or \"personal_state\".\"progress\" = 0)\n        "
         }
       }
+    },
+    "planets": {
+      "name": "planets",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name_ar": {
+          "name": "name_ar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name_en": {
+          "name": "name_en",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "icon": {
+          "name": "icon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "primary_color": {
+          "name": "primary_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "secondary_color": {
+          "name": "secondary_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "display_order": {
+          "name": "display_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "classification_hints": {
+          "name": "classification_hints",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{}'"
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        }
+      },
+      "indexes": {
+        "planets_slug_uq": {
+          "name": "planets_slug_uq",
+          "columns": ["slug"],
+          "isUnique": true
+        },
+        "planets_order_idx": {
+          "name": "planets_order_idx",
+          "columns": ["is_active", "display_order"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "risk_dimensions": {
+      "name": "risk_dimensions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name_ar": {
+          "name": "name_ar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name_en": {
+          "name": "name_en",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "display_order": {
+          "name": "display_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        }
+      },
+      "indexes": {
+        "risk_dimensions_slug_uq": {
+          "name": "risk_dimensions_slug_uq",
+          "columns": ["slug"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "saved_views": {
       "name": "saved_views",
@@ -824,6 +1369,30 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "icon": {
+          "name": "icon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'bookmark'"
+        },
+        "color": {
+          "name": "color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'primary'"
         },
         "layout": {
           "name": "layout",
@@ -938,7 +1507,7 @@
       "checkConstraints": {
         "saved_views_layout_check": {
           "name": "saved_views_layout_check",
-          "value": "\"saved_views\".\"layout\" in ('gallery', 'table', 'timeline', 'statistics')"
+          "value": "\"saved_views\".\"layout\" in ('gallery', 'wide', 'table', 'timeline', 'statistics')"
         },
         "saved_views_sort_direction_check": {
           "name": "saved_views_sort_direction_check",
@@ -947,6 +1516,91 @@
         "saved_views_card_size_check": {
           "name": "saved_views_card_size_check",
           "value": "\"saved_views\".\"card_size\" >= 1 and \"saved_views\".\"card_size\" <= 300"
+        }
+      }
+    },
+    "search_documents": {
+      "name": "search_documents",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "primary_text": {
+          "name": "primary_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "secondary_text": {
+          "name": "secondary_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "keywords": {
+          "name": "keywords",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "image_path": {
+          "name": "image_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        }
+      },
+      "indexes": {
+        "search_documents_entity_uq": {
+          "name": "search_documents_entity_uq",
+          "columns": ["entity_type", "entity_id"],
+          "isUnique": true
+        },
+        "search_documents_type_idx": {
+          "name": "search_documents_type_idx",
+          "columns": ["entity_type"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "search_documents_entity_type_check": {
+          "name": "search_documents_entity_type_check",
+          "value": "\"search_documents\".\"entity_type\" in ('work', 'person', 'studio', 'planet')"
         }
       }
     },
@@ -1197,7 +1851,7 @@
         },
         "terms_controlled_values_check": {
           "name": "terms_controlled_values_check",
-          "value": "(\n        \"terms\".\"vocabulary\" <> 'genre'\n        or \"terms\".\"name\" in (\n          'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Historical',\n          'Horror', 'Music', 'Mystery', 'Romance', 'Science Fiction',\n          'Slice of Life', 'Sports',\n          'Supernatural', 'Thriller'\n        )\n      ) and (\n        \"terms\".\"vocabulary\" <> 'tone'\n        or \"terms\".\"name\" in (\n          'Wholesome', 'Emotional', 'Bittersweet', 'Reflective', 'Tense',\n          'Hype / Energetic', 'Dark', 'Surreal / Whimsical', 'Epic',\n          'Atmospheric'\n        )\n      )"
+          "value": "(\n        \"terms\".\"vocabulary\" <> 'genre'\n        or \"terms\".\"name\" in (\n          'Action', 'Adventure', 'Comedy', 'Crime', 'Drama', 'Fantasy',\n          'Historical', 'Horror', 'Mecha', 'Music', 'Mystery', 'Psychological',\n          'Romance', 'Science Fiction', 'Slice of Life', 'Sports',\n          'Supernatural', 'Thriller', 'War'\n        )\n      ) and (\n        \"terms\".\"vocabulary\" <> 'tone'\n        or \"terms\".\"name\" in (\n          'Wholesome', 'Emotional', 'Bittersweet', 'Reflective', 'Tense',\n          'Energetic', 'Dark', 'Whimsical', 'Epic', 'Atmospheric'\n        )\n      ) and (\n        \"terms\".\"vocabulary\" <> 'audience'\n        or \"terms\".\"name\" in ('Adult', 'Young Adult', 'Teen', 'General')\n      )"
         }
       }
     },
@@ -1218,12 +1872,28 @@
           "notNull": true,
           "autoincrement": false
         },
+        "progress_before": {
+          "name": "progress_before",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "progress": {
           "name": "progress",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "status_before": {
+          "name": "status_before",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'planned'"
         },
         "status": {
           "name": "status",
@@ -1253,6 +1923,20 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(unixepoch())"
+        },
+        "voided_at": {
+          "name": "voided_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "void_reason": {
+          "name": "void_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -1286,13 +1970,21 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
+        "tracking_entries_progress_before_check": {
+          "name": "tracking_entries_progress_before_check",
+          "value": "\"tracking_entries\".\"progress_before\" >= 0"
+        },
         "tracking_entries_progress_check": {
           "name": "tracking_entries_progress_check",
           "value": "\"tracking_entries\".\"progress\" >= 0"
         },
+        "tracking_entries_status_before_check": {
+          "name": "tracking_entries_status_before_check",
+          "value": "\"tracking_entries\".\"status_before\" in ('saved', 'planned', 'in-progress', 'completed', 'paused', 'dropped')"
+        },
         "tracking_entries_status_check": {
           "name": "tracking_entries_status_check",
-          "value": "\"tracking_entries\".\"status\" in ('planned', 'in-progress', 'completed', 'paused', 'dropped')"
+          "value": "\"tracking_entries\".\"status\" in ('saved', 'planned', 'in-progress', 'completed', 'paused', 'dropped')"
         },
         "tracking_entries_date_check": {
           "name": "tracking_entries_date_check",
@@ -1304,8 +1996,8 @@
         }
       }
     },
-    "work_credits": {
-      "name": "work_credits",
+    "work_contributions": {
+      "name": "work_contributions",
       "columns": {
         "work_id": {
           "name": "work_id",
@@ -1328,6 +2020,14 @@
           "notNull": true,
           "autoincrement": false
         },
+        "is_primary": {
+          "name": "is_primary",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
         "position": {
           "name": "position",
           "type": "integer",
@@ -1338,25 +2038,25 @@
         }
       },
       "indexes": {
-        "work_credits_entity_idx": {
-          "name": "work_credits_entity_idx",
+        "work_contributions_entity_idx": {
+          "name": "work_contributions_entity_idx",
           "columns": ["entity_id"],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "work_credits_work_id_works_id_fk": {
-          "name": "work_credits_work_id_works_id_fk",
-          "tableFrom": "work_credits",
+        "work_contributions_work_id_works_id_fk": {
+          "name": "work_contributions_work_id_works_id_fk",
+          "tableFrom": "work_contributions",
           "tableTo": "works",
           "columnsFrom": ["work_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "work_credits_entity_id_entities_id_fk": {
-          "name": "work_credits_entity_id_entities_id_fk",
-          "tableFrom": "work_credits",
+        "work_contributions_entity_id_entities_id_fk": {
+          "name": "work_contributions_entity_id_entities_id_fk",
+          "tableFrom": "work_contributions",
           "tableTo": "entities",
           "columnsFrom": ["entity_id"],
           "columnsTo": ["id"],
@@ -1365,16 +2065,129 @@
         }
       },
       "compositePrimaryKeys": {
-        "work_credits_work_id_entity_id_role_pk": {
+        "work_contributions_work_id_entity_id_role_pk": {
           "columns": ["work_id", "entity_id", "role"],
-          "name": "work_credits_work_id_entity_id_role_pk"
+          "name": "work_contributions_work_id_entity_id_role_pk"
         }
       },
       "uniqueConstraints": {},
       "checkConstraints": {
-        "work_credits_role_check": {
-          "name": "work_credits_role_check",
-          "value": "\"work_credits\".\"role\" in ('author', 'writer', 'director', 'illustrator', 'main-studio', 'developer', 'publisher', 'composer', 'creator')"
+        "work_contributions_role_check": {
+          "name": "work_contributions_role_check",
+          "value": "\"work_contributions\".\"role\" in ('author', 'original-author', 'writer', 'screenwriter', 'director', 'illustrator', 'artist', 'animation-studio', 'production-company', 'producer', 'developer', 'publisher', 'composer', 'editor', 'translator', 'creator')"
+        }
+      }
+    },
+    "work_planet_assignments": {
+      "name": "work_planet_assignments",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "planet_id": {
+          "name": "planet_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'manual'"
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "review_state": {
+          "name": "review_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'reviewed'"
+        },
+        "featured_rank": {
+          "name": "featured_rank",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        }
+      },
+      "indexes": {
+        "work_planet_assignments_planet_idx": {
+          "name": "work_planet_assignments_planet_idx",
+          "columns": ["planet_id"],
+          "isUnique": false
+        },
+        "work_planet_assignments_review_idx": {
+          "name": "work_planet_assignments_review_idx",
+          "columns": ["review_state"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "work_planet_assignments_work_id_works_id_fk": {
+          "name": "work_planet_assignments_work_id_works_id_fk",
+          "tableFrom": "work_planet_assignments",
+          "tableTo": "works",
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "work_planet_assignments_planet_id_planets_id_fk": {
+          "name": "work_planet_assignments_planet_id_planets_id_fk",
+          "tableFrom": "work_planet_assignments",
+          "tableTo": "planets",
+          "columnsFrom": ["planet_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "work_planet_assignments_source_check": {
+          "name": "work_planet_assignments_source_check",
+          "value": "\"work_planet_assignments\".\"source\" in ('migration-default', 'suggested', 'manual')"
+        },
+        "work_planet_assignments_review_check": {
+          "name": "work_planet_assignments_review_check",
+          "value": "\"work_planet_assignments\".\"review_state\" in ('needs-review', 'reviewed')"
+        },
+        "work_planet_assignments_confidence_check": {
+          "name": "work_planet_assignments_confidence_check",
+          "value": "\"work_planet_assignments\".\"confidence\" is null or (\"work_planet_assignments\".\"confidence\" >= 0 and \"work_planet_assignments\".\"confidence\" <= 1)"
         }
       }
     },
@@ -1416,6 +2229,21 @@
           "notNull": true,
           "autoincrement": false,
           "default": true
+        },
+        "provenance": {
+          "name": "provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'manual'"
+        },
+        "external_key": {
+          "name": "external_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "notes": {
           "name": "notes",
@@ -1465,7 +2293,118 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "work_relations_type_check": {
+          "name": "work_relations_type_check",
+          "value": "\"work_relations\".\"relation_type\" in ('sequel', 'adaptation', 'spin-off', 'side-story', 'compilation', 'alternative', 'related')"
+        },
+        "work_relations_distinct_endpoints_check": {
+          "name": "work_relations_distinct_endpoints_check",
+          "value": "\"work_relations\".\"source_work_id\" <> \"work_relations\".\"target_work_id\""
+        },
+        "work_relations_direction_check": {
+          "name": "work_relations_direction_check",
+          "value": "(\"work_relations\".\"relation_type\" in ('alternative', 'related') and \"work_relations\".\"is_directed\" = false and \"work_relations\".\"source_work_id\" < \"work_relations\".\"target_work_id\")\n        or (\"work_relations\".\"relation_type\" not in ('alternative', 'related') and \"work_relations\".\"is_directed\" = true)"
+        }
+      }
+    },
+    "work_risk_assessments": {
+      "name": "work_risk_assessments",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dimension_id": {
+          "name": "dimension_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "level": {
+          "name": "level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "explanation": {
+          "name": "explanation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        }
+      },
+      "indexes": {
+        "work_risk_assessments_dimension_idx": {
+          "name": "work_risk_assessments_dimension_idx",
+          "columns": ["dimension_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "work_risk_assessments_work_id_works_id_fk": {
+          "name": "work_risk_assessments_work_id_works_id_fk",
+          "tableFrom": "work_risk_assessments",
+          "tableTo": "works",
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "work_risk_assessments_dimension_id_risk_dimensions_id_fk": {
+          "name": "work_risk_assessments_dimension_id_risk_dimensions_id_fk",
+          "tableFrom": "work_risk_assessments",
+          "tableTo": "risk_dimensions",
+          "columnsFrom": ["dimension_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "work_risk_assessments_work_id_dimension_id_pk": {
+          "columns": ["work_id", "dimension_id"],
+          "name": "work_risk_assessments_work_id_dimension_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "work_risk_assessments_level_check": {
+          "name": "work_risk_assessments_level_check",
+          "value": "\"work_risk_assessments\".\"level\" in ('none', 'low', 'medium', 'high')"
+        }
+      }
     },
     "work_seasons": {
       "name": "work_seasons",

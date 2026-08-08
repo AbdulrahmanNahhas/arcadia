@@ -20,7 +20,7 @@ const canonicalGenre = new Map<string, string>([
   ["supernatural", "Supernatural"],
   ["thriller", "Thriller"],
   ["war", "War"],
-])
+]);
 
 const genreToTag = new Map<string, { tag: string; ensureGenres?: string[] }>([
   ["allegory", { tag: "allegory", ensureGenres: ["Drama"] }],
@@ -35,7 +35,7 @@ const genreToTag = new Map<string, { tag: string; ensureGenres?: string[] }>([
   ["political", { tag: "political", ensureGenres: ["Drama"] }],
   ["political satire", { tag: "political-satire", ensureGenres: ["Drama"] }],
   ["superhero", { tag: "special-abilities", ensureGenres: ["Action"] }],
-])
+]);
 
 const removedGuidanceTags = new Set([
   "behavioralrisk",
@@ -44,7 +44,7 @@ const removedGuidanceTags = new Set([
   "low-fanservice",
   "theology-risk",
   "low-theology-risk",
-])
+]);
 
 const redundantGenreTags = new Set([
   "action",
@@ -65,7 +65,7 @@ const redundantGenreTags = new Set([
   "supernatural",
   "thriller",
   "war",
-])
+]);
 
 const tagAliases = new Map([
   ["ai", "artificial-intelligence"],
@@ -88,7 +88,7 @@ const tagAliases = new Map([
   ["school-life", "school"],
   ["slow-burn", "slow-burn"],
   ["super-hero", "special-abilities"],
-])
+]);
 
 const toneAliases = new Map<string, string[]>([
   ["action", ["Energetic"]],
@@ -132,7 +132,7 @@ const toneAliases = new Map<string, string[]>([
   ["tech-adventure", ["Energetic"]],
   ["whimsical", ["Whimsical"]],
   ["wholesome", ["Wholesome"]],
-])
+]);
 
 const tagToTone = new Map<string, string[]>([
   ["atmospheric", ["Atmospheric"]],
@@ -145,7 +145,7 @@ const tagToTone = new Map<string, string[]>([
   ["low-drama", ["Wholesome"]],
   ["low-stakes", ["Wholesome"]],
   ["wholesome", ["Wholesome"]],
-])
+]);
 
 function slug(value: string) {
   return value
@@ -153,37 +153,31 @@ function slug(value: string) {
     .toLocaleLowerCase()
     .normalize("NFKD")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
+    .replace(/^-|-$/g, "");
 }
 
 function unique(values: string[]) {
-  return [...new Set(values.filter(Boolean))]
+  return [...new Set(values.filter(Boolean))];
 }
 
-export function normalizeTaxonomy(input: {
-  genres: string[]
-  tags: string[]
-  tone: string[]
-}) {
-  const genres: string[] = []
-  const promotedTags: string[] = []
+export function normalizeTaxonomy(input: { genres: string[]; tags: string[]; tone: string[] }) {
+  const genres: string[] = [];
+  const promotedTags: string[] = [];
   for (const value of input.genres) {
-    const key = value.trim().toLocaleLowerCase()
-    const canonical = canonicalGenre.get(key)
+    const key = value.trim().toLocaleLowerCase();
+    const canonical = canonicalGenre.get(key);
     if (canonical) {
-      genres.push(canonical)
-      continue
+      genres.push(canonical);
+      continue;
     }
-    const promotion = genreToTag.get(key)
-    if (!promotion) continue
-    promotedTags.push(promotion.tag)
-    genres.push(...(promotion.ensureGenres ?? []))
+    const promotion = genreToTag.get(key);
+    if (!promotion) continue;
+    promotedTags.push(promotion.tag);
+    genres.push(...(promotion.ensureGenres ?? []));
   }
 
-  const normalizedInputTags = unique([...input.tags, ...promotedTags].map(slug))
-  const promotedTones = normalizedInputTags.flatMap(
-    (tag) => tagToTone.get(tag) ?? []
-  )
+  const normalizedInputTags = unique([...input.tags, ...promotedTags].map(slug));
+  const promotedTones = normalizedInputTags.flatMap((tag) => tagToTone.get(tag) ?? []);
   const tags = normalizedInputTags
     .map((tag) => tagAliases.get(tag) ?? tag)
     .filter(
@@ -192,22 +186,22 @@ export function normalizeTaxonomy(input: {
         !redundantGenreTags.has(tag) &&
         !tagToTone.has(tag) &&
         tag !== "movie" &&
-        tag !== "franchise-film"
-    )
+        tag !== "franchise-film",
+    );
 
   const tone = unique(
     [...input.tone, ...promotedTones].flatMap((value) => {
-      const alias = toneAliases.get(slug(value))
-      if (alias) return alias
-      return []
-    })
-  )
+      const alias = toneAliases.get(slug(value));
+      if (alias) return alias;
+      return [];
+    }),
+  );
 
   return {
     genres: unique(genres),
     tags: unique(tags),
     tone,
-  }
+  };
 }
 
-export const canonicalGenres = [...new Set(canonicalGenre.values())]
+export const canonicalGenres = [...new Set(canonicalGenre.values())];

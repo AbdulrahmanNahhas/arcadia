@@ -105,26 +105,17 @@
       "indexes": {
         "assets_owner_type_uq": {
           "name": "assets_owner_type_uq",
-          "columns": [
-            "owner_type",
-            "owner_id",
-            "asset_type"
-          ],
+          "columns": ["owner_type", "owner_id", "asset_type"],
           "isUnique": true
         },
         "assets_owner_idx": {
           "name": "assets_owner_idx",
-          "columns": [
-            "owner_type",
-            "owner_id"
-          ],
+          "columns": ["owner_type", "owner_id"],
           "isUnique": false
         },
         "assets_type_idx": {
           "name": "assets_type_idx",
-          "columns": [
-            "asset_type"
-          ],
+          "columns": ["asset_type"],
           "isUnique": false
         }
       },
@@ -182,12 +173,8 @@
           "name": "collection_items_collection_id_collections_id_fk",
           "tableFrom": "collection_items",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -195,22 +182,15 @@
           "name": "collection_items_work_id_works_id_fk",
           "tableFrom": "collection_items",
           "tableTo": "works",
-          "columnsFrom": [
-            "work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "collection_items_collection_id_work_id_pk": {
-          "columns": [
-            "collection_id",
-            "work_id"
-          ],
+          "columns": ["collection_id", "work_id"],
           "name": "collection_items_collection_id_work_id_pk"
         }
       },
@@ -292,9 +272,7 @@
       "indexes": {
         "collections_type_idx": {
           "name": "collections_type_idx",
-          "columns": [
-            "collection_type"
-          ],
+          "columns": ["collection_type"],
           "isUnique": false
         }
       },
@@ -370,24 +348,17 @@
       "indexes": {
         "entities_type_sort_name_uq": {
           "name": "entities_type_sort_name_uq",
-          "columns": [
-            "entity_type",
-            "sort_name"
-          ],
+          "columns": ["entity_type", "sort_name"],
           "isUnique": true
         },
         "entities_type_idx": {
           "name": "entities_type_idx",
-          "columns": [
-            "entity_type"
-          ],
+          "columns": ["entity_type"],
           "isUnique": false
         },
         "entities_sort_name_idx": {
           "name": "entities_sort_name_idx",
-          "columns": [
-            "sort_name"
-          ],
+          "columns": ["sort_name"],
           "isUnique": false
         }
       },
@@ -458,20 +429,12 @@
       "indexes": {
         "external_links_provider_uq": {
           "name": "external_links_provider_uq",
-          "columns": [
-            "owner_type",
-            "owner_id",
-            "provider",
-            "url"
-          ],
+          "columns": ["owner_type", "owner_id", "provider", "url"],
           "isUnique": true
         },
         "external_links_owner_idx": {
           "name": "external_links_owner_idx",
-          "columns": [
-            "owner_type",
-            "owner_id"
-          ],
+          "columns": ["owner_type", "owner_id"],
           "isUnique": false
         }
       },
@@ -559,16 +522,12 @@
       "indexes": {
         "field_definitions_key_unique": {
           "name": "field_definitions_key_unique",
-          "columns": [
-            "key"
-          ],
+          "columns": ["key"],
           "isUnique": true
         },
         "field_definitions_position_idx": {
           "name": "field_definitions_position_idx",
-          "columns": [
-            "position"
-          ],
+          "columns": ["position"],
           "isUnique": false
         }
       },
@@ -644,12 +603,8 @@
           "name": "field_values_work_id_works_id_fk",
           "tableFrom": "field_values",
           "tableTo": "works",
-          "columnsFrom": [
-            "work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -657,22 +612,15 @@
           "name": "field_values_field_id_field_definitions_id_fk",
           "tableFrom": "field_values",
           "tableTo": "field_definitions",
-          "columnsFrom": [
-            "field_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["field_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "field_values_work_id_field_id_pk": {
-          "columns": [
-            "work_id",
-            "field_id"
-          ],
+          "columns": ["work_id", "field_id"],
           "name": "field_values_work_id_field_id_pk"
         }
       },
@@ -770,9 +718,7 @@
       "indexes": {
         "personal_state_status_idx": {
           "name": "personal_state_status_idx",
-          "columns": [
-            "status"
-          ],
+          "columns": ["status"],
           "isUnique": false
         }
       },
@@ -781,12 +727,8 @@
           "name": "personal_state_work_id_works_id_fk",
           "tableFrom": "personal_state",
           "tableTo": "works",
-          "columnsFrom": [
-            "work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -919,16 +861,12 @@
       "indexes": {
         "saved_views_name_uq": {
           "name": "saved_views_name_uq",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": true
         },
         "saved_views_pinned_idx": {
           "name": "saved_views_pinned_idx",
-          "columns": [
-            "is_pinned"
-          ],
+          "columns": ["is_pinned"],
           "isUnique": false
         }
       },
@@ -1021,9 +959,7 @@
       "indexes": {
         "similarity_artifacts_work_idx": {
           "name": "similarity_artifacts_work_idx",
-          "columns": [
-            "work_id"
-          ],
+          "columns": ["work_id"],
           "isUnique": false
         }
       },
@@ -1032,12 +968,8 @@
           "name": "similarity_artifacts_work_id_works_id_fk",
           "tableFrom": "similarity_artifacts",
           "tableTo": "works",
-          "columnsFrom": [
-            "work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1103,17 +1035,12 @@
       "indexes": {
         "terms_vocabulary_slug_uq": {
           "name": "terms_vocabulary_slug_uq",
-          "columns": [
-            "vocabulary",
-            "slug"
-          ],
+          "columns": ["vocabulary", "slug"],
           "isUnique": true
         },
         "terms_parent_idx": {
           "name": "terms_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
+          "columns": ["parent_id"],
           "isUnique": false
         }
       },
@@ -1188,28 +1115,17 @@
       "indexes": {
         "tracking_entries_work_day_sequence_uq": {
           "name": "tracking_entries_work_day_sequence_uq",
-          "columns": [
-            "work_id",
-            "occurred_on",
-            "day_sequence"
-          ],
+          "columns": ["work_id", "occurred_on", "day_sequence"],
           "isUnique": true
         },
         "tracking_entries_work_order_idx": {
           "name": "tracking_entries_work_order_idx",
-          "columns": [
-            "work_id",
-            "occurred_on",
-            "day_sequence"
-          ],
+          "columns": ["work_id", "occurred_on", "day_sequence"],
           "isUnique": false
         },
         "tracking_entries_order_idx": {
           "name": "tracking_entries_order_idx",
-          "columns": [
-            "occurred_on",
-            "day_sequence"
-          ],
+          "columns": ["occurred_on", "day_sequence"],
           "isUnique": false
         }
       },
@@ -1218,12 +1134,8 @@
           "name": "tracking_entries_work_id_works_id_fk",
           "tableFrom": "tracking_entries",
           "tableTo": "works",
-          "columnsFrom": [
-            "work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1285,9 +1197,7 @@
       "indexes": {
         "work_credits_entity_idx": {
           "name": "work_credits_entity_idx",
-          "columns": [
-            "entity_id"
-          ],
+          "columns": ["entity_id"],
           "isUnique": false
         }
       },
@@ -1296,12 +1206,8 @@
           "name": "work_credits_work_id_works_id_fk",
           "tableFrom": "work_credits",
           "tableTo": "works",
-          "columnsFrom": [
-            "work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1309,23 +1215,15 @@
           "name": "work_credits_entity_id_entities_id_fk",
           "tableFrom": "work_credits",
           "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "work_credits_work_id_entity_id_role_pk": {
-          "columns": [
-            "work_id",
-            "entity_id",
-            "role"
-          ],
+          "columns": ["work_id", "entity_id", "role"],
           "name": "work_credits_work_id_entity_id_role_pk"
         }
       },
@@ -1388,25 +1286,17 @@
       "indexes": {
         "work_relations_pair_type_uq": {
           "name": "work_relations_pair_type_uq",
-          "columns": [
-            "source_work_id",
-            "target_work_id",
-            "relation_type"
-          ],
+          "columns": ["source_work_id", "target_work_id", "relation_type"],
           "isUnique": true
         },
         "work_relations_source_idx": {
           "name": "work_relations_source_idx",
-          "columns": [
-            "source_work_id"
-          ],
+          "columns": ["source_work_id"],
           "isUnique": false
         },
         "work_relations_target_idx": {
           "name": "work_relations_target_idx",
-          "columns": [
-            "target_work_id"
-          ],
+          "columns": ["target_work_id"],
           "isUnique": false
         }
       },
@@ -1415,12 +1305,8 @@
           "name": "work_relations_source_work_id_works_id_fk",
           "tableFrom": "work_relations",
           "tableTo": "works",
-          "columnsFrom": [
-            "source_work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1428,12 +1314,8 @@
           "name": "work_relations_target_work_id_works_id_fk",
           "tableFrom": "work_relations",
           "tableTo": "works",
-          "columnsFrom": [
-            "target_work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["target_work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1521,25 +1403,17 @@
       "indexes": {
         "work_seasons_position_uq": {
           "name": "work_seasons_position_uq",
-          "columns": [
-            "work_id",
-            "position"
-          ],
+          "columns": ["work_id", "position"],
           "isUnique": true
         },
         "work_seasons_title_uq": {
           "name": "work_seasons_title_uq",
-          "columns": [
-            "work_id",
-            "title"
-          ],
+          "columns": ["work_id", "title"],
           "isUnique": true
         },
         "work_seasons_work_idx": {
           "name": "work_seasons_work_idx",
-          "columns": [
-            "work_id"
-          ],
+          "columns": ["work_id"],
           "isUnique": false
         }
       },
@@ -1548,12 +1422,8 @@
           "name": "work_seasons_work_id_works_id_fk",
           "tableFrom": "work_seasons",
           "tableTo": "works",
-          "columnsFrom": [
-            "work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1607,12 +1477,8 @@
           "name": "work_terms_work_id_works_id_fk",
           "tableFrom": "work_terms",
           "tableTo": "works",
-          "columnsFrom": [
-            "work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1620,22 +1486,15 @@
           "name": "work_terms_term_id_terms_id_fk",
           "tableFrom": "work_terms",
           "tableTo": "terms",
-          "columnsFrom": [
-            "term_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["term_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "work_terms_work_id_term_id_pk": {
-          "columns": [
-            "work_id",
-            "term_id"
-          ],
+          "columns": ["work_id", "term_id"],
           "name": "work_terms_work_id_term_id_pk"
         }
       },
@@ -1700,19 +1559,12 @@
       "indexes": {
         "work_titles_identity_uq": {
           "name": "work_titles_identity_uq",
-          "columns": [
-            "work_id",
-            "title",
-            "title_type",
-            "language"
-          ],
+          "columns": ["work_id", "title", "title_type", "language"],
           "isUnique": true
         },
         "work_titles_work_idx": {
           "name": "work_titles_work_idx",
-          "columns": [
-            "work_id"
-          ],
+          "columns": ["work_id"],
           "isUnique": false
         }
       },
@@ -1721,12 +1573,8 @@
           "name": "work_titles_work_id_works_id_fk",
           "tableFrom": "work_titles",
           "tableTo": "works",
-          "columnsFrom": [
-            "work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1833,25 +1681,17 @@
       "indexes": {
         "work_units_season_position_uq": {
           "name": "work_units_season_position_uq",
-          "columns": [
-            "work_id",
-            "season_id",
-            "position"
-          ],
+          "columns": ["work_id", "season_id", "position"],
           "isUnique": true
         },
         "work_units_work_idx": {
           "name": "work_units_work_idx",
-          "columns": [
-            "work_id"
-          ],
+          "columns": ["work_id"],
           "isUnique": false
         },
         "work_units_season_idx": {
           "name": "work_units_season_idx",
-          "columns": [
-            "season_id"
-          ],
+          "columns": ["season_id"],
           "isUnique": false
         }
       },
@@ -1860,12 +1700,8 @@
           "name": "work_units_work_id_works_id_fk",
           "tableFrom": "work_units",
           "tableTo": "works",
-          "columnsFrom": [
-            "work_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["work_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1873,12 +1709,8 @@
           "name": "work_units_season_id_work_seasons_id_fk",
           "tableFrom": "work_units",
           "tableTo": "work_seasons",
-          "columnsFrom": [
-            "season_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["season_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2013,23 +1845,17 @@
       "indexes": {
         "works_kind_idx": {
           "name": "works_kind_idx",
-          "columns": [
-            "kind"
-          ],
+          "columns": ["kind"],
           "isUnique": false
         },
         "works_sort_title_idx": {
           "name": "works_sort_title_idx",
-          "columns": [
-            "sort_title"
-          ],
+          "columns": ["sort_title"],
           "isUnique": false
         },
         "works_release_year_idx": {
           "name": "works_release_year_idx",
-          "columns": [
-            "release_year"
-          ],
+          "columns": ["release_year"],
           "isUnique": false
         }
       },

@@ -1,4 +1,4 @@
-import { defineConfig } from "drizzle-kit"
+import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   schema: "./src/db/schema.ts",
@@ -8,4 +8,4 @@ export default defineConfig({
     url: process.env.ARCADIA_DB_PATH ?? "./data/arcadia.db",
   },
   strict: true,
-})
+});

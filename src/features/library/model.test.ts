@@ -1,10 +1,5 @@
-import { describe, expect, it } from "vitest"
-import {
-  audienceSchema,
-  countrySchema,
-  publicationSchema,
-  workRelationInputSchema,
-} from "./model"
+import { describe, expect, it } from "vitest";
+import { audienceSchema, countrySchema, publicationSchema, workRelationInputSchema } from "./model";
 
 describe("literature model", () => {
   it("accepts publication metadata without tracking progress", () => {
@@ -14,14 +9,10 @@ describe("literature model", () => {
         publisher: "Tor Books",
         imprint: null,
         serialization: [],
-        contents: [
-          "Mistborn: The Final Empire",
-          "The Well of Ascension",
-          "The Hero of Ages",
-        ],
-      })
-    ).toMatchObject({ format: "Novel trilogy", contents: expect.any(Array) })
-  })
+        contents: ["Mistborn: The Final Empire", "The Well of Ascension", "The Hero of Ages"],
+      }),
+    ).toMatchObject({ format: "Novel trilogy", contents: expect.any(Array) });
+  });
 
   it("accepts directed adaptation relationships", () => {
     expect(
@@ -30,17 +21,12 @@ describe("literature model", () => {
         relationType: "adaptation",
         direction: "outgoing",
         notes: "",
-      })
-    ).toMatchObject({ relationType: "adaptation", direction: "outgoing" })
-  })
+      }),
+    ).toMatchObject({ relationType: "adaptation", direction: "outgoing" });
+  });
 
   it("uses the controlled audience and country vocabularies", () => {
-    expect(audienceSchema.options).toEqual([
-      "Adult",
-      "Young Adult",
-      "Teen",
-      "General",
-    ])
+    expect(audienceSchema.options).toEqual(["Adult", "Young Adult", "Teen", "General"]);
     expect(countrySchema.options).toEqual([
       "Australia",
       "Canada",
@@ -51,6 +37,6 @@ describe("literature model", () => {
       "South Korea",
       "United Kingdom",
       "United States",
-    ])
-  })
-})
+    ]);
+  });
+});

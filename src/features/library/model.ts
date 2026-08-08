@@ -406,6 +406,7 @@ export const entitySchema = z.object({
       year: z.number().int().nullable(),
       status: personalStatusSchema,
       releaseStatus: z.enum(["announced", "releasing", "released", "ended", "unknown"]),
+      calculatedRating: z.number().min(0).max(10).nullable(),
       isSequelMovie: z.boolean(),
       imagePath: z.string().nullable(),
       roles: z.array(contributorRoleSchema),
@@ -765,9 +766,29 @@ export const savedUserViewSchema = z.object({
   description: z.string().trim().max(240).default(""),
   icon: savedViewIconSchema.default("bookmark"),
   color: savedViewColorSchema.default("primary"),
-  layout: z.enum(["gallery", "table", "timeline", "statistics"]),
-  sort: z.enum(["title", "rating", "recent", "year"]),
+  layout: z.enum(["gallery", "wide", "table", "timeline", "statistics"]),
+  sort: z.enum([
+    "title",
+    "rating",
+    "recent",
+    "year",
+    "creator",
+    "audience",
+    "kind",
+    "status",
+    "progress",
+    "trackedOn",
+    "story",
+    "characters",
+    "depth",
+    "worldBuilding",
+    "originality",
+    "craft",
+  ]),
   sortDirection: z.enum(["asc", "desc"]).default("asc"),
+  groupBy: z
+    .enum(["none", "audience", "rating", "kind", "status", "year", "genre", "depth", "craft"])
+    .default("none"),
   kinds: z.array(workKindSchema),
   excludedKinds: z.array(workKindSchema).default([]),
   statuses: z.array(workSchema.shape.status),
@@ -794,6 +815,7 @@ export const savedUserViewSchema = z.object({
     showProgress: z.boolean().default(false),
   }),
   tableDensity: z.enum(["compact", "comfortable", "spacious"]).default("comfortable"),
+  timelineNewestFirst: z.boolean().default(true),
   facets: z
     .object(
       Object.fromEntries(
@@ -866,6 +888,10 @@ export const updateSavedUserViewSchema = savedUserViewSchema.pick({
   layout: true,
   sort: true,
   sortDirection: true,
+  groupBy: true,
+  cardSize: true,
+  tableDensity: true,
+  timelineNewestFirst: true,
   isPinned: true,
 });
 export type SavedUserView = z.infer<typeof savedUserViewSchema>;
@@ -962,6 +988,7 @@ export const bulkCreateWorkSchema = z.object({
 export const bulkUpdateWorksSchema = z.object({
   workIds: z.array(z.string()).min(1).max(1000),
   kind: workKindSchema.optional(),
+  audience: z.enum(audiences).nullable().optional(),
   favorite: z.boolean().optional(),
   addGenres: z.array(genreSchema).default([]),
   removeGenres: z.array(genreSchema).default([]),

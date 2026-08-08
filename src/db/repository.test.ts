@@ -9,6 +9,7 @@ import {
   createWorkSchema,
 } from "@/features/library/model";
 import type { db as databaseValue } from "./client";
+import type * as PlatformRepository from "./platform-repository";
 import type * as Repository from "./repository";
 import type * as Schema from "./schema";
 
@@ -18,12 +19,14 @@ process.env.ARCADIA_DB_PATH = join(temporaryDirectory, "arcadia.db");
 let repository: typeof Repository;
 let database: typeof databaseValue;
 let schema: typeof Schema;
+let platformRepository: typeof PlatformRepository;
 
 beforeAll(async () => {
-  [{ db: database }, schema, repository] = await Promise.all([
+  [{ db: database }, schema, repository, platformRepository] = await Promise.all([
     import("./client"),
     import("./schema"),
     import("./repository"),
+    import("./platform-repository"),
   ]);
 });
 
@@ -94,6 +97,36 @@ describe("admin record persistence", () => {
       imagePath: null,
       externalIdentities: [],
     });
+  });
+
+  it("deletes entity profiles and their searchable records in a batch", () => {
+    const created = repository.saveEntity(
+      adminEntityInputSchema.parse({
+        name: "Disposable Studio",
+        sortName: "disposable studio",
+        entityType: "organization",
+        description: "",
+        imagePath: null,
+        malId: null,
+        sourceUrl: null,
+        sourceProvider: null,
+        establishedAt: null,
+        favorites: null,
+        alternativeNames: [],
+        externalIdentities: [],
+      }),
+    );
+
+    repository.deleteEntities([created.id]);
+
+    expect(repository.listEntities().some(({ id }) => id === created.id)).toBe(false);
+    expect(
+      database
+        .select()
+        .from(schema.searchDocuments)
+        .where(eq(schema.searchDocuments.id, `studio:${created.id}`))
+        .get(),
+    ).toBeUndefined();
   });
 
   it("calculates a rating from persisted components without changing tracking", () => {
@@ -566,6 +599,49 @@ describe("tracking core", () => {
     });
   });
 
+  it("preserves supplied IDs when JSON structure edits add seasons and units", () => {
+    const work = createTrackedWork("JSON Structure Work", 2);
+    const seasonId = `${work.id}-season-1`;
+    const episodeId = `${seasonId}-episode-1`;
+
+    const structure = repository.replaceWorkStructure({
+      workId: work.id,
+      seasons: [
+        {
+          id: seasonId,
+          title: "Season One",
+          seasonNumber: 1,
+          position: 0,
+          runtimeMinutes: 24,
+          unitCount: 1,
+          releaseAt: null,
+          units: [
+            {
+              id: episodeId,
+              unitType: "episode",
+              title: "Episode One",
+              unitNumber: 1,
+              position: 0,
+              runtimeMinutes: 24,
+              pageCount: null,
+              releaseAt: null,
+            },
+          ],
+        },
+      ],
+      ungroupedUnits: [],
+    });
+
+    expect(structure).toMatchObject({
+      seasons: [
+        {
+          id: seasonId,
+          units: [{ id: episodeId }],
+        },
+      ],
+    });
+  });
+
   it("tracks movies by status without using runtime minutes", () => {
     const movie = repository.createWork({
       title: "Status Only Movie",
@@ -615,6 +691,7 @@ describe("saved view destinations", () => {
       layout: "gallery",
       sort: "recent",
       sortDirection: "desc",
+      groupBy: "rating",
       kinds: [],
       excludedKinds: [],
       statuses: ["in-progress"],
@@ -641,6 +718,7 @@ describe("saved view destinations", () => {
         showProgress: false,
       },
       tableDensity: "comfortable",
+      timelineNewestFirst: false,
       search: "",
       visibleColumns: ["artwork", "title", "status"],
       isPinned: false,
@@ -655,6 +733,10 @@ describe("saved view destinations", () => {
       layout: "table",
       sort: "title",
       sortDirection: "asc",
+      groupBy: "audience",
+      cardSize: 176,
+      tableDensity: "compact",
+      timelineNewestFirst: true,
       isPinned: true,
     });
 
@@ -666,6 +748,10 @@ describe("saved view destinations", () => {
       layout: "table",
       sort: "title",
       sortDirection: "asc",
+      groupBy: "audience",
+      cardSize: 176,
+      tableDensity: "compact",
+      timelineNewestFirst: true,
       isPinned: true,
       statuses: ["in-progress"],
     });
@@ -674,5 +760,171 @@ describe("saved view destinations", () => {
       id: created.id,
       deleted: true,
     });
+  });
+});
+
+describe("version 1 platform foundations", () => {
+  it("assigns exactly one data-backed planet to eligible works and none to database-only types", () => {
+    const eligible = repository.createWork({
+      title: "Planet Eligible",
+      kind: "anime",
+      year: 2025,
+      status: "planned",
+      summary: "A journey through a curated world.",
+    });
+    const databaseOnly = repository.createWork({
+      title: "Planet Ineligible",
+      kind: "novel",
+      year: 2025,
+      status: "planned",
+      summary: "Stored in the complete catalog.",
+    });
+
+    expect(
+      platformRepository.listPlanetAssignments().filter((item) => item.workId === eligible.id),
+    ).toHaveLength(1);
+    expect(
+      platformRepository.listPlanetAssignments().filter((item) => item.workId === databaseOnly.id),
+    ).toHaveLength(0);
+
+    const changed = platformRepository.savePlanetAssignment({
+      workId: eligible.id,
+      planetId: "planet-action",
+    });
+    expect(changed).toMatchObject({
+      planet: { id: "planet-action" },
+      assignment: { source: "manual", reviewState: "reviewed" },
+    });
+    expect(
+      platformRepository.listPlanetAssignments().filter((item) => item.workId === eligible.id),
+    ).toHaveLength(1);
+  });
+
+  it("indexes new records for fuzzy catalog search", () => {
+    const work = repository.createWork({
+      title: "Celestial Archive",
+      kind: "movie",
+      year: 2024,
+      status: "saved",
+      summary: "A specific searchable title.",
+    });
+    const misspelledTitle = ["Celestial Arch", "ve"].join("");
+    expect(platformRepository.searchCatalog(misspelledTitle).at(0)).toMatchObject({
+      type: "work",
+      id: work.id,
+    });
+  });
+
+  it("produces deterministic recommendations with explainable signals", () => {
+    const source = repository.createWork({
+      title: "Similarity Source",
+      kind: "series",
+      year: 2020,
+      status: "completed",
+      summary: "Source.",
+    });
+    const candidate = repository.createWork({
+      title: "Similarity Candidate",
+      kind: "series",
+      year: 2021,
+      status: "planned",
+      summary: "Candidate.",
+    });
+    const recommendation = platformRepository
+      .getSimilarWorks(source.id, 30)
+      .find((item) => item.work.id === candidate.id);
+
+    expect(recommendation?.score).toBeGreaterThan(0);
+    expect(recommendation?.reasons.map((reason) => reason.signal)).toEqual(
+      expect.arrayContaining(["planet", "era"]),
+    );
+  });
+
+  it("keeps removed tracker events as voided audit records", () => {
+    const work = createTrackedWork("Voided Audit Work", 2);
+    const entry = repository.recordTrackingEntry({
+      workId: work.id,
+      progress: 1,
+      status: "in-progress",
+      occurredOn: "2026-08-01",
+    });
+    repository.removeTrackingEntry(entry.id);
+
+    expect(repository.listWorkTrackingEntries(work.id)).toEqual([]);
+    expect(
+      database
+        .select()
+        .from(schema.trackingEntries)
+        .where(eq(schema.trackingEntries.id, entry.id))
+        .get(),
+    ).toMatchObject({ id: entry.id, voidReason: "Removed from activity feed" });
+  });
+
+  it("creates documented organization relationships with people and blocks forbidden cycles", () => {
+    const saveEntity = (name: string, entityType: "organization" | "person") =>
+      repository.saveEntity({
+        name,
+        sortName: name.toLocaleLowerCase(),
+        entityType,
+        description: "",
+        imagePath: null,
+        malId: null,
+        sourceUrl: null,
+        sourceProvider: null,
+        establishedAt: null,
+        favorites: null,
+        alternativeNames: [],
+        externalIdentities: [],
+      });
+    const source = saveEntity("Relationship Source Studio", "organization");
+    const target = saveEntity("Relationship Target Studio", "organization");
+    const person = saveEntity("Relationship Participant", "person");
+    const typeId = crypto.randomUUID();
+    database
+      .insert(schema.organizationRelationshipTypes)
+      .values({
+        id: typeId,
+        nameAr: "شركة أم",
+        category: "corporate",
+        isDirected: true,
+        allowsCycles: false,
+        displayOrder: 0,
+        isActive: true,
+      })
+      .run();
+
+    const id = platformRepository.createOrganizationRelationship({
+      sourceEntityId: source.id,
+      targetEntityId: target.id,
+      relationshipTypeId: typeId,
+      occurredOn: "2020",
+      datePrecision: "year",
+      description: "توثيق علاقة مؤسسية بين الاستوديوهين.",
+      notes: "",
+      prominence: 1,
+      people: [{ entityId: person.id, role: "participant" }],
+    });
+
+    expect(platformRepository.listOrganizationRelationships()).toContainEqual(
+      expect.objectContaining({
+        id,
+        source: expect.objectContaining({ id: source.id }),
+        target: expect.objectContaining({ id: target.id }),
+        people: [expect.objectContaining({ entity: expect.objectContaining({ id: person.id }) })],
+      }),
+    );
+    expect(() =>
+      platformRepository.createOrganizationRelationship({
+        sourceEntityId: target.id,
+        targetEntityId: source.id,
+        relationshipTypeId: typeId,
+        occurredOn: "2021",
+        datePrecision: "year",
+        description: "محاولة إنشاء دورة مؤسسية محظورة.",
+        notes: "",
+        prominence: 1,
+        people: [],
+      }),
+    ).toThrow("دورة");
   });
 });

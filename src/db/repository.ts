@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, lt, lte, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, or } from "drizzle-orm";
 import type {
   AdminEntityInput,
   AdminWorkUpdate,
@@ -37,10 +37,13 @@ import {
   personalScores,
   personalState,
   savedViews,
+  searchDocuments,
   terms,
   trackingEntries,
   workContributors,
+  workPlanetAssignments,
   workRelations,
+  workRiskAssessments,
   workSeasons,
   works,
   workTerms,
@@ -86,6 +89,24 @@ function normalizedDetails(details: Record<string, unknown> | null | undefined):
     next.publication = publication;
   }
   return next;
+}
+
+function upsertSearchDocument(input: typeof searchDocuments.$inferInsert) {
+  db.insert(searchDocuments)
+    .values(input)
+    .onConflictDoUpdate({
+      target: searchDocuments.id,
+      set: {
+        entityType: input.entityType,
+        entityId: input.entityId,
+        primaryText: input.primaryText,
+        secondaryText: input.secondaryText ?? "",
+        keywords: input.keywords ?? "",
+        imagePath: input.imagePath ?? null,
+        updatedAt: Math.floor(Date.now() / 1000),
+      },
+    })
+    .run();
 }
 
 function slug(value: string) {
@@ -458,6 +479,7 @@ export function listEntities(): Entity[] {
             year: work.year,
             status: work.status,
             releaseStatus: work.releaseStatus,
+            calculatedRating: work.calculatedRating,
             isSequelMovie: work.isSequelMovie,
             imagePath: work.imagePath,
             roles: [role],
@@ -620,9 +642,38 @@ export function saveEntity(input: AdminEntityInput): Entity {
     }
   });
 
+  upsertSearchDocument({
+    id: `${input.entityType === "person" ? "person" : "studio"}:${id}`,
+    entityType: input.entityType === "person" ? "person" : "studio",
+    entityId: id,
+    primaryText: input.name,
+    secondaryText: input.alternativeNames.join(" "),
+    keywords: input.description,
+    imagePath: input.imagePath,
+  });
+
   const saved = listEntities().find((entity) => entity.id === id);
   if (!saved) throw new Error("Could not reload entity");
   return saved;
+}
+
+export function deleteEntities(ids: string[]) {
+  const uniqueIds = [...new Set(ids)];
+  db.transaction((tx) => {
+    tx.delete(searchDocuments)
+      .where(
+        inArray(
+          searchDocuments.id,
+          uniqueIds.flatMap((id) => [`person:${id}`, `studio:${id}`]),
+        ),
+      )
+      .run();
+    tx.delete(assets)
+      .where(and(eq(assets.ownerType, "entity"), inArray(assets.ownerId, uniqueIds)))
+      .run();
+    tx.delete(entities).where(inArray(entities.id, uniqueIds)).run();
+  });
+  return { deleted: uniqueIds.length };
 }
 
 export function createWork(input: CreateWork): Work {
@@ -655,6 +706,27 @@ export function createWork(input: CreateWork): Work {
     tx.insert(personalState)
       .values({ workId: id, status: input.status ?? "saved", updatedAt: now })
       .run();
+    if (["movie", "series", "anime"].includes(input.kind)) {
+      tx.insert(workPlanetAssignments)
+        .values({
+          workId: id,
+          planetId: "planet-adventure",
+          source: "migration-default",
+          reviewState: "needs-review",
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+  });
+
+  upsertSearchDocument({
+    id: `work:${id}`,
+    entityType: "work",
+    entityId: id,
+    primaryText: input.title,
+    secondaryText: "",
+    keywords: `${input.kind} ${input.summary}`,
   });
 
   const created = listWorks().find((work) => work.id === id);
@@ -809,6 +881,34 @@ export function updateWork(input: AdminWorkUpdate): Work {
       })
       .where(eq(works.id, input.id))
       .run();
+
+    tx.delete(workRiskAssessments).where(eq(workRiskAssessments.workId, input.id)).run();
+    if (input.riskProfile) {
+      const riskValues = [
+        ["risk-sexuality", input.riskProfile.sexuality],
+        ["risk-behavioral", input.riskProfile.behavioral],
+        ["risk-theology", input.riskProfile.theology],
+      ] as const;
+      for (const [dimensionId, level] of riskValues) {
+        if (level === "unknown") continue;
+        tx.insert(workRiskAssessments).values({ workId: input.id, dimensionId, level }).run();
+      }
+    }
+
+    if (["movie", "series", "anime"].includes(input.kind)) {
+      tx.insert(workPlanetAssignments)
+        .values({
+          workId: input.id,
+          planetId: "planet-adventure",
+          source: "migration-default",
+          reviewState: "needs-review",
+          updatedAt: now,
+        })
+        .onConflictDoNothing()
+        .run();
+    } else {
+      tx.delete(workPlanetAssignments).where(eq(workPlanetAssignments.workId, input.id)).run();
+    }
 
     tx.delete(workTitles)
       .where(and(eq(workTitles.workId, input.id), eq(workTitles.titleType, "alias")))
@@ -1178,6 +1278,16 @@ export function updateWork(input: AdminWorkUpdate): Work {
     }
   });
 
+  upsertSearchDocument({
+    id: `work:${input.id}`,
+    entityType: "work",
+    entityId: input.id,
+    primaryText: input.title,
+    secondaryText: [input.arabicTitle, ...input.aliases].filter(Boolean).join(" "),
+    keywords: `${input.kind} ${input.summary}`,
+    imagePath: input.imagePath,
+  });
+
   const updated = listWorks().find((work) => work.id === input.id);
   if (!updated) throw new Error("Could not reload updated work");
   return updated;
@@ -1285,6 +1395,7 @@ export function createWorksBulk(
 export function updateWorksBulk(input: {
   workIds: string[];
   kind?: WorkKind;
+  audience?: Work["audience"];
   favorite?: boolean;
   addGenres: Work["genres"];
   removeGenres: Work["genres"];
@@ -1330,6 +1441,36 @@ export function updateWorksBulk(input: {
         }
       }
 
+      if (input.audience !== undefined) {
+        const audienceTerms = tx
+          .select({ id: terms.id })
+          .from(terms)
+          .where(eq(terms.vocabulary, "audience"))
+          .all();
+        if (audienceTerms.length) {
+          tx.delete(workTerms)
+            .where(
+              and(
+                eq(workTerms.workId, workId),
+                inArray(
+                  workTerms.termId,
+                  audienceTerms.map(({ id }) => id),
+                ),
+              ),
+            )
+            .run();
+        }
+        if (input.audience) {
+          const term = tx
+            .select()
+            .from(terms)
+            .where(and(eq(terms.vocabulary, "audience"), eq(terms.slug, slug(input.audience))))
+            .get();
+          if (!term) throw new Error(`Unknown controlled audience term: ${input.audience}`);
+          tx.insert(workTerms).values({ workId, termId: term.id }).onConflictDoNothing().run();
+        }
+      }
+
       if (input.favorite !== undefined) {
         tx.insert(personalState)
           .values({ workId, favorite: input.favorite, updatedAt: now })
@@ -1372,6 +1513,7 @@ export function listSavedViews(): SavedUserView[] {
       const display = row.display as {
         gallery?: Partial<SavedUserView["gallery"]>;
         tableDensity?: SavedUserView["tableDensity"];
+        timelineNewestFirst?: boolean;
       };
       const galleryMode = display.gallery?.mode ?? "full";
       const icon = savedViewIconSchema.safeParse(row.icon);
@@ -1385,6 +1527,7 @@ export function listSavedViews(): SavedUserView[] {
         layout: row.layout as SavedUserView["layout"],
         sort: row.sortField as SavedUserView["sort"],
         sortDirection: row.sortDirection as SavedUserView["sortDirection"],
+        groupBy: (row.groupBy ?? "none") as SavedUserView["groupBy"],
         kinds: filters.kinds ?? [],
         excludedKinds: filters.excludedKinds ?? [],
         statuses: filters.statuses ?? [],
@@ -1413,6 +1556,7 @@ export function listSavedViews(): SavedUserView[] {
           showProgress: display.gallery?.showProgress ?? false,
         },
         tableDensity: display.tableDensity ?? "comfortable",
+        timelineNewestFirst: display.timelineNewestFirst ?? true,
         facets: filters.facets,
         search: row.search,
         visibleColumns: row.visibleColumns,
@@ -1421,7 +1565,12 @@ export function listSavedViews(): SavedUserView[] {
     });
 }
 
-export function createSavedView(input: Omit<SavedUserView, "id">): SavedUserView {
+export function createSavedView(
+  input: Omit<SavedUserView, "id" | "groupBy" | "timelineNewestFirst"> & {
+    groupBy?: SavedUserView["groupBy"];
+    timelineNewestFirst?: boolean;
+  },
+): SavedUserView {
   const id = crypto.randomUUID();
   const now = Math.floor(Date.now() / 1000);
   db.insert(savedViews)
@@ -1449,12 +1598,14 @@ export function createSavedView(input: Omit<SavedUserView, "id">): SavedUserView
       },
       sortField: input.sort,
       sortDirection: input.sortDirection,
+      groupBy: input.groupBy === "none" ? null : input.groupBy,
       visibleColumns: input.visibleColumns,
       cardSize: input.cardSize,
       search: input.search,
       display: {
         gallery: input.gallery,
         tableDensity: input.tableDensity,
+        timelineNewestFirst: input.timelineNewestFirst ?? true,
       },
       isPinned: input.isPinned,
       createdAt: now,
@@ -1466,8 +1617,20 @@ export function createSavedView(input: Omit<SavedUserView, "id">): SavedUserView
   return created;
 }
 
-export function updateSavedView(input: UpdateSavedUserView): SavedUserView {
+export function updateSavedView(
+  input: Omit<
+    UpdateSavedUserView,
+    "groupBy" | "timelineNewestFirst" | "cardSize" | "tableDensity"
+  > & {
+    groupBy?: UpdateSavedUserView["groupBy"];
+    timelineNewestFirst?: boolean;
+    cardSize?: number;
+    tableDensity?: UpdateSavedUserView["tableDensity"];
+  },
+): SavedUserView {
   const now = Math.floor(Date.now() / 1000);
+  const existing = db.select().from(savedViews).where(eq(savedViews.id, input.id)).get();
+  const display = (existing?.display ?? {}) as Record<string, unknown>;
   const result = db
     .update(savedViews)
     .set({
@@ -1478,6 +1641,13 @@ export function updateSavedView(input: UpdateSavedUserView): SavedUserView {
       layout: input.layout,
       sortField: input.sort,
       sortDirection: input.sortDirection,
+      groupBy: input.groupBy === "none" ? null : input.groupBy,
+      cardSize: input.cardSize,
+      display: {
+        ...display,
+        tableDensity: input.tableDensity ?? display.tableDensity,
+        timelineNewestFirst: input.timelineNewestFirst ?? display.timelineNewestFirst,
+      },
       isPinned: input.isPinned,
       updatedAt: now,
     })
@@ -1699,8 +1869,11 @@ export function replaceWorkStructure(input: EditableWorkStructure) {
     for (const season of input.seasons) {
       const id = season.id ?? crypto.randomUUID();
       const existing = existingSeasons.find((row) => row.id === id);
-      if (season.id && !existing) {
-        throw new Error(`Unknown season ID ${season.id}.`);
+      const conflictingSeason = season.id
+        ? tx.select().from(workSeasons).where(eq(workSeasons.id, season.id)).get()
+        : undefined;
+      if (!existing && conflictingSeason) {
+        throw new Error(`Season ID ${id} belongs to another work.`);
       }
       seasonIds.set(season.title, id);
       if (existing) {
@@ -1740,7 +1913,12 @@ export function replaceWorkStructure(input: EditableWorkStructure) {
     ) => {
       const id = unit.id ?? crypto.randomUUID();
       const existing = existingUnits.find((row) => row.id === id);
-      if (unit.id && !existing) throw new Error(`Unknown unit ID ${unit.id}.`);
+      const conflictingUnit = unit.id
+        ? tx.select().from(workUnits).where(eq(workUnits.id, unit.id)).get()
+        : undefined;
+      if (!existing && conflictingUnit) {
+        throw new Error(`Unit ID ${id} belongs to another work.`);
+      }
       const values = {
         workId: input.workId,
         seasonId,
@@ -1841,7 +2019,7 @@ function trackingInitialStatus(workId: string): TrackingEntry["status"] {
   const earliest = db
     .select({ statusBefore: trackingEntries.statusBefore })
     .from(trackingEntries)
-    .where(eq(trackingEntries.workId, workId))
+    .where(and(eq(trackingEntries.workId, workId), isNull(trackingEntries.voidedAt)))
     .orderBy(
       asc(trackingEntries.occurredOn),
       asc(trackingEntries.daySequence),
@@ -1865,7 +2043,7 @@ function rebuildCurrentProjection(
   const latest = db
     .select()
     .from(trackingEntries)
-    .where(eq(trackingEntries.workId, workId))
+    .where(and(eq(trackingEntries.workId, workId), isNull(trackingEntries.voidedAt)))
     .orderBy(
       desc(trackingEntries.occurredOn),
       desc(trackingEntries.daySequence),
@@ -1912,7 +2090,7 @@ function rebuildTrackingTransitions(
       status: trackingEntries.status,
     })
     .from(trackingEntries)
-    .where(eq(trackingEntries.workId, workId))
+    .where(and(eq(trackingEntries.workId, workId), isNull(trackingEntries.voidedAt)))
     .orderBy(
       asc(trackingEntries.occurredOn),
       asc(trackingEntries.daySequence),
@@ -2004,7 +2182,7 @@ export function listWorkTrackingEntries(workId: string, limit = 200): TrackingEn
   return db
     .select()
     .from(trackingEntries)
-    .where(eq(trackingEntries.workId, workId))
+    .where(and(eq(trackingEntries.workId, workId), isNull(trackingEntries.voidedAt)))
     .orderBy(
       desc(trackingEntries.occurredOn),
       desc(trackingEntries.daySequence),
@@ -2020,7 +2198,13 @@ export function getTrackingBaseline(workId: string, occurredOn: string) {
   const entry = db
     .select()
     .from(trackingEntries)
-    .where(and(eq(trackingEntries.workId, workId), lte(trackingEntries.occurredOn, occurredOn)))
+    .where(
+      and(
+        eq(trackingEntries.workId, workId),
+        lte(trackingEntries.occurredOn, occurredOn),
+        isNull(trackingEntries.voidedAt),
+      ),
+    )
     .orderBy(
       desc(trackingEntries.occurredOn),
       desc(trackingEntries.daySequence),
@@ -2035,7 +2219,7 @@ export function getTrackingBaseline(workId: string, occurredOn: string) {
 }
 
 export function listTrackingPage(input: TrackingPageInput) {
-  const conditions = [];
+  const conditions = [isNull(trackingEntries.voidedAt)];
   if (input.workId) conditions.push(eq(trackingEntries.workId, input.workId));
   if (input.statuses?.length) {
     conditions.push(inArray(trackingEntries.status, input.statuses));
@@ -2091,9 +2275,12 @@ export function listTrackingPage(input: TrackingPageInput) {
 
 export function removeTrackingEntry(entryId: string) {
   const entry = db.select().from(trackingEntries).where(eq(trackingEntries.id, entryId)).get();
-  if (!entry) return { entryId, removed: false };
+  if (!entry || entry.voidedAt) return { entryId, removed: false };
   const initialStatus = trackingInitialStatus(entry.workId);
-  db.delete(trackingEntries).where(eq(trackingEntries.id, entryId)).run();
+  db.update(trackingEntries)
+    .set({ voidedAt: Math.floor(Date.now() / 1000), voidReason: "Removed from activity feed" })
+    .where(eq(trackingEntries.id, entryId))
+    .run();
   rebuildTrackingTransitions(entry.workId, initialStatus);
   rebuildCurrentProjection(entry.workId, initialStatus);
   return { entryId, workId: entry.workId, removed: true };

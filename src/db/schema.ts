@@ -430,6 +430,8 @@ export const trackingEntries = sqliteTable(
     occurredOn: text("occurred_on").notNull(),
     daySequence: integer("day_sequence").notNull(),
     recordedAt: integer("recorded_at").notNull().default(sql`(unixepoch())`),
+    voidedAt: integer("voided_at"),
+    voidReason: text("void_reason"),
   },
   (table) => [
     check("tracking_entries_progress_before_check", sql`${table.progressBefore} >= 0`),
@@ -475,7 +477,7 @@ export const assets = sqliteTable(
     ...timestamps,
   },
   (table) => [
-    check("assets_owner_type_check", sql`${table.ownerType} in ('work', 'entity')`),
+    check("assets_owner_type_check", sql`${table.ownerType} in ('work', 'entity', 'planet')`),
     check("assets_type_check", sql`${table.assetType} in ('poster', 'banner', 'logo', 'profile')`),
     uniqueIndex("assets_owner_type_uq").on(table.ownerType, table.ownerId, table.assetType),
     index("assets_owner_idx").on(table.ownerType, table.ownerId),
@@ -512,7 +514,7 @@ export const savedViews = sqliteTable(
   (table) => [
     check(
       "saved_views_layout_check",
-      sql`${table.layout} in ('gallery', 'table', 'timeline', 'statistics')`,
+      sql`${table.layout} in ('gallery', 'wide', 'table', 'timeline', 'statistics')`,
     ),
     check("saved_views_sort_direction_check", sql`${table.sortDirection} in ('asc', 'desc')`),
     check("saved_views_card_size_check", sql`${table.cardSize} >= 1 and ${table.cardSize} <= 300`),
@@ -560,4 +562,262 @@ export const similarityArtifacts = sqliteTable(
     generatedAt: integer("generated_at").notNull().default(sql`(unixepoch())`),
   },
   (table) => [index("similarity_artifacts_work_idx").on(table.workId)],
+);
+
+export const planets = sqliteTable(
+  "planets",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull(),
+    nameAr: text("name_ar").notNull(),
+    nameEn: text("name_en"),
+    icon: text("icon").notNull(),
+    description: text("description").notNull().default(""),
+    primaryColor: text("primary_color").notNull(),
+    secondaryColor: text("secondary_color").notNull(),
+    displayOrder: integer("display_order").notNull().default(0),
+    classificationHints: text("classification_hints", { mode: "json" })
+      .$type<Record<string, string[]>>()
+      .notNull()
+      .default({}),
+    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("planets_slug_uq").on(table.slug),
+    index("planets_order_idx").on(table.isActive, table.displayOrder),
+  ],
+);
+
+export const workPlanetAssignments = sqliteTable(
+  "work_planet_assignments",
+  {
+    workId: text("work_id")
+      .primaryKey()
+      .references(() => works.id, { onDelete: "cascade" }),
+    planetId: text("planet_id")
+      .notNull()
+      .references(() => planets.id, { onDelete: "restrict" }),
+    source: text("source").notNull().default("manual"),
+    confidence: real("confidence"),
+    reviewState: text("review_state").notNull().default("reviewed"),
+    featuredRank: integer("featured_rank"),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "work_planet_assignments_source_check",
+      sql`${table.source} in ('migration-default', 'suggested', 'manual')`,
+    ),
+    check(
+      "work_planet_assignments_review_check",
+      sql`${table.reviewState} in ('needs-review', 'reviewed')`,
+    ),
+    check(
+      "work_planet_assignments_confidence_check",
+      sql`${table.confidence} is null or (${table.confidence} >= 0 and ${table.confidence} <= 1)`,
+    ),
+    index("work_planet_assignments_planet_idx").on(table.planetId),
+    index("work_planet_assignments_review_idx").on(table.reviewState),
+  ],
+);
+
+export const riskDimensions = sqliteTable(
+  "risk_dimensions",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull(),
+    nameAr: text("name_ar").notNull(),
+    nameEn: text("name_en"),
+    description: text("description").notNull().default(""),
+    displayOrder: integer("display_order").notNull().default(0),
+    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  },
+  (table) => [uniqueIndex("risk_dimensions_slug_uq").on(table.slug)],
+);
+
+export const workRiskAssessments = sqliteTable(
+  "work_risk_assessments",
+  {
+    workId: text("work_id")
+      .notNull()
+      .references(() => works.id, { onDelete: "cascade" }),
+    dimensionId: text("dimension_id")
+      .notNull()
+      .references(() => riskDimensions.id, { onDelete: "restrict" }),
+    level: text("level").notNull(),
+    explanation: text("explanation").notNull().default(""),
+    notes: text("notes").notNull().default(""),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "work_risk_assessments_level_check",
+      sql`${table.level} in ('none', 'low', 'medium', 'high')`,
+    ),
+    primaryKey({ columns: [table.workId, table.dimensionId] }),
+    index("work_risk_assessments_dimension_idx").on(table.dimensionId),
+  ],
+);
+
+export const personProfiles = sqliteTable(
+  "person_profiles",
+  {
+    entityId: text("entity_id")
+      .primaryKey()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    nativeName: text("native_name"),
+    bornOn: text("born_on"),
+    diedOn: text("died_on"),
+    ...timestamps,
+  },
+  (table) => [index("person_profiles_dates_idx").on(table.bornOn, table.diedOn)],
+);
+
+export const organizationProfiles = sqliteTable(
+  "organization_profiles",
+  {
+    entityId: text("entity_id")
+      .primaryKey()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    nativeName: text("native_name"),
+    organizationType: text("organization_type").notNull().default("studio"),
+    foundedOn: text("founded_on"),
+    closedOn: text("closed_on"),
+    countryTermId: text("country_term_id").references(() => terms.id, { onDelete: "set null" }),
+    prominence: integer("prominence").notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "organization_profiles_prominence_check",
+      sql`${table.prominence} >= 0 and ${table.prominence} <= 3`,
+    ),
+    index("organization_profiles_type_idx").on(table.organizationType),
+    index("organization_profiles_country_idx").on(table.countryTermId),
+  ],
+);
+
+export const organizationRelationshipTypes = sqliteTable(
+  "organization_relationship_types",
+  {
+    id: text("id").primaryKey(),
+    nameAr: text("name_ar").notNull(),
+    nameEn: text("name_en"),
+    inverseNameAr: text("inverse_name_ar"),
+    category: text("category").notNull(),
+    isDirected: integer("is_directed", { mode: "boolean" }).notNull().default(true),
+    allowsCycles: integer("allows_cycles", { mode: "boolean" }).notNull().default(false),
+    displayOrder: integer("display_order").notNull().default(0),
+    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  },
+  (table) => [
+    check(
+      "organization_relationship_types_category_check",
+      sql`${table.category} in ('corporate', 'historical', 'creative')`,
+    ),
+  ],
+);
+
+export const entityRelationships = sqliteTable(
+  "entity_relationships",
+  {
+    id: text("id").primaryKey(),
+    sourceEntityId: text("source_entity_id")
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    targetEntityId: text("target_entity_id")
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    relationshipTypeId: text("relationship_type_id")
+      .notNull()
+      .references(() => organizationRelationshipTypes.id, { onDelete: "restrict" }),
+    occurredOn: text("occurred_on"),
+    datePrecision: text("date_precision").notNull().default("unknown"),
+    description: text("description").notNull().default(""),
+    notes: text("notes").notNull().default(""),
+    prominence: integer("prominence").notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "entity_relationships_distinct_endpoints_check",
+      sql`${table.sourceEntityId} <> ${table.targetEntityId}`,
+    ),
+    check(
+      "entity_relationships_date_precision_check",
+      sql`${table.datePrecision} in ('day', 'month', 'year', 'unknown')`,
+    ),
+    check(
+      "entity_relationships_prominence_check",
+      sql`${table.prominence} >= 0 and ${table.prominence} <= 3`,
+    ),
+    uniqueIndex("entity_relationships_identity_uq").on(
+      table.sourceEntityId,
+      table.targetEntityId,
+      table.relationshipTypeId,
+      table.occurredOn,
+    ),
+    index("entity_relationships_source_idx").on(table.sourceEntityId),
+    index("entity_relationships_target_idx").on(table.targetEntityId),
+    index("entity_relationships_date_idx").on(table.occurredOn),
+  ],
+);
+
+export const entityRelationshipPeople = sqliteTable(
+  "entity_relationship_people",
+  {
+    relationshipId: text("relationship_id")
+      .notNull()
+      .references(() => entityRelationships.id, { onDelete: "cascade" }),
+    entityId: text("entity_id")
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("participant"),
+    position: integer("position").notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.relationshipId, table.entityId, table.role] }),
+    index("entity_relationship_people_entity_idx").on(table.entityId),
+  ],
+);
+
+export const contributionRoles = sqliteTable(
+  "contribution_roles",
+  {
+    id: text("id").primaryKey(),
+    nameAr: text("name_ar").notNull(),
+    nameEn: text("name_en").notNull(),
+    allowedEntityType: text("allowed_entity_type").notNull().default("any"),
+    displayOrder: integer("display_order").notNull().default(0),
+    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  },
+  (table) => [
+    check(
+      "contribution_roles_entity_type_check",
+      sql`${table.allowedEntityType} in ('any', 'person', 'organization')`,
+    ),
+  ],
+);
+
+export const searchDocuments = sqliteTable(
+  "search_documents",
+  {
+    id: text("id").primaryKey(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    primaryText: text("primary_text").notNull(),
+    secondaryText: text("secondary_text").notNull().default(""),
+    keywords: text("keywords").notNull().default(""),
+    imagePath: text("image_path"),
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch())`),
+  },
+  (table) => [
+    check(
+      "search_documents_entity_type_check",
+      sql`${table.entityType} in ('work', 'person', 'studio', 'planet')`,
+    ),
+    uniqueIndex("search_documents_entity_uq").on(table.entityType, table.entityId),
+    index("search_documents_type_idx").on(table.entityType),
+  ],
 );

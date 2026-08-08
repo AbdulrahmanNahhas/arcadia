@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest"
-import { calculatedRating } from "./scoring"
+import { describe, expect, it } from "vitest";
+import { calculatedRating } from "./scoring";
 
 describe("calculatedRating", () => {
   it("uses the shared weighted formula and rounds to one decimal", () => {
@@ -11,13 +11,13 @@ describe("calculatedRating", () => {
         worldBuilding: 8,
         originality: 6,
         craft: 9,
-      })
-    ).toBe(8.1)
-  })
+      }),
+    ).toBe(8.1);
+  });
 
   it("stays incomplete until all six components are present", () => {
-    expect(calculatedRating({ story: 10, characters: 10 })).toBeNull()
-  })
+    expect(calculatedRating({ story: 10, characters: 10 })).toBeNull();
+  });
 
   it("accepts boundary values", () => {
     expect(
@@ -28,7 +28,7 @@ describe("calculatedRating", () => {
         worldBuilding: 0,
         originality: 0,
         craft: 0,
-      })
-    ).toBe(0)
-  })
-})
+      }),
+    ).toBe(0);
+  });
+});

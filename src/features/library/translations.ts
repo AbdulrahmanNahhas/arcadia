@@ -124,9 +124,9 @@ export function useArabicTranslations() {
   });
 
   const databaseLabels = new Map(
-    terms
-      .filter((term) => term.labelAr)
-      .map((term) => [`${term.vocabulary}:${term.labelEn}`, term.labelAr!]),
+    terms.flatMap((term) =>
+      term.labelAr ? [[`${term.vocabulary}:${term.labelEn}`, term.labelAr] as const] : [],
+    ),
   );
 
   const taxonomyLabel = (vocabulary: string, value: string) => {
