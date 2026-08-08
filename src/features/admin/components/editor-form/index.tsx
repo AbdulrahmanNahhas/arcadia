@@ -323,6 +323,53 @@ function WorkEditorInner({
   );
 }
 
+// --- Add these near your other module-level constants (e.g. next to `workKinds`) ---
+
+type StructureField =
+  | "runtime"
+  | "playtime"
+  | "pages"
+  | "episodes"
+  | "chapters"
+  | "volumes"
+  | "routes";
+
+// Which structure/tracking fields apply to each work kind — this is what was
+// missing before (showRuntime etc. were hardcoded to `true`, so every kind
+// showed all seven fields). Adjust these slugs to match your actual WorkKind
+// union. A kind that isn't listed falls back to showing everything, so
+// nothing silently disappears for a kind you add later and forget to map.
+const STRUCTURE_FIELDS_BY_KIND: Partial<Record<string, StructureField[]>> = {
+  movie: ["runtime"],
+  film: ["runtime"],
+  tv: ["runtime", "episodes"],
+  series: ["runtime", "episodes"],
+  anime: ["runtime", "episodes"],
+  ova: ["runtime", "episodes"],
+  novel: ["pages"],
+  book: ["pages"],
+  "light-novel": ["pages", "volumes"],
+  manga: ["chapters", "volumes"],
+  manhwa: ["chapters", "volumes"],
+  game: ["playtime"],
+  "visual-novel": ["playtime", "routes"],
+};
+const ALL_STRUCTURE_FIELDS: StructureField[] = [
+  "runtime",
+  "playtime",
+  "pages",
+  "episodes",
+  "chapters",
+  "volumes",
+  "routes",
+];
+
+// Kinds that get the publisher/imprint/serialization block. Same caveat —
+// adjust the slugs to your real WorkKind values.
+const TEXTUAL_KINDS = new Set(["novel", "book", "manga", "light-novel", "manhwa", "visual-novel"]);
+
+// --- component ---
+
 function WorkEditorFormFields({
   works,
   entities,
@@ -347,15 +394,18 @@ function WorkEditorFormFields({
   submit: (e: FormEvent) => void;
 }) {
   const { taxonomyLabel } = useArabicTranslations();
-  const showRuntime = true;
-  const showPlaytime = true;
-  const showPages = true;
-  const showEpisodes = true;
-  const showChapters = true;
-  const showVolumes = true;
-  const showRoutes = true;
-  const showPublication = true;
-  const showSerialization = true;
+
+  const structureFields = STRUCTURE_FIELDS_BY_KIND[String(draft.kind)] ?? ALL_STRUCTURE_FIELDS;
+  const showRuntime = structureFields.includes("runtime");
+  const showPlaytime = structureFields.includes("playtime");
+  const showPages = structureFields.includes("pages");
+  const showEpisodes = structureFields.includes("episodes");
+  const showChapters = structureFields.includes("chapters");
+  const showVolumes = structureFields.includes("volumes");
+  const showRoutes = structureFields.includes("routes");
+
+  const showPublication = TEXTUAL_KINDS.has(String(draft.kind));
+  const showSerialization = showPublication;
 
   const emptyPublication: NonNullable<Work["publication"]> = {
     format: null,
@@ -381,125 +431,129 @@ function WorkEditorFormFields({
   return (
     <form
       id="admin-editor-form"
-      className="grid min-h-0 flex-1 grid-cols-1 items-start gap-6 overflow-y-auto p-6 lg:grid-cols-2"
+      className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6"
       onSubmit={submit}
     >
-      <div className="lg:col-span-2">
-        <EditorSection
-          title="البنية والتتبع"
-          description="مقاييس العمل الأساسية وسجل المواسم والوحدات المنظّم. يُحفظ التقدم مقابل هذه الوحدات الثابتة."
-        >
-          {showRuntime && (
-            <Field label="مدة العرض (بالدقائق)">
-              <Input
-                type="number"
-                min="0"
-                value={draft.runtimeMinutes ?? ""}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    runtimeMinutes: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-              />
-            </Field>
-          )}
-          {showPlaytime && (
-            <Field label="مدة اللعب التقديرية (بالدقائق)">
-              <Input
-                type="number"
-                min="0"
-                value={draft.playtimeMinutes ?? ""}
-                onChange={(event) =>
-                  setDraft({
-                    ...draft,
-                    playtimeMinutes: event.target.value ? Number(event.target.value) : null,
-                  })
-                }
-              />
-            </Field>
-          )}
-          {showPages && (
-            <Field label="عدد الصفحات">
-              <Input
-                type="number"
-                min="0"
-                value={draft.pageCount ?? ""}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    pageCount: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-              />
-            </Field>
-          )}
-          {showEpisodes && (
-            <Field label="عدد الحلقات">
-              <Input
-                type="number"
-                min="0"
-                value={draft.episodeCount ?? ""}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    episodeCount: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-              />
-            </Field>
-          )}
-          {showChapters && (
-            <Field label="عدد الفصول">
-              <Input
-                type="number"
-                min="0"
-                value={draft.chapterCount ?? ""}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    chapterCount: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-              />
-            </Field>
-          )}
-          {showVolumes && (
-            <Field label="عدد المجلدات">
-              <Input
-                type="number"
-                min="0"
-                value={draft.volumeCount ?? ""}
-                onChange={(event) =>
-                  setDraft({
-                    ...draft,
-                    volumeCount: event.target.value ? Number(event.target.value) : null,
-                  })
-                }
-              />
-            </Field>
-          )}
-          {showRoutes && (
-            <Field label="عدد المسارات">
-              <Input
-                type="number"
-                min="0"
-                value={draft.routeCount ?? ""}
-                onChange={(event) =>
-                  setDraft({
-                    ...draft,
-                    routeCount: event.target.value ? Number(event.target.value) : null,
-                  })
-                }
-              />
-            </Field>
-          )}
+      <EditorSection
+        title="البنية والتتبع"
+        description="مقاييس العمل الأساسية وسجل المواسم والوحدات المنظّم. يُحفظ التقدم مقابل هذه الوحدات الثابتة. الحقول المعروضة تتغيّر حسب النوع المختار."
+        subClassname="sm:grid-cols-2! lg:grid-cols-4!"
+      >
+        {showRuntime && (
+          <Field label="مدة العرض (بالدقائق)">
+            <Input
+              type="number"
+              min="0"
+              value={draft.runtimeMinutes ?? ""}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  runtimeMinutes: e.target.value ? Number(e.target.value) : null,
+                })
+              }
+            />
+          </Field>
+        )}
+        {showPlaytime && (
+          <Field label="مدة اللعب التقديرية (بالدقائق)">
+            <Input
+              type="number"
+              min="0"
+              value={draft.playtimeMinutes ?? ""}
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  playtimeMinutes: event.target.value ? Number(event.target.value) : null,
+                })
+              }
+            />
+          </Field>
+        )}
+        {showPages && (
+          <Field label="عدد الصفحات">
+            <Input
+              type="number"
+              min="0"
+              value={draft.pageCount ?? ""}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  pageCount: e.target.value ? Number(e.target.value) : null,
+                })
+              }
+            />
+          </Field>
+        )}
+        {showEpisodes && (
+          <Field label="عدد الحلقات">
+            <Input
+              type="number"
+              min="0"
+              value={draft.episodeCount ?? ""}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  episodeCount: e.target.value ? Number(e.target.value) : null,
+                })
+              }
+            />
+          </Field>
+        )}
+        {showChapters && (
+          <Field label="عدد الفصول">
+            <Input
+              type="number"
+              min="0"
+              value={draft.chapterCount ?? ""}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  chapterCount: e.target.value ? Number(e.target.value) : null,
+                })
+              }
+            />
+          </Field>
+        )}
+        {showVolumes && (
+          <Field label="عدد المجلدات">
+            <Input
+              type="number"
+              min="0"
+              value={draft.volumeCount ?? ""}
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  volumeCount: event.target.value ? Number(event.target.value) : null,
+                })
+              }
+            />
+          </Field>
+        )}
+        {showRoutes && (
+          <Field label="عدد المسارات">
+            <Input
+              type="number"
+              min="0"
+              value={draft.routeCount ?? ""}
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  routeCount: event.target.value ? Number(event.target.value) : null,
+                })
+              }
+            />
+          </Field>
+        )}
+        <div className="col-span-full">
           <StructureSummary structure={structure} />
-        </EditorSection>
-      </div>
+        </div>
+      </EditorSection>
 
       {/* Identity Section */}
-      <EditorSection title="الهوية" description="الحقول الأساسية المستخدمة في جميع أنحاء أركاديا.">
+      <EditorSection
+        title="الهوية"
+        description="الحقول الأساسية المستخدمة في جميع أنحاء طبيعاوي شاهد."
+      >
         <Field label="العنوان الأصلي">
           <Input
             value={draft.title}
@@ -722,8 +776,7 @@ function WorkEditorFormFields({
 
       <EditorSection
         title="سجل التقييم الشخصي"
-        description="تنتج ستة مكونات موزونة التقييم المعروض في أركاديا. يبقى التقييم غير مكتمل حتى تعبئة جميع المكونات."
-        className="lg:col-span-2"
+        description="تنتج ستة مكونات موزونة التقييم المعروض في طبيعاوي شاهد. يبقى التقييم غير مكتمل حتى تعبئة جميع المكونات."
       >
         <ScoreLedger draft={draft} setDraft={setDraft} />
       </EditorSection>
@@ -732,6 +785,7 @@ function WorkEditorFormFields({
       <EditorSection
         title="إرشادات المحتوى والتحليل"
         description="تبقى إرشادات المحتوى منفصلة عن البيانات الموضوعية."
+        subClassname="sm:grid-cols-2! lg:grid-cols-3!"
       >
         <Field label="مخاطر المحتوى الجنسي">
           <RiskSelect
@@ -805,8 +859,9 @@ function WorkEditorFormFields({
       {/* Dates, Source & Links Section */}
       <EditorSection
         title="التواريخ والمصدر والروابط"
-        description="سياق النشر والوجهات خارج أركاديا."
+        description="سياق النشر والوجهات خارج طبيعاوي شاهد."
       >
+        <p className="col-span-full text-xs font-semibold text-muted-foreground">تواريخ الإصدار</p>
         <Field label="بداية الإصدار">
           <Input
             type="date"
@@ -823,6 +878,9 @@ function WorkEditorFormFields({
           />
         </Field>
 
+        <p className="col-span-full mt-2 text-xs font-semibold text-muted-foreground">
+          مصدر الاقتباس
+        </p>
         <Field label="نوع المصدر">
           <Input
             value={draft.sourceMaterial?.type ?? ""}
@@ -916,6 +974,9 @@ function WorkEditorFormFields({
 
         {showPublication && (
           <>
+            <p className="col-span-full mt-2 text-xs font-semibold text-muted-foreground">
+              معلومات النشر
+            </p>
             <Field label="صيغة النشر">
               <Input
                 value={draft.publication?.format ?? ""}
@@ -948,6 +1009,9 @@ function WorkEditorFormFields({
           </>
         )}
 
+        <p className="col-span-full mt-2 text-xs font-semibold text-muted-foreground">
+          روابط خارجية
+        </p>
         <Field label="الروابط الخارجية" wide>
           <Textarea
             rows={4}
@@ -1044,49 +1108,47 @@ function WorkEditorFormFields({
             />
           </div>
         </Field>
-        <ArtworkField
-          label="الملصق"
-          assetType="poster"
-          value={draft.imagePath}
-          onChange={(imagePath) => setDraft({ ...draft, imagePath })}
-        />
-        <ArtworkField
-          label="الغلاف"
-          assetType="banner"
-          value={draft.bannerPath}
-          onChange={(bannerPath) => setDraft({ ...draft, bannerPath })}
-        />
-        <ArtworkField
-          label="الشعار"
-          assetType="logo"
-          value={draft.logoPath}
-          onChange={(logoPath) => setDraft({ ...draft, logoPath })}
-        />
+        <div className="col-span-full grid gap-4 sm:grid-cols-3">
+          <ArtworkField
+            label="الملصق"
+            assetType="poster"
+            value={draft.imagePath}
+            onChange={(imagePath) => setDraft({ ...draft, imagePath })}
+          />
+          <ArtworkField
+            label="الغلاف"
+            assetType="banner"
+            value={draft.bannerPath}
+            onChange={(bannerPath) => setDraft({ ...draft, bannerPath })}
+          />
+          <ArtworkField
+            label="الشعار"
+            assetType="logo"
+            value={draft.logoPath}
+            onChange={(logoPath) => setDraft({ ...draft, logoPath })}
+          />
+        </div>
       </EditorSection>
 
       {/* Related Works Section */}
-      <div className="lg:col-span-2">
-        <EditorSection
-          title="الأعمال المرتبطة"
-          description="اربط الاقتباسات والتكملات وسجلات الوسائط الأخرى."
-          subClassname="sm:grid-cols-1!"
-        >
-          <RelationshipEditor
-            work={draft}
-            works={works}
-            onChange={(relations: Work["relations"]) => setDraft({ ...draft, relations })}
-          />
-        </EditorSection>
-      </div>
+      <EditorSection
+        title="الأعمال المرتبطة"
+        description="اربط الاقتباسات والتكملات وسجلات الوسائط الأخرى."
+        subClassname="sm:grid-cols-1!"
+      >
+        <RelationshipEditor
+          work={draft}
+          works={works}
+          onChange={(relations: Work["relations"]) => setDraft({ ...draft, relations })}
+        />
+      </EditorSection>
 
       {/* Error Alert */}
       {mutation.error && (
-        <div className="lg:col-span-2">
-          <Alert variant="destructive">
-            <InfoIcon className="size-4" />
-            <AlertDescription>{mutation.error.message}</AlertDescription>
-          </Alert>
-        </div>
+        <Alert variant="destructive">
+          <InfoIcon className="size-4" />
+          <AlertDescription>{mutation.error.message}</AlertDescription>
+        </Alert>
       )}
     </form>
   );
@@ -1150,7 +1212,12 @@ function ArtworkField({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="mb-1 text-xs text-muted-foreground">الحالي</p>
-            <div className="aspect-video overflow-hidden rounded-md bg-muted">
+            <div
+              className={cn(
+                " overflow-hidden rounded-md bg-muted",
+                "aspect-auto! w-full h-auto! object-contain!",
+              )}
+            >
               {value ? (
                 <img src={value} alt="الصورة الحالية" className="size-full object-cover" />
               ) : null}
@@ -1158,7 +1225,12 @@ function ArtworkField({
           </div>
           <div>
             <p className="mb-1 text-xs text-muted-foreground">المعاينة</p>
-            <div className="aspect-video overflow-hidden rounded-md bg-muted">
+            <div
+              className={cn(
+                " overflow-hidden rounded-md bg-muted",
+                "aspect-auto! w-full h-auto! object-contain!",
+              )}
+            >
               {preview ? (
                 <img src={preview} alt="معاينة الصورة" className="size-full object-cover" />
               ) : null}

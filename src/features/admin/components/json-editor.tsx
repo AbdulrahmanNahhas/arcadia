@@ -49,66 +49,69 @@ import { cn } from "@/lib/utils";
 import { getAdminRecordBundles, saveAdminRecordChanges } from "@/server/library.functions";
 
 type JsonScope = "all" | "visible" | "selected";
+type EditableWorkField = Exclude<keyof AdminWorkUpdate, "id">;
+type WorkProjectionKey = `work.${EditableWorkField}`;
+type ProjectionKey = WorkProjectionKey | "structure";
 type ProjectionPreset = keyof typeof PROJECTION_PRESETS | "custom";
+type ProjectionFieldMetadata = { label: string; group: string };
+type ProjectionField = ProjectionFieldMetadata & { key: ProjectionKey };
 
-const PROJECTION_FIELDS = [
-  { key: "work.title", label: "العنوان", group: "الهوية" },
-  { key: "work.arabicTitle", label: "العنوان العربي", group: "الهوية" },
-  { key: "work.aliases", label: "العناوين البديلة", group: "الهوية" },
-  { key: "work.summary", label: "الملخص", group: "الهوية" },
-  { key: "work.kind", label: "النوع", group: "الفهرس" },
-  { key: "work.year", label: "سنة الإصدار", group: "الفهرس" },
-  { key: "work.releaseStatus", label: "حالة الإصدار", group: "الفهرس" },
-  { key: "work.runtimeMinutes", label: "مدة العرض", group: "الفهرس" },
-  { key: "work.playtimeMinutes", label: "مدة اللعب", group: "الفهرس" },
-  { key: "work.pageCount", label: "عدد الصفحات", group: "الفهرس" },
-  { key: "work.episodeCount", label: "عدد الحلقات", group: "الفهرس" },
-  { key: "work.chapterCount", label: "عدد الفصول", group: "الفهرس" },
-  { key: "work.volumeCount", label: "عدد المجلدات", group: "الفهرس" },
-  { key: "work.routeCount", label: "عدد المسارات", group: "الفهرس" },
-  { key: "work.genres", label: "التصنيفات", group: "التصنيف" },
-  { key: "work.tags", label: "الوسوم", group: "التصنيف" },
-  { key: "work.tone", label: "الطابع", group: "التصنيف" },
-  { key: "work.audience", label: "الجمهور", group: "التصنيف" },
-  { key: "work.country", label: "الدول", group: "التصنيف" },
-  { key: "work.sharedWith", label: "مشاركة مع", group: "التصنيف" },
-  { key: "work.favorite", label: "المفضلة", group: "التقييم والشخصي" },
-  {
-    key: "work.scoreComponents",
-    label: "مكونات التقييم",
-    group: "التقييم والشخصي",
-  },
-  { key: "work.riskProfile", label: "ملف المخاطر", group: "الإرشادات" },
-  { key: "work.contentWarnings", label: "تحذيرات المحتوى", group: "الإرشادات" },
-  { key: "work.analysisNotes", label: "التحليل", group: "الإرشادات" },
-  { key: "work.releaseStart", label: "بداية الإصدار", group: "النشر" },
-  { key: "work.releaseEnd", label: "نهاية الإصدار", group: "النشر" },
-  { key: "work.watchDates", label: "تواريخ المشاهدة", group: "النشر" },
-  {
-    key: "work.sourceMaterial",
-    label: "المادة الأصلية",
-    group: "النشر",
-  },
-  { key: "work.publication", label: "النشر", group: "النشر" },
-  { key: "work.curation", label: "المراجعة", group: "النشر" },
-  {
-    key: "work.externalLinks",
-    label: "الروابط الخارجية",
-    group: "العلاقات والوسائط",
-  },
-  {
-    key: "work.contributors",
-    label: "صنّاع العمل",
-    group: "العلاقات والوسائط",
-  },
-  { key: "work.relations", label: "العلاقات", group: "العلاقات والوسائط" },
-  { key: "work.imagePath", label: "الملصق", group: "العلاقات والوسائط" },
-  { key: "work.bannerPath", label: "الغلاف", group: "العلاقات والوسائط" },
-  { key: "work.logoPath", label: "الشعار", group: "العلاقات والوسائط" },
+const WORK_PROJECTION_FIELDS = {
+  title: { label: "العنوان", group: "الهوية" },
+  arabicTitle: { label: "العنوان العربي", group: "الهوية" },
+  aliases: { label: "العناوين البديلة", group: "الهوية" },
+  summary: { label: "الملخص", group: "الهوية" },
+  creator: { label: "المنشئ", group: "الهوية" },
+  kind: { label: "النوع", group: "الفهرس" },
+  year: { label: "سنة الإصدار", group: "الفهرس" },
+  releaseStatus: { label: "حالة الإصدار", group: "الفهرس" },
+  isPrivate: { label: "عمل خاص (is_private)", group: "الفهرس" },
+  planetId: { label: "الكوكب (planetId)", group: "الفهرس" },
+  runtimeMinutes: { label: "مدة العرض", group: "الفهرس" },
+  playtimeMinutes: { label: "مدة اللعب", group: "الفهرس" },
+  pageCount: { label: "عدد الصفحات", group: "الفهرس" },
+  episodeCount: { label: "عدد الحلقات", group: "الفهرس" },
+  chapterCount: { label: "عدد الفصول", group: "الفهرس" },
+  volumeCount: { label: "عدد المجلدات", group: "الفهرس" },
+  routeCount: { label: "عدد المسارات", group: "الفهرس" },
+  status: { label: "حالة المتابعة", group: "المتابعة والشخصي" },
+  progress: { label: "التقدم", group: "المتابعة والشخصي" },
+  progressTotal: { label: "إجمالي التقدم", group: "المتابعة والشخصي" },
+  progressUnit: { label: "وحدة التقدم", group: "المتابعة والشخصي" },
+  completedAt: { label: "وقت الإكمال", group: "المتابعة والشخصي" },
+  trackedOn: { label: "تاريخ المتابعة", group: "المتابعة والشخصي" },
+  favorite: { label: "المفضلة", group: "المتابعة والشخصي" },
+  scoreComponents: { label: "مكونات التقييم", group: "المتابعة والشخصي" },
+  genres: { label: "التصنيفات", group: "التصنيف" },
+  tags: { label: "الوسوم", group: "التصنيف" },
+  studios: { label: "الاستوديوهات", group: "التصنيف" },
+  tone: { label: "الطابع", group: "التصنيف" },
+  audience: { label: "الجمهور", group: "التصنيف" },
+  country: { label: "الدول", group: "التصنيف" },
+  sharedWith: { label: "مشاركة مع", group: "التصنيف" },
+  riskProfile: { label: "ملف المخاطر", group: "الإرشادات" },
+  contentWarnings: { label: "تحذيرات المحتوى", group: "الإرشادات" },
+  analysisNotes: { label: "التحليل", group: "الإرشادات" },
+  releaseStart: { label: "بداية الإصدار", group: "النشر" },
+  releaseEnd: { label: "نهاية الإصدار", group: "النشر" },
+  watchDates: { label: "تواريخ المشاهدة", group: "النشر" },
+  sourceMaterial: { label: "المادة الأصلية", group: "النشر" },
+  publication: { label: "النشر", group: "النشر" },
+  curation: { label: "المراجعة", group: "النشر" },
+  externalLinks: { label: "الروابط الخارجية", group: "العلاقات والوسائط" },
+  contributors: { label: "صنّاع العمل", group: "العلاقات والوسائط" },
+  relations: { label: "العلاقات", group: "العلاقات والوسائط" },
+  imagePath: { label: "الملصق", group: "العلاقات والوسائط" },
+  bannerPath: { label: "الغلاف", group: "العلاقات والوسائط" },
+  logoPath: { label: "الشعار", group: "العلاقات والوسائط" },
+} satisfies Record<EditableWorkField, ProjectionFieldMetadata>;
+
+const PROJECTION_FIELDS: readonly ProjectionField[] = [
+  ...(
+    Object.entries(WORK_PROJECTION_FIELDS) as Array<[EditableWorkField, ProjectionFieldMetadata]>
+  ).map(([field, metadata]) => ({ key: `work.${field}` as WorkProjectionKey, ...metadata })),
   { key: "structure", label: "المواسم والوحدات", group: "البنية" },
-] as const;
-
-type ProjectionKey = (typeof PROJECTION_FIELDS)[number]["key"];
+];
 
 const PROJECTION_PRESETS = {
   "titles-summary-scores": {
@@ -129,9 +132,24 @@ const PROJECTION_PRESETS = {
       "work.kind",
       "work.year",
       "work.releaseStatus",
+      "work.isPrivate",
+      "work.planetId",
       "work.summary",
       "work.genres",
       "work.tags",
+    ],
+  },
+  tracking: {
+    label: "المتابعة والحقول الشخصية",
+    fields: [
+      "work.status",
+      "work.progress",
+      "work.progressTotal",
+      "work.progressUnit",
+      "work.completedAt",
+      "work.trackedOn",
+      "work.favorite",
+      "work.scoreComponents",
     ],
   },
   classification: {

@@ -98,7 +98,7 @@ export function GlobalSearch() {
             value={query}
             onValueChange={setQuery}
             placeholder="اكتب عنوان عمل، شخص، استوديو أو كوكب…"
-            aria-label="البحث في أركاديا"
+            aria-label="البحث في طبيعاوي شاهد"
           />
           <CommandList className="max-h-[62svh]">
             {!query.trim() ? (

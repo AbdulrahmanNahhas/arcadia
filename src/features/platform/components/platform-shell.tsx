@@ -34,7 +34,7 @@ export function PlatformShell({
               <span className="size-2 rounded-full bg-primary" />
               <span className="absolute h-px w-10 -rotate-20 bg-primary/60" />
             </span>
-            <span className="hidden text-lg sm:block">أركاديا</span>
+            <span className="hidden text-lg sm:block">طبيعاوي شاهد</span>
           </Link>
           <nav className="hidden items-center gap-1 lg:flex" aria-label="التنقل الرئيسي">
             <NavLink to="/" active={pathname === "/"} icon={<HouseIcon />}>

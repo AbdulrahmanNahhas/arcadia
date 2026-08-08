@@ -69,7 +69,7 @@ export function EntityDialog({
                   <DialogTitle className="text-2xl leading-tight">{entity.name}</DialogTitle>
                   <DialogDescription className="mt-1">
                     {entity.alternativeNames.slice(0, 3).join(" · ") ||
-                      "سجل مؤسسي من أرشيف أركاديا"}
+                      "سجل مؤسسي من أرشيف طبيعاوي شاهد"}
                   </DialogDescription>
                 </div>
               </div>
@@ -144,7 +144,8 @@ export function EntityDialog({
                 </div>
                 <DialogTitle className="text-2xl leading-tight">{entity.name}</DialogTitle>
                 <DialogDescription>
-                  {entity.alternativeNames.slice(0, 3).join(" · ") || "سجل شخص من أرشيف أركاديا"}
+                  {entity.alternativeNames.slice(0, 3).join(" · ") ||
+                    "سجل شخص من أرشيف طبيعاوي شاهد"}
                 </DialogDescription>
               </DialogHeader>
               <p className="mt-6 leading-7 text-muted-foreground">

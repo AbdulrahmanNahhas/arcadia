@@ -88,7 +88,7 @@ export function WorkDetailPage({ workId }: { workId: string }) {
               <SectionHeading
                 id="credits-title"
                 title="صُنّاع وعلاقات مختارة"
-                description="لا تعرض أركاديا كل طاقم العمل؛ هذه كيانات منتقاة ومرتبطة بأدوار مطبّعة."
+                description="لا تعرض طبيعاوي شاهد كل طاقم العمل؛ هذه كيانات منتقاة ومرتبطة بأدوار مطبّعة."
               />
               <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {[...people, ...studios].map(({ entity, credit }) => (
@@ -535,7 +535,7 @@ function SectionHeading({
 }) {
   return (
     <header>
-      <SectionEyebrow>من سجل أركاديا</SectionEyebrow>
+      <SectionEyebrow>من سجل طبيعاوي شاهد</SectionEyebrow>
       <h2 id={id} className="mt-2 font-heading text-2xl font-semibold">
         {title}
       </h2>

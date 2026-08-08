@@ -65,7 +65,7 @@ export function SettingsPage() {
           <CardHeader>
             <CardTitle>تكاملات الوسائط</CardTitle>
             <CardDescription>
-              معرّفات المزود الخارجي مستقلة عن معرّفات أركاديا الأساسية.
+              معرّفات المزود الخارجي مستقلة عن معرّفات طبيعاوي شاهد الأساسية.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">

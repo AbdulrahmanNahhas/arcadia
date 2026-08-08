@@ -399,7 +399,7 @@ async function createComparisonPng(works: Work[]): Promise<Blob | null> {
   context.fillStyle = "#28343c";
   context.font = "600 28px sans-serif";
   context.textAlign = "right";
-  context.fillText("مقارنة أركاديا", width - 56, 55);
+  context.fillText("مقارنة طبيعاوي شاهد", width - 56, 55);
   context.fillStyle = "#68747c";
   context.font = "16px sans-serif";
   context.fillText(`${works.length} أعمال · التقييمات الشخصية`, width - 56, 82);

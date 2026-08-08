@@ -50,7 +50,7 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
                 className="text-xs font-semibold tracking-[0.18em]"
                 style={{ color: planet.primaryColor }}
               >
-                كوكب أركاديا
+                كوكب طبيعاوي شاهد
               </p>
               <h1 className="mt-3 font-heading text-4xl leading-tight font-semibold sm:text-6xl">
                 {planet.nameAr}

@@ -172,7 +172,7 @@ export function AdminApp() {
             <span className="size-2 rounded-full bg-primary" />
           </span>
           <div>
-            <strong className="block font-heading text-sm">أركاديا</strong>
+            <strong className="block font-heading text-sm">طبيعاوي شاهد</strong>
             <span className="text-[11px] text-muted-foreground">مركز إدارة الأرشيف</span>
           </div>
         </div>
@@ -335,7 +335,7 @@ export function AdminApp() {
                   <ShieldWarningIcon className="text-primary" /> صحة الكتالوج
                 </h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  لا تُصلح أركاديا القيم الملتبسة بصمت؛ تظهرها للمراجعة.
+                  لا تُصلح طبيعاوي شاهد القيم الملتبسة بصمت؛ تظهرها للمراجعة.
                 </p>
               </div>
               <Badge

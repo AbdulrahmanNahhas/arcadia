@@ -40,8 +40,8 @@ import { Route as PlanetsPlanetSlugRouteImport } from './routes/planets.$planetS
 import { Route as StudiosStudioIdRouteImport } from './routes/studios.$studioId'
 import { Route as WorksWorkIdRouteImport } from './routes/works.$workId'
 import { Route as AdminCatalogWorkIdRouteImport } from './routes/admin.catalog.$workId'
-import { Route as AdminCatalogNewRouteImport } from './routes/admin.catalog.new'
-import { Route as AdminTrackerNewRouteImport } from './routes/admin.tracker.new'
+import { Route as AdminCatalogNewRouteImport } from './routes/admin.catalog_.new'
+import { Route as AdminTrackerNewRouteImport } from './routes/admin.tracker_.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -199,14 +199,14 @@ const AdminCatalogWorkIdRoute = AdminCatalogWorkIdRouteImport.update({
   getParentRoute: () => AdminCatalogRoute,
 } as any)
 const AdminCatalogNewRoute = AdminCatalogNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AdminCatalogRoute,
+  id: '/catalog_/new',
+  path: '/catalog/new',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminTrackerNewRoute = AdminTrackerNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AdminTrackerRoute,
+  id: '/tracker_/new',
+  path: '/tracker/new',
+  getParentRoute: () => AdminRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -230,7 +230,7 @@ export interface FileRoutesByFullPath {
   '/admin/relationships': typeof AdminRelationshipsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/studios': typeof AdminStudiosRoute
-  '/admin/tracker': typeof AdminTrackerRouteWithChildren
+  '/admin/tracker': typeof AdminTrackerRoute
   '/admin/validation': typeof AdminValidationRoute
   '/api/agent': typeof ApiAgentRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
@@ -262,7 +262,7 @@ export interface FileRoutesByTo {
   '/admin/relationships': typeof AdminRelationshipsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/studios': typeof AdminStudiosRoute
-  '/admin/tracker': typeof AdminTrackerRouteWithChildren
+  '/admin/tracker': typeof AdminTrackerRoute
   '/admin/validation': typeof AdminValidationRoute
   '/api/agent': typeof ApiAgentRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
@@ -298,7 +298,7 @@ export interface FileRoutesById {
   '/admin/relationships': typeof AdminRelationshipsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/studios': typeof AdminStudiosRoute
-  '/admin/tracker': typeof AdminTrackerRouteWithChildren
+  '/admin/tracker': typeof AdminTrackerRoute
   '/admin/validation': typeof AdminValidationRoute
   '/api/agent': typeof ApiAgentRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
@@ -309,8 +309,8 @@ export interface FileRoutesById {
   '/entities/': typeof EntitiesIndexRoute
   '/planets/': typeof PlanetsIndexRoute
   '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
-  '/admin/catalog/new': typeof AdminCatalogNewRoute
-  '/admin/tracker/new': typeof AdminTrackerNewRoute
+  '/admin/catalog_/new': typeof AdminCatalogNewRoute
+  '/admin/tracker_/new': typeof AdminTrackerNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -413,8 +413,8 @@ export interface FileRouteTypes {
     | '/entities/'
     | '/planets/'
     | '/admin/catalog/$workId'
-    | '/admin/catalog/new'
-    | '/admin/tracker/new'
+    | '/admin/catalog_/new'
+    | '/admin/tracker_/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -653,47 +653,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCatalogWorkIdRouteImport
       parentRoute: typeof AdminCatalogRoute
     }
-    '/admin/catalog/new': {
-      id: '/admin/catalog/new'
-      path: '/new'
+    '/admin/catalog_/new': {
+      id: '/admin/catalog_/new'
+      path: '/catalog/new'
       fullPath: '/admin/catalog/new'
       preLoaderRoute: typeof AdminCatalogNewRouteImport
-      parentRoute: typeof AdminCatalogRoute
+      parentRoute: typeof AdminRoute
     }
-    '/admin/tracker/new': {
-      id: '/admin/tracker/new'
-      path: '/new'
+    '/admin/tracker_/new': {
+      id: '/admin/tracker_/new'
+      path: '/tracker/new'
       fullPath: '/admin/tracker/new'
       preLoaderRoute: typeof AdminTrackerNewRouteImport
-      parentRoute: typeof AdminTrackerRoute
+      parentRoute: typeof AdminRoute
     }
   }
 }
 
 interface AdminCatalogRouteChildren {
   AdminCatalogWorkIdRoute: typeof AdminCatalogWorkIdRoute
-  AdminCatalogNewRoute: typeof AdminCatalogNewRoute
 }
 
 const AdminCatalogRouteChildren: AdminCatalogRouteChildren = {
   AdminCatalogWorkIdRoute: AdminCatalogWorkIdRoute,
-  AdminCatalogNewRoute: AdminCatalogNewRoute,
 }
 
 const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
   AdminCatalogRouteChildren,
-)
-
-interface AdminTrackerRouteChildren {
-  AdminTrackerNewRoute: typeof AdminTrackerNewRoute
-}
-
-const AdminTrackerRouteChildren: AdminTrackerRouteChildren = {
-  AdminTrackerNewRoute: AdminTrackerNewRoute,
-}
-
-const AdminTrackerRouteWithChildren = AdminTrackerRoute._addFileChildren(
-  AdminTrackerRouteChildren,
 )
 
 interface AdminRouteChildren {
@@ -706,9 +692,11 @@ interface AdminRouteChildren {
   AdminRelationshipsRoute: typeof AdminRelationshipsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStudiosRoute: typeof AdminStudiosRoute
-  AdminTrackerRoute: typeof AdminTrackerRouteWithChildren
+  AdminTrackerRoute: typeof AdminTrackerRoute
   AdminValidationRoute: typeof AdminValidationRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminCatalogNewRoute: typeof AdminCatalogNewRoute
+  AdminTrackerNewRoute: typeof AdminTrackerNewRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -721,9 +709,11 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminRelationshipsRoute: AdminRelationshipsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStudiosRoute: AdminStudiosRoute,
-  AdminTrackerRoute: AdminTrackerRouteWithChildren,
+  AdminTrackerRoute: AdminTrackerRoute,
   AdminValidationRoute: AdminValidationRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminCatalogNewRoute: AdminCatalogNewRoute,
+  AdminTrackerNewRoute: AdminTrackerNewRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
