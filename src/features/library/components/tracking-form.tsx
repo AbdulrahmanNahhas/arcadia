@@ -327,9 +327,9 @@ function TrackingPreview({
           <p>سيُحفظ تغيير الحالة فقط عند الموضع الحالي.</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {segments.map((segment, index) => (
+            {segments.map((segment) => (
               <div
-                key={`${segment.seasonId ?? "work"}-${segment.firstUnit}-${index}`}
+                key={`${segment.seasonId ?? "work"}-${segment.firstUnit}`}
                 className="flex flex-wrap items-center gap-2"
               >
                 {segment.seasonTitle ? (

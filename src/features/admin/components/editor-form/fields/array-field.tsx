@@ -1,8 +1,8 @@
-import { Badge } from "@/components/ui/badge"
-import { Field } from "./field"
-import { XIcon } from "@phosphor-icons/react"
-import { useId, useState } from "react"
-import type { KeyboardEvent } from "react"
+import { XIcon } from "@phosphor-icons/react";
+import type { KeyboardEvent } from "react";
+import { useId, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Field } from "./field";
 
 export function ArrayField({
   label,
@@ -12,48 +12,48 @@ export function ArrayField({
   maxItems,
   optionLabels,
 }: {
-  label: string
-  value: string[]
-  onChange: (value: string[]) => void
-  options?: readonly string[]
-  maxItems?: number
-  optionLabels?: Readonly<Record<string, string>>
+  label: string;
+  value: string[];
+  onChange: (value: string[]) => void;
+  options?: readonly string[];
+  maxItems?: number;
+  optionLabels?: Readonly<Record<string, string>>;
 }) {
-  const listId = useId()
-  const [inputValue, setInputValue] = useState("")
+  const listId = useId();
+  const [inputValue, setInputValue] = useState("");
 
   const addTag = (tag: string) => {
-    const trimmed = tag.trim()
-    if (options && !options.includes(trimmed)) return
+    const trimmed = tag.trim();
+    if (options && !options.includes(trimmed)) return;
     if (
       trimmed &&
       !value.includes(trimmed) &&
       (maxItems === undefined || value.length < maxItems)
     ) {
-      onChange([...value, trimmed])
+      onChange([...value, trimmed]);
     }
-    setInputValue("")
-  }
+    setInputValue("");
+  };
 
   const removeTag = (indexToRemove: number) => {
-    onChange(value.filter((_, index) => index !== indexToRemove))
-  }
+    onChange(value.filter((_, index) => index !== indexToRemove));
+  };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault()
-      addTag(inputValue)
+      e.preventDefault();
+      addTag(inputValue);
     } else if (e.key === "Backspace" && !inputValue && value.length > 0) {
-      removeTag(value.length - 1)
+      removeTag(value.length - 1);
     }
-  }
+  };
 
   return (
     <Field label={label}>
       <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-input bg-background p-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
         {value.map((tag, index) => (
           <Badge
-            key={`${tag}-${index}`}
+            key={tag}
             variant="secondary"
             className="flex items-center gap-1 py-0.5 pr-1 pl-2 text-xs font-normal"
           >
@@ -64,9 +64,7 @@ export function ArrayField({
               className="cursor-pointer rounded-full p-0.5 transition-colors hover:bg-muted-foreground/20"
             >
               <XIcon className="size-3 text-muted-foreground hover:text-foreground" />
-              <span className="sr-only">
-                إزالة {optionLabels?.[tag] ?? tag}
-              </span>
+              <span className="sr-only">إزالة {optionLabels?.[tag] ?? tag}</span>
             </button>
           </Badge>
         ))}
@@ -99,5 +97,5 @@ export function ArrayField({
         </p>
       )}
     </Field>
-  )
+  );
 }

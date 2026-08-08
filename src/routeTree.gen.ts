@@ -11,12 +11,37 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CompareRouteImport } from './routes/compare'
+import { Route as DatabaseRouteImport } from './routes/database'
 import { Route as EntitiesRouteImport } from './routes/entities'
 import { Route as FeedRouteImport } from './routes/feed'
+import { Route as GraphRouteImport } from './routes/graph'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as LineageRouteImport } from './routes/lineage'
+import { Route as PlanetsRouteImport } from './routes/planets'
+import { Route as TrackerRouteImport } from './routes/tracker'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminCatalogRouteImport } from './routes/admin.catalog'
+import { Route as AdminDatabaseRouteImport } from './routes/admin.database'
+import { Route as AdminImportExportRouteImport } from './routes/admin.import-export'
+import { Route as AdminJsonRouteImport } from './routes/admin.json'
+import { Route as AdminPeopleRouteImport } from './routes/admin.people'
+import { Route as AdminPlanetsRouteImport } from './routes/admin.planets'
+import { Route as AdminRelationshipsRouteImport } from './routes/admin.relationships'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminStudiosRouteImport } from './routes/admin.studios'
+import { Route as AdminTrackerRouteImport } from './routes/admin.tracker'
+import { Route as AdminValidationRouteImport } from './routes/admin.validation'
 import { Route as ApiAgentRouteImport } from './routes/api.agent'
 import { Route as EntitiesIndexRouteImport } from './routes/entities.index'
 import { Route as EntitiesEntityIdRouteImport } from './routes/entities.$entityId'
+import { Route as PlanetsIndexRouteImport } from './routes/planets.index'
+import { Route as PlanetsPlanetSlugRouteImport } from './routes/planets.$planetSlug'
+import { Route as StudiosStudioIdRouteImport } from './routes/studios.$studioId'
+import { Route as WorksWorkIdRouteImport } from './routes/works.$workId'
+import { Route as AdminCatalogWorkIdRouteImport } from './routes/admin.catalog.$workId'
+import { Route as AdminCatalogNewRouteImport } from './routes/admin.catalog.new'
+import { Route as AdminTrackerNewRouteImport } from './routes/admin.tracker.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -26,6 +51,16 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompareRoute = CompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DatabaseRoute = DatabaseRouteImport.update({
+  id: '/database',
+  path: '/database',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EntitiesRoute = EntitiesRouteImport.update({
@@ -38,10 +73,90 @@ const FeedRoute = FeedRouteImport.update({
   path: '/feed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GraphRoute = GraphRouteImport.update({
+  id: '/graph',
+  path: '/graph',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
   getParentRoute: () => rootRouteImport,
+} as any)
+const LineageRoute = LineageRouteImport.update({
+  id: '/lineage',
+  path: '/lineage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanetsRoute = PlanetsRouteImport.update({
+  id: '/planets',
+  path: '/planets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackerRoute = TrackerRouteImport.update({
+  id: '/tracker',
+  path: '/tracker',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCatalogRoute = AdminCatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDatabaseRoute = AdminDatabaseRouteImport.update({
+  id: '/database',
+  path: '/database',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminImportExportRoute = AdminImportExportRouteImport.update({
+  id: '/import-export',
+  path: '/import-export',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminJsonRoute = AdminJsonRouteImport.update({
+  id: '/json',
+  path: '/json',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPeopleRoute = AdminPeopleRouteImport.update({
+  id: '/people',
+  path: '/people',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPlanetsRoute = AdminPlanetsRouteImport.update({
+  id: '/planets',
+  path: '/planets',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRelationshipsRoute = AdminRelationshipsRouteImport.update({
+  id: '/relationships',
+  path: '/relationships',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminStudiosRoute = AdminStudiosRouteImport.update({
+  id: '/studios',
+  path: '/studios',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTrackerRoute = AdminTrackerRouteImport.update({
+  id: '/tracker',
+  path: '/tracker',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminValidationRoute = AdminValidationRouteImport.update({
+  id: '/validation',
+  path: '/validation',
+  getParentRoute: () => AdminRoute,
 } as any)
 const ApiAgentRoute = ApiAgentRouteImport.update({
   id: '/api/agent',
@@ -58,76 +173,265 @@ const EntitiesEntityIdRoute = EntitiesEntityIdRouteImport.update({
   path: '/$entityId',
   getParentRoute: () => EntitiesRoute,
 } as any)
+const PlanetsIndexRoute = PlanetsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlanetsRoute,
+} as any)
+const PlanetsPlanetSlugRoute = PlanetsPlanetSlugRouteImport.update({
+  id: '/$planetSlug',
+  path: '/$planetSlug',
+  getParentRoute: () => PlanetsRoute,
+} as any)
+const StudiosStudioIdRoute = StudiosStudioIdRouteImport.update({
+  id: '/studios/$studioId',
+  path: '/studios/$studioId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorksWorkIdRoute = WorksWorkIdRouteImport.update({
+  id: '/works/$workId',
+  path: '/works/$workId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminCatalogWorkIdRoute = AdminCatalogWorkIdRouteImport.update({
+  id: '/$workId',
+  path: '/$workId',
+  getParentRoute: () => AdminCatalogRoute,
+} as any)
+const AdminCatalogNewRoute = AdminCatalogNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AdminCatalogRoute,
+} as any)
+const AdminTrackerNewRoute = AdminTrackerNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AdminTrackerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/compare': typeof CompareRoute
+  '/database': typeof DatabaseRoute
   '/entities': typeof EntitiesRouteWithChildren
   '/feed': typeof FeedRoute
+  '/graph': typeof GraphRoute
   '/library': typeof LibraryRoute
+  '/lineage': typeof LineageRoute
+  '/planets': typeof PlanetsRouteWithChildren
+  '/tracker': typeof TrackerRoute
+  '/admin/catalog': typeof AdminCatalogRouteWithChildren
+  '/admin/database': typeof AdminDatabaseRoute
+  '/admin/import-export': typeof AdminImportExportRoute
+  '/admin/json': typeof AdminJsonRoute
+  '/admin/people': typeof AdminPeopleRoute
+  '/admin/planets': typeof AdminPlanetsRoute
+  '/admin/relationships': typeof AdminRelationshipsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/studios': typeof AdminStudiosRoute
+  '/admin/tracker': typeof AdminTrackerRouteWithChildren
+  '/admin/validation': typeof AdminValidationRoute
   '/api/agent': typeof ApiAgentRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
+  '/studios/$studioId': typeof StudiosStudioIdRoute
+  '/works/$workId': typeof WorksWorkIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/entities/': typeof EntitiesIndexRoute
+  '/planets/': typeof PlanetsIndexRoute
+  '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
+  '/admin/catalog/new': typeof AdminCatalogNewRoute
+  '/admin/tracker/new': typeof AdminTrackerNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/compare': typeof CompareRoute
+  '/database': typeof DatabaseRoute
   '/feed': typeof FeedRoute
+  '/graph': typeof GraphRoute
   '/library': typeof LibraryRoute
+  '/lineage': typeof LineageRoute
+  '/tracker': typeof TrackerRoute
+  '/admin/catalog': typeof AdminCatalogRouteWithChildren
+  '/admin/database': typeof AdminDatabaseRoute
+  '/admin/import-export': typeof AdminImportExportRoute
+  '/admin/json': typeof AdminJsonRoute
+  '/admin/people': typeof AdminPeopleRoute
+  '/admin/planets': typeof AdminPlanetsRoute
+  '/admin/relationships': typeof AdminRelationshipsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/studios': typeof AdminStudiosRoute
+  '/admin/tracker': typeof AdminTrackerRouteWithChildren
+  '/admin/validation': typeof AdminValidationRoute
   '/api/agent': typeof ApiAgentRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
+  '/studios/$studioId': typeof StudiosStudioIdRoute
+  '/works/$workId': typeof WorksWorkIdRoute
+  '/admin': typeof AdminIndexRoute
   '/entities': typeof EntitiesIndexRoute
+  '/planets': typeof PlanetsIndexRoute
+  '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
+  '/admin/catalog/new': typeof AdminCatalogNewRoute
+  '/admin/tracker/new': typeof AdminTrackerNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/compare': typeof CompareRoute
+  '/database': typeof DatabaseRoute
   '/entities': typeof EntitiesRouteWithChildren
   '/feed': typeof FeedRoute
+  '/graph': typeof GraphRoute
   '/library': typeof LibraryRoute
+  '/lineage': typeof LineageRoute
+  '/planets': typeof PlanetsRouteWithChildren
+  '/tracker': typeof TrackerRoute
+  '/admin/catalog': typeof AdminCatalogRouteWithChildren
+  '/admin/database': typeof AdminDatabaseRoute
+  '/admin/import-export': typeof AdminImportExportRoute
+  '/admin/json': typeof AdminJsonRoute
+  '/admin/people': typeof AdminPeopleRoute
+  '/admin/planets': typeof AdminPlanetsRoute
+  '/admin/relationships': typeof AdminRelationshipsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/studios': typeof AdminStudiosRoute
+  '/admin/tracker': typeof AdminTrackerRouteWithChildren
+  '/admin/validation': typeof AdminValidationRoute
   '/api/agent': typeof ApiAgentRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
+  '/studios/$studioId': typeof StudiosStudioIdRoute
+  '/works/$workId': typeof WorksWorkIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/entities/': typeof EntitiesIndexRoute
+  '/planets/': typeof PlanetsIndexRoute
+  '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
+  '/admin/catalog/new': typeof AdminCatalogNewRoute
+  '/admin/tracker/new': typeof AdminTrackerNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
+    | '/compare'
+    | '/database'
     | '/entities'
     | '/feed'
+    | '/graph'
     | '/library'
+    | '/lineage'
+    | '/planets'
+    | '/tracker'
+    | '/admin/catalog'
+    | '/admin/database'
+    | '/admin/import-export'
+    | '/admin/json'
+    | '/admin/people'
+    | '/admin/planets'
+    | '/admin/relationships'
+    | '/admin/settings'
+    | '/admin/studios'
+    | '/admin/tracker'
+    | '/admin/validation'
     | '/api/agent'
     | '/entities/$entityId'
+    | '/planets/$planetSlug'
+    | '/studios/$studioId'
+    | '/works/$workId'
+    | '/admin/'
     | '/entities/'
+    | '/planets/'
+    | '/admin/catalog/$workId'
+    | '/admin/catalog/new'
+    | '/admin/tracker/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
+    | '/compare'
+    | '/database'
     | '/feed'
+    | '/graph'
     | '/library'
+    | '/lineage'
+    | '/tracker'
+    | '/admin/catalog'
+    | '/admin/database'
+    | '/admin/import-export'
+    | '/admin/json'
+    | '/admin/people'
+    | '/admin/planets'
+    | '/admin/relationships'
+    | '/admin/settings'
+    | '/admin/studios'
+    | '/admin/tracker'
+    | '/admin/validation'
     | '/api/agent'
     | '/entities/$entityId'
+    | '/planets/$planetSlug'
+    | '/studios/$studioId'
+    | '/works/$workId'
+    | '/admin'
     | '/entities'
+    | '/planets'
+    | '/admin/catalog/$workId'
+    | '/admin/catalog/new'
+    | '/admin/tracker/new'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/compare'
+    | '/database'
     | '/entities'
     | '/feed'
+    | '/graph'
     | '/library'
+    | '/lineage'
+    | '/planets'
+    | '/tracker'
+    | '/admin/catalog'
+    | '/admin/database'
+    | '/admin/import-export'
+    | '/admin/json'
+    | '/admin/people'
+    | '/admin/planets'
+    | '/admin/relationships'
+    | '/admin/settings'
+    | '/admin/studios'
+    | '/admin/tracker'
+    | '/admin/validation'
     | '/api/agent'
     | '/entities/$entityId'
+    | '/planets/$planetSlug'
+    | '/studios/$studioId'
+    | '/works/$workId'
+    | '/admin/'
     | '/entities/'
+    | '/planets/'
+    | '/admin/catalog/$workId'
+    | '/admin/catalog/new'
+    | '/admin/tracker/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminRoute: typeof AdminRouteWithChildren
+  CompareRoute: typeof CompareRoute
+  DatabaseRoute: typeof DatabaseRoute
   EntitiesRoute: typeof EntitiesRouteWithChildren
   FeedRoute: typeof FeedRoute
+  GraphRoute: typeof GraphRoute
   LibraryRoute: typeof LibraryRoute
+  LineageRoute: typeof LineageRoute
+  PlanetsRoute: typeof PlanetsRouteWithChildren
+  TrackerRoute: typeof TrackerRoute
   ApiAgentRoute: typeof ApiAgentRoute
+  StudiosStudioIdRoute: typeof StudiosStudioIdRoute
+  WorksWorkIdRoute: typeof WorksWorkIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -146,6 +450,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/compare': {
+      id: '/compare'
+      path: '/compare'
+      fullPath: '/compare'
+      preLoaderRoute: typeof CompareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/database': {
+      id: '/database'
+      path: '/database'
+      fullPath: '/database'
+      preLoaderRoute: typeof DatabaseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/entities': {
       id: '/entities'
       path: '/entities'
@@ -160,12 +478,124 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/graph': {
+      id: '/graph'
+      path: '/graph'
+      fullPath: '/graph'
+      preLoaderRoute: typeof GraphRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/library': {
       id: '/library'
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/lineage': {
+      id: '/lineage'
+      path: '/lineage'
+      fullPath: '/lineage'
+      preLoaderRoute: typeof LineageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/planets': {
+      id: '/planets'
+      path: '/planets'
+      fullPath: '/planets'
+      preLoaderRoute: typeof PlanetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tracker': {
+      id: '/tracker'
+      path: '/tracker'
+      fullPath: '/tracker'
+      preLoaderRoute: typeof TrackerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/catalog': {
+      id: '/admin/catalog'
+      path: '/catalog'
+      fullPath: '/admin/catalog'
+      preLoaderRoute: typeof AdminCatalogRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/database': {
+      id: '/admin/database'
+      path: '/database'
+      fullPath: '/admin/database'
+      preLoaderRoute: typeof AdminDatabaseRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/import-export': {
+      id: '/admin/import-export'
+      path: '/import-export'
+      fullPath: '/admin/import-export'
+      preLoaderRoute: typeof AdminImportExportRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/json': {
+      id: '/admin/json'
+      path: '/json'
+      fullPath: '/admin/json'
+      preLoaderRoute: typeof AdminJsonRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/people': {
+      id: '/admin/people'
+      path: '/people'
+      fullPath: '/admin/people'
+      preLoaderRoute: typeof AdminPeopleRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/planets': {
+      id: '/admin/planets'
+      path: '/planets'
+      fullPath: '/admin/planets'
+      preLoaderRoute: typeof AdminPlanetsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/relationships': {
+      id: '/admin/relationships'
+      path: '/relationships'
+      fullPath: '/admin/relationships'
+      preLoaderRoute: typeof AdminRelationshipsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/studios': {
+      id: '/admin/studios'
+      path: '/studios'
+      fullPath: '/admin/studios'
+      preLoaderRoute: typeof AdminStudiosRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/tracker': {
+      id: '/admin/tracker'
+      path: '/tracker'
+      fullPath: '/admin/tracker'
+      preLoaderRoute: typeof AdminTrackerRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/validation': {
+      id: '/admin/validation'
+      path: '/validation'
+      fullPath: '/admin/validation'
+      preLoaderRoute: typeof AdminValidationRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/api/agent': {
       id: '/api/agent'
@@ -188,8 +618,115 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EntitiesEntityIdRouteImport
       parentRoute: typeof EntitiesRoute
     }
+    '/planets/': {
+      id: '/planets/'
+      path: '/'
+      fullPath: '/planets/'
+      preLoaderRoute: typeof PlanetsIndexRouteImport
+      parentRoute: typeof PlanetsRoute
+    }
+    '/planets/$planetSlug': {
+      id: '/planets/$planetSlug'
+      path: '/$planetSlug'
+      fullPath: '/planets/$planetSlug'
+      preLoaderRoute: typeof PlanetsPlanetSlugRouteImport
+      parentRoute: typeof PlanetsRoute
+    }
+    '/studios/$studioId': {
+      id: '/studios/$studioId'
+      path: '/studios/$studioId'
+      fullPath: '/studios/$studioId'
+      preLoaderRoute: typeof StudiosStudioIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/works/$workId': {
+      id: '/works/$workId'
+      path: '/works/$workId'
+      fullPath: '/works/$workId'
+      preLoaderRoute: typeof WorksWorkIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/catalog/$workId': {
+      id: '/admin/catalog/$workId'
+      path: '/$workId'
+      fullPath: '/admin/catalog/$workId'
+      preLoaderRoute: typeof AdminCatalogWorkIdRouteImport
+      parentRoute: typeof AdminCatalogRoute
+    }
+    '/admin/catalog/new': {
+      id: '/admin/catalog/new'
+      path: '/new'
+      fullPath: '/admin/catalog/new'
+      preLoaderRoute: typeof AdminCatalogNewRouteImport
+      parentRoute: typeof AdminCatalogRoute
+    }
+    '/admin/tracker/new': {
+      id: '/admin/tracker/new'
+      path: '/new'
+      fullPath: '/admin/tracker/new'
+      preLoaderRoute: typeof AdminTrackerNewRouteImport
+      parentRoute: typeof AdminTrackerRoute
+    }
   }
 }
+
+interface AdminCatalogRouteChildren {
+  AdminCatalogWorkIdRoute: typeof AdminCatalogWorkIdRoute
+  AdminCatalogNewRoute: typeof AdminCatalogNewRoute
+}
+
+const AdminCatalogRouteChildren: AdminCatalogRouteChildren = {
+  AdminCatalogWorkIdRoute: AdminCatalogWorkIdRoute,
+  AdminCatalogNewRoute: AdminCatalogNewRoute,
+}
+
+const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
+  AdminCatalogRouteChildren,
+)
+
+interface AdminTrackerRouteChildren {
+  AdminTrackerNewRoute: typeof AdminTrackerNewRoute
+}
+
+const AdminTrackerRouteChildren: AdminTrackerRouteChildren = {
+  AdminTrackerNewRoute: AdminTrackerNewRoute,
+}
+
+const AdminTrackerRouteWithChildren = AdminTrackerRoute._addFileChildren(
+  AdminTrackerRouteChildren,
+)
+
+interface AdminRouteChildren {
+  AdminCatalogRoute: typeof AdminCatalogRouteWithChildren
+  AdminDatabaseRoute: typeof AdminDatabaseRoute
+  AdminImportExportRoute: typeof AdminImportExportRoute
+  AdminJsonRoute: typeof AdminJsonRoute
+  AdminPeopleRoute: typeof AdminPeopleRoute
+  AdminPlanetsRoute: typeof AdminPlanetsRoute
+  AdminRelationshipsRoute: typeof AdminRelationshipsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminStudiosRoute: typeof AdminStudiosRoute
+  AdminTrackerRoute: typeof AdminTrackerRouteWithChildren
+  AdminValidationRoute: typeof AdminValidationRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminCatalogRoute: AdminCatalogRouteWithChildren,
+  AdminDatabaseRoute: AdminDatabaseRoute,
+  AdminImportExportRoute: AdminImportExportRoute,
+  AdminJsonRoute: AdminJsonRoute,
+  AdminPeopleRoute: AdminPeopleRoute,
+  AdminPlanetsRoute: AdminPlanetsRoute,
+  AdminRelationshipsRoute: AdminRelationshipsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminStudiosRoute: AdminStudiosRoute,
+  AdminTrackerRoute: AdminTrackerRouteWithChildren,
+  AdminValidationRoute: AdminValidationRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface EntitiesRouteChildren {
   EntitiesEntityIdRoute: typeof EntitiesEntityIdRoute
@@ -205,13 +742,34 @@ const EntitiesRouteWithChildren = EntitiesRoute._addFileChildren(
   EntitiesRouteChildren,
 )
 
+interface PlanetsRouteChildren {
+  PlanetsPlanetSlugRoute: typeof PlanetsPlanetSlugRoute
+  PlanetsIndexRoute: typeof PlanetsIndexRoute
+}
+
+const PlanetsRouteChildren: PlanetsRouteChildren = {
+  PlanetsPlanetSlugRoute: PlanetsPlanetSlugRoute,
+  PlanetsIndexRoute: PlanetsIndexRoute,
+}
+
+const PlanetsRouteWithChildren =
+  PlanetsRoute._addFileChildren(PlanetsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminRoute: AdminRouteWithChildren,
+  CompareRoute: CompareRoute,
+  DatabaseRoute: DatabaseRoute,
   EntitiesRoute: EntitiesRouteWithChildren,
   FeedRoute: FeedRoute,
+  GraphRoute: GraphRoute,
   LibraryRoute: LibraryRoute,
+  LineageRoute: LineageRoute,
+  PlanetsRoute: PlanetsRouteWithChildren,
+  TrackerRoute: TrackerRoute,
   ApiAgentRoute: ApiAgentRoute,
+  StudiosStudioIdRoute: StudiosStudioIdRoute,
+  WorksWorkIdRoute: WorksWorkIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

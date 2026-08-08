@@ -25,7 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { LibraryHeader } from "@/features/library/components/library-header";
 import { kindLabels } from "@/features/library/filtering";
-import type { Work, WorkContribution, WorkKind } from "@/features/library/model";
+import type { Entity, WorkContribution, WorkKind } from "@/features/library/model";
 import { statusLabelsAr } from "@/features/library/translations";
 import { cn } from "@/lib/utils";
 import { getEntities } from "@/server/library.functions";
@@ -384,7 +384,7 @@ export function EntityDetailPage({ entityId }: { entityId: string }) {
   );
 }
 
-function WorkTile({ work, mode }: { work: Work; mode: ViewMode }) {
+function WorkTile({ work, mode }: { work: Entity["works"][number]; mode: ViewMode }) {
   const KindIcon = kindIcons[work.kind as unknown as keyof typeof kindIcons] ?? FilmSlateIcon;
 
   if (mode === "poster") {

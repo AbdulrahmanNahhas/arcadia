@@ -1,6 +1,6 @@
-import { PlusIcon, TrashIcon } from "@phosphor-icons/react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -8,8 +8,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Field } from "./field"
+} from "@/components/ui/select";
+import { Field } from "./field";
 
 const contentTypes = [
   "Chapters",
@@ -23,7 +23,7 @@ const contentTypes = [
   "Acts",
   "Episodes",
   "Extras",
-] as const
+] as const;
 
 const contentTypeLabels: Record<(typeof contentTypes)[number], string> = {
   Chapters: "فصول",
@@ -37,27 +37,28 @@ const contentTypeLabels: Record<(typeof contentTypes)[number], string> = {
   Acts: "فصول مسرحية",
   Episodes: "حلقات",
   Extras: "إضافات",
-}
+};
 
 export function ContentField({
   value = [],
   onChange,
 }: {
-  value: string[]
-  onChange: (value: string[]) => void
+  value: string[];
+  onChange: (value: string[]) => void;
 }) {
   const update = (index: number, next: string) => {
-    onChange(
-      value.map((item, itemIndex) => (itemIndex === index ? next : item))
-    )
-  }
+    onChange(value.map((item, itemIndex) => (itemIndex === index ? next : item)));
+  };
 
   return (
     <Field label="المحتويات" wide>
       <div className="flex flex-col gap-2">
         {value.map((item, index) => (
           <div
-            key={index}
+            key={
+              // biome-ignore lint/suspicious/noArrayIndexKey: Rows are an ordered string list with no persistent item identity.
+              index
+            }
             className="flex items-center gap-2 rounded-md border bg-muted/30 p-2"
           >
             <Input
@@ -88,9 +89,7 @@ export function ContentField({
               type="button"
               variant="ghost"
               size="icon-sm"
-              onClick={() =>
-                onChange(value.filter((_, itemIndex) => itemIndex !== index))
-              }
+              onClick={() => onChange(value.filter((_, itemIndex) => itemIndex !== index))}
               aria-label={`إزالة المحتوى ${index + 1}`}
             >
               <TrashIcon data-icon="inline-start" />
@@ -109,5 +108,5 @@ export function ContentField({
         </Button>
       </div>
     </Field>
-  )
+  );
 }

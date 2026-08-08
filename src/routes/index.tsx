@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { LibraryHome } from "@/features/library/library-home"
+import { createFileRoute } from "@tanstack/react-router";
+import { PlatformHome } from "@/features/platform/platform-home";
 
-export const Route = createFileRoute("/")({ component: LibraryHome })
+export const Route = createFileRoute("/")({ component: PlatformHome });

@@ -1,7 +1,7 @@
-import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
-import appCss from "../styles.css?url"
+import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -35,20 +35,21 @@ export const Route = createRootRoute({
     </main>
   ),
   shellComponent: RootDocument,
-})
+});
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const restorePreferences = `(function(){try{var r=document.documentElement,t=localStorage.getItem('arcadia:theme');if(t==='dark')r.classList.add('dark');r.style.colorScheme=t==='dark'?'dark':'light'}catch(e){}})()`
+  const restorePreferences = `(function(){try{var r=document.documentElement,t=localStorage.getItem('arcadia:theme');if(t==='dark')r.classList.add('dark');r.style.colorScheme=t==='dark'?'dark':'light'}catch(e){}})()`;
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Static inline code restores local preferences before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: restorePreferences }} />
         <HeadContent />
       </head>
-      <body>
+      <body className="dark">
         <TooltipProvider>{children}</TooltipProvider>
         <Scripts />
       </body>
     </html>
-  )
+  );
 }

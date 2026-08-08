@@ -390,7 +390,7 @@ function formatDiffValue(value: unknown, present: boolean) {
   return JSON.stringify(value, null, 2);
 }
 
-function toEditableWork(work: Work): AdminWorkUpdate {
+export function toEditableWork(work: Work): AdminWorkUpdate {
   const {
     addedAt: _addedAt,
     catalogUpdatedAt: _catalogUpdatedAt,
@@ -536,6 +536,7 @@ export function JsonEditorDialog({
   visibleWorks,
   selectedIds,
   onSaved,
+  initialScope = "all",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -543,8 +544,9 @@ export function JsonEditorDialog({
   visibleWorks: Work[];
   selectedIds: Set<string>;
   onSaved: () => Promise<void>;
+  initialScope?: JsonScope;
 }) {
-  const [scope, setScope] = useState<JsonScope>("all");
+  const [scope, setScope] = useState<JsonScope>(initialScope);
   const [json, setJson] = useState("");
   const [reviewed, setReviewed] = useState<CompleteRecordDocument | null>(null);
   const [reviewSource, setReviewSource] = useState<CompleteRecordDocument | null>(null);
@@ -852,7 +854,8 @@ export function JsonEditorDialog({
 
   const groupedFields = PROJECTION_FIELDS.reduce(
     (groups, field) => {
-      const group = (groups[field.group] ??= []);
+      const group = groups[field.group] ?? [];
+      groups[field.group] = group;
       group.push(field);
       return groups;
     },
@@ -860,6 +863,7 @@ export function JsonEditorDialog({
   );
 
   const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) setScope(initialScope);
     if (!nextOpen && dirty && !reviewed) {
       setError("تحتوي المسودة على تغييرات غير محفوظة. أعد ضبطها أو راجعها واحفظها قبل الإغلاق.");
       return;
@@ -936,12 +940,12 @@ export function JsonEditorDialog({
                         </div>
                       </header>
                       <dl className="divide-y">
-                        {fieldDiffs.map((diff, index) => {
+                        {fieldDiffs.map((diff) => {
                           const hasOldValue = diff.kind !== "added";
                           const hasNewValue = diff.kind !== "removed";
                           return (
                             <div
-                              key={`${diff.kind}-${diff.path}-${index}`}
+                              key={`${diff.kind}-${diff.path}`}
                               className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(12rem,0.7fr)_minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-start"
                             >
                               <dt className="flex min-w-0 flex-col items-start gap-1.5">
@@ -1085,9 +1089,11 @@ export function JsonEditorDialog({
                             {matchingFields.map((field) => (
                               <label
                                 key={field.key}
+                                htmlFor={`projection-${field.key}`}
                                 className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
                               >
                                 <Checkbox
+                                  id={`projection-${field.key}`}
                                   checked={selectedFields.includes(field.key)}
                                   onCheckedChange={(checked) =>
                                     toggleField(field.key, checked === true)

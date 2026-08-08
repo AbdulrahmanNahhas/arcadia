@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import { useEffect, useMemo, useState } from "react"
-import { useMutation, useQuery } from "@tanstack/react-query"
 import {
   BracketsCurlyIcon,
   FloppyDiskIcon,
   TextAlignLeftIcon,
   TranslateIcon,
   WarningCircleIcon,
-} from "@phosphor-icons/react"
-import { z } from "zod"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+} from "@phosphor-icons/react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { z } from "zod";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -20,21 +20,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   getTaxonomyTerms,
-  saveTaxonomyTranslations,
   saveTaxonomyTranslation,
-} from "@/server/library.functions"
+  saveTaxonomyTranslations,
+} from "@/server/library.functions";
 
 const taxonomyJsonSchema = z.array(
   z.object({
@@ -42,39 +37,38 @@ const taxonomyJsonSchema = z.array(
     labelAr: z.string().nullable(),
     description: z.string(),
     descriptionAr: z.string(),
-  })
-)
+  }),
+);
 
 export function TaxonomyManagerDialog({
   open,
   onOpenChange,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [search, setSearch] = useState("")
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [jsonView, setJsonView] = useState(false)
-  const [json, setJson] = useState("")
-  const [jsonDirty, setJsonDirty] = useState(false)
-  const [jsonError, setJsonError] = useState("")
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [jsonView, setJsonView] = useState(false);
+  const [json, setJson] = useState("");
+  const [jsonDirty, setJsonDirty] = useState(false);
+  const [jsonError, setJsonError] = useState("");
   const query = useQuery({
     queryKey: ["taxonomy-terms"],
     queryFn: () => getTaxonomyTerms(),
     enabled: open,
-  })
+  });
   const filtered = useMemo(() => {
-    const needle = search.trim().toLocaleLowerCase()
+    const needle = search.trim().toLocaleLowerCase();
     return (query.data ?? []).filter(
       (term) =>
         !needle ||
         [term.labelEn, term.labelAr, term.key, term.vocabulary].some((value) =>
-          value?.toLocaleLowerCase().includes(needle)
-        )
-    )
-  }, [query.data, search])
-  const selected =
-    query.data?.find((term) => term.id === selectedId) ?? filtered[0] ?? null
+          value?.toLocaleLowerCase().includes(needle),
+        ),
+    );
+  }, [query.data, search]);
+  const selected = query.data?.find((term) => term.id === selectedId) ?? filtered[0] ?? null;
   const jsonSource = useMemo(
     () =>
       (query.data ?? []).map(({ id, labelAr, description, descriptionAr }) => ({
@@ -83,51 +77,49 @@ export function TaxonomyManagerDialog({
         description,
         descriptionAr,
       })),
-    [query.data]
-  )
+    [query.data],
+  );
   const parsedJson = useMemo(() => {
     try {
-      const parsed = taxonomyJsonSchema.parse(JSON.parse(json))
-      const expectedIds = jsonSource.map(({ id }) => id).sort()
-      const receivedIds = parsed.map(({ id }) => id)
+      const parsed = taxonomyJsonSchema.parse(JSON.parse(json));
+      const expectedIds = jsonSource.map(({ id }) => id).sort();
+      const receivedIds = parsed.map(({ id }) => id);
       if (
         new Set(receivedIds).size !== receivedIds.length ||
         JSON.stringify(expectedIds) !== JSON.stringify([...receivedIds].sort())
       ) {
-        throw new Error(
-          "احتفظ بجميع معرّفات المصطلحات مرة واحدة دون إضافة أو حذف."
-        )
+        throw new Error("احتفظ بجميع معرّفات المصطلحات مرة واحدة دون إضافة أو حذف.");
       }
-      return { data: parsed, error: "" }
+      return { data: parsed, error: "" };
     } catch (error) {
       return {
         data: null,
         error: error instanceof Error ? error.message : "JSON غير صالح.",
-      }
+      };
     }
-  }, [json, jsonSource])
+  }, [json, jsonSource]);
   const jsonMutation = useMutation({
     mutationFn: saveTaxonomyTranslations,
     onSuccess: async () => {
-      await query.refetch()
-      setJsonDirty(false)
-      setJsonError("")
+      await query.refetch();
+      setJsonDirty(false);
+      setJsonError("");
     },
-  })
+  });
 
   useEffect(() => {
-    if (!open || !query.data || jsonDirty) return
-    setJson(JSON.stringify(jsonSource, null, 2))
-  }, [jsonDirty, jsonSource, open, query.data])
+    if (!open || !query.data || jsonDirty) return;
+    setJson(JSON.stringify(jsonSource, null, 2));
+  }, [jsonDirty, jsonSource, open, query.data]);
 
   const saveJson = () => {
     if (!parsedJson.data) {
-      setJsonError(parsedJson.error)
-      return
+      setJsonError(parsedJson.error);
+      return;
     }
-    setJsonError("")
-    jsonMutation.mutate({ data: { translations: parsedJson.data } })
-  }
+    setJsonError("");
+    jsonMutation.mutate({ data: { translations: parsedJson.data } });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -151,11 +143,7 @@ export function TaxonomyManagerDialog({
               </DialogDescription>
             </div>
             <Field orientation="horizontal" className="w-auto">
-              <Switch
-                id="taxonomy-json-view"
-                checked={jsonView}
-                onCheckedChange={setJsonView}
-              />
+              <Switch id="taxonomy-json-view" checked={jsonView} onCheckedChange={setJsonView} />
               <FieldLabel htmlFor="taxonomy-json-view">تحرير JSON</FieldLabel>
             </Field>
           </div>
@@ -175,12 +163,10 @@ export function TaxonomyManagerDialog({
                 className="ms-auto"
                 onClick={() => {
                   try {
-                    setJson(JSON.stringify(JSON.parse(json), null, 2))
-                    setJsonError("")
+                    setJson(JSON.stringify(JSON.parse(json), null, 2));
+                    setJsonError("");
                   } catch (error) {
-                    setJsonError(
-                      error instanceof Error ? error.message : "JSON غير صالح."
-                    )
+                    setJsonError(error instanceof Error ? error.message : "JSON غير صالح.");
                   }
                 }}
               >
@@ -191,9 +177,9 @@ export function TaxonomyManagerDialog({
             <Textarea
               value={json}
               onChange={(event) => {
-                setJson(event.target.value)
-                setJsonDirty(true)
-                setJsonError("")
+                setJson(event.target.value);
+                setJsonDirty(true);
+                setJsonError("");
               }}
               className="min-h-0 flex-1 resize-none rounded-none border-0 p-5 text-left font-mono text-xs leading-6 [unicode-bidi:plaintext] focus-visible:ring-0"
               dir="ltr"
@@ -205,9 +191,7 @@ export function TaxonomyManagerDialog({
               <Alert variant="destructive" className="rounded-none border-x-0">
                 <WarningCircleIcon />
                 <AlertTitle>تعذر حفظ JSON</AlertTitle>
-                <AlertDescription>
-                  {jsonError || jsonMutation.error?.message}
-                </AlertDescription>
+                <AlertDescription>{jsonError || jsonMutation.error?.message}</AlertDescription>
               </Alert>
             )}
           </div>
@@ -250,13 +234,11 @@ export function TaxonomyManagerDialog({
                   key={selected.id}
                   term={selected}
                   onSaved={async () => {
-                    await query.refetch()
+                    await query.refetch();
                   }}
                 />
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  لا يوجد مصطلح يطابق هذا البحث.
-                </p>
+                <p className="text-sm text-muted-foreground">لا يوجد مصطلح يطابق هذا البحث.</p>
               )}
             </div>
           </div>
@@ -268,9 +250,7 @@ export function TaxonomyManagerDialog({
           {jsonView && (
             <Button
               onClick={saveJson}
-              disabled={
-                !jsonDirty || !parsedJson.data || jsonMutation.isPending
-              }
+              disabled={!jsonDirty || !parsedJson.data || jsonMutation.isPending}
             >
               <FloppyDiskIcon data-icon="inline-start" />
               {jsonMutation.isPending ? "جارٍ الحفظ…" : "حفظ JSON"}
@@ -279,19 +259,19 @@ export function TaxonomyManagerDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 function TaxonomyTranslationForm({
   term,
   onSaved,
 }: {
-  term: Awaited<ReturnType<typeof getTaxonomyTerms>>[number]
-  onSaved: () => Promise<void>
+  term: Awaited<ReturnType<typeof getTaxonomyTerms>>[number];
+  onSaved: () => Promise<void>;
 }) {
-  const [labelAr, setLabelAr] = useState(term.labelAr ?? "")
-  const [description, setDescription] = useState(term.description)
-  const [descriptionAr, setDescriptionAr] = useState(term.descriptionAr)
+  const [labelAr, setLabelAr] = useState(term.labelAr ?? "");
+  const [description, setDescription] = useState(term.description);
+  const [descriptionAr, setDescriptionAr] = useState(term.descriptionAr);
   const mutation = useMutation({
     mutationFn: () =>
       saveTaxonomyTranslation({
@@ -303,14 +283,14 @@ function TaxonomyTranslationForm({
         },
       }),
     onSuccess: onSaved,
-  })
+  });
 
   return (
     <form
       className="flex flex-col gap-6"
       onSubmit={(event) => {
-        event.preventDefault()
-        mutation.mutate()
+        event.preventDefault();
+        mutation.mutate();
       }}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -320,13 +300,10 @@ function TaxonomyTranslationForm({
       </div>
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="taxonomy-label-en">
-            التسمية الإنجليزية
-          </FieldLabel>
+          <FieldLabel htmlFor="taxonomy-label-en">التسمية الإنجليزية</FieldLabel>
           <Input id="taxonomy-label-en" value={term.labelEn} disabled />
           <FieldDescription>
-            لا يتغير المفتاح الثابت والتسمية الإنجليزية إلا عبر ترحيل دمج
-            مُراجع.
+            لا يتغير المفتاح الثابت والتسمية الإنجليزية إلا عبر ترحيل دمج مُراجع.
           </FieldDescription>
         </Field>
         <Field>
@@ -341,9 +318,7 @@ function TaxonomyTranslationForm({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="taxonomy-description-en">
-            التعريف الإنجليزي
-          </FieldLabel>
+          <FieldLabel htmlFor="taxonomy-description-en">التعريف الإنجليزي</FieldLabel>
           <Textarea
             id="taxonomy-description-en"
             value={description}
@@ -351,9 +326,7 @@ function TaxonomyTranslationForm({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="taxonomy-description-ar">
-            التعريف العربي
-          </FieldLabel>
+          <FieldLabel htmlFor="taxonomy-description-ar">التعريف العربي</FieldLabel>
           <Textarea
             id="taxonomy-description-ar"
             dir="rtl"
@@ -372,5 +345,5 @@ function TaxonomyTranslationForm({
         </p>
       )}
     </form>
-  )
+  );
 }

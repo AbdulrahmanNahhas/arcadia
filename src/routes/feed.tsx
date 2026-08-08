@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { ActivityFeedPage } from "@/features/activity/activity-feed-page"
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/feed")({
-  component: ActivityFeedPage,
-})
+  beforeLoad: () => {
+    throw redirect({ to: "/admin/tracker" });
+  },
+});

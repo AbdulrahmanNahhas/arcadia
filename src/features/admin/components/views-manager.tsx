@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   BookmarkSimpleIcon,
   CheckCircleIcon,
@@ -7,24 +5,26 @@ import {
   HouseLineIcon,
   TrashIcon,
   WarningCircleIcon,
-} from "@phosphor-icons/react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+} from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty"
+} from "@/components/ui/empty";
 import {
   Field,
   FieldContent,
@@ -35,8 +35,8 @@ import {
   FieldLegend,
   FieldSet,
   FieldTitle,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -44,44 +44,69 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import type {
-  SavedUserView,
-  UpdateSavedUserView,
-} from "@/features/library/model"
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { groupLabel } from "@/features/library/grouping";
+import type { SavedUserView, UpdateSavedUserView } from "@/features/library/model";
 import {
   getSavedViewAccentStyle,
   getSavedViewIcon,
   savedViewColorOptions,
   savedViewIconOptions,
-} from "@/features/library/view-meta"
-import {
-  editSavedView,
-  getSavedViews,
-  removeSavedView,
-} from "@/server/library.functions"
+} from "@/features/library/view-meta";
+import { editSavedView, getSavedViews, removeSavedView } from "@/server/library.functions";
 
 const layoutLabels: Record<SavedUserView["layout"], string> = {
   gallery: "معرض",
+  wide: "بطاقات واسعة",
   table: "جدول",
   timeline: "خط زمني",
   statistics: "إحصاءات",
-}
+};
 
 const sortLabels: Record<SavedUserView["sort"], string> = {
   title: "العنوان",
   rating: "التقييم",
   recent: "المضاف حديثاً",
   year: "سنة الإصدار",
-}
+  creator: "صنّاع العمل",
+  audience: "الجمهور",
+  kind: "نوع العمل",
+  status: "حالة المتابعة",
+  progress: "التقدم",
+  trackedOn: "تاريخ التتبع",
+  story: "القصة",
+  characters: "الشخصيات",
+  depth: "العمق والأفكار",
+  worldBuilding: "بناء العالم",
+  originality: "الأصالة",
+  craft: "الحِرفة",
+};
 
 const sortDirectionLabels: Record<SavedUserView["sortDirection"], string> = {
   asc: "تصاعدي",
   desc: "تنازلي",
-}
+};
+
+const groupOptions: SavedUserView["groupBy"][] = [
+  "none",
+  "audience",
+  "rating",
+  "kind",
+  "status",
+  "year",
+  "genre",
+  "depth",
+  "craft",
+];
+
+const densityLabels: Record<SavedUserView["tableDensity"], string> = {
+  compact: "مضغوط",
+  comfortable: "متوازن",
+  spacious: "واسع",
+};
 
 function createDraft(view: SavedUserView): UpdateSavedUserView {
   return {
@@ -93,21 +118,25 @@ function createDraft(view: SavedUserView): UpdateSavedUserView {
     layout: view.layout,
     sort: view.sort,
     sortDirection: view.sortDirection,
+    groupBy: view.groupBy,
+    cardSize: view.cardSize,
+    tableDensity: view.tableDensity,
+    timelineNewestFirst: view.timelineNewestFirst,
     isPinned: view.isPinned,
-  }
+  };
 }
 
 export function ViewsManagerDialog({
   open,
   onOpenChange,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const queryClient = useQueryClient()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [draft, setDraft] = useState<UpdateSavedUserView | null>(null)
-  const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<UpdateSavedUserView | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const {
     data: views = [],
     isPending,
@@ -116,80 +145,79 @@ export function ViewsManagerDialog({
     queryKey: ["saved-views"],
     queryFn: () => getSavedViews(),
     enabled: open,
-  })
+  });
 
-  const selectedView =
-    views.find((view) => view.id === selectedId) ?? views.at(0)
+  const selectedView = views.find((view) => view.id === selectedId) ?? views.at(0);
 
   const editMutation = useMutation({
     mutationFn: (input: UpdateSavedUserView) => editSavedView({ data: input }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["saved-views"] })
+      await queryClient.invalidateQueries({ queryKey: ["saved-views"] });
     },
-  })
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => removeSavedView({ data: { id } }),
     onSuccess: async (_, deletedId) => {
-      setConfirmingId(null)
-      const nextView = views.find((view) => view.id !== deletedId)
-      setSelectedId(nextView?.id ?? null)
-      setDraft(nextView ? createDraft(nextView) : null)
-      await queryClient.invalidateQueries({ queryKey: ["saved-views"] })
+      setConfirmingId(null);
+      const nextView = views.find((view) => view.id !== deletedId);
+      setSelectedId(nextView?.id ?? null);
+      setDraft(nextView ? createDraft(nextView) : null);
+      await queryClient.invalidateQueries({ queryKey: ["saved-views"] });
     },
-  })
+  });
 
   useEffect(() => {
-    if (!open || views.length === 0) return
+    if (!open || views.length === 0) return;
     if (!selectedId || !views.some((view) => view.id === selectedId)) {
-      setSelectedId(views[0].id)
+      setSelectedId(views[0].id);
     }
-  }, [open, selectedId, views])
+  }, [open, selectedId, views]);
 
   useEffect(() => {
-    if (selectedView) setDraft(createDraft(selectedView))
-  }, [selectedView])
+    if (selectedView) setDraft(createDraft(selectedView));
+  }, [selectedView]);
 
   const updateDraft = <TKey extends keyof UpdateSavedUserView>(
     key: TKey,
-    value: UpdateSavedUserView[TKey]
+    value: UpdateSavedUserView[TKey],
   ) => {
-    editMutation.reset()
-    setDraft((current) => (current ? { ...current, [key]: value } : current))
-  }
+    editMutation.reset();
+    setDraft((current) => (current ? { ...current, [key]: value } : current));
+  };
 
   const handleSelect = (view: SavedUserView) => {
-    setSelectedId(view.id)
-    setDraft(createDraft(view))
-    setConfirmingId(null)
-    editMutation.reset()
-    deleteMutation.reset()
-  }
+    setSelectedId(view.id);
+    setDraft(createDraft(view));
+    setConfirmingId(null);
+    editMutation.reset();
+    deleteMutation.reset();
+  };
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
-      setConfirmingId(null)
-      editMutation.reset()
-      deleteMutation.reset()
+      setConfirmingId(null);
+      editMutation.reset();
+      deleteMutation.reset();
     }
-    onOpenChange(nextOpen)
-  }
+    onOpenChange(nextOpen);
+  };
 
-  const nameIsInvalid = draft?.name.trim().length === 0
+  const nameIsInvalid = draft?.name.trim().length === 0;
   const hasChanges =
     draft && selectedView
       ? JSON.stringify(draft) !== JSON.stringify(createDraft(selectedView))
-      : false
+      : false;
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!draft || nameIsInvalid) return
+    event.preventDefault();
+    if (!draft || nameIsInvalid) return;
     editMutation.mutate({
       ...draft,
       name: draft.name.trim(),
       description: draft.description.trim(),
-    })
-  }
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -197,22 +225,17 @@ export function ViewsManagerDialog({
         <DialogHeader>
           <DialogTitle>إدارة العروض المحفوظة</DialogTitle>
           <DialogDescription>
-            عدّل هوية كل عرض وطريقة ترتيبه، واختر ما يظهر منها في الصفحة
-            الرئيسية.
+            عدّل هوية كل عرض وطريقة ترتيبه، واختر ما يظهر منها في الصفحة الرئيسية.
           </DialogDescription>
         </DialogHeader>
 
         {isPending ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            جارٍ تحميل العروض…
-          </p>
+          <p className="py-8 text-center text-sm text-muted-foreground">جارٍ تحميل العروض…</p>
         ) : isError ? (
           <Alert variant="destructive">
             <WarningCircleIcon />
             <AlertTitle>تعذر تحميل العروض</AlertTitle>
-            <AlertDescription>
-              أغلق النافذة وحاول فتحها مرة أخرى.
-            </AlertDescription>
+            <AlertDescription>أغلق النافذة وحاول فتحها مرة أخرى.</AlertDescription>
           </Alert>
         ) : views.length === 0 ? (
           <Empty className="border">
@@ -221,17 +244,15 @@ export function ViewsManagerDialog({
                 <BookmarkSimpleIcon />
               </EmptyMedia>
               <EmptyTitle>لا توجد عروض محفوظة</EmptyTitle>
-              <EmptyDescription>
-                ستظهر هنا العروض التي تحفظها من المكتبة.
-              </EmptyDescription>
+              <EmptyDescription>ستظهر هنا العروض التي تحفظها من المكتبة.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
           <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-2xl border md:grid-cols-[17rem_minmax(0,1fr)] md:grid-rows-1">
             <aside className="flex max-h-44 flex-col gap-1 overflow-y-auto border-b bg-muted/20 p-2 md:max-h-none md:border-e md:border-b-0">
               {views.map((view) => {
-                const Icon = getSavedViewIcon(view.icon)
-                const isSelected = selectedView?.id === view.id
+                const Icon = getSavedViewIcon(view.icon);
+                const isSelected = selectedView?.id === view.id;
 
                 return (
                   <Button
@@ -249,11 +270,10 @@ export function ViewsManagerDialog({
                       <Icon data-icon="inline-start" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">
-                        {view.name}
-                      </span>
+                      <span className="block truncate font-medium">{view.name}</span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {view.description || layoutLabels[view.layout]}
+                        {view.description ||
+                          [layoutLabels[view.layout], groupLabel(view.groupBy)].join(" · ")}
                       </span>
                     </span>
                     {view.isPinned && (
@@ -263,7 +283,7 @@ export function ViewsManagerDialog({
                       </Badge>
                     )}
                   </Button>
-                )
+                );
               })}
             </aside>
 
@@ -273,7 +293,7 @@ export function ViewsManagerDialog({
                   <FieldGroup className="gap-6">
                     <div className="flex items-center gap-3">
                       {(() => {
-                        const SelectedIcon = getSavedViewIcon(draft.icon)
+                        const SelectedIcon = getSavedViewIcon(draft.icon);
                         return (
                           <span
                             className="flex size-11 shrink-0 items-center justify-center rounded-xl border"
@@ -281,13 +301,11 @@ export function ViewsManagerDialog({
                           >
                             <SelectedIcon />
                           </span>
-                        )
+                        );
                       })()}
                       <div className="min-w-0">
                         <p className="truncate font-medium">{draft.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          هوية العرض وإعدادات ظهوره
-                        </p>
+                        <p className="text-xs text-muted-foreground">هوية العرض وإعدادات ظهوره</p>
                       </div>
                     </div>
 
@@ -299,32 +317,22 @@ export function ViewsManagerDialog({
                           value={draft.name}
                           maxLength={100}
                           aria-invalid={nameIsInvalid || undefined}
-                          onChange={(event) =>
-                            updateDraft("name", event.target.value)
-                          }
+                          onChange={(event) => updateDraft("name", event.target.value)}
                         />
-                        {nameIsInvalid && (
-                          <FieldError>أدخل اسماً واضحاً للعرض.</FieldError>
-                        )}
+                        {nameIsInvalid && <FieldError>أدخل اسماً واضحاً للعرض.</FieldError>}
                       </Field>
 
                       <Field className="sm:col-span-2">
-                        <FieldLabel htmlFor="saved-view-description">
-                          الوصف
-                        </FieldLabel>
+                        <FieldLabel htmlFor="saved-view-description">الوصف</FieldLabel>
                         <Textarea
                           id="saved-view-description"
                           value={draft.description}
                           maxLength={240}
                           rows={3}
                           placeholder="صف بإيجاز ما يجمعه هذا العرض…"
-                          onChange={(event) =>
-                            updateDraft("description", event.target.value)
-                          }
+                          onChange={(event) => updateDraft("description", event.target.value)}
                         />
-                        <FieldDescription>
-                          {draft.description.length}/240 حرفاً
-                        </FieldDescription>
+                        <FieldDescription>{draft.description.length}/240 حرفاً</FieldDescription>
                       </Field>
                     </FieldGroup>
 
@@ -337,12 +345,9 @@ export function ViewsManagerDialog({
                         className="w-full flex-wrap justify-start"
                         aria-label="أيقونة العرض"
                         onValueChange={(values) => {
-                          const icon = values[0]
+                          const icon = values[0];
                           if (icon) {
-                            updateDraft(
-                              "icon",
-                              icon as UpdateSavedUserView["icon"]
-                            )
+                            updateDraft("icon", icon as UpdateSavedUserView["icon"]);
                           }
                         }}
                       >
@@ -369,12 +374,9 @@ export function ViewsManagerDialog({
                         className="w-full flex-wrap justify-start"
                         aria-label="لون العرض"
                         onValueChange={(values) => {
-                          const color = values[0]
+                          const color = values[0];
                           if (color) {
-                            updateDraft(
-                              "color",
-                              color as UpdateSavedUserView["color"]
-                            )
+                            updateDraft("color", color as UpdateSavedUserView["color"]);
                           }
                         }}
                       >
@@ -392,105 +394,176 @@ export function ViewsManagerDialog({
 
                     <FieldGroup className="gap-5 sm:grid sm:grid-cols-2">
                       <Field>
-                        <FieldLabel htmlFor="saved-view-layout">
-                          التخطيط
-                        </FieldLabel>
+                        <FieldLabel htmlFor="saved-view-layout">التخطيط</FieldLabel>
                         <Select
                           value={draft.layout}
                           onValueChange={(value) => {
                             if (value) {
-                              updateDraft("layout", value)
+                              updateDraft("layout", value);
                             }
                           }}
                         >
-                          <SelectTrigger
-                            id="saved-view-layout"
-                            className="w-full"
-                          >
+                          <SelectTrigger id="saved-view-layout" className="w-full">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
-                              {Object.entries(layoutLabels).map(
-                                ([value, label]) => (
-                                  <SelectItem key={value} value={value}>
-                                    {label}
-                                  </SelectItem>
-                                )
-                              )}
+                              {Object.entries(layoutLabels).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
                             </SelectGroup>
                           </SelectContent>
                         </Select>
                       </Field>
 
                       <Field>
-                        <FieldLabel htmlFor="saved-view-sort">
-                          ترتيب حسب
-                        </FieldLabel>
+                        <FieldLabel htmlFor="saved-view-sort">ترتيب حسب</FieldLabel>
                         <Select
                           value={draft.sort}
                           onValueChange={(value) => {
                             if (value) {
-                              updateDraft("sort", value)
+                              updateDraft("sort", value);
                             }
                           }}
                         >
-                          <SelectTrigger
-                            id="saved-view-sort"
-                            className="w-full"
-                          >
+                          <SelectTrigger id="saved-view-sort" className="w-full">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
-                              {Object.entries(sortLabels).map(
-                                ([value, label]) => (
-                                  <SelectItem key={value} value={value}>
-                                    {label}
-                                  </SelectItem>
-                                )
-                              )}
+                              {Object.entries(sortLabels).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
                             </SelectGroup>
                           </SelectContent>
                         </Select>
                       </Field>
 
                       <Field>
-                        <FieldLabel htmlFor="saved-view-sort-direction">
-                          اتجاه الترتيب
-                        </FieldLabel>
+                        <FieldLabel htmlFor="saved-view-sort-direction">اتجاه الترتيب</FieldLabel>
                         <Select
                           value={draft.sortDirection}
                           onValueChange={(value) => {
                             if (value) {
-                              updateDraft("sortDirection", value)
+                              updateDraft("sortDirection", value);
                             }
                           }}
                         >
-                          <SelectTrigger
-                            id="saved-view-sort-direction"
-                            className="w-full"
-                          >
+                          <SelectTrigger id="saved-view-sort-direction" className="w-full">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
-                              {Object.entries(sortDirectionLabels).map(
-                                ([value, label]) => (
-                                  <SelectItem key={value} value={value}>
-                                    {label}
-                                  </SelectItem>
-                                )
-                              )}
+                              {Object.entries(sortDirectionLabels).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
                             </SelectGroup>
                           </SelectContent>
                         </Select>
                       </Field>
 
-                      <Field
-                        orientation="horizontal"
-                        className="rounded-xl border bg-muted/20 p-4"
-                      >
+                      <Field>
+                        <FieldLabel htmlFor="saved-view-group">تجميع حسب</FieldLabel>
+                        <Select
+                          value={draft.groupBy}
+                          onValueChange={(value) => {
+                            if (value) updateDraft("groupBy", value);
+                          }}
+                        >
+                          <SelectTrigger id="saved-view-group" className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {groupOptions.map((value) => (
+                                <SelectItem key={value} value={value}>
+                                  {groupLabel(value)}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <FieldDescription>
+                          يظهر عنوان وفاصل مستقل لكل مجموعة في المعرض والجدول والبطاقات الواسعة.
+                        </FieldDescription>
+                      </Field>
+
+                      {draft.layout === "table" ? (
+                        <Field>
+                          <FieldLabel htmlFor="saved-view-density">كثافة الجدول</FieldLabel>
+                          <Select
+                            value={draft.tableDensity}
+                            onValueChange={(value) => {
+                              if (value) updateDraft("tableDensity", value);
+                            }}
+                          >
+                            <SelectTrigger id="saved-view-density" className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {Object.entries(densityLabels).map(([value, label]) => (
+                                  <SelectItem key={value} value={value}>
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                      ) : null}
+
+                      {draft.layout === "gallery" || draft.layout === "wide" ? (
+                        <Field>
+                          <FieldLabel htmlFor="saved-view-card-size">حجم البطاقة</FieldLabel>
+                          <Input
+                            id="saved-view-card-size"
+                            type="number"
+                            min={110}
+                            max={draft.layout === "wide" ? 300 : 220}
+                            value={draft.cardSize}
+                            onChange={(event) =>
+                              updateDraft(
+                                "cardSize",
+                                Math.min(
+                                  draft.layout === "wide" ? 300 : 220,
+                                  Math.max(110, event.currentTarget.valueAsNumber || 110),
+                                ),
+                              )
+                            }
+                          />
+                          <FieldDescription>
+                            يتحكم في كثافة البطاقات وعددها في الصف.
+                          </FieldDescription>
+                        </Field>
+                      ) : null}
+
+                      {draft.layout === "timeline" ? (
+                        <Field
+                          orientation="horizontal"
+                          className="rounded-xl border bg-muted/20 p-4"
+                        >
+                          <FieldContent>
+                            <FieldTitle>الأحدث أولاً</FieldTitle>
+                            <FieldDescription>ابدأ الخط الزمني بأحدث سنة إصدار.</FieldDescription>
+                          </FieldContent>
+                          <Switch
+                            checked={draft.timelineNewestFirst}
+                            onCheckedChange={(checked) =>
+                              updateDraft("timelineNewestFirst", checked)
+                            }
+                            aria-label="الأحدث أولاً"
+                          />
+                        </Field>
+                      ) : null}
+
+                      <Field orientation="horizontal" className="rounded-xl border bg-muted/20 p-4">
                         <FieldContent>
                           <FieldTitle>الترويج في الرئيسية</FieldTitle>
                           <FieldDescription>
@@ -500,9 +573,7 @@ export function ViewsManagerDialog({
                         <Switch
                           id="saved-view-pinned"
                           checked={draft.isPinned}
-                          onCheckedChange={(checked) =>
-                            updateDraft("isPinned", checked)
-                          }
+                          onCheckedChange={(checked) => updateDraft("isPinned", checked)}
                           aria-label="الترويج في الصفحة الرئيسية"
                         />
                       </Field>
@@ -512,9 +583,7 @@ export function ViewsManagerDialog({
                       <Alert>
                         <CheckCircleIcon />
                         <AlertTitle>تم حفظ التعديلات</AlertTitle>
-                        <AlertDescription>
-                          تحدّث العرض في المكتبة والصفحة الرئيسية.
-                        </AlertDescription>
+                        <AlertDescription>تحدّث العرض في المكتبة والصفحة الرئيسية.</AlertDescription>
                       </Alert>
                     )}
 
@@ -532,9 +601,7 @@ export function ViewsManagerDialog({
                       <Alert variant="destructive">
                         <WarningCircleIcon />
                         <AlertTitle>تعذر حذف العرض</AlertTitle>
-                        <AlertDescription>
-                          بقي العرض محفوظاً. حاول الحذف مرة أخرى.
-                        </AlertDescription>
+                        <AlertDescription>بقي العرض محفوظاً. حاول الحذف مرة أخرى.</AlertDescription>
                       </Alert>
                     )}
                   </FieldGroup>
@@ -551,9 +618,7 @@ export function ViewsManagerDialog({
                         onClick={() => deleteMutation.mutate(selectedView.id)}
                       >
                         <TrashIcon data-icon="inline-start" />
-                        {deleteMutation.isPending
-                          ? "جارٍ الحذف…"
-                          : "تأكيد الحذف"}
+                        {deleteMutation.isPending ? "جارٍ الحذف…" : "تأكيد الحذف"}
                       </Button>
                       <Button
                         type="button"
@@ -571,8 +636,8 @@ export function ViewsManagerDialog({
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        deleteMutation.reset()
-                        setConfirmingId(selectedView.id)
+                        deleteMutation.reset();
+                        setConfirmingId(selectedView.id);
                       }}
                     >
                       <TrashIcon data-icon="inline-start" />
@@ -582,9 +647,7 @@ export function ViewsManagerDialog({
 
                   <Button
                     type="submit"
-                    disabled={
-                      editMutation.isPending || nameIsInvalid || !hasChanges
-                    }
+                    disabled={editMutation.isPending || nameIsInvalid || !hasChanges}
                   >
                     <FloppyDiskIcon data-icon="inline-start" />
                     {editMutation.isPending ? "جارٍ الحفظ…" : "حفظ التعديلات"}
@@ -596,5 +659,5 @@ export function ViewsManagerDialog({
         )}
       </DialogContent>
     </Dialog>
-  )
+  );
 }

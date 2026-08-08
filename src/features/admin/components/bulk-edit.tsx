@@ -16,13 +16,14 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { kindLabels } from "@/features/library/filtering";
 import type { WorkKind } from "@/features/library/model";
-import { genreSchema, workKinds } from "@/features/library/model";
+import { audiences, genreSchema, taxonomyLabels, workKinds } from "@/features/library/model";
 import { editWorksBulk } from "@/server/library.functions";
 
 function parseList(value: string) {
@@ -48,7 +49,7 @@ export function BulkEditDialog({
   onUpdated: () => Promise<void>;
 }) {
   const [kind, setKind] = useState("");
-
+  const [audience, setAudience] = useState("");
   const [favorite, setFavorite] = useState("");
   const [addGenres, setAddGenres] = useState("");
   const [removeGenres, setRemoveGenres] = useState("");
@@ -67,6 +68,9 @@ export function BulkEditDialog({
       data: {
         workIds,
         ...(kind && kind !== "unchanged" ? { kind: kind as WorkKind } : {}),
+        ...(audience && audience !== "unchanged"
+          ? { audience: audience === "none" ? null : (audience as (typeof audiences)[number]) }
+          : {}),
         ...(favorite && favorite !== "unchanged" ? { favorite: favorite === "true" } : {}),
         addGenres: parseList(addGenres).flatMap((genre) => {
           const result = genreSchema.safeParse(genre);
@@ -110,6 +114,25 @@ export function BulkEditDialog({
                       {kindLabels[item]}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+
+            <FormField label="تعيين الجمهور" htmlFor="bulk-audience">
+              <Select value={audience} onValueChange={(value) => setAudience(value ?? "unchanged")}>
+                <SelectTrigger id="bulk-audience" className="w-full">
+                  <SelectValue placeholder="دون تغيير" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="unchanged">دون تغيير</SelectItem>
+                    <SelectItem value="none">غير محدد</SelectItem>
+                    {audiences.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {taxonomyLabels.audiences[item]}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </FormField>

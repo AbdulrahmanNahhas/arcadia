@@ -31,6 +31,20 @@ export const saveEntity = createServerFn({ method: "POST" })
     return repository.saveEntity(data);
   });
 
+export const saveEntities = createServerFn({ method: "POST" })
+  .validator(z.object({ entities: z.array(adminEntityInputSchema).min(1).max(1_000) }))
+  .handler(async ({ data }) => {
+    const repository = await import("@/db/repository");
+    return data.entities.map((entity) => repository.saveEntity(entity));
+  });
+
+export const deleteEntities = createServerFn({ method: "POST" })
+  .validator(z.object({ ids: z.array(z.string().min(1)).min(1).max(1_000) }))
+  .handler(async ({ data }) => {
+    const repository = await import("@/db/repository");
+    return repository.deleteEntities(data.ids);
+  });
+
 export const getTaxonomyTerms = createServerFn({ method: "GET" }).handler(async () => {
   const { listTaxonomyTerms } = await import("@/db/repository");
   return listTaxonomyTerms();

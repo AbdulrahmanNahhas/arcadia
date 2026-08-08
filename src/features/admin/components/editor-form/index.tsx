@@ -94,6 +94,32 @@ export function WorkEditor({ work, works, entities, onOpenChange, onSaved }: Wor
       open={Boolean(work)}
       onOpenChange={onOpenChange}
       onSaved={onSaved}
+      page={false}
+    />
+  );
+}
+
+export function WorkEditorPage({
+  work,
+  works,
+  entities,
+  onSaved,
+}: {
+  work: Work;
+  works: Work[];
+  entities: Entity[];
+  onSaved: () => Promise<void>;
+}) {
+  return (
+    <WorkEditorInner
+      key={work.id}
+      work={work}
+      works={works}
+      entities={entities}
+      open
+      page
+      onOpenChange={() => undefined}
+      onSaved={onSaved}
     />
   );
 }
@@ -105,6 +131,7 @@ function WorkEditorInner({
   open,
   onOpenChange,
   onSaved,
+  page,
 }: {
   work: Work;
   works: Work[];
@@ -112,6 +139,7 @@ function WorkEditorInner({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
+  page: boolean;
 }) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [draft, setDraft] = useState<Work>(() => structuredClone(work));
@@ -187,6 +215,23 @@ function WorkEditorInner({
       submit={submit}
     />
   );
+
+  if (page) {
+    return (
+      <div className="flex min-w-0 flex-col gap-0">
+        <header className="border-b pb-5">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">{title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        </header>
+        {formFields}
+        <footer className="sticky bottom-0 flex justify-end gap-2 border-t bg-background py-4">
+          <Button type="submit" form="admin-editor-form" disabled={mutation.isPending}>
+            {mutation.isPending ? "جارٍ الحفظ…" : "حفظ التغييرات"}
+          </Button>
+        </footer>
+      </div>
+    );
+  }
 
   if (isDesktop) {
     return (

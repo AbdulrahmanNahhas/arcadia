@@ -1,8 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { AdminApp } from "@/features/admin/admin-app"
+import { createFileRoute } from "@tanstack/react-router";
+import { AdminShell } from "@/features/admin/admin-shell";
 
-export const Route = createFileRoute("/admin")({ component: AdminPage })
-
-function AdminPage() {
-  return <AdminApp />
-}
+export const Route = createFileRoute("/admin")({ component: AdminShell });
