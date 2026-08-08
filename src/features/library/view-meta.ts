@@ -1,3 +1,4 @@
+import type { Icon } from "@phosphor-icons/react";
 import {
   BookmarkSimpleIcon,
   BooksIcon,
@@ -11,14 +12,13 @@ import {
   LightningIcon,
   SparkleIcon,
   StarIcon,
-} from "@phosphor-icons/react"
-import type { Icon } from "@phosphor-icons/react"
-import type { SavedViewColorId, SavedViewIconId } from "./model"
+} from "@phosphor-icons/react";
+import type { SavedViewColorId, SavedViewIconId } from "./model";
 
 export const savedViewIconOptions: Array<{
-  id: SavedViewIconId
-  label: string
-  icon: Icon
+  id: SavedViewIconId;
+  label: string;
+  icon: Icon;
 }> = [
   { id: "bookmark", label: "علامة", icon: BookmarkSimpleIcon },
   { id: "books", label: "كتب", icon: BooksIcon },
@@ -32,12 +32,12 @@ export const savedViewIconOptions: Array<{
   { id: "chart", label: "إحصاءات", icon: ChartDonutIcon },
   { id: "calendar", label: "تقويم", icon: CalendarBlankIcon },
   { id: "lightning", label: "سريع", icon: LightningIcon },
-]
+];
 
 export const savedViewColorOptions: Array<{
-  id: SavedViewColorId
-  label: string
-  token: string
+  id: SavedViewColorId;
+  label: string;
+  token: string;
 }> = [
   { id: "primary", label: "الرئيسي", token: "var(--primary)" },
   { id: "coral", label: "مرجاني", token: "var(--chart-1)" },
@@ -47,27 +47,21 @@ export const savedViewColorOptions: Array<{
   { id: "violet", label: "بنفسجي", token: "var(--chart-5)" },
   { id: "danger", label: "أحمر", token: "var(--destructive)" },
   { id: "neutral", label: "محايد", token: "var(--foreground)" },
-]
+];
 
 export function getSavedViewIcon(id: SavedViewIconId) {
-  return (
-    savedViewIconOptions.find((option) => option.id === id)?.icon ??
-    BookmarkSimpleIcon
-  )
+  return savedViewIconOptions.find((option) => option.id === id)?.icon ?? BookmarkSimpleIcon;
 }
 
 export function getSavedViewColorToken(id: SavedViewColorId) {
-  return (
-    savedViewColorOptions.find((option) => option.id === id)?.token ??
-    "var(--primary)"
-  )
+  return savedViewColorOptions.find((option) => option.id === id)?.token ?? "var(--primary)";
 }
 
 export function getSavedViewAccentStyle(id: SavedViewColorId) {
-  const color = getSavedViewColorToken(id)
+  const color = getSavedViewColorToken(id);
   return {
     color,
     backgroundColor: `color-mix(in oklab, ${color} 14%, transparent)`,
     borderColor: `color-mix(in oklab, ${color} 28%, transparent)`,
-  }
+  };
 }

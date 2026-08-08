@@ -1,23 +1,23 @@
 import {
   ArrowDownIcon,
-  ArrowRightIcon,
   ArrowsDownUpIcon,
   ArrowUpIcon,
+  ArticleIcon,
   CalendarBlankIcon,
-  ChartDonutIcon,
   CheckIcon,
   FadersHorizontalIcon,
   FloppyDiskIcon,
   GridFourIcon,
   MagnifyingGlassIcon,
   SquaresFourIcon,
+  StackIcon,
   TableIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+
 import { useId, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Command,
@@ -52,12 +52,14 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
-
+import { groupLabel } from "../grouping";
 import type { SavedUserView } from "../model";
+import { scoreCriterionLabels } from "../scoring";
 import { getSavedViewAccentStyle, getSavedViewIcon } from "../view-meta";
 import type {
   GalleryMode,
   GalleryOptions,
+  GroupBy,
   Layout,
   Sort,
   SortDirection,
@@ -72,13 +74,25 @@ const sortLabels: Record<Sort, string> = {
   rating: "التقييم",
   recent: "المضاف حديثاً",
   year: "سنة الإصدار",
+  creator: "صنّاع العمل",
+  audience: "الجمهور",
+  kind: "نوع العمل",
+  status: "حالة المتابعة",
+  progress: "التقدم",
+  trackedOn: "تاريخ التتبع",
+  story: scoreCriterionLabels.story.ar,
+  characters: scoreCriterionLabels.characters.ar,
+  depth: scoreCriterionLabels.depth.ar,
+  worldBuilding: scoreCriterionLabels.worldBuilding.ar,
+  originality: scoreCriterionLabels.originality.ar,
+  craft: scoreCriterionLabels.craft.ar,
 };
 
 const layoutItems = [
   { id: "gallery", label: "المعرض", icon: GridFourIcon },
+  { id: "wide", label: "بطاقات واسعة", icon: ArticleIcon },
   { id: "table", label: "الجدول", icon: TableIcon },
   { id: "timeline", label: "الخط الزمني", icon: CalendarBlankIcon },
-  { id: "statistics", label: "الإحصاءات", icon: ChartDonutIcon },
 ] as const;
 
 const galleryModeLabels: Record<Exclude<GalleryMode, "custom">, string> = {
@@ -103,6 +117,8 @@ export function LibraryToolbar({
   sortDirection,
   onSortChange,
   onSortDirectionChange,
+  groupBy,
+  onGroupByChange,
   filter,
   addWork,
   resultCount,
@@ -130,8 +146,10 @@ export function LibraryToolbar({
   sortDirection: SortDirection;
   onSortChange: (value: Sort) => void;
   onSortDirectionChange: (value: SortDirection) => void;
+  groupBy: GroupBy;
+  onGroupByChange: (value: GroupBy) => void;
   filter: React.ReactNode;
-  addWork: React.ReactNode;
+  addWork?: React.ReactNode;
   resultCount: number;
   savedViews: SavedUserView[];
 
@@ -149,20 +167,9 @@ export function LibraryToolbar({
   onTimelineOrderChange: (value: boolean) => void;
 }) {
   return (
-    <nav
-      className="border-b border-border/70 bg-background/95 shadow-sm backdrop-blur-xl"
-      aria-label="أدوات عرض المكتبة"
-    >
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-2 px-2.5 py-2.5 sm:px-5">
-        <div className="flex min-w-0 items-center gap-2">
-          <Link
-            to="/"
-            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "shrink-0 sm:size-9")}
-            aria-label="العودة إلى الصفحة الرئيسية"
-          >
-            <ArrowRightIcon />
-          </Link>
-
+    <nav className="border-b border-border/70 bg-background/95 shadow-none backdrop-blur-xl z-100!">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-2 px-2.5 py-2.5 sm:px-5 lg:flex-row lg:items-center">
+        <div className="flex min-w-0 items-center gap-2 lg:flex-1">
           <ViewsSelector
             views={savedViews}
             activeView={activeView}
@@ -198,18 +205,18 @@ export function LibraryToolbar({
 
         <SearchControl search={search} onSearchChange={onSearchChange} className="sm:hidden" />
 
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2 lg:shrink-0">
           <div className="min-w-0 flex-1 overflow-x-auto pb-0.5">
             <div className="flex w-max items-center gap-2 pe-2">
               {filter}
-
-              {layout !== "statistics" && (
-                <SortControl
-                  sort={sort}
-                  direction={sortDirection}
-                  onSortChange={onSortChange}
-                  onDirectionChange={onSortDirectionChange}
-                />
+              <SortControl
+                sort={sort}
+                direction={sortDirection}
+                onSortChange={onSortChange}
+                onDirectionChange={onSortDirectionChange}
+              />
+              {layout !== "timeline" && (
+                <GroupControl groupBy={groupBy} onGroupByChange={onGroupByChange} />
               )}
             </div>
           </div>
@@ -222,6 +229,50 @@ export function LibraryToolbar({
         </div>
       </div>
     </nav>
+  );
+}
+
+const groupOptions: GroupBy[] = [
+  "none",
+  "audience",
+  "rating",
+  "kind",
+  "status",
+  "year",
+  "genre",
+  "depth",
+  "craft",
+];
+
+function GroupControl({
+  groupBy,
+  onGroupByChange,
+}: {
+  groupBy: GroupBy;
+  onGroupByChange: (value: GroupBy) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+        <StackIcon data-icon="inline-start" />
+        {groupLabel(groupBy)}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>تجميع النتائج حسب</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={groupBy}
+            onValueChange={(value) => onGroupByChange(value as GroupBy)}
+          >
+            {groupOptions.map((option) => (
+              <DropdownMenuRadioItem key={option} value={option}>
+                {groupLabel(option)}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -277,8 +328,7 @@ function LayoutControl({
     >
       {layoutItems.map((item) => (
         <ToggleGroupItem key={item.id} value={item.id} aria-label={item.label}>
-          <item.icon data-icon="inline-start" />
-          <span className="hidden xl:inline">{item.label}</span>
+          <item.icon />
         </ToggleGroupItem>
       ))}
     </SingleToggleGroup>
@@ -664,7 +714,7 @@ function DisplayOptions({
 
         <Separator />
 
-        {layout === "gallery" && (
+        {(layout === "gallery" || layout === "wide") && (
           <div className="flex flex-col gap-5">
             <FieldSet>
               <FieldLegend variant="label">نمط البطاقة</FieldLegend>
@@ -715,7 +765,7 @@ function DisplayOptions({
                 aria-label="حجم بطاقة المعرض"
                 value={[cardSize]}
                 min={110}
-                max={220}
+                max={layout === "wide" ? 300 : 220}
                 step={2}
                 onValueChange={(value) =>
                   onCardSizeChange(typeof value === "number" ? value : (value[0] ?? cardSize))
@@ -838,13 +888,6 @@ function DisplayOptions({
             checked={timelineNewestFirst}
             onCheckedChange={onTimelineOrderChange}
           />
-        )}
-
-        {layout === "statistics" && (
-          <p className="text-sm leading-6 text-muted-foreground">
-            الإحصاءات تتحدث تلقائياً مع البحث والفلاتر الحالية، لذلك لا تحتاج إلى إعدادات ترتيب
-            إضافية.
-          </p>
         )}
       </PopoverContent>
     </Popover>

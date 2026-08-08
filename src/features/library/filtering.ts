@@ -123,14 +123,39 @@ export function isWorkVisibleByDefault(work: Work) {
 
 export function compareWorks(left: Work, right: Work, sort: Sort, direction: SortDirection) {
   let comparison = 0;
+  const scoreSorts = [
+    "story",
+    "characters",
+    "depth",
+    "worldBuilding",
+    "originality",
+    "craft",
+  ] as const;
   if (sort === "rating") {
-    if (left.calculatedRating === null && right.calculatedRating !== null) return 1;
-    if (left.calculatedRating !== null && right.calculatedRating === null) return -1;
-    comparison = (left.calculatedRating ?? 0) - (right.calculatedRating ?? 0);
+    comparison = compareOptionalNumber(left.calculatedRating, right.calculatedRating, direction);
   } else if (sort === "recent") {
     comparison = left.addedAt - right.addedAt;
   } else if (sort === "year") {
-    comparison = (left.year ?? 0) - (right.year ?? 0);
+    comparison = compareOptionalNumber(left.year, right.year, direction);
+  } else if (sort === "creator") {
+    comparison = left.creator.localeCompare(right.creator, "ar");
+  } else if (sort === "audience") {
+    comparison = (left.audience ?? "").localeCompare(right.audience ?? "", "en");
+  } else if (sort === "kind") {
+    comparison = kindLabels[left.kind].localeCompare(kindLabels[right.kind], "ar");
+  } else if (sort === "status") {
+    comparison = personalStatuses.indexOf(left.status) - personalStatuses.indexOf(right.status);
+  } else if (sort === "progress") {
+    comparison = progressRatio(left) - progressRatio(right);
+  } else if (sort === "trackedOn") {
+    comparison = (left.trackedOn ?? "").localeCompare(right.trackedOn ?? "");
+  } else if ((scoreSorts as readonly string[]).includes(sort)) {
+    const criterion = sort as (typeof scoreSorts)[number];
+    comparison = compareOptionalNumber(
+      left.scoreComponents[criterion],
+      right.scoreComponents[criterion],
+      direction,
+    );
   }
   if (sort !== "title" && comparison !== 0) return direction === "asc" ? comparison : -comparison;
   const titleComparison = (left.arabicTitle || left.title).localeCompare(
@@ -138,6 +163,22 @@ export function compareWorks(left: Work, right: Work, sort: Sort, direction: Sor
     "ar",
   );
   return sort === "title" && direction === "desc" ? -titleComparison : titleComparison;
+}
+
+function compareOptionalNumber(
+  left: number | null | undefined,
+  right: number | null | undefined,
+  direction: SortDirection,
+) {
+  if (left === null || left === undefined)
+    return right === null || right === undefined ? 0 : direction === "asc" ? 1 : -1;
+  if (right === null || right === undefined) return direction === "asc" ? -1 : 1;
+  return left - right;
+}
+
+function progressRatio(work: Work) {
+  if (work.progressTotal && work.progressTotal > 0) return work.progress / work.progressTotal;
+  return work.status === "completed" ? 1 : work.progress > 0 ? 0.5 : 0;
 }
 
 const facetKeys = facetDefinitions.map(({ key }) => key);

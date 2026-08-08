@@ -1,5 +1,5 @@
 import {
-  ArrowRightIcon,
+  ActivityIcon,
   CalendarBlankIcon,
   ChartBarIcon,
   GearIcon,
@@ -9,6 +9,13 @@ import {
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import {
+  AppHeader,
+  HeaderActions,
+  headerOutlineButtonClassName,
+  headerPrimaryButtonClassName,
+  PageHeaderTitle,
+} from "@/components/app-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { statusLabel } from "@/features/library/components/tracking-form";
 import type { Work } from "@/features/library/model";
+import { cn } from "@/lib/utils";
 import { getTrackingPage, getWorkStructures, getWorks } from "@/server/library.functions";
 import { AddTrackingDialog } from "./activity-feed/add-tracking-dialog";
 import { ActivityCalendarPanel } from "./activity-feed/calendar-tab";
@@ -50,7 +58,7 @@ const trackingStatuses = [
   "dropped",
 ] as const;
 
-export function ActivityFeedPage() {
+export function ActivityFeedPage({ embedded = false }: { embedded?: boolean }) {
   const { data: works } = useSuspenseQuery({
     queryKey: ["works"],
     queryFn: () => getWorks(),
@@ -101,31 +109,29 @@ export function ActivityFeedPage() {
   };
 
   return (
-    <div dir="rtl" className="min-h-screen overflow-x-clip bg-background text-foreground">
-      <header className="sticky top-2 z-20 mx-auto max-w-6xl w-[95vw] rounded-2xl border border-border/60 bg-background/80 shadow-sm backdrop-blur-xl">
-        <div className="flex min-h-14 items-center justify-between gap-4 p-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              nativeButton={false}
-              render={<Link to="/" />}
-              className="rounded-full"
-            >
-              <span className="sr-only">العودة إلى المكتبة</span>
-              <ArrowRightIcon />
-            </Button>
+    <div
+      dir="rtl"
+      className={
+        embedded
+          ? "min-w-0 overflow-x-clip p-5"
+          : "min-h-screen overflow-x-clip bg-background text-foreground"
+      }
+    >
+      {!embedded ? (
+        <AppHeader className="max-w-6xl">
+          <PageHeaderTitle
+            title="النشاط"
+            subtitle="سجل التقدم والتحديثات الأخيرة"
+            icon={<ActivityIcon weight="duotone" />}
+          />
 
-            <h1 className="truncate font-heading text-lg font-medium tracking-tight">النشاط</h1>
-          </div>
-
-          <div className="flex items-center gap-2">
+          <HeaderActions>
             <Button
-              variant="outline"
+              // variant="outline"
               size="sm"
               nativeButton={false}
               render={<Link to="/admin" />}
-              className="h-9 gap-1.5 border-border/60 text-xs"
+              className={cn(headerOutlineButtonClassName, "hidden sm:inline-flex")}
             >
               <GearIcon data-icon="inline-start" />
               لوحة الإدارة
@@ -134,16 +140,37 @@ export function ActivityFeedPage() {
             <Button
               size="sm"
               onClick={() => setEntryOpen(true)}
-              className="h-9 gap-1.5 text-xs shadow-xs"
+              className={headerPrimaryButtonClassName}
             >
               <PlusIcon data-icon="inline-start" />
-              إضافة تقدم
+              <span className="hidden xs:inline">إضافة تقدم</span>
+              <span className="xs:hidden">إضافة</span>
+            </Button>
+          </HeaderActions>
+        </AppHeader>
+      ) : null}
+
+      <main
+        className={
+          embedded
+            ? "flex min-w-0 flex-col gap-6 overflow-x-clip"
+            : "mx-auto flex max-w-6xl min-w-0 flex-col gap-6 overflow-x-clip px-4 py-6 sm:px-6 lg:py-8"
+        }
+      >
+        {embedded ? (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="font-heading text-3xl font-semibold">المتعقّب والنشاط</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                إدارة حالات المتابعة والتقدم والسجل الزمني من مكان واحد.
+              </p>
+            </div>
+            <Button nativeButton={false} render={<Link to="/admin/tracker/new" />}>
+              <PlusIcon data-icon="inline-start" />
+              تسجيل تقدم
             </Button>
           </div>
-        </div>
-      </header>
-
-      <main className="mx-auto flex max-w-6xl min-w-0 flex-col gap-6 overflow-x-clip px-4 py-6 sm:px-6 lg:py-8">
+        ) : null}
         <Card className="[--card-spacing:--spacing(5)]">
           <CardHeader className="border-b">
             <CardTitle>اعرض السجل كما تحتاج</CardTitle>
@@ -288,7 +315,9 @@ export function ActivityFeedPage() {
         </Tabs>
       </main>
 
-      <AddTrackingDialog open={entryOpen} onOpenChange={setEntryOpen} works={works} />
+      {!embedded ? (
+        <AddTrackingDialog open={entryOpen} onOpenChange={setEntryOpen} works={works} />
+      ) : null}
     </div>
   );
 }

@@ -289,9 +289,9 @@ function TrackingCard({
       {/* Segments */}
       {segments && segments.length > 0 && (
         <CardFooter className="flex flex-col items-stretch gap-2 border-t border-border/40 bg-transparent p-3 pt-2!">
-          {segments.map((segment, index) => (
+          {segments.map((segment) => (
             <div
-              key={`${segment.seasonId ?? "work"}-${segment.firstUnit}-${index}`}
+              key={`${segment.seasonId ?? "work"}-${segment.firstUnit}`}
               className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg bg-muted/25 px-3 py-2"
             >
               {segment.seasonTitle && (

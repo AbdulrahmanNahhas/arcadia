@@ -7,6 +7,7 @@ import {
   CopyIcon,
   HeartIcon,
   MarkdownLogoIcon,
+  StackIcon,
   TelegramLogoIcon,
   WhatsappLogoIcon,
   XIcon,
@@ -17,7 +18,7 @@ import type { ReactNode, UIEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -47,6 +48,8 @@ type WorkDetailDialogProps = {
   toggleFavorite: (work: Work) => void;
   favoritePending: boolean;
   openRelated: (id: string) => void;
+  comparisonIds: string[];
+  toggleComparison: (workId: string) => void;
 };
 
 export function WorkDetailDialog({
@@ -56,6 +59,8 @@ export function WorkDetailDialog({
   toggleFavorite,
   favoritePending,
   openRelated,
+  comparisonIds,
+  toggleComparison,
 }: WorkDetailDialogProps) {
   const [fullScreen, setFullScreen] = useState(false);
   const [hasScrolledPastHero, setHasScrolledPastHero] = useState(false);
@@ -144,6 +149,8 @@ export function WorkDetailDialog({
           fullScreen={fullScreen}
           onToggleFullScreen={() => setFullScreen((value) => !value)}
           onClose={() => onOpenChange(false)}
+          comparisonIds={comparisonIds}
+          onToggleComparison={() => toggleComparison(work.id)}
         />
 
         <div
@@ -666,12 +673,16 @@ function DialogFloatingActions({
   fullScreen,
   onToggleFullScreen,
   onClose,
+  comparisonIds,
+  onToggleComparison,
 }: {
   work: Work;
   taxonomyLabel: ReturnType<typeof useArabicTranslations>["taxonomyLabel"];
   fullScreen: boolean;
   onToggleFullScreen: () => void;
   onClose: () => void;
+  comparisonIds: string[];
+  onToggleComparison: () => void;
 }) {
   const [copiedFormat, setCopiedFormat] = useState<ShareFormat | null>(null);
 
@@ -690,6 +701,8 @@ function DialogFloatingActions({
       setCopiedFormat(null);
     }
   };
+
+  const isSelectedForComparison = comparisonIds.includes(work.id);
 
   return (
     <div
@@ -758,6 +771,27 @@ function DialogFloatingActions({
       >
         {fullScreen ? <ArrowsInIcon /> : <ArrowsOutIcon />}
       </Button>
+
+      <Button
+        variant={isSelectedForComparison ? "secondary" : "ghost"}
+        size="sm"
+        onClick={onToggleComparison}
+        aria-pressed={isSelectedForComparison}
+        title={isSelectedForComparison ? "إزالة من المقارنة" : "إضافة إلى المقارنة"}
+      >
+        <StackIcon data-icon="inline-start" />
+        {isSelectedForComparison ? "مختار" : "اختيار"}
+      </Button>
+
+      {comparisonIds.length >= 2 && (
+        <Link
+          to="/compare"
+          search={{ ids: comparisonIds.join(",") }}
+          className={cn(buttonVariants({ size: "sm" }), "rounded-full")}
+        >
+          مقارنة {comparisonIds.length}
+        </Link>
+      )}
     </div>
   );
 }

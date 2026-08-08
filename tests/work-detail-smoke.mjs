@@ -13,23 +13,18 @@ const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
 
 const baseUrl = process.env.ARCADIA_URL ?? "http://localhost:3000";
-await page.goto(`${baseUrl}/library?work=animation-tv-attack-on-titan`, {
+await page.goto(`${baseUrl}/works/animation-tv-attack-on-titan`, {
   waitUntil: "domcontentloaded",
 });
 
-const dialog = page.getByRole("dialog");
-await dialog.waitFor();
-await dialog.getByText("متابعة التقدّم", { exact: true }).waitFor();
-await dialog.getByText("سجل النشاط", { exact: true }).waitFor();
-await dialog
-  .getByText(/الحلقات/)
-  .first()
-  .waitFor();
-
-await dialog.getByRole("button", { name: "تحديث التقدّم" }).click();
-await dialog.getByText(/(الوحدات التي ستُضاف إلى هذا اليوم|لا توجد وحدات جديدة)/).waitFor();
-await dialog
-  .getByText(/الموسم/)
+await page.getByRole("heading", { name: /Attack on Titan/ }).waitFor();
+await page.getByRole("heading", { name: "المواسم والحلقات" }).waitFor();
+await page.getByText(/لا يوجد تشغيل أو تقدم حلقات متزامن/).waitFor();
+await page.getByRole("button", { name: "دليل المحتوى" }).click();
+const guide = page.getByRole("dialog", { name: "دليل المحتوى والتحليل" });
+await guide.waitFor();
+await guide
+  .getByText(/المحتوى الجنسي|المخاوف السلوكية|المحتوى العقدي/)
   .first()
   .waitFor();
 
@@ -41,4 +36,4 @@ await page.screenshot({
 if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
 
 await browser.close();
-console.log("Work detail browser smoke test passed.");
+console.log("Premium work detail browser smoke test passed.");

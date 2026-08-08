@@ -1,6 +1,14 @@
-import { HeartIcon, ImageIcon, StarIcon } from "@phosphor-icons/react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CaretUpDownIcon,
+  HeartIcon,
+  ImageIcon,
+  StarIcon,
+} from "@phosphor-icons/react";
 import type { KeyboardEvent } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -13,8 +21,9 @@ import {
 import { cn } from "@/lib/utils";
 import { kindLabels } from "../filtering";
 import type { Work } from "../model";
+import { type ScoreCriterion, scoreCriterionLabels } from "../scoring";
 import { statusLabelsAr, useArabicTranslations } from "../translations";
-import type { TableColumnId, TableDensity } from "../view-types";
+import type { Sort, SortDirection, TableColumnId, TableDensity } from "../view-types";
 import { tableColumnIds } from "../view-types";
 import { progressText, usesProgress } from "./work-artwork";
 
@@ -35,6 +44,12 @@ export const tableColumnLabels: Record<TableColumnId, string> = {
   audience: "الجمهور",
   addedAt: "تاريخ الإضافة",
   trackedOn: "تاريخ التتبع",
+  story: scoreCriterionLabels.story.ar,
+  characters: scoreCriterionLabels.characters.ar,
+  depth: scoreCriterionLabels.depth.ar,
+  worldBuilding: scoreCriterionLabels.worldBuilding.ar,
+  originality: scoreCriterionLabels.originality.ar,
+  craft: scoreCriterionLabels.craft.ar,
 };
 
 type WorkTableProps = {
@@ -43,6 +58,9 @@ type WorkTableProps = {
   onOpen: (id: string) => void;
   columns: TableColumnId[];
   density: TableDensity;
+  sort: Sort;
+  sortDirection: SortDirection;
+  onSortChange: (sort: Sort, direction: SortDirection) => void;
 };
 
 type DensityClasses = {
@@ -90,6 +108,31 @@ const columnClasses: Record<TableColumnId, string> = {
   audience: "w-40 min-w-36",
   addedAt: "w-40 min-w-40",
   trackedOn: "w-40 min-w-40",
+  story: "w-28 min-w-28 text-center",
+  characters: "w-28 min-w-28 text-center",
+  depth: "w-32 min-w-32 text-center",
+  worldBuilding: "w-32 min-w-32 text-center",
+  originality: "w-28 min-w-28 text-center",
+  craft: "w-28 min-w-28 text-center",
+};
+
+const columnSorts: Partial<Record<TableColumnId, Sort>> = {
+  title: "title",
+  creator: "creator",
+  type: "kind",
+  year: "year",
+  status: "status",
+  progress: "progress",
+  rating: "rating",
+  audience: "audience",
+  addedAt: "recent",
+  trackedOn: "trackedOn",
+  story: "story",
+  characters: "characters",
+  depth: "depth",
+  worldBuilding: "worldBuilding",
+  originality: "originality",
+  craft: "craft",
 };
 
 const dateFormatter = new Intl.DateTimeFormat("ar", {
@@ -111,6 +154,9 @@ export function WorkTable({
   onOpen,
   columns,
   density = "comfortable",
+  sort,
+  sortDirection,
+  onSortChange,
 }: WorkTableProps) {
   const translations = useArabicTranslations();
   const styles = densityClasses[density];
@@ -133,10 +179,9 @@ export function WorkTable({
   }
 
   return (
-    <div
+    <section
       dir="rtl"
       lang="ar"
-      role="region"
       aria-label="جدول الأعمال"
       className="overflow-x-auto rounded-xl border bg-card shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 *:data-[slot=table-container]:overflow-visible"
     >
@@ -159,7 +204,35 @@ export function WorkTable({
                   columnId === stickyColumn && "sticky inset-s-0 z-20 border-e bg-muted shadow-sm",
                 )}
               >
-                {tableColumnLabels[columnId]}
+                {columnSorts[columnId] ? (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="-mx-2"
+                    onClick={() => {
+                      const nextSort = columnSorts[columnId];
+                      if (!nextSort) return;
+                      onSortChange(
+                        nextSort,
+                        sort === nextSort && sortDirection === "desc" ? "asc" : "desc",
+                      );
+                    }}
+                    aria-label={`ترتيب حسب ${tableColumnLabels[columnId]}`}
+                  >
+                    {tableColumnLabels[columnId]}
+                    {sort === columnSorts[columnId] ? (
+                      sortDirection === "asc" ? (
+                        <ArrowUpIcon data-icon="inline-end" />
+                      ) : (
+                        <ArrowDownIcon data-icon="inline-end" />
+                      )
+                    ) : (
+                      <CaretUpDownIcon data-icon="inline-end" />
+                    )}
+                  </Button>
+                ) : (
+                  tableColumnLabels[columnId]
+                )}
               </TableHead>
             ))}
           </TableRow>
@@ -201,7 +274,7 @@ export function WorkTable({
           })}
         </TableBody>
       </Table>
-    </div>
+    </section>
   );
 }
 
@@ -369,9 +442,27 @@ function renderCell(
         <EmptyValue />
       );
 
+    case "story":
+    case "characters":
+    case "depth":
+    case "worldBuilding":
+    case "originality":
+    case "craft":
+      return <ScoreValue value={work.scoreComponents[columnId as ScoreCriterion]} />;
+
     default:
       return assertNever(columnId);
   }
+}
+
+function ScoreValue({ value }: { value: number | undefined }) {
+  return value === undefined ? (
+    <EmptyValue />
+  ) : (
+    <Badge variant="outline" className="tabular-nums">
+      {ratingFormatter.format(value)}
+    </Badge>
+  );
 }
 
 function BadgeList({
@@ -390,8 +481,8 @@ function BadgeList({
 
   return (
     <div className="flex max-w-full items-center gap-1" title={labels.join("، ")}>
-      {labels.slice(0, limit).map((label, index) => (
-        <Badge key={`${values[index]}-${index}`} variant="secondary">
+      {labels.slice(0, limit).map((label) => (
+        <Badge key={label} variant="secondary">
           <span className="max-w-28 truncate">{label}</span>
         </Badge>
       ))}

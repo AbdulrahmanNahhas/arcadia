@@ -1,9 +1,9 @@
-import { StarIcon } from "@phosphor-icons/react"
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-import { kindLabels } from "../filtering"
-import type { Work } from "../model"
-import { progressUnitLabelAr } from "../translations"
+import { StarIcon } from "@phosphor-icons/react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { kindLabels } from "../filtering";
+import type { Work } from "../model";
+import { progressUnitLabelAr } from "../translations";
 
 const paletteClasses: Record<string, string> = {
   ember: "from-orange-950 via-rose-900 to-amber-600",
@@ -11,20 +11,18 @@ const paletteClasses: Record<string, string> = {
   ocean: "from-slate-950 via-blue-950 to-cyan-700",
   plum: "from-slate-950 via-violet-950 to-fuchsia-800",
   signal: "from-zinc-950 via-red-950 to-red-600",
-}
+};
 
 export function progressText(work: Work) {
-  if (work.status === "completed" && !work.progressTotal) return "مكتمل"
+  if (work.status === "completed" && !work.progressTotal) return "مكتمل";
   if (!work.progressTotal) {
-    return work.progress
-      ? `${work.progress} ${progressUnitLabelAr(work.progressUnit)}`
-      : "لم يبدأ"
+    return work.progress ? `${work.progress} ${progressUnitLabelAr(work.progressUnit)}` : "لم يبدأ";
   }
-  return `${work.progress} / ${work.progressTotal} ${progressUnitLabelAr(work.progressUnit)}`
+  return `${work.progress} / ${work.progressTotal} ${progressUnitLabelAr(work.progressUnit)}`;
 }
 
 export function usesProgress(work: Work) {
-  return Boolean(work.progressUnit)
+  return Boolean(work.progressUnit);
 }
 
 export function WorkArtwork({
@@ -35,15 +33,15 @@ export function WorkArtwork({
   showRating = true,
   className,
 }: {
-  work: Work
-  image?: "poster" | "logo"
-  compact?: boolean
-  showType?: boolean
-  showRating?: boolean
-  className?: string
+  work: Work;
+  image?: "poster" | "logo";
+  compact?: boolean;
+  showType?: boolean;
+  showRating?: boolean;
+  className?: string;
 }) {
-  const artworkType = image === "logo" && work.logoPath ? "logo" : "poster"
-  const path = artworkType === "logo" ? work.logoPath : work.imagePath
+  const artworkType = image === "logo" && work.logoPath ? "logo" : "poster";
+  const path = artworkType === "logo" ? work.logoPath : work.imagePath;
 
   return (
     <div
@@ -52,12 +50,9 @@ export function WorkArtwork({
         artworkType === "logo" ? "aspect-square" : "aspect-2/3",
         artworkType === "logo" && path
           ? "bg-white/90 dark:bg-white/85"
-          : cn(
-              "bg-linear-to-br",
-              paletteClasses[work.palette] ?? paletteClasses.ocean
-            ),
+          : cn("bg-linear-to-br", paletteClasses[work.palette] ?? paletteClasses.ocean),
         compact ? "rounded-lg" : "rounded-xl",
-        className
+        className,
       )}
     >
       {path ? (
@@ -66,7 +61,7 @@ export function WorkArtwork({
           alt=""
           className={cn(
             "size-full transition duration-500 group-hover/art:scale-[1.025]",
-            artworkType === "logo" ? "object-contain p-6" : "object-cover"
+            artworkType === "logo" ? "object-contain p-6" : "object-cover",
           )}
         />
       ) : (
@@ -104,5 +99,5 @@ export function WorkArtwork({
         </Badge>
       )}
     </div>
-  )
+  );
 }

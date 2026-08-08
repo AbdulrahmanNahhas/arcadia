@@ -15,13 +15,24 @@ const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
 
 await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
-await page.getByRole("heading", { name: "العروض المثبّتة" }).waitFor();
-await page.getByRole("heading", { name: "عروض أخرى" }).waitFor();
+await page.getByRole("heading", { name: /تسعة كواكب، لكل منها مدار/ }).waitFor();
+await page.getByRole("navigation", { name: "التنقل على الهاتف" }).waitFor();
 await page.waitForTimeout(1000);
-await page.getByRole("link", { name: /افتح المكتبة كاملة/ }).click();
+await page.getByRole("button", { name: "البحث" }).click();
+const command = page.locator("[data-slot=dialog-content]");
+await command.waitFor();
+await command.locator("[data-slot=command-input]").fill("Attack on Titan");
+await command
+  .getByText(/Attack on Titan/)
+  .first()
+  .waitFor();
+await page.keyboard.press("Escape");
+await page.waitForTimeout(1000);
+await page.goto(`${baseUrl}/database`, { waitUntil: "domcontentloaded" });
 
 const toolbar = page.getByRole("navigation", { name: "أدوات عرض المكتبة" });
 await toolbar.waitFor();
+await page.waitForTimeout(1000);
 
 // All and saved views share one destination selector; the old second control is gone.
 const viewSelector = toolbar.getByRole("button", { name: "تبديل العرض" });
@@ -66,4 +77,4 @@ if (await viewRows.count()) {
 if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
 
 await browser.close();
-console.log("Unified views browser smoke test passed.");
+console.log("Platform, search, database, and admin browser smoke test passed.");

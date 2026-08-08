@@ -1,5 +1,6 @@
 import {
   ArrowLeftIcon,
+  ArticleIcon,
   BookmarkSimpleIcon,
   CalendarBlankIcon,
   ChartDonutIcon,
@@ -30,6 +31,7 @@ import { getSavedViewAccentStyle, getSavedViewIcon } from "./view-meta";
 
 const layoutMeta = {
   gallery: { label: "معرض", icon: GridFourIcon },
+  wide: { label: "بطاقات واسعة", icon: ArticleIcon },
   table: { label: "جدول", icon: TableIcon },
   timeline: { label: "خط زمني", icon: CalendarBlankIcon },
   statistics: { label: "إحصاءات", icon: ChartDonutIcon },
@@ -308,7 +310,7 @@ function LargeViewCard({ view, works }: { view?: SavedUserView; works: Work[] })
     ? works.filter((work) => workMatchesSavedView(work, view))
     : works.filter(isWorkVisibleByDefault);
   const covers = matchingWorks
-    .filter((work) => work.imagePath)
+    .filter((work): work is Work & { imagePath: string } => typeof work.imagePath === "string")
     .sort((left, right) => (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0))
     .slice(0, 3);
   const meta = view ? layoutMeta[view.layout] : layoutMeta.gallery;
@@ -337,7 +339,7 @@ function LargeViewCard({ view, works }: { view?: SavedUserView; works: Work[] })
                   }
                   className="relative h-28 w-20 shrink-0 transform-[rotate(var(--rotate))] overflow-hidden rounded-md border border-border/50 bg-muted shadow-md ring-1 ring-black/5 transition-[transform,box-shadow] duration-300 ease-out group-hover:transform-[translate(var(--spread),10px)_rotate(0deg)] group-hover:shadow-lg"
                 >
-                  <img src={work.imagePath!} alt="" className="size-full object-cover" />
+                  <img src={work.imagePath} alt="" className="size-full object-cover" />
                 </div>
               ))}
             </div>
@@ -387,7 +389,7 @@ function CompactViewCard({ view, works }: { view: SavedUserView; works: Work[] }
   const matchingWorks = works.filter((work) => workMatchesSavedView(work, view));
 
   const covers = matchingWorks
-    .filter((work) => work.imagePath)
+    .filter((work): work is Work & { imagePath: string } => typeof work.imagePath === "string")
     .sort((left, right) => (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0))
     .slice(0, 8);
   const overflow = matchingWorks.length - covers.length;
@@ -436,7 +438,7 @@ function CompactViewCard({ view, works }: { view: SavedUserView; works: Work[] }
                   }
                   className="relative aspect-2/3 h-20 shrink-0 overflow-hidden rounded-lg bg-muted shadow-sm ring-2 ring-card transition-[transform,height] duration-300 ease-out group-hover/card:h-24 group-hover/card:transform-[translateX(var(--shift))]"
                 >
-                  <img src={work.imagePath!} alt="" className="size-full object-cover" />
+                  <img src={work.imagePath} alt="" className="size-full object-cover" />
                 </div>
               ))}
               {overflow > 0 ? (

@@ -1,11 +1,7 @@
-import { useState } from "react"
-import {
-  CalendarBlankIcon,
-  CaretLeftIcon,
-  CaretRightIcon,
-} from "@phosphor-icons/react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { CalendarBlankIcon, CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -13,23 +9,19 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty"
-import { Separator } from "@/components/ui/separator"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import type { TrackingEntry, Work } from "@/features/library/model"
-import { cn } from "@/lib/utils"
-import { formatYear } from "@/features/library/components/work-detail-dialog"
+} from "@/components/ui/empty";
+import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatYear } from "@/features/library/components/work-detail-dialog";
+import type { TrackingEntry, Work } from "@/features/library/model";
+import { cn } from "@/lib/utils";
 import {
   activityByWork,
   activityCount,
@@ -44,57 +36,48 @@ import {
   groupEntriesByDate,
   shiftMonth,
   summarizeCalendarYear,
-} from "../activity-feed-utils"
+} from "../activity-feed-utils";
 
 export function ActivityCalendarPanel({
   entries,
   worksById,
 }: {
-  entries: TrackingEntry[]
-  worksById: Map<string, Work>
+  entries: TrackingEntry[];
+  worksById: Map<string, Work>;
 }) {
-  const activityEntries = entries.filter(
-    (entry) => entryActivityCount(entry, worksById) > 0
-  )
-  const currentMonthKey = new Date().toISOString().slice(0, 7)
+  const activityEntries = entries.filter((entry) => entryActivityCount(entry, worksById) > 0);
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
   const suggestedMonth = activityEntries.some((entry) =>
-    entry.occurredOn.startsWith(currentMonthKey)
+    entry.occurredOn.startsWith(currentMonthKey),
   )
     ? currentMonthKey
-    : (activityEntries[0]?.occurredOn.slice(0, 7) ?? currentMonthKey)
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
-  const monthKey = selectedMonth ?? suggestedMonth
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const monthEntries = activityEntries.filter((entry) =>
-    entry.occurredOn.startsWith(monthKey)
-  )
-  const entriesByDay = groupEntriesByDate(monthEntries)
-  const calendarDays = buildCalendarDays(monthKey)
+    : (activityEntries[0]?.occurredOn.slice(0, 7) ?? currentMonthKey);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const monthKey = selectedMonth ?? suggestedMonth;
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const monthEntries = activityEntries.filter((entry) => entry.occurredOn.startsWith(monthKey));
+  const entriesByDay = groupEntriesByDate(monthEntries);
+  const calendarDays = buildCalendarDays(monthKey).map((day, position) => ({
+    day,
+    key: day?.date ?? `${monthKey}-padding-${position}`,
+  }));
   const maxDayActivity = Math.max(
-    ...[...entriesByDay.values()].map((dayEntries) =>
-      activityCount(dayEntries, worksById)
-    ),
-    1
-  )
-  const focusedEntries = selectedDate
-    ? (entriesByDay.get(selectedDate) ?? [])
-    : monthEntries
-  const focusedWorkCounts = activityByWork(focusedEntries, worksById)
+    ...[...entriesByDay.values()].map((dayEntries) => activityCount(dayEntries, worksById)),
+    1,
+  );
+  const focusedEntries = selectedDate ? (entriesByDay.get(selectedDate) ?? []) : monthEntries;
+  const focusedWorkCounts = activityByWork(focusedEntries, worksById);
   const focusedWorks = [...focusedWorkCounts.entries()]
     .map(([workId, count]) => ({ work: worksById.get(workId), count }))
     .filter((item): item is { work: Work; count: number } => Boolean(item.work))
-    .sort((left, right) => right.count - left.count)
-  const activeYear = Number(monthKey.slice(0, 4))
-  const yearMonths = summarizeCalendarYear(
-    activityEntries,
-    activeYear,
-    worksById
-  )
+    .sort((left, right) => right.count - left.count);
+  const activeYear = Number(monthKey.slice(0, 4));
+  const yearMonths = summarizeCalendarYear(activityEntries, activeYear, worksById);
 
   const changeMonth = (offset: number) => {
-    setSelectedMonth(shiftMonth(monthKey, offset))
-    setSelectedDate(null)
-  }
+    setSelectedMonth(shiftMonth(monthKey, offset));
+    setSelectedDate(null);
+  };
 
   if (activityEntries.length === 0) {
     return (
@@ -109,7 +92,7 @@ export function ActivityCalendarPanel({
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
-    )
+    );
   }
 
   return (
@@ -117,9 +100,7 @@ export function ActivityCalendarPanel({
       <Card className="min-w-0">
         <CardHeader>
           <CardTitle>{formatMonthYear(monthKey)}</CardTitle>
-          <CardDescription>
-            مرّر فوق يوم نشط للتفاصيل، أو اختره لعرض ملخصه.
-          </CardDescription>
+          <CardDescription>مرّر فوق يوم نشط للتفاصيل، أو اختره لعرض ملخصه.</CardDescription>
           <CardAction className="flex gap-1">
             <Button
               variant="ghost"
@@ -142,25 +123,22 @@ export function ActivityCalendarPanel({
         <CardContent className="flex min-w-0 flex-col gap-3">
           <div className="grid grid-cols-7 gap-1">
             {calendarWeekdays.map((weekday) => (
-              <span
-                key={weekday}
-                className="py-1 text-center text-xs text-muted-foreground"
-              >
+              <span key={weekday} className="py-1 text-center text-xs text-muted-foreground">
                 {weekday}
               </span>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1 sm:min-h-100">
-            {calendarDays.map((day, index) => {
+            {calendarDays.map((cell) => {
+              const { day } = cell;
               if (!day) {
-                return <span key={`empty-${index}`} className="h-10" />
+                return <span key={cell.key} className="h-10" />;
               }
 
-              const dayEntries = entriesByDay.get(day.date) ?? []
-              const dayActivity = activityCount(dayEntries, worksById)
-              const workCount = new Set(dayEntries.map((entry) => entry.workId))
-                .size
-              const isSelected = selectedDate === day.date
+              const dayEntries = entriesByDay.get(day.date) ?? [];
+              const dayActivity = activityCount(dayEntries, worksById);
+              const workCount = new Set(dayEntries.map((entry) => entry.workId)).size;
+              const isSelected = selectedDate === day.date;
 
               if (dayActivity === 0) {
                 return (
@@ -170,7 +148,7 @@ export function ActivityCalendarPanel({
                   >
                     {formatNumber(day.day)}
                   </span>
-                )
+                );
               }
 
               return (
@@ -182,7 +160,7 @@ export function ActivityCalendarPanel({
                         className={cn(
                           "aspect-square h-auto w-full rounded-full px-0 text-xs tabular-nums",
                           calendarActivityClass(dayActivity, maxDayActivity),
-                          isSelected && "ring-2 ring-ring ring-offset-2"
+                          isSelected && "ring-2 ring-ring ring-offset-2",
                         )}
                         aria-label={`${formatDate(day.date)}: ${dayActivity} وحدات نشاط`}
                         onClick={() => setSelectedDate(day.date)}
@@ -195,8 +173,7 @@ export function ActivityCalendarPanel({
                     <div className="flex max-w-56 flex-col gap-1">
                       <strong>{formatDate(day.date)}</strong>
                       <span>
-                        {formatNumber(dayActivity)} وحدات نشاط ·{" "}
-                        {formatNumber(workCount)} أعمال
+                        {formatNumber(dayActivity)} وحدات نشاط · {formatNumber(workCount)} أعمال
                       </span>
                       <span className="truncate text-background/75">
                         {formatWorkNames(dayEntries, worksById)}
@@ -204,7 +181,7 @@ export function ActivityCalendarPanel({
                     </div>
                   </TooltipContent>
                 </Tooltip>
-              )
+              );
             })}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -212,10 +189,7 @@ export function ActivityCalendarPanel({
             {[1, 2, 3, 4].map((level) => (
               <span
                 key={level}
-                className={cn(
-                  "size-3 rounded-sm",
-                  calendarActivityClass(level, 4)
-                )}
+                className={cn("size-3 rounded-sm", calendarActivityClass(level, 4))}
               />
             ))}
             <span>أكثر نشاطاً</span>
@@ -226,9 +200,7 @@ export function ActivityCalendarPanel({
       <div className="flex min-w-0 flex-col gap-4">
         <Card size="sm">
           <CardHeader>
-            <CardTitle>
-              {selectedDate ? formatDate(selectedDate) : "خلاصة الشهر"}
-            </CardTitle>
+            <CardTitle>{selectedDate ? formatDate(selectedDate) : "خلاصة الشهر"}</CardTitle>
             <CardDescription>
               {selectedDate
                 ? "تفاصيل النشاط المسجل في هذا اليوم."
@@ -236,11 +208,7 @@ export function ActivityCalendarPanel({
             </CardDescription>
             {selectedDate ? (
               <CardAction>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedDate(null)}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setSelectedDate(null)}>
                   الشهر كله
                 </Button>
               </CardAction>
@@ -255,41 +223,25 @@ export function ActivityCalendarPanel({
               <CalendarMetric label="الأعمال" value={focusedWorkCounts.size} />
               <CalendarMetric
                 label="الأيام النشطة"
-                value={
-                  selectedDate
-                    ? Number(focusedEntries.length > 0)
-                    : entriesByDay.size
-                }
+                value={selectedDate ? Number(focusedEntries.length > 0) : entriesByDay.size}
               />
-              <CalendarMetric
-                label="تحديثات السجل"
-                value={focusedEntries.length}
-              />
+              <CalendarMetric label="تحديثات السجل" value={focusedEntries.length} />
             </div>
             {focusedWorks.length > 0 ? (
               <>
                 <Separator />
                 <div className="flex flex-col gap-2">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    الأكثر حضوراً
-                  </p>
+                  <p className="text-xs font-medium text-muted-foreground">الأكثر حضوراً</p>
                   {focusedWorks.slice(0, 5).map(({ work, count }) => (
-                    <div
-                      key={work.id}
-                      className="flex min-w-0 items-center justify-between gap-3"
-                    >
-                      <span className="truncate text-sm">
-                        {work.arabicTitle || work.title}
-                      </span>
+                    <div key={work.id} className="flex min-w-0 items-center justify-between gap-3">
+                      <span className="truncate text-sm">{work.arabicTitle || work.title}</span>
                       <Badge variant="outline">{formatNumber(count)}</Badge>
                     </div>
                   ))}
                 </div>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                لا يوجد نشاط مسجل في هذا النطاق.
-              </p>
+              <p className="text-sm text-muted-foreground">لا يوجد نشاط مسجل في هذا النطاق.</p>
             )}
           </CardContent>
         </Card>
@@ -297,9 +249,7 @@ export function ActivityCalendarPanel({
         <Card size="sm">
           <CardHeader>
             <CardTitle>أشهر سنة {formatNumber(activeYear)}</CardTitle>
-            <CardDescription>
-              اختر شهراً للانتقال إليه، والرقم هو عدد نقاط التقدم.
-            </CardDescription>
+            <CardDescription>اختر شهراً للانتقال إليه، والرقم هو عدد نقاط التقدم.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-3 gap-1">
             {yearMonths.map((month) => (
@@ -309,8 +259,8 @@ export function ActivityCalendarPanel({
                 size="sm"
                 className="justify-between"
                 onClick={() => {
-                  setSelectedMonth(month.key)
-                  setSelectedDate(null)
+                  setSelectedMonth(month.key);
+                  setSelectedDate(null);
                 }}
               >
                 {month.label}
@@ -323,16 +273,14 @@ export function ActivityCalendarPanel({
         </Card>
       </div>
     </div>
-  )
+  );
 }
 
 function CalendarMetric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl bg-muted/50 p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 font-heading text-xl font-semibold tabular-nums">
-        {formatNumber(value)}
-      </p>
+      <p className="mt-1 font-heading text-xl font-semibold tabular-nums">{formatNumber(value)}</p>
     </div>
-  )
+  );
 }

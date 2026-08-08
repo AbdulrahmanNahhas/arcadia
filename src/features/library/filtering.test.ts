@@ -88,4 +88,15 @@ describe("work sorting", () => {
       values.sort((left, right) => compareWorks(left, right, "rating", "desc")).map(({ id }) => id),
     ).toEqual(["top", "a", "b", "u"]);
   });
+
+  it("sorts individual score components while keeping missing scores last", () => {
+    const values = [
+      work({ id: "missing", title: "Missing", scoreComponents: {} }),
+      work({ id: "deep", title: "Deep", scoreComponents: { depth: 9 } }),
+      work({ id: "light", title: "Light", scoreComponents: { depth: 6 } }),
+    ];
+    expect(
+      values.sort((left, right) => compareWorks(left, right, "depth", "desc")).map(({ id }) => id),
+    ).toEqual(["deep", "light", "missing"]);
+  });
 });
