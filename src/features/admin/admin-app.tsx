@@ -166,7 +166,7 @@ export function AdminApp() {
 
   return (
     <div className="min-h-screen bg-background pb-12 text-foreground antialiased">
-      <aside className="fixed inset-y-0 end-0 z-30 hidden w-64 flex-col border-s bg-sidebar lg:flex">
+      <aside className="fixed inset-y-0 inset-e-0 z-30 hidden w-64 flex-col border-s bg-sidebar lg:flex">
         <div className="flex h-16 items-center gap-3 border-b px-5">
           <span className="flex size-8 items-center justify-center rounded-full border border-primary/40 text-primary">
             <span className="size-2 rounded-full bg-primary" />

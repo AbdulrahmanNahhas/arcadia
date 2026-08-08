@@ -207,7 +207,7 @@ export function StudioLineagePage() {
                         "stroke-border/80 stroke-[2.5]",
                         edge.relationship.type.category === "corporate" && "stroke-primary/65",
                         edge.relationship.type.category === "creative" &&
-                          "stroke-foreground/55 stroke-[2] [stroke-dasharray:8_8]",
+                          "stroke-foreground/55 stroke-2 [stroke-dasharray:8_8]",
                         normalizedSearch &&
                           !matchingIds.has(edge.source.entity.id) &&
                           !matchingIds.has(edge.target.entity.id) &&
@@ -282,7 +282,7 @@ export function StudioLineagePage() {
                 </div>
                 <div className="mt-3 flex gap-2">
                   <div className="relative min-w-0 flex-1">
-                    <MagnifyingGlassIcon className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <MagnifyingGlassIcon className="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
@@ -379,7 +379,7 @@ export function StudioLineagePage() {
         ) : null}
 
         <aside
-          className="absolute end-4 bottom-22 flex flex-col gap-1 rounded-2xl border border-border/70 bg-background/88 p-1.5 shadow-xl backdrop-blur-xl sm:end-6 sm:bottom-6"
+          className="absolute inset-e-4 bottom-22 flex flex-col gap-1 rounded-2xl border border-border/70 bg-background/88 p-1.5 shadow-xl backdrop-blur-xl sm:inset-e-6 sm:bottom-6"
           aria-label="التحكم بالخريطة"
         >
           <Button
@@ -411,7 +411,7 @@ export function StudioLineagePage() {
           </Button>
         </aside>
 
-        <div className="pointer-events-none absolute bottom-6 start-6 hidden items-center gap-4 rounded-full border border-border/60 bg-background/80 px-4 py-2 text-[10px] text-muted-foreground shadow-lg backdrop-blur-xl lg:flex">
+        <div className="pointer-events-none absolute bottom-6 inset-s-6 hidden items-center gap-4 rounded-full border border-border/60 bg-background/80 px-4 py-2 text-[10px] text-muted-foreground shadow-lg backdrop-blur-xl lg:flex">
           <LegendDot className="bg-primary" label="مؤسسي" />
           <LegendDot className="bg-foreground/60" label="تاريخي" />
           <span className="flex items-center gap-2">
@@ -458,7 +458,7 @@ function StudioNode({
           ) : (
             <BuildingsIcon className="text-muted-foreground" size={38} />
           )}
-          <span className="absolute end-1.5 bottom-1.5 flex size-5 items-center justify-center rounded-full border border-background bg-primary font-mono text-[9px] text-primary-foreground">
+          <span className="absolute inset-e-1.5 bottom-1.5 flex size-5 items-center justify-center rounded-full border border-background bg-primary font-mono text-[9px] text-primary-foreground">
             {node.degree}
           </span>
         </span>

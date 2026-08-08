@@ -89,7 +89,7 @@ function FeaturedHero({ work }: { work: Awaited<ReturnType<typeof getPlatformHom
             <img
               src={work.logoPath}
               alt={work.arabicTitle || work.title}
-              className="max-h-28 max-w-[22rem] object-contain object-right"
+              className="max-h-28 max-w-88 object-contain object-right"
             />
           ) : (
             <h1 className="text-balance font-heading text-4xl leading-tight font-semibold sm:text-6xl">
@@ -137,7 +137,7 @@ function PlanetIndex({
       aria-labelledby="planet-index-title"
       className="relative overflow-hidden rounded-2xl border border-white/8 bg-card/40 p-6 sm:p-9"
     >
-      <div className="absolute inset-y-0 end-10 hidden w-px bg-linear-to-b from-transparent via-primary/45 to-transparent sm:block" />
+      <div className="absolute inset-y-0 inset-e-10 hidden w-px bg-linear-to-b from-transparent via-primary/45 to-transparent sm:block" />
       <div className="relative z-10 max-w-2xl">
         <p className="text-xs font-semibold tracking-[0.16em] text-primary">
           نظام الاكتشاف الأساسي

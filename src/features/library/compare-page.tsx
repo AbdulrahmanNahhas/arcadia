@@ -171,7 +171,7 @@ function WorkCompareCard({ work, order }: { work: Work; order: number }) {
             showType={false}
             showRating={false}
             compact
-            className="w-[72px] shadow-sm"
+            className="w-18 shadow-sm"
           />
           <div className="min-w-0 py-1">
             <CardTitle className="line-clamp-2 leading-snug">
@@ -241,7 +241,7 @@ function ScoreMatrix({ works, compact = false }: { works: Work[]; compact?: bool
         <CardDescription>كل شريط على مقياس موحّد من عشرة.</CardDescription>
       </CardHeader>
       <CardContent className="overflow-x-auto">
-        <div className="min-w-[680px]">
+        <div className="min-w-170">
           <div
             className="grid items-center gap-x-4 gap-y-4"
             style={{ gridTemplateColumns: `150px repeat(${works.length}, minmax(150px, 1fr))` }}
@@ -321,7 +321,7 @@ function DetailsMatrix({ works }: { works: Work[] }) {
         <CardDescription>الحقائق الأساسية دون مغادرة صفحة المقارنة.</CardDescription>
       </CardHeader>
       <CardContent className="overflow-x-auto">
-        <div className="min-w-[680px]">
+        <div className="min-w-170">
           <div
             className="grid gap-x-4"
             style={{ gridTemplateColumns: `150px repeat(${works.length}, minmax(150px, 1fr))` }}

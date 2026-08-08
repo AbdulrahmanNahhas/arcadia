@@ -32,7 +32,7 @@ export function PlanetsPage() {
             className="group relative min-h-72 overflow-hidden rounded-2xl border border-white/10 bg-card p-6 transition hover:-translate-y-1 hover:border-white/20"
           >
             <div
-              className="absolute -end-12 -top-12 size-44 rounded-full blur-3xl"
+              className="absolute -inset-e-12 -top-12 size-44 rounded-full blur-3xl"
               style={{ background: `${planet.primaryColor}36` }}
             />
             <div className="relative flex h-full flex-col">

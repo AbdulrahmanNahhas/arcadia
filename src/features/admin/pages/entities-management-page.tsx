@@ -162,7 +162,7 @@ export function EntitiesManagementPage({ kind }: { kind: EntityKind }) {
           <CardHeader className="gap-3">
             <CardTitle>{label}</CardTitle>
             <div className="relative">
-              <MagnifyingGlassIcon className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <MagnifyingGlassIcon className="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}

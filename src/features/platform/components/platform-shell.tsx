@@ -16,7 +16,7 @@ export function PlatformShell({
     <div className="platform-surface min-h-svh">
       <a
         href="#main-content"
-        className="fixed start-4 top-2 z-100 -translate-y-20 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:translate-y-0"
+        className="fixed inset-s-4 top-2 z-100 -translate-y-20 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:translate-y-0"
       >
         انتقل إلى المحتوى
       </a>

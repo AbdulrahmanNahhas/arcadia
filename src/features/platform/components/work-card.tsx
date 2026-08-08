@@ -32,7 +32,7 @@ export function WorkCard({ work, className }: { work: Work; className?: string }
           )}
           <div className="absolute inset-x-0 bottom-0 h-2/5 bg-linear-to-t from-black/75 to-transparent opacity-0 transition-opacity group-hover/card:opacity-100" />
           {work.calculatedRating !== null && (
-            <span className="absolute end-2 top-2 flex items-center gap-1 rounded-md bg-black/70 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
+            <span className="absolute inset-e-2 top-2 flex items-center gap-1 rounded-md bg-black/70 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
               <StarIcon weight="fill" className="text-amber-300" />
               {work.calculatedRating.toFixed(1)}
             </span>
