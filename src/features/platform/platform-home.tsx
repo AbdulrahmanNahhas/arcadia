@@ -26,7 +26,7 @@ export function PlatformHome() {
         <PlanetIndex planets={data.planets} />
         <WorkRail
           title="وصل حديثاً إلى الأرشيف"
-          description="أحدث السجلات التي أضفتها إلى طبيعاوي شاهد."
+          description="أحدث السجلات التي أضفتها إلى نحّاسينما."
           works={data.recentlyAdded}
         />
         <WorkRail
@@ -60,7 +60,7 @@ function FeaturedHero({ work }: { work: Awaited<ReturnType<typeof getPlatformHom
     return (
       <section className="archive-grid flex min-h-[70svh] items-center px-6">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-semibold text-primary">أرشيف طبيعاوي شاهد</p>
+          <p className="text-sm font-semibold text-primary">أرشيف نحّاسينما</p>
           <h1 className="mt-4 font-heading text-4xl leading-tight font-semibold sm:text-6xl">
             عوالمك، في خريطة واحدة.
           </h1>

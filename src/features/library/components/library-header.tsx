@@ -26,7 +26,7 @@ export function LibraryHeader({ compact = false }: LibraryHeaderProps) {
           "focus-visible:ring-2 focus-visible:ring-ring",
           "focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         )}
-        aria-label="العودة إلى طبيعاوي شاهد"
+        aria-label="العودة إلى نحّاسينما"
       >
         <span
           className={cn(
@@ -40,9 +40,7 @@ export function LibraryHeader({ compact = false }: LibraryHeaderProps) {
         </span>
 
         <span className="min-w-0 leading-none">
-          <strong className="block truncate text-sm font-semibold tracking-tight">
-            طبيعاوي شاهد
-          </strong>
+          <strong className="block truncate text-sm font-semibold tracking-tight">نحّاسينما</strong>
 
           {!compact && (
             <span className="mt-1 block truncate text-[10px] text-muted-foreground">

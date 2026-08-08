@@ -29,10 +29,12 @@ describe("literature model", () => {
     expect(audienceSchema.options).toEqual(["Adult", "Young Adult", "Teen", "General"]);
     expect(countrySchema.options).toEqual([
       "Australia",
+      "Belgium",
       "Canada",
       "China",
       "France",
       "Japan",
+      "Latvia",
       "Spain",
       "South Korea",
       "United Kingdom",

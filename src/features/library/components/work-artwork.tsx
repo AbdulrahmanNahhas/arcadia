@@ -75,7 +75,7 @@ export function WorkArtwork({
       {!path && (
         <div className="absolute inset-x-5 bottom-8 z-10 text-white">
           <p className="mb-1 text-[10px] font-medium tracking-[0.18em] text-white/65 uppercase">
-            {work.creator || "أرشيف طبيعاوي شاهد"}
+            {work.creator || "أرشيف نحّاسينما"}
           </p>
           <p className="line-clamp-3 text-lg leading-tight font-semibold tracking-tight">
             {work.arabicTitle || work.title}

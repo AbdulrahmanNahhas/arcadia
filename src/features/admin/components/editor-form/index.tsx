@@ -550,10 +550,7 @@ function WorkEditorFormFields({
       </EditorSection>
 
       {/* Identity Section */}
-      <EditorSection
-        title="الهوية"
-        description="الحقول الأساسية المستخدمة في جميع أنحاء طبيعاوي شاهد."
-      >
+      <EditorSection title="الهوية" description="الحقول الأساسية المستخدمة في جميع أنحاء نحّاسينما.">
         <Field label="العنوان الأصلي">
           <Input
             value={draft.title}
@@ -776,7 +773,7 @@ function WorkEditorFormFields({
 
       <EditorSection
         title="سجل التقييم الشخصي"
-        description="تنتج ستة مكونات موزونة التقييم المعروض في طبيعاوي شاهد. يبقى التقييم غير مكتمل حتى تعبئة جميع المكونات."
+        description="تنتج ستة مكونات موزونة التقييم المعروض في نحّاسينما. يبقى التقييم غير مكتمل حتى تعبئة جميع المكونات."
       >
         <ScoreLedger draft={draft} setDraft={setDraft} />
       </EditorSection>
@@ -859,7 +856,7 @@ function WorkEditorFormFields({
       {/* Dates, Source & Links Section */}
       <EditorSection
         title="التواريخ والمصدر والروابط"
-        description="سياق النشر والوجهات خارج طبيعاوي شاهد."
+        description="سياق النشر والوجهات خارج نحّاسينما."
       >
         <p className="col-span-full text-xs font-semibold text-muted-foreground">تواريخ الإصدار</p>
         <Field label="بداية الإصدار">

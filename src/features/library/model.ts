@@ -40,10 +40,12 @@ export const audiences = ["Adult", "Young Adult", "Teen", "General"] as const;
 
 export const countries = [
   "Australia",
+  "Belgium",
   "Canada",
   "China",
   "France",
   "Japan",
+  "Latvia",
   "Spain",
   "South Korea",
   "United Kingdom",
@@ -105,10 +107,12 @@ export const taxonomyLabels = {
   },
   countries: {
     Australia: "أستراليا",
+    Belgium: "بلجيكا",
     Canada: "كندا",
     China: "الصين",
     France: "فرنسا",
     Japan: "اليابان",
+    Latvia: "لاتفيا",
     Spain: "إسبانيا",
     "South Korea": "كوريا الجنوبية",
     "United Kingdom": "المملكة المتحدة",

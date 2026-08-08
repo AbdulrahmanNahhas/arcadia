@@ -128,13 +128,13 @@ function AdminSidebar({ pathname }: { pathname: string }) {
             <SidebarMenuButton
               size="lg"
               render={<Link to="/admin" />}
-              tooltip="مركز إدارة طبيعاوي شاهد"
+              tooltip="مركز إدارة نحّاسينما"
             >
               <span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 أ
               </span>
               <span className="grid flex-1 text-start text-sm leading-tight">
-                <span className="truncate font-heading font-semibold">طبيعاوي شاهد</span>
+                <span className="truncate font-heading font-semibold">نحّاسينما</span>
                 <span className="truncate text-xs text-muted-foreground">مركز إدارة الأرشيف</span>
               </span>
             </SidebarMenuButton>
