@@ -31,7 +31,7 @@ import {
 const platformKinds = new Set<Work["kind"]>(["movie", "series", "anime"]);
 
 export function isPlatformWork(work: Work) {
-  return platformKinds.has(work.kind);
+  return platformKinds.has(work.kind) && !work.isPrivate;
 }
 
 export function listPlanetAssignments(): PlanetAssignment[] {
@@ -378,7 +378,7 @@ export function searchCatalog(query: string, limit = 24): CatalogSearchResult[] 
     });
 }
 
-export function getSimilarWorks(workId: string, limit = 12): Recommendation[] {
+export function getSimilarWorks(workId: string, limit = 10): Recommendation[] {
   const catalog = listWorks().filter(isPlatformWork);
   const source = catalog.find((work) => work.id === workId);
   if (!source) return [];
@@ -397,13 +397,9 @@ export function getSimilarWorks(workId: string, limit = 12): Recommendation[] {
         catalog.length,
       ),
     )
-    .filter(
-      (recommendation) =>
-        recommendation.reasons.length >= 2 ||
-        recommendation.reasons.some((reason) => reason.signal === "relationship"),
-    )
+    .filter((recommendation) => recommendation.score > 0)
     .sort((left, right) => right.score - left.score || compareNewestRelease(left.work, right.work))
-    .slice(0, Math.min(Math.max(limit, 1), 30));
+    .slice(0, Math.min(Math.max(limit, 1), 10));
 }
 
 export function listOrganizationRelationshipEditorData() {
@@ -849,6 +845,15 @@ function recommendationFor(
   );
   if (source.audience && source.audience === candidate.audience)
     add("audience", `فئة ${source.audience}`, 0.05);
+  const countries = simpleJaccard(source.country, candidate.country);
+  add("country", countries.shared.slice(0, 2).join(" · "), countries.score * 0.04);
+  if (
+    source.sourceMaterial?.type &&
+    source.sourceMaterial.type === candidate.sourceMaterial?.type
+  ) {
+    add("source", `مصدر ${source.sourceMaterial.type}`, 0.04);
+  }
+  if (source.kind === candidate.kind) add("kind", "نوع العمل نفسه", 0.03);
   const sharedScores = Object.keys(source.scoreComponents).filter(
     (key) =>
       source.scoreComponents[key as keyof typeof source.scoreComponents] !== undefined &&

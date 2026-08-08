@@ -1,8 +1,14 @@
 "use client";
 
-import { CheckIcon, CodeIcon, InfoIcon } from "@phosphor-icons/react";
+import {
+  CheckIcon,
+  CodeIcon,
+  InfoIcon,
+  LockKeyIcon,
+  UploadSimpleIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { FormEvent, ReactNode } from "react";
+import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +20,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Drawer,
@@ -35,6 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 import { kindLabels } from "@/features/library/filtering";
@@ -62,10 +70,17 @@ import {
   scoreWeights,
 } from "@/features/library/scoring";
 import { useArabicTranslations } from "@/features/library/translations";
-import { fieldAppliesToKind } from "@/features/library/work-kind-fields";
+
+import type { PlanetWithWorks } from "@/features/platform/model";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
-import { getWorkStructure, saveWork, saveWorkStructure } from "@/server/library.functions";
+import {
+  getWorkStructure,
+  saveWork,
+  saveWorkStructure,
+  uploadWorkImage,
+} from "@/server/library.functions";
+import { getAdminPlanets } from "@/server/platform.functions";
 import { ArrayField } from "./fields/array-field";
 import { ContentField } from "./fields/content-field";
 import { ContributionField } from "./fields/credit-field";
@@ -150,6 +165,10 @@ function WorkEditorInner({
     queryKey: ["work-structure", work.id],
     queryFn: () => getWorkStructure({ data: { workId: work.id } }),
   });
+  const planetsQuery = useQuery({
+    queryKey: ["admin-planets"],
+    queryFn: () => getAdminPlanets(),
+  });
 
   const mutation = useMutation({
     mutationFn: saveWork,
@@ -203,7 +222,6 @@ function WorkEditorInner({
 
   const formFields = (
     <WorkEditorFormFields
-      work={work}
       works={works}
       entities={entities}
       draft={draft}
@@ -212,6 +230,7 @@ function WorkEditorInner({
       setLinks={setLinks}
       mutation={mutation}
       structure={structureQuery.data}
+      planets={planetsQuery.data ?? []}
       submit={submit}
     />
   );
@@ -224,7 +243,8 @@ function WorkEditorInner({
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </header>
         {formFields}
-        <footer className="sticky bottom-0 flex justify-end gap-2 border-t bg-background py-4">
+        <footer className="sticky bottom-0 flex items-center justify-between gap-2 border-t bg-background py-4">
+          <JsonWorkDialog work={work} />
           <Button type="submit" form="admin-editor-form" disabled={mutation.isPending}>
             {mutation.isPending ? "جارٍ الحفظ…" : "حفظ التغييرات"}
           </Button>
@@ -250,13 +270,21 @@ function WorkEditorInner({
 
           {formFields}
 
-          <DialogFooter className="flex shrink-0 flex-row items-center justify-end gap-2 border-t border-border/60 bg-background p-4">
-            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-              إلغاء
-            </Button>
-            <Button type="submit" form="admin-editor-form" size="sm" disabled={mutation.isPending}>
-              {mutation.isPending ? "جارٍ الحفظ…" : "حفظ التغييرات"}
-            </Button>
+          <DialogFooter className="flex shrink-0 flex-row items-center justify-between gap-2 border-t border-border/60 bg-background p-4">
+            <JsonWorkDialog work={work} />
+            <div className="flex flex-row gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+                إلغاء
+              </Button>
+              <Button
+                type="submit"
+                form="admin-editor-form"
+                size="sm"
+                disabled={mutation.isPending}
+              >
+                {mutation.isPending ? "جارٍ الحفظ…" : "حفظ التغييرات"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -275,17 +303,20 @@ function WorkEditorInner({
 
         {formFields}
 
-        <DrawerFooter className="flex shrink-0 flex-row items-center justify-end gap-2 border-t border-border/60 bg-background p-4">
-          <DrawerClose
-            render={
-              <Button type="button" variant="outline" size="sm">
-                إلغاء
-              </Button>
-            }
-          />
-          <Button type="submit" form="admin-editor-form" size="sm" disabled={mutation.isPending}>
-            {mutation.isPending ? "جارٍ الحفظ…" : "حفظ التغييرات"}
-          </Button>
+        <DrawerFooter className="flex shrink-0 flex-row items-center justify-between gap-2 border-t border-border/60 bg-background p-4">
+          <JsonWorkDialog work={work} />
+          <div className="flex flex-row gap-2">
+            <DrawerClose
+              render={
+                <Button type="button" variant="outline" size="sm">
+                  إلغاء
+                </Button>
+              }
+            />
+            <Button type="submit" form="admin-editor-form" size="sm" disabled={mutation.isPending}>
+              {mutation.isPending ? "جارٍ الحفظ…" : "حفظ التغييرات"}
+            </Button>
+          </div>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
@@ -293,7 +324,6 @@ function WorkEditorInner({
 }
 
 function WorkEditorFormFields({
-  work,
   works,
   entities,
   draft,
@@ -302,9 +332,9 @@ function WorkEditorFormFields({
   setLinks,
   mutation,
   structure,
+  planets,
   submit,
 }: {
-  work: Work;
   works: Work[];
   entities: Entity[];
   draft: Work;
@@ -313,20 +343,19 @@ function WorkEditorFormFields({
   setLinks: React.Dispatch<React.SetStateAction<string>>;
   mutation: { isPending: boolean; error: Error | null };
   structure?: WorkStructure;
+  planets: PlanetWithWorks[];
   submit: (e: FormEvent) => void;
 }) {
   const { taxonomyLabel } = useArabicTranslations();
-  const applies = (field: Parameters<typeof fieldAppliesToKind>[1]) =>
-    fieldAppliesToKind(draft.kind, field);
-  const showRuntime = applies("runtimeMinutes");
-  const showPlaytime = applies("playtimeMinutes");
-  const showPages = applies("pageCount");
-  const showEpisodes = applies("episodeCount");
-  const showChapters = applies("chapterCount");
-  const showVolumes = applies("volumeCount");
-  const showRoutes = applies("routeCount");
-  const showPublication = applies("publication");
-  const showSerialization = applies("serialization");
+  const showRuntime = true;
+  const showPlaytime = true;
+  const showPages = true;
+  const showEpisodes = true;
+  const showChapters = true;
+  const showVolumes = true;
+  const showRoutes = true;
+  const showPublication = true;
+  const showSerialization = true;
 
   const emptyPublication: NonNullable<Work["publication"]> = {
     format: null,
@@ -608,6 +637,7 @@ function WorkEditorFormFields({
           value={draft.tags}
           onChange={(tags: string[]) => setDraft({ ...draft, tags })}
           options={tagOptions}
+          allowCustom
           maxItems={12}
           optionLabels={tagLabelsAr}
         />
@@ -628,6 +658,26 @@ function WorkEditorFormFields({
           options={countries}
           optionLabels={taxonomyLabels.countries}
         />
+        <Field label="الكوكب">
+          <Select
+            items={planets.map((planet) => ({ value: planet.id, label: planet.nameAr }))}
+            value={draft.planetId ?? null}
+            onValueChange={(planetId) => setDraft({ ...draft, planetId: planetId || null })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="لا يوجد كوكب معيّن" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {planets.map((planet) => (
+                  <SelectItem key={planet.id} value={planet.id} disabled={!planet.isActive}>
+                    {planet.icon} {planet.nameAr}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
         <Field label="الجمهور">
           <Select
             items={audiences.map((audience) => ({
@@ -975,31 +1025,43 @@ function WorkEditorFormFields({
         </Field>
       </EditorSection>
 
-      {/* Local Artwork Section */}
       <EditorSection
-        title="الصور المحلية"
-        description="تُعرض المسارات محلياً؛ ومسح أحدها يزيل مرجعه من قاعدة البيانات."
+        title="الظهور والصور"
+        description="العمل الخاص لا يظهر في المنصة. غيّر صورة واحدة في كل مرة، راجع المعاينة، ثم أكّد استخدامها."
       >
-        <Field label="مسار الملصق">
-          <Input
-            value={draft.imagePath ?? ""}
-            onChange={(e) => setDraft({ ...draft, imagePath: e.target.value || null })}
-          />
+        <Field label="ظهور العمل" wide>
+          <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-3">
+            <div className="flex items-center gap-2">
+              <LockKeyIcon />
+              <div>
+                <p className="text-sm font-medium">عمل خاص</p>
+                <p className="text-xs text-muted-foreground">يُخفى من المنصة والبحث العام.</p>
+              </div>
+            </div>
+            <Switch
+              checked={draft.isPrivate}
+              onCheckedChange={(isPrivate) => setDraft({ ...draft, isPrivate })}
+            />
+          </div>
         </Field>
-
-        <Field label="مسار الغلاف">
-          <Input
-            value={draft.bannerPath ?? ""}
-            onChange={(e) => setDraft({ ...draft, bannerPath: e.target.value || null })}
-          />
-        </Field>
-
-        <Field label="مسار الشعار">
-          <Input
-            value={draft.logoPath ?? ""}
-            onChange={(e) => setDraft({ ...draft, logoPath: e.target.value || null })}
-          />
-        </Field>
+        <ArtworkField
+          label="الملصق"
+          assetType="poster"
+          value={draft.imagePath}
+          onChange={(imagePath) => setDraft({ ...draft, imagePath })}
+        />
+        <ArtworkField
+          label="الغلاف"
+          assetType="banner"
+          value={draft.bannerPath}
+          onChange={(bannerPath) => setDraft({ ...draft, bannerPath })}
+        />
+        <ArtworkField
+          label="الشعار"
+          assetType="logo"
+          value={draft.logoPath}
+          onChange={(logoPath) => setDraft({ ...draft, logoPath })}
+        />
       </EditorSection>
 
       {/* Related Works Section */}
@@ -1026,53 +1088,118 @@ function WorkEditorFormFields({
           </Alert>
         </div>
       )}
-
-      {/* Nested Debug Viewer wrapped in <Drawer> */}
-      <div className="border-t border-border/60 pt-4 lg:col-span-2">
-        <Drawer>
-          <DrawerTrigger
-            render={
-              <Button
-                type="button"
-                variant="secondary"
-                className="flex w-full items-center justify-between"
-              >
-                <span className="flex items-center gap-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
-                  <CodeIcon className="size-3.5" />
-                  عرض JSON الخام للسجل
-                </span>
-                <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                  للقراءة فقط
-                </span>
-              </Button>
-            }
-          />
-          <DrawerContent>
-            <DrawerHeader className="text-right">
-              <DrawerTitle>JSON الخام للسجل</DrawerTitle>
-              <DrawerDescription>عارض بيانات للقراءة فقط لحالة السجل الحالية.</DrawerDescription>
-            </DrawerHeader>
-            <div className="flex-1 overflow-y-auto p-4">
-              <Textarea
-                readOnly
-                value={JSON.stringify(work, null, 2)}
-                rows={12}
-                className="resize-y border-border/50 bg-muted/40 font-mono text-[11px] leading-relaxed text-muted-foreground focus-visible:ring-0"
-              />
-            </div>
-            <DrawerFooter>
-              <DrawerClose
-                render={
-                  <Button type="button" variant="outline">
-                    إغلاق
-                  </Button>
-                }
-              />
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
-      </div>
     </form>
+  );
+}
+
+function JsonWorkDialog({ work }: { work: Work }) {
+  return (
+    <Dialog>
+      <DialogTrigger render={<Button type="button" variant="ghost" size="sm" />}>
+        <CodeIcon data-icon="inline-start" /> عرض JSON
+      </DialogTrigger>
+      <DialogContent dir="rtl" className="max-h-[80dvh] sm:max-w-2xl">
+        <DialogHeader className="text-right">
+          <DialogTitle>JSON الخام للسجل</DialogTitle>
+          <DialogDescription>للقراءة فقط؛ يعرض آخر نسخة محفوظة من السجل.</DialogDescription>
+        </DialogHeader>
+        <Textarea
+          readOnly
+          value={JSON.stringify(work, null, 2)}
+          rows={18}
+          className="resize-y font-mono text-xs"
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ArtworkField({
+  label,
+  assetType,
+  value,
+  onChange,
+}: {
+  label: string;
+  assetType: "poster" | "banner" | "logo";
+  value: string | null;
+  onChange: (path: string | null) => void;
+}) {
+  const [candidate, setCandidate] = useState("");
+  const upload = useMutation({ mutationFn: uploadWorkImage });
+  const uploadFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        upload.mutate(
+          { data: { dataUrl: reader.result, fileName: file.name, assetType } },
+          { onSuccess: ({ relativePath }) => setCandidate(relativePath) },
+        );
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+  const preview = candidate || value;
+
+  return (
+    <Field label={label}>
+      <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="mb-1 text-xs text-muted-foreground">الحالي</p>
+            <div className="aspect-video overflow-hidden rounded-md bg-muted">
+              {value ? (
+                <img src={value} alt="الصورة الحالية" className="size-full object-cover" />
+              ) : null}
+            </div>
+          </div>
+          <div>
+            <p className="mb-1 text-xs text-muted-foreground">المعاينة</p>
+            <div className="aspect-video overflow-hidden rounded-md bg-muted">
+              {preview ? (
+                <img src={preview} alt="معاينة الصورة" className="size-full object-cover" />
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <Input
+          value={candidate}
+          onChange={(event) => setCandidate(event.target.value)}
+          placeholder="ألصق رابط الصورة أو مسارها"
+        />
+        <Input
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onChange={uploadFile}
+        />
+        {upload.error ? <p className="text-xs text-destructive">{upload.error.message}</p> : null}
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={upload.isPending}>
+            <UploadSimpleIcon data-icon="inline-start" />
+            {upload.isPending ? "جارٍ رفع الصورة…" : "رفع صورة"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!candidate}
+            onClick={() => {
+              onChange(candidate);
+              setCandidate("");
+            }}
+          >
+            <CheckIcon data-icon="inline-start" /> تأكيد الصورة
+          </Button>
+          {value ? (
+            <Button type="button" size="sm" variant="ghost" onClick={() => onChange(null)}>
+              إزالة المرجع
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </Field>
   );
 }
 

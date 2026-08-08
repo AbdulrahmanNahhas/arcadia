@@ -53,26 +53,21 @@ describe("score filters", () => {
 });
 
 describe("default discovery visibility", () => {
-  it("hides saved, announced, and sequel movies while preserving other sequels", () => {
+  it("shows saved, announced, and sequel works by default", () => {
     const filters = createDefaultFilters();
-    expect(workMatchesFilters(work(), filters)).toBe(true);
-    expect(workMatchesFilters(work({ status: "saved" }), filters)).toBe(false);
-    expect(workMatchesFilters(work({ releaseStatus: "announced" }), filters)).toBe(false);
-    expect(workMatchesFilters(work({ kind: "movie", isSequelMovie: true }), filters)).toBe(false);
-    expect(workMatchesFilters(work({ kind: "anime", isSequelMovie: false }), filters)).toBe(true);
-    expect(workMatchesFilters(work({ kind: "movie", isSequelMovie: false }), filters)).toBe(true);
-  });
-
-  it("allows every hidden rule to be overridden explicitly", () => {
-    const filters = {
-      ...createDefaultFilters(),
-      showSaved: true,
-      showAnnounced: true,
-      showSequelMovies: true,
-    };
     expect(workMatchesFilters(work({ status: "saved" }), filters)).toBe(true);
     expect(workMatchesFilters(work({ releaseStatus: "announced" }), filters)).toBe(true);
     expect(workMatchesFilters(work({ kind: "movie", isSequelMovie: true }), filters)).toBe(true);
+  });
+
+  it("hides private works until the private filter is enabled", () => {
+    expect(workMatchesFilters(work({ isPrivate: true }), createDefaultFilters())).toBe(false);
+    expect(
+      workMatchesFilters(work({ isPrivate: true }), {
+        ...createDefaultFilters(),
+        privateOnly: true,
+      }),
+    ).toBe(true);
   });
 });
 

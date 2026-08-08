@@ -11,6 +11,7 @@ export function ArrayField({
   options,
   maxItems,
   optionLabels,
+  allowCustom = false,
 }: {
   label: string;
   value: string[];
@@ -18,13 +19,14 @@ export function ArrayField({
   options?: readonly string[];
   maxItems?: number;
   optionLabels?: Readonly<Record<string, string>>;
+  allowCustom?: boolean;
 }) {
   const listId = useId();
   const [inputValue, setInputValue] = useState("");
 
   const addTag = (tag: string) => {
     const trimmed = tag.trim();
-    if (options && !options.includes(trimmed)) return;
+    if (options && !allowCustom && !options.includes(trimmed)) return;
     if (
       trimmed &&
       !value.includes(trimmed) &&
@@ -47,6 +49,16 @@ export function ArrayField({
       removeTag(value.length - 1);
     }
   };
+
+  const suggestions = (options ?? [])
+    .filter((option) => !value.includes(option))
+    .filter((option) => {
+      const query = inputValue.trim().toLocaleLowerCase();
+      return (
+        !query || `${option} ${optionLabels?.[option] ?? ""}`.toLocaleLowerCase().includes(query)
+      );
+    })
+    .slice(0, 8);
 
   return (
     <Field label={label}>
@@ -81,16 +93,32 @@ export function ArrayField({
         />
         {options && (
           <datalist id={listId}>
-            {options
-              .filter((option) => !value.includes(option))
-              .map((option) => (
-                <option key={option} value={option}>
-                  {optionLabels?.[option]}
-                </option>
-              ))}
+            {suggestions.map((option) => (
+              <option key={option} value={option}>
+                {optionLabels?.[option]}
+              </option>
+            ))}
           </datalist>
         )}
       </div>
+      {suggestions.length > 0 && inputValue && (
+        <div className="flex flex-wrap gap-1.5">
+          {suggestions.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => addTag(option)}
+              className="rounded-md border bg-muted/50 px-2 py-1 text-xs hover:bg-muted"
+            >
+              {optionLabels?.[option] ?? option}
+              {optionLabels?.[option] ? (
+                <span className="ms-1 text-muted-foreground">{option}</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      )}
       {maxItems !== undefined && (
         <p className="text-[11px] text-muted-foreground">
           تم اختيار {value.length}/{maxItems}

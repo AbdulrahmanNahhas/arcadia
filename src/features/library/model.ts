@@ -486,6 +486,8 @@ export const workSchema = z.object({
   kind: workKindSchema,
   year: z.number().int().nullable(),
   releaseStatus: z.enum(["announced", "releasing", "released", "ended", "unknown"]),
+  isPrivate: z.boolean().default(false),
+  planetId: z.string().nullable().default(null),
   runtimeMinutes: z.number().int().min(0).nullable(),
   playtimeMinutes: z.number().int().min(0).nullable(),
   pageCount: z.number().int().min(0).nullable(),
@@ -793,12 +795,10 @@ export const savedUserViewSchema = z.object({
   excludedKinds: z.array(workKindSchema).default([]),
   statuses: z.array(workSchema.shape.status),
   excludedStatuses: z.array(workSchema.shape.status).default([]),
-  showSaved: z.boolean().default(false),
-  showAnnounced: z.boolean().default(false),
-  showSequelMovies: z.boolean().default(false),
   minRating: z.number().min(0).max(10),
   minScores: workSchema.shape.scoreComponents.default({}),
   favoriteOnly: z.boolean(),
+  privateOnly: z.boolean().default(false),
   yearFrom: z.number().int().nullable(),
   yearTo: z.number().int().nullable(),
   cardSize: z.number().int().min(1).max(300),
@@ -903,13 +903,15 @@ export const createWorkSchema = workSchema
     kind: true,
     year: true,
     status: true,
+    isPrivate: true,
   })
   .extend({
     summary: z.string().default(""),
     status: personalStatusSchema.default("saved"),
+    isPrivate: z.boolean().default(false),
   });
 
-export type CreateWork = z.infer<typeof createWorkSchema>;
+export type CreateWork = z.input<typeof createWorkSchema>;
 
 export const adminWorkTransportSchema = workSchema
   .omit({

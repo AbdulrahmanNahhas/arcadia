@@ -3,6 +3,7 @@ import {
   CheckIcon,
   FunnelSimpleIcon,
   HeartIcon,
+  LockKeyIcon,
   MagnifyingGlassIcon,
   MinusIcon,
   StarIcon,
@@ -23,7 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -57,7 +58,6 @@ export function AdvancedFilter({
   facetOptions,
   onChange,
   matchingCount,
-  hiddenCount = 0,
   title = "فلترة العرض",
   triggerLabel = "الفلاتر",
 }: {
@@ -65,7 +65,6 @@ export function AdvancedFilter({
   facetOptions: FacetOptions;
   onChange: (filters: WorkFilterState) => void;
   matchingCount: number;
-  hiddenCount?: number;
   title?: string;
   triggerLabel?: string;
 }) {
@@ -352,14 +351,9 @@ export function AdvancedFilter({
                 </div>
               </FilterSectionCard>
 
-              {/* Visibility & Toggle Rules */}
               <FilterSectionCard
-                title="قواعد العرض والمفضلة"
-                description={
-                  hiddenCount > 0
-                    ? `هناك ${hiddenCount} عمل مخفي حاليًا حسب الإعدادات.`
-                    : "التحكم في ظهور الأعمال المستبعدة افتراضيًا"
-                }
+                title="خيارات العرض"
+                description="اعرض المفضلة أو السجلات الخاصة فقط. الأعمال المحفوظة والقادمة وأفلام التكملة ظاهرة افتراضياً."
               >
                 <div className="space-y-3">
                   {/* Favorite Toggle */}
@@ -394,35 +388,36 @@ export function AdvancedFilter({
                     />
                   </Button>
 
-                  <Separator className="bg-border/40" />
-
-                  {/* Other Switches */}
-                  {[
-                    ["showSaved", "الأعمال المحفوظة", "إظهار الأعمال المحفوظة للرجوع إليها"],
-                    ["showAnnounced", "الأعمال القادمة", "إظهار الأعمال المعلنة قبل عرضها"],
-                    [
-                      "showSequelMovies",
-                      "أفلام الأجزاء التالية",
-                      "إظهار الأفلام المرتبطة بالسلاسل",
-                    ],
-                  ].map(([key, label, description]) => {
-                    const typedKey = key as keyof Pick<
-                      WorkFilterState,
-                      "showSaved" | "showAnnounced" | "showSequelMovies"
-                    >;
-                    return (
-                      <div key={key} className="flex items-center justify-between gap-3 py-1">
-                        <div>
-                          <p className="text-xs font-medium text-foreground">{label}</p>
-                          <p className="text-[11px] text-muted-foreground">{description}</p>
-                        </div>
-                        <Switch
-                          checked={filters[typedKey]}
-                          onCheckedChange={(checked) => onChange({ ...filters, [key]: checked })}
-                        />
+                  <Button
+                    variant="outline"
+                    onClick={() => onChange({ ...filters, privateOnly: !filters.privateOnly })}
+                    className={cn(
+                      "flex h-auto max-h-none w-full cursor-pointer items-center justify-between rounded-lg! border p-3 transition-colors",
+                      filters.privateOnly
+                        ? "border-primary/30 bg-primary/10"
+                        : "border-border/50 bg-background hover:bg-muted/40",
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <LockKeyIcon
+                        weight={filters.privateOnly ? "fill" : "regular"}
+                        className={cn(
+                          "size-5 shrink-0",
+                          filters.privateOnly ? "text-primary" : "text-muted-foreground",
+                        )}
+                      />
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">الخاصة فقط</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          إظهار السجلات المخفية عن المنصة
+                        </p>
                       </div>
-                    );
-                  })}
+                    </div>
+                    <Switch
+                      checked={filters.privateOnly}
+                      onCheckedChange={(privateOnly) => onChange({ ...filters, privateOnly })}
+                    />
+                  </Button>
                 </div>
               </FilterSectionCard>
             </TabsContent>
@@ -801,6 +796,14 @@ function buildActiveChips({
       label: "المفضلة فقط",
       tone: "neutral",
       onRemove: () => onChange({ ...filters, favoriteOnly: false }),
+    });
+  }
+  if (filters.privateOnly) {
+    chips.push({
+      key: "private",
+      label: "الخاصة فقط",
+      tone: "neutral",
+      onRemove: () => onChange({ ...filters, privateOnly: false }),
     });
   }
   if (filters.yearFrom) {

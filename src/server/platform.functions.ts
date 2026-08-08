@@ -53,7 +53,9 @@ export const searchPlatformCatalog = createServerFn({ method: "GET" })
   });
 
 export const getSimilarWorks = createServerFn({ method: "GET" })
-  .validator(z.object({ workId: z.string().min(1), limit: z.number().int().min(1).max(30) }))
+  .validator(
+    z.object({ workId: z.string().min(1), limit: z.number().int().min(1).max(10).default(10) }),
+  )
   .handler(async ({ data }) => {
     const { getSimilarWorks: findSimilarWorks } = await import("@/db/platform-repository");
     return findSimilarWorks(data.workId, data.limit);

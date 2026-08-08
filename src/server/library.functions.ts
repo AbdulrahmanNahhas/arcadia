@@ -151,6 +151,26 @@ export const saveWork = createServerFn({ method: "POST" })
     return updateWork(data);
   });
 
+export const deleteWorks = createServerFn({ method: "POST" })
+  .validator(z.object({ ids: z.array(z.string().min(1)).min(1).max(1_000) }))
+  .handler(async ({ data }) => {
+    const repository = await import("@/db/repository");
+    return repository.deleteWorks(data.ids);
+  });
+
+export const uploadWorkImage = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      dataUrl: z.string().max(14_000_000),
+      fileName: z.string().trim().min(1).max(255),
+      assetType: z.enum(["poster", "banner", "logo"]),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const repository = await import("@/db/repository");
+    return repository.storeWorkImage(data);
+  });
+
 export const addWorksBulk = createServerFn({ method: "POST" })
   .validator(bulkCreateWorkSchema)
   .handler(async ({ data }) => {

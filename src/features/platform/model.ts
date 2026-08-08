@@ -62,7 +62,10 @@ export type RecommendationReason = {
     | "score"
     | "risk"
     | "era"
-    | "relationship";
+    | "relationship"
+    | "country"
+    | "source"
+    | "kind";
   label: string;
   contribution: number;
 };

@@ -38,12 +38,10 @@ export type WorkFilterState = {
   excludedKinds: WorkKind[];
   statuses: Work["status"][];
   excludedStatuses: Work["status"][];
-  showSaved: boolean;
-  showAnnounced: boolean;
-  showSequelMovies: boolean;
   minRating: number;
   minScores: ScoreComponents;
   favoriteOnly: boolean;
+  privateOnly: boolean;
   yearFrom: number | null;
   yearTo: number | null;
   facets: FacetFilters;
@@ -105,12 +103,10 @@ export function createDefaultFilters(): WorkFilterState {
     excludedKinds: [],
     statuses: [],
     excludedStatuses: [],
-    showSaved: false,
-    showAnnounced: false,
-    showSequelMovies: false,
     minRating: 0,
     minScores: {},
     favoriteOnly: false,
+    privateOnly: false,
     yearFrom: null,
     yearTo: null,
     facets: createEmptyFacetFilters(),
@@ -118,7 +114,7 @@ export function createDefaultFilters(): WorkFilterState {
 }
 
 export function isWorkVisibleByDefault(work: Work) {
-  return work.status !== "saved" && work.releaseStatus !== "announced" && !work.isSequelMovie;
+  return !work.isPrivate;
 }
 
 export function compareWorks(left: Work, right: Work, sort: Sort, direction: SortDirection) {
@@ -275,12 +271,7 @@ function matchesSelection(selection: FacetSelection, values: string[]) {
 }
 
 export function workMatchesFilters(work: Work, filters: WorkFilterState) {
-  const savedExplicitlySelected = filters.statuses.includes("saved");
-  const announcedExplicitlySelected = filters.facets.releaseStatuses.include.includes("announced");
-  if (work.status === "saved" && !filters.showSaved && !savedExplicitlySelected) return false;
-  if (work.releaseStatus === "announced" && !filters.showAnnounced && !announcedExplicitlySelected)
-    return false;
-  if (work.isSequelMovie && !filters.showSequelMovies) return false;
+  if (work.isPrivate && !filters.privateOnly) return false;
   if (filters.kinds.length && !filters.kinds.includes(work.kind)) return false;
   if (filters.excludedKinds.includes(work.kind)) return false;
   if (filters.statuses.length && !filters.statuses.includes(work.status)) return false;
@@ -320,12 +311,10 @@ export function workMatchesSavedView(work: Work, view: SavedUserView) {
       excludedKinds: view.excludedKinds,
       statuses: view.statuses,
       excludedStatuses: view.excludedStatuses,
-      showSaved: view.showSaved,
-      showAnnounced: view.showAnnounced,
-      showSequelMovies: view.showSequelMovies,
       minRating: view.minRating,
       minScores: view.minScores,
       favoriteOnly: view.favoriteOnly,
+      privateOnly: view.privateOnly,
       yearFrom: view.yearFrom,
       yearTo: view.yearTo,
       facets: normalizeFacetFilters(view.facets),
@@ -373,9 +362,7 @@ export function countActiveFilters(filters: WorkFilterState) {
     Number(filters.minRating > 0) +
     Object.keys(filters.minScores).length +
     Number(filters.favoriteOnly) +
-    Number(filters.yearFrom !== null || filters.yearTo !== null) +
-    Number(filters.showSaved) +
-    Number(filters.showAnnounced) +
-    Number(filters.showSequelMovies)
+    Number(filters.privateOnly) +
+    Number(filters.yearFrom !== null || filters.yearTo !== null)
   );
 }

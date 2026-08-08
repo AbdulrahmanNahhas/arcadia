@@ -25,7 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getSavedViews, getWorks } from "@/server/library.functions";
 import { LibraryHeader } from "./components/library-header";
-import { isWorkVisibleByDefault, workMatchesSavedView } from "./filtering";
+import { createDefaultFilters, workMatchesFilters, workMatchesSavedView } from "./filtering";
 import type { SavedUserView, Work } from "./model";
 import { getSavedViewAccentStyle, getSavedViewIcon } from "./view-meta";
 
@@ -62,7 +62,10 @@ export function LibraryHome() {
     queryKey: ["saved-views"],
     queryFn: () => getSavedViews(),
   });
-  const visibleWorks = useMemo(() => works.filter(isWorkVisibleByDefault), [works]);
+  const visibleWorks = useMemo(
+    () => works.filter((work) => workMatchesFilters(work, createDefaultFilters())),
+    [works],
+  );
 
   const summary = useMemo(
     () => ({
@@ -308,7 +311,7 @@ function LargeViewCard({ view, works }: { view?: SavedUserView; works: Work[] })
   const Icon = view ? getSavedViewIcon(view.icon) : SquaresFourIcon;
   const matchingWorks = view
     ? works.filter((work) => workMatchesSavedView(work, view))
-    : works.filter(isWorkVisibleByDefault);
+    : works.filter((work) => workMatchesFilters(work, createDefaultFilters()));
   const covers = matchingWorks
     .filter((work): work is Work & { imagePath: string } => typeof work.imagePath === "string")
     .sort((left, right) => (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0))

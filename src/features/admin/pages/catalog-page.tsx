@@ -3,14 +3,23 @@ import {
   NotePencilIcon,
   PlusIcon,
   SelectionPlusIcon,
+  TrashIcon,
 } from "@phosphor-icons/react";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
@@ -34,7 +43,7 @@ import { BulkEditDialog } from "@/features/admin/components/bulk-edit";
 import { WorkEditor } from "@/features/admin/components/editor-form";
 import { JsonEditorDialog } from "@/features/admin/components/json-editor";
 import type { Work } from "@/features/library/model";
-import { getEntities, getWorks } from "@/server/library.functions";
+import { deleteWorks, getEntities, getWorks } from "@/server/library.functions";
 import { AdminPageHeader } from "../components/admin-page-header";
 
 const kindOptions = [
@@ -62,6 +71,7 @@ export function AdminCatalogPage() {
   const [editingWork, setEditingWork] = useState<Work | null>(null);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const visible = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return works.filter(
@@ -79,6 +89,16 @@ export function AdminCatalogPage() {
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["works"] });
   };
+  const deleteMutation = useMutation({
+    mutationFn: deleteWorks,
+    onSuccess: async () => {
+      const deleted = new Set(deletingIds);
+      setEditingWork((current) => (current && deleted.has(current.id) ? null : current));
+      setSelectedIds((current) => new Set([...current].filter((id) => !deleted.has(id))));
+      setDeletingIds([]);
+      await refresh();
+    },
+  });
   const toggleVisible = (checked: boolean) => {
     setSelectedIds((current) => {
       const next = new Set(current);
@@ -122,6 +142,13 @@ export function AdminCatalogPage() {
                 </Button>
                 <Button size="sm" onClick={() => setJsonEditorOpen(true)}>
                   <NotePencilIcon data-icon="inline-start" /> محرر JSON
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setDeletingIds([...selectedIds])}
+                >
+                  <TrashIcon data-icon="inline-start" /> حذف
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
                   مسح التحديد
@@ -202,6 +229,7 @@ export function AdminCatalogPage() {
                       checked={selectedIds.has(work.id)}
                       onCheckedChange={(checked) => toggleWork(work.id, checked)}
                       onEdit={() => setEditingWork(work)}
+                      onDelete={() => setDeletingIds([work.id])}
                     />
                   ))}
                 </TableBody>
@@ -236,6 +264,14 @@ export function AdminCatalogPage() {
           await refresh();
         }}
       />
+      <DeleteWorksDialog
+        ids={deletingIds}
+        open={deletingIds.length > 0}
+        onOpenChange={(open) => !open && setDeletingIds([])}
+        onConfirm={() => deleteMutation.mutate({ data: { ids: deletingIds } })}
+        pending={deleteMutation.isPending}
+        error={deleteMutation.error?.message}
+      />
       {jsonEditorOpen ? (
         <JsonEditorDialog
           open={jsonEditorOpen}
@@ -254,16 +290,58 @@ export function AdminCatalogPage() {
   );
 }
 
+function DeleteWorksDialog({
+  ids,
+  open,
+  onOpenChange,
+  onConfirm,
+  pending,
+  error,
+}: {
+  ids: string[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  pending: boolean;
+  error?: string;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent dir="rtl">
+        <DialogHeader className="text-right">
+          <DialogTitle>حذف {ids.length} عمل</DialogTitle>
+          <DialogDescription>
+            سيُحذف العمل وكل سجلاته المرتبطة من قاعدة البيانات. ستُحذف ملفات الصور المحلية فقط إذا لم
+            تعد مستخدمة في أي سجل آخر.
+          </DialogDescription>
+        </DialogHeader>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+            إلغاء
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={pending || ids.length === 0}>
+            <TrashIcon data-icon="inline-start" />
+            {pending ? "جارٍ الحذف…" : "حذف نهائياً"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CatalogRow({
   work,
   checked,
   onCheckedChange,
   onEdit,
+  onDelete,
 }: {
   work: Work;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   onEdit: () => void;
+  onDelete: () => void;
 }) {
   return (
     <TableRow data-state={checked ? "selected" : undefined}>
@@ -297,12 +375,32 @@ function CatalogRow({
         </Badge>
       </TableCell>
       <TableCell className="font-mono">{work.year ?? "—"}</TableCell>
-      <TableCell>{work.status}</TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <span>{work.status}</span>
+          {work.isPrivate ? <Badge variant="secondary">خاص</Badge> : null}
+        </div>
+      </TableCell>
       <TableCell className="font-mono">{work.calculatedRating?.toFixed(1) ?? "—"}</TableCell>
       <TableCell>
-        <Button variant="ghost" size="icon-sm" onClick={onEdit} aria-label={`تعديل ${work.title}`}>
-          <NotePencilIcon />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onEdit}
+            aria-label={`تعديل ${work.title}`}
+          >
+            <NotePencilIcon />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onDelete}
+            aria-label={`حذف ${work.title}`}
+          >
+            <TrashIcon />
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   );

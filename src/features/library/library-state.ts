@@ -99,12 +99,10 @@ export function viewStateFromSavedView(view: SavedUserView): LibraryViewState {
       excludedKinds: view.excludedKinds,
       statuses: view.statuses,
       excludedStatuses: view.excludedStatuses,
-      showSaved: view.showSaved,
-      showAnnounced: view.showAnnounced,
-      showSequelMovies: view.showSequelMovies,
       minRating: view.minRating,
       minScores: view.minScores,
       favoriteOnly: view.favoriteOnly,
+      privateOnly: view.privateOnly,
       yearFrom: view.yearFrom,
       yearTo: view.yearTo,
       facets: normalizeFacetFilters(view.facets),
@@ -193,15 +191,13 @@ function decodeFilters(value: unknown, defaults: WorkFilterState): WorkFilterSta
           includes(personalStatuses, item),
         )
       : [],
-    showSaved: raw.showSaved === true,
-    showAnnounced: raw.showAnnounced === true,
-    showSequelMovies: raw.showSequelMovies === true,
     minRating: typeof raw.minRating === "number" ? raw.minRating : 0,
     minScores:
       raw.minScores && typeof raw.minScores === "object"
         ? (raw.minScores as WorkFilterState["minScores"])
         : {},
     favoriteOnly: raw.favoriteOnly === true,
+    privateOnly: raw.privateOnly === true,
     yearFrom: numberOrNull(raw.yearFrom),
     yearTo: numberOrNull(raw.yearTo),
     facets: normalizeFacetFilters(raw.facets),

@@ -15,7 +15,6 @@ import {
   buildFacetOptions,
   compareWorks,
   createDefaultFilters,
-  isWorkVisibleByDefault,
   workMatchesFilters,
 } from "./filtering";
 import { groupWorks } from "./grouping";
@@ -142,12 +141,10 @@ export function LibraryViewPage({
       excludedKinds: filters.excludedKinds,
       statuses: filters.statuses,
       excludedStatuses: filters.excludedStatuses,
-      showSaved: filters.showSaved,
-      showAnnounced: filters.showAnnounced,
-      showSequelMovies: filters.showSequelMovies,
       minRating: filters.minRating,
       minScores: filters.minScores,
       favoriteOnly: filters.favoriteOnly,
+      privateOnly: filters.privateOnly,
       yearFrom: filters.yearFrom,
       yearTo: filters.yearTo,
       cardSize,
@@ -215,7 +212,6 @@ export function LibraryViewPage({
               facetOptions={facetOptions}
               onChange={(value) => updateViewState({ filters: value })}
               matchingCount={filteredWorks.length}
-              hiddenCount={works.filter((work) => !isWorkVisibleByDefault(work)).length}
             />
           }
           addWork={embedded ? undefined : <AddWorkDialog onCreated={refreshWorks} />}

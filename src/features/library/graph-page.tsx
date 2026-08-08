@@ -17,12 +17,7 @@ import { WorkArtwork } from "./components/work-artwork";
 import { WorkDetailDialog } from "./components/work-detail-dialog";
 import { AdvancedFilter } from "./filter-sheet";
 import type { WorkFilterState } from "./filtering";
-import {
-  buildFacetOptions,
-  createDefaultFilters,
-  isWorkVisibleByDefault,
-  workMatchesFilters,
-} from "./filtering";
+import { buildFacetOptions, createDefaultFilters, workMatchesFilters } from "./filtering";
 import type { Work } from "./model";
 import { useArabicTranslations } from "./translations";
 
@@ -51,7 +46,7 @@ export function GraphPage() {
 
   const facetOptions = useMemo(() => buildFacetOptions(works), [works]);
   const visibleWorks = useMemo(
-    () => works.filter((work) => isWorkVisibleByDefault(work) && workMatchesFilters(work, filters)),
+    () => works.filter((work) => workMatchesFilters(work, filters)),
     [filters, works],
   );
   const nodes = useMemo(
@@ -174,7 +169,6 @@ export function GraphPage() {
             facetOptions={facetOptions}
             onChange={setFilters}
             matchingCount={visibleWorks.length}
-            hiddenCount={works.filter((work) => !isWorkVisibleByDefault(work)).length}
             title="فلترة خريطة المكتبة"
             triggerLabel="فلترة الخريطة"
           />

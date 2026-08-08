@@ -33,6 +33,7 @@ export const works = sqliteTable(
     volumeCount: integer("volume_count"),
     routeCount: integer("route_count"),
     status: text("status").notNull().default("released"),
+    isPrivate: integer("is_private", { mode: "boolean" }).notNull().default(false),
     metadata: text("metadata", { mode: "json" })
       .$type<Record<string, unknown>>()
       .notNull()
@@ -71,6 +72,7 @@ export const works = sqliteTable(
     index("works_kind_idx").on(table.kind),
     index("works_sort_title_idx").on(table.sortTitle),
     index("works_release_year_idx").on(table.releaseYear),
+    index("works_private_idx").on(table.isPrivate),
   ],
 );
 

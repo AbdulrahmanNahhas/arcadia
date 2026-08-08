@@ -1,3 +1,5 @@
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { extname, relative, resolve } from "node:path";
 import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, or } from "drizzle-orm";
 import type {
   AdminEntityInput,
@@ -126,6 +128,55 @@ function mimeTypeForPath(path: string) {
   return "image/jpeg";
 }
 
+function purgeUnreferencedLocalMedia(paths: string[]) {
+  const referenced = new Set(
+    db
+      .select({ relativePath: assets.relativePath })
+      .from(assets)
+      .all()
+      .map(({ relativePath }) => relativePath),
+  );
+  const publicDirectory = resolve(process.cwd(), "public");
+  for (const path of new Set(paths)) {
+    if (!path.startsWith("/media/") || referenced.has(path)) continue;
+    const target = resolve(publicDirectory, `.${path}`);
+    if (relative(publicDirectory, target).startsWith("..")) continue;
+    try {
+      rmSync(target, { force: true });
+    } catch {
+      // A missing or locked local file must not roll back a valid database mutation.
+    }
+  }
+}
+
+export function storeWorkImage(input: {
+  dataUrl: string;
+  fileName: string;
+  assetType: "poster" | "banner" | "logo";
+}) {
+  const match = /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/.exec(
+    input.dataUrl,
+  );
+  if (!match) throw new Error("استخدم ملف صورة PNG أو JPEG أو WebP أو GIF صالحاً.");
+  const bytes = Buffer.from(match[2], "base64");
+  if (bytes.length === 0 || bytes.length > 10 * 1024 * 1024) {
+    throw new Error("يجب ألا يتجاوز حجم الصورة 10 ميغابايت.");
+  }
+  const extensionByMime: Record<string, string> = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+  };
+  const extension =
+    extensionByMime[match[1]] ?? (extname(input.fileName).toLocaleLowerCase() || ".jpg");
+  const relativePath = `/media/uploads/${crypto.randomUUID()}${extension}`;
+  const directory = resolve(process.cwd(), "public", "media", "uploads");
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(resolve(process.cwd(), "public", `.${relativePath}`), bytes);
+  return { relativePath, mimeType: match[1] };
+}
+
 function deriveProgressMetric(
   work: typeof works.$inferSelect,
   structure?: { count: number; unitType: string },
@@ -176,6 +227,14 @@ export function listWorks(): Work[] {
   }
 
   const workAssets = db.select().from(assets).where(inArray(assets.ownerId, workIds)).all();
+  const planetByWork = new Map(
+    db
+      .select({ workId: workPlanetAssignments.workId, planetId: workPlanetAssignments.planetId })
+      .from(workPlanetAssignments)
+      .where(inArray(workPlanetAssignments.workId, workIds))
+      .all()
+      .map((assignment) => [assignment.workId, assignment.planetId]),
+  );
   const assetsByWork = new Map<string, Map<string, string>>();
   for (const asset of workAssets) {
     if (asset.ownerType !== "work") continue;
@@ -349,6 +408,8 @@ export function listWorks(): Work[] {
       kind: work.kind as WorkKind,
       year: work.releaseYear,
       releaseStatus: work.status as Work["releaseStatus"],
+      isPrivate: work.isPrivate,
+      planetId: planetByWork.get(work.id) ?? null,
       runtimeMinutes: work.runtimeMinutes,
       playtimeMinutes: work.playtimeMinutes,
       pageCount: work.pageCount,
@@ -689,6 +750,7 @@ export function createWork(input: CreateWork): Work {
         summary: input.summary,
         releaseYear: input.year,
         status: "released",
+        isPrivate: input.isPrivate,
         metadata: { palette: "new" },
         createdAt: now,
         updatedAt: now,
@@ -732,6 +794,50 @@ export function createWork(input: CreateWork): Work {
   const created = listWorks().find((work) => work.id === id);
   if (!created) throw new Error("Could not create work");
   return created;
+}
+
+export function deleteWorks(ids: string[]) {
+  const workIds = [...new Set(ids)];
+  if (!workIds.length) return { deleted: 0, deletedMedia: 0 };
+  const existingIds = db
+    .select({ id: works.id })
+    .from(works)
+    .where(inArray(works.id, workIds))
+    .all()
+    .map(({ id }) => id);
+  const mediaPaths = db
+    .select({ relativePath: assets.relativePath })
+    .from(assets)
+    .where(and(eq(assets.ownerType, "work"), inArray(assets.ownerId, existingIds)))
+    .all()
+    .map(({ relativePath }) => relativePath);
+  db.transaction((tx) => {
+    tx.delete(searchDocuments)
+      .where(
+        inArray(
+          searchDocuments.id,
+          existingIds.map((id) => `work:${id}`),
+        ),
+      )
+      .run();
+    tx.delete(externalLinks)
+      .where(and(eq(externalLinks.ownerType, "work"), inArray(externalLinks.ownerId, existingIds)))
+      .run();
+    tx.delete(assets)
+      .where(and(eq(assets.ownerType, "work"), inArray(assets.ownerId, existingIds)))
+      .run();
+    tx.delete(works).where(inArray(works.id, existingIds)).run();
+  });
+  const sharedPaths = new Set(
+    db
+      .select({ relativePath: assets.relativePath })
+      .from(assets)
+      .all()
+      .map(({ relativePath }) => relativePath),
+  );
+  const removed = mediaPaths.filter((path) => path.startsWith("/media/") && !sharedPaths.has(path));
+  purgeUnreferencedLocalMedia(mediaPaths);
+  return { deleted: existingIds.length, deletedMedia: new Set(removed).size };
 }
 
 export function updateFavorite(workId: string, favorite: boolean) {
@@ -835,6 +941,12 @@ export function updateTaxonomyTranslations(
 }
 
 export function updateWork(input: AdminWorkUpdate): Work {
+  const previousAssetPaths = db
+    .select({ relativePath: assets.relativePath })
+    .from(assets)
+    .where(and(eq(assets.ownerType, "work"), eq(assets.ownerId, input.id)))
+    .all()
+    .map(({ relativePath }) => relativePath);
   const existing = db
     .select({ work: works, personal: personalState })
     .from(works)
@@ -869,6 +981,7 @@ export function updateWork(input: AdminWorkUpdate): Work {
         summary: input.summary,
         releaseYear: input.year,
         status: input.releaseStatus,
+        isPrivate: input.isPrivate,
         runtimeMinutes: input.runtimeMinutes,
         playtimeMinutes: input.playtimeMinutes,
         pageCount: input.pageCount,
@@ -895,16 +1008,24 @@ export function updateWork(input: AdminWorkUpdate): Work {
       }
     }
 
-    if (["movie", "series", "anime"].includes(input.kind)) {
+    if (["movie", "series", "anime"].includes(input.kind) && input.planetId) {
       tx.insert(workPlanetAssignments)
         .values({
           workId: input.id,
-          planetId: "planet-adventure",
-          source: "migration-default",
-          reviewState: "needs-review",
+          planetId: input.planetId,
+          source: "manual",
+          reviewState: "reviewed",
           updatedAt: now,
         })
-        .onConflictDoNothing()
+        .onConflictDoUpdate({
+          target: workPlanetAssignments.workId,
+          set: {
+            planetId: input.planetId,
+            source: "manual",
+            reviewState: "reviewed",
+            updatedAt: now,
+          },
+        })
         .run();
     } else {
       tx.delete(workPlanetAssignments).where(eq(workPlanetAssignments.workId, input.id)).run();
@@ -1016,7 +1137,7 @@ export function updateWork(input: AdminWorkUpdate): Work {
           .from(terms)
           .where(and(eq(terms.vocabulary, vocabulary), eq(terms.slug, termSlug)))
           .get();
-        if (!term && vocabulary === "country") {
+        if (!term && (vocabulary === "country" || vocabulary === "tag")) {
           const id = crypto.randomUUID();
           tx.insert(terms).values({ id, vocabulary, name, slug: termSlug }).run();
           term = tx.select().from(terms).where(eq(terms.id, id)).get();
@@ -1278,6 +1399,8 @@ export function updateWork(input: AdminWorkUpdate): Work {
     }
   });
 
+  purgeUnreferencedLocalMedia(previousAssetPaths);
+
   upsertSearchDocument({
     id: `work:${input.id}`,
     entityType: "work",
@@ -1317,6 +1440,7 @@ export function createWorksBulk(
           summary: input.summary,
           releaseYear: input.year,
           status: "released",
+          isPrivate: input.isPrivate,
           metadata: { palette: "new" },
           createdAt: now,
           updatedAt: now,
@@ -1499,12 +1623,10 @@ export function listSavedViews(): SavedUserView[] {
           | "excludedKinds"
           | "statuses"
           | "excludedStatuses"
-          | "showSaved"
-          | "showAnnounced"
-          | "showSequelMovies"
           | "minRating"
           | "minScores"
           | "favoriteOnly"
+          | "privateOnly"
           | "yearFrom"
           | "yearTo"
           | "facets"
@@ -1532,14 +1654,10 @@ export function listSavedViews(): SavedUserView[] {
         excludedKinds: filters.excludedKinds ?? [],
         statuses: filters.statuses ?? [],
         excludedStatuses: filters.excludedStatuses ?? [],
-        showSaved: filters.showSaved ?? false,
-        showAnnounced:
-          filters.showAnnounced ??
-          Boolean(filters.facets?.releaseStatuses?.include.includes("announced")),
-        showSequelMovies: filters.showSequelMovies ?? false,
         minRating: filters.minRating ?? 0,
         minScores: filters.minScores ?? {},
         favoriteOnly: filters.favoriteOnly ?? false,
+        privateOnly: filters.privateOnly ?? false,
         yearFrom: filters.yearFrom ?? null,
         yearTo: filters.yearTo ?? null,
         cardSize: row.cardSize,
@@ -1586,12 +1704,10 @@ export function createSavedView(
         excludedKinds: input.excludedKinds,
         statuses: input.statuses,
         excludedStatuses: input.excludedStatuses,
-        showSaved: input.showSaved,
-        showAnnounced: input.showAnnounced,
-        showSequelMovies: input.showSequelMovies,
         minRating: input.minRating,
         minScores: input.minScores,
         favoriteOnly: input.favoriteOnly,
+        privateOnly: input.privateOnly,
         yearFrom: input.yearFrom,
         yearTo: input.yearTo,
         facets: input.facets,

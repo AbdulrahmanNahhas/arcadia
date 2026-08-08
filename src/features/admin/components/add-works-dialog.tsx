@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { kindLabels, personalStatuses } from "@/features/library/filtering";
 import type { Genre, Work, WorkKind } from "@/features/library/model";
@@ -44,6 +45,7 @@ type NewWork = {
   kind: WorkKind;
   year: number | null;
   status: Work["status"];
+  isPrivate: boolean;
   summary: string;
   genres: Genre[];
   tags: string[];
@@ -100,6 +102,7 @@ export function parsePastedWorks(value: string): ParseResult {
       rawStatus = "saved",
       rawGenres = "",
       rawStudios = "",
+      rawPrivate = "false",
     ] = line.split("|").map((part) => part.trim());
     const lineErrors: string[] = [];
     if (!title) lineErrors.push("العنوان مطلوب");
@@ -109,6 +112,9 @@ export function parsePastedWorks(value: string): ParseResult {
     if (!personalStatuses.includes(rawStatus as Work["status"])) {
       lineErrors.push(`الحالة «${rawStatus}» غير معروفة`);
     }
+    const isPrivate = ["true", "private", "خاص", "yes", "1"].includes(
+      rawPrivate.toLocaleLowerCase(),
+    );
     const year = rawYear ? Number(rawYear) : null;
     if (year !== null && (!Number.isInteger(year) || year < 1000 || year > 2200)) {
       lineErrors.push("السنة يجب أن تكون بين 1000 و2200");
@@ -128,6 +134,7 @@ export function parsePastedWorks(value: string): ParseResult {
       kind: rawKind as WorkKind,
       year,
       status: rawStatus as Work["status"],
+      isPrivate,
       summary: "",
       genres,
       tags: [],
@@ -153,6 +160,7 @@ export function AddWorksDialog({
   const [status, setStatus] = useState<Work["status"]>("saved");
   const [year, setYear] = useState("");
   const [summary, setSummary] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
   const [genres, setGenres] = useState("");
   const [studios, setStudios] = useState("");
   const [rows, setRows] = useState(pasteExample);
@@ -203,6 +211,7 @@ export function AddWorksDialog({
             kind,
             year: year ? Number(year) : null,
             status,
+            isPrivate,
             summary: summary.trim(),
             genres: parsedGenres,
             tags: [],
@@ -334,6 +343,19 @@ export function AddWorksDialog({
                     />
                   </Field>
                 </div>
+                <Field orientation="horizontal">
+                  <Switch
+                    id="new-work-private"
+                    checked={isPrivate}
+                    onCheckedChange={setIsPrivate}
+                  />
+                  <div className="flex flex-col gap-1">
+                    <FieldLabel htmlFor="new-work-private">عمل خاص</FieldLabel>
+                    <FieldDescription>
+                      يُحفظ في الإدارة وقاعدة البيانات ولا يظهر في المنصة.
+                    </FieldDescription>
+                  </div>
+                </Field>
                 <Field>
                   <FieldLabel htmlFor="new-work-genres">التصنيفات</FieldLabel>
                   <Input
@@ -374,8 +396,8 @@ export function AddWorksDialog({
                   <RowsPlusBottomIcon />
                   <AlertTitle>عمود واحد لكل قيمة</AlertTitle>
                   <AlertDescription>
-                    العنوان | النوع | السنة | الحالة | التصنيفات | الاستوديوهات. افصل القيم داخل
-                    العمود بفواصل.
+                    العنوان | النوع | السنة | الحالة | التصنيفات | الاستوديوهات | خاص (اختياري).
+                    افصل القيم داخل العمود بفواصل.
                   </AlertDescription>
                 </Alert>
                 <Field data-invalid={parsed.errors.length > 0}>
