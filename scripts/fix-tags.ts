@@ -1,42 +1,42 @@
-import Database from "better-sqlite3"
-import { createHash } from "node:crypto"
-import { join, resolve } from "node:path"
+import { createHash } from "node:crypto";
+import { join, resolve } from "node:path";
+import Database from "better-sqlite3";
 
 // =============================================================================
 // CONFIGURATION
 // =============================================================================
 
-const MIGRATION_SOURCE = "curated-tag-cleanup-v2"
+const MIGRATION_SOURCE = "curated-tag-cleanup-v2";
 
 const databasePath = resolve(
-  process.env.ARCADIA_DB_PATH ?? join(process.cwd(), "data", "arcadia.db")
-)
+  process.env.ARCADIA_DB_PATH ?? join(process.cwd(), "data", "arcadia.db"),
+);
 
 const options = {
   dryRun: process.argv.includes("--dry-run"),
   allowMissingWorks: process.argv.includes("--allow-missing-works"),
   pruneInvalidOrphans: process.argv.includes("--prune-invalid-orphans"),
   failOnWarnings: process.argv.includes("--strict"),
-} as const
+} as const;
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-type WorkId = string
-type CanonicalTag = string
+type WorkId = string;
+type CanonicalTag = string;
 
 interface WorkTagUpdate {
-  readonly tags: readonly string[]
+  readonly tags: readonly string[];
 }
 
 interface PreparedWorkUpdate {
-  readonly workId: WorkId
-  readonly tags: readonly CanonicalTag[]
+  readonly workId: WorkId;
+  readonly tags: readonly CanonicalTag[];
 }
 
 interface ValidationIssue {
-  readonly severity: "warning" | "error"
+  readonly severity: "warning" | "error";
   readonly code:
     | "forbidden-genre"
     | "forbidden-tone"
@@ -46,20 +46,20 @@ interface ValidationIssue {
     | "deprecated-tag"
     | "suspicious-tag"
     | "missing-work"
-    | "singleton-tag"
-  readonly message: string
-  readonly workId?: WorkId
-  readonly tag?: string
+    | "singleton-tag";
+  readonly message: string;
+  readonly workId?: WorkId;
+  readonly tag?: string;
 }
 
 interface MigrationStats {
-  readonly worksProcessed: number
-  readonly worksSkipped: number
-  readonly linksDeleted: number
-  readonly linksInserted: number
-  readonly termsCreated: number
-  readonly termsRenamed: number
-  readonly invalidOrphansDeleted: number
+  readonly worksProcessed: number;
+  readonly worksSkipped: number;
+  readonly linksDeleted: number;
+  readonly linksInserted: number;
+  readonly termsCreated: number;
+  readonly termsRenamed: number;
+  readonly invalidOrphansDeleted: number;
 }
 
 // =============================================================================
@@ -87,8 +87,8 @@ const GENRES = new Set(
     "Sports",
     "Supernatural",
     "Thriller",
-  ].map(normalizedComparisonKey)
-)
+  ].map(normalizedComparisonKey),
+);
 
 const TONES = new Set(
   [
@@ -102,8 +102,8 @@ const TONES = new Set(
     "Satirical",
     "Epic",
     "Atmospheric",
-  ].map(normalizedComparisonKey)
-)
+  ].map(normalizedComparisonKey),
+);
 
 // Common alternate spellings of genres and tones.
 // These are also forbidden as tags.
@@ -123,8 +123,8 @@ const FORBIDDEN_VOCABULARY_ALIASES = new Set(
     "Suspenseful",
     "Gritty",
     "Grim",
-  ].map(normalizedComparisonKey)
-)
+  ].map(normalizedComparisonKey),
+);
 
 // =============================================================================
 // CANONICAL TAG NORMALIZATION
@@ -231,7 +231,7 @@ const TAG_ALIASES = defineAliases({
   "ensemble-cast": "Ensemble Cast",
   "male-protagonist": "Male Protagonist",
   "female-protagonist": "Female Protagonist",
-})
+});
 
 /**
  * Old tags that should never be created again.
@@ -258,8 +258,8 @@ const DEPRECATED_TAGS = new Set(
     "Shinigami",
     "Villain League",
     "Yakuza War",
-  ].map(normalizedComparisonKey)
-)
+  ].map(normalizedComparisonKey),
+);
 
 /**
  * These patterns usually indicate that a tag is too title-specific to work
@@ -276,7 +276,7 @@ const SUSPICIOUS_TAG_PATTERNS: readonly RegExp[] = [
   /\broute\b/i,
   /\bending\b/i,
   /\bcharacter named\b/i,
-]
+];
 
 // =============================================================================
 // DATA
@@ -426,17 +426,14 @@ const rawUpdates = {
       "Cyborgs",
     ],
   },
-} as const satisfies Record<WorkId, WorkTagUpdate>
+} as const satisfies Record<WorkId, WorkTagUpdate>;
 
 // =============================================================================
 // GENERAL UTILITIES
 // =============================================================================
 
 function stableId(...parts: readonly string[]): string {
-  return createHash("sha256")
-    .update(parts.join(":"), "utf8")
-    .digest("hex")
-    .slice(0, 32)
+  return createHash("sha256").update(parts.join(":"), "utf8").digest("hex").slice(0, 32);
 }
 
 function slug(value: string): string {
@@ -446,76 +443,74 @@ function slug(value: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .replace(/^-+|-+$/g, "");
 }
 
 function normalizedComparisonKey(value: string): string {
-  return slug(value)
+  return slug(value);
 }
 
 function cleanWhitespace(value: string): string {
-  return value.trim().replace(/\s+/g, " ")
+  return value.trim().replace(/\s+/g, " ");
 }
 
 function defineAliases(
-  aliases: Readonly<Record<string, CanonicalTag>>
+  aliases: Readonly<Record<string, CanonicalTag>>,
 ): ReadonlyMap<string, CanonicalTag> {
   return new Map(
     Object.entries(aliases).map(([alias, canonical]) => [
       normalizedComparisonKey(alias),
       cleanWhitespace(canonical),
-    ])
-  )
+    ]),
+  );
 }
 
 function canonicalizeTag(rawTag: string): CanonicalTag {
-  const cleaned = cleanWhitespace(rawTag)
-  const key = normalizedComparisonKey(cleaned)
+  const cleaned = cleanWhitespace(rawTag);
+  const key = normalizedComparisonKey(cleaned);
 
-  return TAG_ALIASES.get(key) ?? cleaned
+  return TAG_ALIASES.get(key) ?? cleaned;
 }
 
 function isGenre(value: string): boolean {
-  return GENRES.has(normalizedComparisonKey(value))
+  return GENRES.has(normalizedComparisonKey(value));
 }
 
 function isTone(value: string): boolean {
-  return TONES.has(normalizedComparisonKey(value))
+  return TONES.has(normalizedComparisonKey(value));
 }
 
 function isForbiddenVocabularyAlias(value: string): boolean {
-  return FORBIDDEN_VOCABULARY_ALIASES.has(normalizedComparisonKey(value))
+  return FORBIDDEN_VOCABULARY_ALIASES.has(normalizedComparisonKey(value));
 }
 
 function isDeprecatedTag(value: string): boolean {
-  return DEPRECATED_TAGS.has(normalizedComparisonKey(value))
+  return DEPRECATED_TAGS.has(normalizedComparisonKey(value));
 }
 
 function hasSuspiciousPattern(value: string): boolean {
-  return SUSPICIOUS_TAG_PATTERNS.some((pattern) => pattern.test(value))
+  return SUSPICIOUS_TAG_PATTERNS.some((pattern) => pattern.test(value));
 }
 
 // =============================================================================
 // VALIDATION AND PREPARATION
 // =============================================================================
 
-function validateAndPrepareUpdates(
-  input: Readonly<Record<WorkId, WorkTagUpdate>>
-): {
-  readonly updates: readonly PreparedWorkUpdate[]
-  readonly issues: readonly ValidationIssue[]
-  readonly frequencies: ReadonlyMap<CanonicalTag, number>
+function validateAndPrepareUpdates(input: Readonly<Record<WorkId, WorkTagUpdate>>): {
+  readonly updates: readonly PreparedWorkUpdate[];
+  readonly issues: readonly ValidationIssue[];
+  readonly frequencies: ReadonlyMap<CanonicalTag, number>;
 } {
-  const issues: ValidationIssue[] = []
-  const preparedUpdates: PreparedWorkUpdate[] = []
-  const frequencies = new Map<CanonicalTag, number>()
+  const issues: ValidationIssue[] = [];
+  const preparedUpdates: PreparedWorkUpdate[] = [];
+  const frequencies = new Map<CanonicalTag, number>();
 
   for (const [workId, data] of Object.entries(input)) {
-    const canonicalTags: CanonicalTag[] = []
-    const seenSlugs = new Set<string>()
+    const canonicalTags: CanonicalTag[] = [];
+    const seenSlugs = new Set<string>();
 
     for (const rawTag of data.tags) {
-      const cleaned = cleanWhitespace(rawTag)
+      const cleaned = cleanWhitespace(rawTag);
 
       if (!cleaned) {
         issues.push({
@@ -523,12 +518,12 @@ function validateAndPrepareUpdates(
           code: "empty-tag",
           workId,
           message: `Work "${workId}" contains an empty tag.`,
-        })
-        continue
+        });
+        continue;
       }
 
-      const canonical = canonicalizeTag(cleaned)
-      const canonicalSlug = slug(canonical)
+      const canonical = canonicalizeTag(cleaned);
+      const canonicalSlug = slug(canonical);
 
       if (!canonicalSlug) {
         issues.push({
@@ -537,8 +532,8 @@ function validateAndPrepareUpdates(
           workId,
           tag: rawTag,
           message: `Tag "${rawTag}" does not produce a valid slug.`,
-        })
-        continue
+        });
+        continue;
       }
 
       if (
@@ -553,8 +548,8 @@ function validateAndPrepareUpdates(
           workId,
           tag: rawTag,
           message: `"${rawTag}" is a genre and must not be stored as a tag.`,
-        })
-        continue
+        });
+        continue;
       }
 
       if (isTone(canonical) || isTone(rawTag)) {
@@ -564,8 +559,8 @@ function validateAndPrepareUpdates(
           workId,
           tag: rawTag,
           message: `"${rawTag}" is a tone and must not be stored as a tag.`,
-        })
-        continue
+        });
+        continue;
       }
 
       if (isDeprecatedTag(rawTag) && canonical === cleaned) {
@@ -577,8 +572,8 @@ function validateAndPrepareUpdates(
           message:
             `"${rawTag}" is deprecated or too title-specific and has no ` +
             "canonical replacement.",
-        })
-        continue
+        });
+        continue;
       }
 
       if (hasSuspiciousPattern(canonical)) {
@@ -590,8 +585,8 @@ function validateAndPrepareUpdates(
           message:
             `"${canonical}" appears too title-specific or structurally ` +
             "unsuitable for a reusable library taxonomy.",
-        })
-        continue
+        });
+        continue;
       }
 
       if (seenSlugs.has(canonicalSlug)) {
@@ -601,26 +596,24 @@ function validateAndPrepareUpdates(
           workId,
           tag: canonical,
           message: `Duplicate tag "${canonical}" was removed from work "${workId}".`,
-        })
-        continue
+        });
+        continue;
       }
 
-      seenSlugs.add(canonicalSlug)
-      canonicalTags.push(canonical)
+      seenSlugs.add(canonicalSlug);
+      canonicalTags.push(canonical);
     }
 
-    canonicalTags.sort((left, right) =>
-      left.localeCompare(right, "en", { sensitivity: "base" })
-    )
+    canonicalTags.sort((left, right) => left.localeCompare(right, "en", { sensitivity: "base" }));
 
     for (const tag of canonicalTags) {
-      frequencies.set(tag, (frequencies.get(tag) ?? 0) + 1)
+      frequencies.set(tag, (frequencies.get(tag) ?? 0) + 1);
     }
 
     preparedUpdates.push({
       workId,
       tags: canonicalTags,
-    })
+    });
   }
 
   for (const [tag, count] of frequencies) {
@@ -632,7 +625,7 @@ function validateAndPrepareUpdates(
         message:
           `"${tag}" currently appears on one updated work. It is allowed ` +
           "because it is reusable, but should be reviewed.",
-      })
+      });
     }
   }
 
@@ -640,44 +633,41 @@ function validateAndPrepareUpdates(
     updates: preparedUpdates,
     issues,
     frequencies,
-  }
+  };
 }
 
 function printIssues(issues: readonly ValidationIssue[]): void {
-  const errors = issues.filter((issue) => issue.severity === "error")
-  const warnings = issues.filter((issue) => issue.severity === "warning")
+  const errors = issues.filter((issue) => issue.severity === "error");
+  const warnings = issues.filter((issue) => issue.severity === "warning");
 
   if (errors.length > 0) {
-    console.error(`\n❌ Validation errors: ${errors.length}`)
+    console.error(`\n❌ Validation errors: ${errors.length}`);
 
     for (const issue of errors) {
-      console.error(`   [${issue.code}] ${issue.message}`)
+      console.error(`   [${issue.code}] ${issue.message}`);
     }
   }
 
   if (warnings.length > 0) {
-    console.warn(`\n⚠️ Validation warnings: ${warnings.length}`)
+    console.warn(`\n⚠️ Validation warnings: ${warnings.length}`);
 
     for (const issue of warnings) {
-      console.warn(`   [${issue.code}] ${issue.message}`)
+      console.warn(`   [${issue.code}] ${issue.message}`);
     }
   }
 }
 
-function printFrequencyReport(
-  frequencies: ReadonlyMap<CanonicalTag, number>
-): void {
+function printFrequencyReport(frequencies: ReadonlyMap<CanonicalTag, number>): void {
   const entries = [...frequencies.entries()].sort(
     ([leftTag, leftCount], [rightTag, rightCount]) =>
-      rightCount - leftCount ||
-      leftTag.localeCompare(rightTag, "en", { sensitivity: "base" })
-  )
+      rightCount - leftCount || leftTag.localeCompare(rightTag, "en", { sensitivity: "base" }),
+  );
 
-  console.log("\n📊 Tag frequency within this migration:")
+  console.log("\n📊 Tag frequency within this migration:");
 
   for (const [tag, count] of entries) {
-    const marker = count === 1 ? "review" : "shared"
-    console.log(`   ${String(count).padStart(2)}  ${tag} (${marker})`)
+    const marker = count === 1 ? "review" : "shared";
+    console.log(`   ${String(count).padStart(2)}  ${tag} (${marker})`);
   }
 }
 
@@ -685,45 +675,41 @@ function printFrequencyReport(
 // DATABASE SETUP
 // =============================================================================
 
-const db = new Database(databasePath)
+const db = new Database(databasePath);
 
-db.pragma("foreign_keys = ON")
-db.pragma("journal_mode = WAL")
-db.pragma("busy_timeout = 5000")
+db.pragma("foreign_keys = ON");
+db.pragma("journal_mode = WAL");
+db.pragma("busy_timeout = 5000");
 
-console.log(`📁 Connected to DB: ${databasePath}`)
-console.log(`🧪 Dry run: ${options.dryRun ? "yes" : "no"}`)
+console.log(`📁 Connected to DB: ${databasePath}`);
+console.log(`🧪 Dry run: ${options.dryRun ? "yes" : "no"}`);
 
 // =============================================================================
 // PREPARE AND VALIDATE
 // =============================================================================
 
-const prepared = validateAndPrepareUpdates(rawUpdates)
+const prepared = validateAndPrepareUpdates(rawUpdates);
 
-printIssues(prepared.issues)
-printFrequencyReport(prepared.frequencies)
+printIssues(prepared.issues);
+printFrequencyReport(prepared.frequencies);
 
-const validationErrors = prepared.issues.filter(
-  (issue) => issue.severity === "error"
-)
+const validationErrors = prepared.issues.filter((issue) => issue.severity === "error");
 
-const validationWarnings = prepared.issues.filter(
-  (issue) => issue.severity === "warning"
-)
+const validationWarnings = prepared.issues.filter((issue) => issue.severity === "warning");
 
 if (validationErrors.length > 0) {
-  db.close()
+  db.close();
   throw new Error(
-    `Migration aborted because ${validationErrors.length} validation error(s) were found.`
-  )
+    `Migration aborted because ${validationErrors.length} validation error(s) were found.`,
+  );
 }
 
 if (options.failOnWarnings && validationWarnings.length > 0) {
-  db.close()
+  db.close();
   throw new Error(
     `Migration aborted because --strict was used and ` +
-      `${validationWarnings.length} warning(s) were found.`
-  )
+      `${validationWarnings.length} warning(s) were found.`,
+  );
 }
 
 // =============================================================================
@@ -735,14 +721,14 @@ const workExistsStmt = db.prepare<[string], { readonly exists: 1 }>(`
   FROM works
   WHERE id = ?
   LIMIT 1
-`)
+`);
 
 const findTermStmt = db.prepare<
   [string, string],
   {
-    readonly id: string
-    readonly name: string
-    readonly slug: string
+    readonly id: string;
+    readonly name: string;
+    readonly slug: string;
   }
 >(`
   SELECT id, name, slug
@@ -750,7 +736,7 @@ const findTermStmt = db.prepare<
   WHERE vocabulary = ?
     AND slug = ?
   LIMIT 1
-`)
+`);
 
 const insertTermStmt = db.prepare<[string, string, string, string]>(`
   INSERT INTO terms (
@@ -760,13 +746,13 @@ const insertTermStmt = db.prepare<[string, string, string, string]>(`
     slug
   )
   VALUES (?, ?, ?, ?)
-`)
+`);
 
 const renameTermStmt = db.prepare<[string, string]>(`
   UPDATE terms
   SET name = ?
   WHERE id = ?
-`)
+`);
 
 const deleteWorkTagsStmt = db.prepare<[string]>(`
   DELETE FROM work_terms
@@ -776,7 +762,7 @@ const deleteWorkTagsStmt = db.prepare<[string]>(`
       FROM terms
       WHERE vocabulary = 'tag'
     )
-`)
+`);
 
 const insertWorkTermStmt = db.prepare<[string, string, string]>(`
   INSERT INTO work_terms (
@@ -787,14 +773,14 @@ const insertWorkTermStmt = db.prepare<[string, string, string]>(`
   VALUES (?, ?, ?)
   ON CONFLICT (work_id, term_id)
   DO UPDATE SET source = excluded.source
-`)
+`);
 
 const invalidOrphanCandidatesStmt = db.prepare<
   [],
   {
-    readonly id: string
-    readonly name: string
-    readonly slug: string
+    readonly id: string;
+    readonly name: string;
+    readonly slug: string;
   }
 >(`
   SELECT
@@ -809,7 +795,7 @@ const invalidOrphanCandidatesStmt = db.prepare<
       WHERE work_terms.term_id = terms.id
     )
   ORDER BY terms.name COLLATE NOCASE
-`)
+`);
 
 const deleteOrphanTermStmt = db.prepare<[string]>(`
   DELETE FROM terms
@@ -820,45 +806,45 @@ const deleteOrphanTermStmt = db.prepare<[string]>(`
       FROM work_terms
       WHERE work_terms.term_id = terms.id
     )
-`)
+`);
 
 // =============================================================================
 // DATABASE HELPERS
 // =============================================================================
 
 function getOrCreateTag(name: CanonicalTag): {
-  readonly id: string
-  readonly created: boolean
-  readonly renamed: boolean
+  readonly id: string;
+  readonly created: boolean;
+  readonly renamed: boolean;
 } {
-  const vocabulary = "tag"
-  const termSlug = slug(name)
+  const vocabulary = "tag";
+  const termSlug = slug(name);
 
-  const existing = findTermStmt.get(vocabulary, termSlug)
+  const existing = findTermStmt.get(vocabulary, termSlug);
 
   if (existing) {
-    const shouldRename = existing.name !== name
+    const shouldRename = existing.name !== name;
 
     if (shouldRename) {
-      renameTermStmt.run(name, existing.id)
+      renameTermStmt.run(name, existing.id);
     }
 
     return {
       id: existing.id,
       created: false,
       renamed: shouldRename,
-    }
+    };
   }
 
-  const id = stableId("term", vocabulary, termSlug)
+  const id = stableId("term", vocabulary, termSlug);
 
-  insertTermStmt.run(id, vocabulary, name, termSlug)
+  insertTermStmt.run(id, vocabulary, name, termSlug);
 
   return {
     id,
     created: true,
     renamed: false,
-  }
+  };
 }
 
 function shouldPruneInvalidOrphan(name: string): boolean {
@@ -868,7 +854,7 @@ function shouldPruneInvalidOrphan(name: string): boolean {
     isForbiddenVocabularyAlias(name) ||
     isDeprecatedTag(name) ||
     hasSuspiciousPattern(name)
-  )
+  );
 }
 
 // =============================================================================
@@ -877,51 +863,47 @@ function shouldPruneInvalidOrphan(name: string): boolean {
 
 const applyUpdates = db.transaction(
   (workUpdates: readonly PreparedWorkUpdate[]): MigrationStats => {
-    let worksProcessed = 0
-    let worksSkipped = 0
-    let linksDeleted = 0
-    let linksInserted = 0
-    let termsCreated = 0
-    let termsRenamed = 0
-    let invalidOrphansDeleted = 0
+    let worksProcessed = 0;
+    let worksSkipped = 0;
+    let linksDeleted = 0;
+    let linksInserted = 0;
+    let termsCreated = 0;
+    let termsRenamed = 0;
+    let invalidOrphansDeleted = 0;
 
     for (const update of workUpdates) {
-      const workExists = workExistsStmt.get(update.workId)
+      const workExists = workExistsStmt.get(update.workId);
 
       if (!workExists) {
         if (options.allowMissingWorks) {
-          console.warn(`⚠️ Skipping missing work: ${update.workId}`)
-          worksSkipped++
-          continue
+          console.warn(`⚠️ Skipping missing work: ${update.workId}`);
+          worksSkipped++;
+          continue;
         }
 
-        throw new Error(`Work does not exist: ${update.workId}`)
+        throw new Error(`Work does not exist: ${update.workId}`);
       }
 
-      const deleteResult = deleteWorkTagsStmt.run(update.workId)
-      linksDeleted += deleteResult.changes
+      const deleteResult = deleteWorkTagsStmt.run(update.workId);
+      linksDeleted += deleteResult.changes;
 
       for (const tag of update.tags) {
-        const term = getOrCreateTag(tag)
+        const term = getOrCreateTag(tag);
 
         if (term.created) {
-          termsCreated++
+          termsCreated++;
         }
 
         if (term.renamed) {
-          termsRenamed++
+          termsRenamed++;
         }
 
-        const linkResult = insertWorkTermStmt.run(
-          update.workId,
-          term.id,
-          MIGRATION_SOURCE
-        )
+        const linkResult = insertWorkTermStmt.run(update.workId, term.id, MIGRATION_SOURCE);
 
-        linksInserted += linkResult.changes
+        linksInserted += linkResult.changes;
       }
 
-      worksProcessed++
+      worksProcessed++;
     }
 
     /**
@@ -934,14 +916,14 @@ const applyUpdates = db.transaction(
      * Only invalid orphans are optionally removed.
      */
     if (options.pruneInvalidOrphans) {
-      const orphanCandidates = invalidOrphanCandidatesStmt.all()
+      const orphanCandidates = invalidOrphanCandidatesStmt.all();
 
       for (const orphan of orphanCandidates) {
         if (!shouldPruneInvalidOrphan(orphan.name)) {
-          continue
+          continue;
         }
 
-        invalidOrphansDeleted += deleteOrphanTermStmt.run(orphan.id).changes
+        invalidOrphansDeleted += deleteOrphanTermStmt.run(orphan.id).changes;
       }
     }
 
@@ -953,9 +935,9 @@ const applyUpdates = db.transaction(
       termsCreated,
       termsRenamed,
       invalidOrphansDeleted,
-    }
-  }
-)
+    };
+  },
+);
 
 // =============================================================================
 // EXECUTION
@@ -963,76 +945,74 @@ const applyUpdates = db.transaction(
 
 try {
   if (options.dryRun) {
-    db.exec("BEGIN IMMEDIATE")
+    db.exec("BEGIN IMMEDIATE");
 
     try {
-      const stats = applyUpdates(prepared.updates)
+      const stats = applyUpdates(prepared.updates);
 
-      console.log("\n🧪 Dry-run result:")
-      printStats(stats)
+      console.log("\n🧪 Dry-run result:");
+      printStats(stats);
     } finally {
-      db.exec("ROLLBACK")
-      console.log("↩️ All dry-run database changes were rolled back.")
+      db.exec("ROLLBACK");
+      console.log("↩️ All dry-run database changes were rolled back.");
     }
   } else {
-    const stats = applyUpdates(prepared.updates)
+    const stats = applyUpdates(prepared.updates);
 
-    console.log("\n✅ Tag migration complete.")
-    printStats(stats)
+    console.log("\n✅ Tag migration complete.");
+    printStats(stats);
   }
 
-  printRemainingOrphans()
+  printRemainingOrphans();
 } catch (error) {
-  console.error("\n❌ Failed to apply tag migration.")
+  console.error("\n❌ Failed to apply tag migration.");
 
   if (error instanceof Error) {
-    console.error(error.message)
+    console.error(error.message);
   } else {
-    console.error(error)
+    console.error(error);
   }
 
-  process.exitCode = 1
+  process.exitCode = 1;
 } finally {
-  db.close()
+  db.close();
 }
 
 function printStats(stats: MigrationStats): void {
-  console.log(`   Works processed:        ${stats.worksProcessed}`)
-  console.log(`   Works skipped:          ${stats.worksSkipped}`)
-  console.log(`   Old tag links removed:  ${stats.linksDeleted}`)
-  console.log(`   Tag links established:  ${stats.linksInserted}`)
-  console.log(`   New terms created:      ${stats.termsCreated}`)
-  console.log(`   Existing terms renamed: ${stats.termsRenamed}`)
-  console.log(`   Invalid orphans pruned: ${stats.invalidOrphansDeleted}`)
+  console.log(`   Works processed:        ${stats.worksProcessed}`);
+  console.log(`   Works skipped:          ${stats.worksSkipped}`);
+  console.log(`   Old tag links removed:  ${stats.linksDeleted}`);
+  console.log(`   Tag links established:  ${stats.linksInserted}`);
+  console.log(`   New terms created:      ${stats.termsCreated}`);
+  console.log(`   Existing terms renamed: ${stats.termsRenamed}`);
+  console.log(`   Invalid orphans pruned: ${stats.invalidOrphansDeleted}`);
 }
 
 function printRemainingOrphans(): void {
-  const orphans = invalidOrphanCandidatesStmt.all()
+  const orphans = invalidOrphanCandidatesStmt.all();
 
   if (orphans.length === 0) {
-    console.log("\n🧹 No unused tag terms remain.")
-    return
+    console.log("\n🧹 No unused tag terms remain.");
+    return;
   }
 
-  const invalid = orphans.filter((term) => shouldPruneInvalidOrphan(term.name))
+  const invalid = orphans.filter((term) => shouldPruneInvalidOrphan(term.name));
 
-  const valid = orphans.filter((term) => !shouldPruneInvalidOrphan(term.name))
+  const valid = orphans.filter((term) => !shouldPruneInvalidOrphan(term.name));
 
-  console.log(`\n📦 Unused but reusable tags retained: ${valid.length}`)
+  console.log(`\n📦 Unused but reusable tags retained: ${valid.length}`);
 
   for (const term of valid) {
-    console.log(`   - ${term.name}`)
+    console.log(`   - ${term.name}`);
   }
 
   if (invalid.length > 0) {
-    console.warn(`\n⚠️ Invalid unused tags detected: ${invalid.length}`)
+    console.warn(`\n⚠️ Invalid unused tags detected: ${invalid.length}`);
 
     for (const term of invalid) {
-      console.warn(`   - ${term.name}`)
+      console.warn(`   - ${term.name}`);
     }
 
-    console.warn(
-      "Run with --prune-invalid-orphans to remove only these invalid terms."
-    )
+    console.warn("Run with --prune-invalid-orphans to remove only these invalid terms.");
   }
 }

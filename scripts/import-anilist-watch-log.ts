@@ -1,16 +1,16 @@
-import { recordTrackingEntry } from "../src/db/repository"
+import { recordTrackingEntry } from "../src/db/repository";
 
-type Status = "in-progress" | "completed" | "paused"
+type Status = "in-progress" | "completed" | "paused";
 
 type Import = {
-  title: string
-  workId: string
-  start: string
-  end: string
-  episodes: number
-  finalStatus: Status
-  exactDailyEpisodes?: number[]
-}
+  title: string;
+  workId: string;
+  start: string;
+  end: string;
+  episodes: number;
+  finalStatus: Status;
+  exactDailyEpisodes?: number[];
+};
 
 // Public AniList record for user AshAmber, retrieved 2026-07-27.
 // AniList supplies range endpoints and cumulative episode counts, not a
@@ -87,107 +87,97 @@ const imports: Import[] = [
     // correctly represented as progress rather than work-level completion.
     finalStatus: "in-progress",
   },
-]
+];
 
-const dayMs = 24 * 60 * 60 * 1000
+const dayMs = 24 * 60 * 60 * 1000;
 
 function toDate(day: string) {
-  return new Date(`${day}T00:00:00.000Z`)
+  return new Date(`${day}T00:00:00.000Z`);
 }
 
 function formatDate(date: Date) {
-  return date.toISOString().slice(0, 10)
+  return date.toISOString().slice(0, 10);
 }
 
 function addDays(day: string, amount: number) {
-  return formatDate(new Date(toDate(day).valueOf() + amount * dayMs))
+  return formatDate(new Date(toDate(day).valueOf() + amount * dayMs));
 }
 
 function dayDistance(start: string, end: string) {
-  return Math.round((toDate(end).valueOf() - toDate(start).valueOf()) / dayMs)
+  return Math.round((toDate(end).valueOf() - toDate(start).valueOf()) / dayMs);
 }
 
 function seededRandom(seed: number) {
-  let state = seed >>> 0
+  let state = seed >>> 0;
   return () => {
-    state = (state * 1664525 + 1013904223) >>> 0
-    return state / 2 ** 32
-  }
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 2 ** 32;
+  };
 }
 
 function seedFor(value: string) {
-  return [...value].reduce(
-    (seed, character) => seed + character.charCodeAt(0),
-    0
-  )
+  return [...value].reduce((seed, character) => seed + character.charCodeAt(0), 0);
 }
 
 function generatedDailyEpisodes(entry: Import) {
-  if (entry.exactDailyEpisodes) return entry.exactDailyEpisodes
+  if (entry.exactDailyEpisodes) return entry.exactDailyEpisodes;
   const activeDays = Math.min(
     dayDistance(entry.start, entry.end) + 1,
-    Math.max(2, Math.ceil(entry.episodes / 3))
-  )
-  const random = seededRandom(seedFor(entry.workId))
-  const episodes = Array.from({ length: activeDays }, () => 1)
-  let remaining = entry.episodes - activeDays
+    Math.max(2, Math.ceil(entry.episodes / 3)),
+  );
+  const random = seededRandom(seedFor(entry.workId));
+  const episodes = Array.from({ length: activeDays }, () => 1);
+  let remaining = entry.episodes - activeDays;
   while (remaining > 0) {
-    const index = Math.floor(random() * activeDays)
+    const index = Math.floor(random() * activeDays);
     if (episodes[index] < 4) {
-      episodes[index] += 1
-      remaining -= 1
+      episodes[index] += 1;
+      remaining -= 1;
     }
   }
-  return episodes
+  return episodes;
 }
 
 function generatedDates(entry: Import, activeDays: number) {
   if (entry.exactDailyEpisodes) {
-    return entry.exactDailyEpisodes.map((_, index) =>
-      addDays(entry.start, index)
-    )
+    return entry.exactDailyEpisodes.map((_, index) => addDays(entry.start, index));
   }
-  const span = dayDistance(entry.start, entry.end)
-  const random = seededRandom(seedFor(`${entry.workId}:dates`))
+  const span = dayDistance(entry.start, entry.end);
+  const random = seededRandom(seedFor(`${entry.workId}:dates`));
   const offsets = Array.from({ length: activeDays }, (_, index) => {
-    if (index === 0) return 0
-    if (index === activeDays - 1) return span
-    const ideal = (index * span) / (activeDays - 1)
-    return Math.round(ideal + (random() - 0.5) * 1.8)
-  })
+    if (index === 0) return 0;
+    if (index === activeDays - 1) return span;
+    const ideal = (index * span) / (activeDays - 1);
+    return Math.round(ideal + (random() - 0.5) * 1.8);
+  });
   for (let index = 1; index < offsets.length; index += 1) {
-    offsets[index] = Math.max(offsets[index], offsets[index - 1] + 1)
+    offsets[index] = Math.max(offsets[index], offsets[index - 1] + 1);
   }
   for (let index = offsets.length - 2; index > 0; index -= 1) {
-    offsets[index] = Math.min(offsets[index], offsets[index + 1] - 1)
+    offsets[index] = Math.min(offsets[index], offsets[index + 1] - 1);
   }
-  return offsets.map((offset) => addDays(entry.start, offset))
+  return offsets.map((offset) => addDays(entry.start, offset));
 }
 
 for (const entry of imports) {
-  const dailyEpisodes = generatedDailyEpisodes(entry)
-  const dates = generatedDates(entry, dailyEpisodes.length)
-  if (
-    dailyEpisodes.reduce((sum, amount) => sum + amount, 0) !== entry.episodes
-  ) {
-    throw new Error(`${entry.title}: generated episode total is incorrect.`)
+  const dailyEpisodes = generatedDailyEpisodes(entry);
+  const dates = generatedDates(entry, dailyEpisodes.length);
+  if (dailyEpisodes.reduce((sum, amount) => sum + amount, 0) !== entry.episodes) {
+    throw new Error(`${entry.title}: generated episode total is incorrect.`);
   }
   if (dates.at(-1) !== entry.end) {
-    throw new Error(`${entry.title}: generated date range is incorrect.`)
+    throw new Error(`${entry.title}: generated date range is incorrect.`);
   }
 
-  let progress = 0
+  let progress = 0;
   for (const [index, episodes] of dailyEpisodes.entries()) {
-    progress += episodes
+    progress += episodes;
     recordTrackingEntry({
       workId: entry.workId,
       progress,
-      status:
-        index === dailyEpisodes.length - 1 ? entry.finalStatus : "in-progress",
+      status: index === dailyEpisodes.length - 1 ? entry.finalStatus : "in-progress",
       occurredOn: dates[index],
-    })
+    });
   }
-  console.log(
-    `${entry.title}: ${dailyEpisodes.length} log days, ${progress} episodes`
-  )
+  console.log(`${entry.title}: ${dailyEpisodes.length} log days, ${progress} episodes`);
 }

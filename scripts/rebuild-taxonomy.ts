@@ -1435,7 +1435,7 @@ for (const work of works) {
   const explicitGenres = genreOverrides[work.id];
   if (explicitGenres) {
     genres.clear();
-    explicitGenres.forEach((genre) => genres.add(genre));
+    for (const genre of explicitGenres) genres.add(genre);
   }
 
   const tones = new Set(
@@ -1456,7 +1456,7 @@ for (const work of works) {
   const explicitTones = toneOverrides[work.id];
   if (explicitTones) {
     tones.clear();
-    explicitTones.forEach((tone) => tones.add(tone));
+    for (const tone of explicitTones) tones.add(tone);
   }
 
   const tags = new Set<string>();
@@ -1464,7 +1464,7 @@ for (const work of works) {
     const replacement = tagAliases[oldTag];
     if (replacement) tags.add(replacement);
   }
-  extraTags[work.id]?.forEach((tag) => tags.add(tag));
+  for (const tag of extraTags[work.id] ?? []) tags.add(tag);
   if (animeMovieIds.has(work.id)) tags.add("Anime Movie");
   else if (work.kind === "movie") tags.add("Animated Movie");
 
@@ -1485,7 +1485,11 @@ for (const taxonomy of prepared.values()) {
 
 const problems: string[] = [];
 for (const work of works) {
-  const taxonomy = prepared.get(work.id)!;
+  const taxonomy = prepared.get(work.id);
+  if (!taxonomy) {
+    problems.push(`${work.title}: taxonomy was not prepared`);
+    continue;
+  }
   if (taxonomy.genres.length === 0) problems.push(`${work.title}: no genres`);
   if (taxonomy.tones.length === 0) problems.push(`${work.title}: no tones`);
   const minimumTags = work.id === "obsidian-animation-movies-ghost-provisional-title" ? 2 : 5;

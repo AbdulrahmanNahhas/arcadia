@@ -1,51 +1,46 @@
-import { createHash } from "node:crypto"
-import { and, eq, inArray } from "drizzle-orm"
-import { db } from "@/db/client"
-import {
-  externalLinks as externalLinksTable,
-  terms,
-  workTerms,
-  works,
-} from "@/db/schema"
-import { normalizeTaxonomy } from "@/features/library/taxonomy"
+import { createHash } from "node:crypto";
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "@/db/client";
+import { externalLinks as externalLinksTable, terms, works, workTerms } from "@/db/schema";
+import { normalizeTaxonomy } from "@/features/library/taxonomy";
 
 type Metadata = Record<string, unknown> & {
-  genres?: string[]
-  tags?: string[]
-  tone?: string[]
-  externalLinks?: Array<{ provider: string; label: string; url: string }>
-  releaseStart?: string | null
-  releaseEnd?: string | null
+  genres?: string[];
+  tags?: string[];
+  tone?: string[];
+  externalLinks?: Array<{ provider: string; label: string; url: string }>;
+  releaseStart?: string | null;
+  releaseEnd?: string | null;
   riskProfile?: {
-    sexuality?: string
-    behavioral?: string
-    theology?: string
-  } | null
-}
+    sexuality?: string;
+    behavioral?: string;
+    theology?: string;
+  } | null;
+};
 
 type Override = {
-  title?: string
-  year?: number | null
-  summary?: string
-  releaseStart?: string | null
-  releaseEnd?: string | null
-  releaseWindow?: string
-  genres?: string[]
-  tags?: string[]
-  tone?: string[]
-  links?: Array<{ provider: string; label: string; url: string }>
-  releaseStatus?: "announced" | "releasing" | "released" | "ended"
+  title?: string;
+  year?: number | null;
+  summary?: string;
+  releaseStart?: string | null;
+  releaseEnd?: string | null;
+  releaseWindow?: string;
+  genres?: string[];
+  tags?: string[];
+  tone?: string[];
+  links?: Array<{ provider: string; label: string; url: string }>;
+  releaseStatus?: "announced" | "releasing" | "released" | "ended";
   sourceMaterial?: {
-    type: string
-    started: number | null
-    finished: number | null
-    serialization: string[]
-    publication: string | null
-  }
-  provisional?: string
-}
+    type: string;
+    started: number | null;
+    finished: number | null;
+    serialization: string[];
+    publication: string | null;
+  };
+  provisional?: string;
+};
 
-const reviewedAt = "2026-07-19"
+const reviewedAt = "2026-07-19";
 
 const overrides = new Map<string, Override>([
   [
@@ -53,12 +48,7 @@ const overrides = new Map<string, Override>([
     {
       summary:
         "Rudo, an orphan from a segregated slum, is falsely accused of murder and cast into the Pit, where he joins the Cleaners and learns to draw power from discarded objects.",
-      tags: [
-        "class-conflict",
-        "false-accusation",
-        "waste",
-        "special-abilities",
-      ],
+      tags: ["class-conflict", "false-accusation", "waste", "special-abilities"],
       tone: ["Dark", "Intense", "Defiant"],
       links: [
         {
@@ -76,12 +66,7 @@ const overrides = new Map<string, Override>([
       summary:
         "A long-term animation project from HoYoverse and ufotable based on the world of Genshin Impact. Its story format and release date have not yet been announced.",
       releaseWindow: "TBA",
-      tags: [
-        "game-adaptation",
-        "elemental-magic",
-        "adventure",
-        "worldbuilding",
-      ],
+      tags: ["game-adaptation", "elemental-magic", "adventure", "worldbuilding"],
       tone: ["Adventurous", "Epic", "Atmospheric"],
       releaseStatus: "announced",
       provisional:
@@ -243,8 +228,7 @@ const overrides = new Map<string, Override>([
       tags: ["bullying", "child-abuse", "time-travel", "tragedy"],
       tone: ["Dark", "Emotional", "Distressing"],
       releaseStatus: "announced",
-      provisional:
-        "The film is announced, but its theatrical date remains TBA.",
+      provisional: "The film is announced, but its theatrical date remains TBA.",
     },
   ],
   [
@@ -284,7 +268,7 @@ const overrides = new Map<string, Override>([
         "The project is in production; its release date and final content guidance remain TBA.",
     },
   ],
-])
+]);
 
 const tagRules: Array<[RegExp, string[]]> = [
   [/^Cars(?: \d)?$/, ["cars", "racing", "friendship"]],
@@ -293,10 +277,7 @@ const tagRules: Array<[RegExp, string[]]> = [
   [/^Hotel Transylvania/, ["monsters", "family", "hotel"]],
   [/^How to Train Your Dragon/, ["dragons", "vikings", "friendship"]],
   [/^Ice Age/, ["prehistoric-animals", "found-family", "survival"]],
-  [
-    /^(The Incredibles|Incredibles 2)$/,
-    ["superhero", "family", "secret-identity"],
-  ],
+  [/^(The Incredibles|Incredibles 2)$/, ["superhero", "family", "secret-identity"]],
   [/^Inside Out$/, ["emotions", "mental-health", "family"]],
   [/^Kung Fu Panda/, ["martial-arts", "animal-cast", "chosen-one"]],
   [/^Madagascar/, ["animal-cast", "friendship", "travel"]],
@@ -306,10 +287,7 @@ const tagRules: Array<[RegExp, string[]]> = [
   [/^Penguins of Madagascar$/, ["animal-cast", "spies", "teamwork"]],
   [/^Ratatouille$/, ["cooking", "paris", "ambition"]],
   [/^Rise of the Guardians$/, ["mythology", "childhood", "dreams"]],
-  [
-    /^Spider-Man: Into the Spider-Verse$/,
-    ["superhero", "multiverse", "coming-of-age"],
-  ],
+  [/^Spider-Man: Into the Spider-Verse$/, ["superhero", "multiverse", "coming-of-age"]],
   [/^The Angry Birds Movie/, ["birds", "rivalry", "island"]],
   [/^The Boss Baby/, ["family", "siblings", "corporate-satire"]],
   [/^The LEGO Movie$/, ["toys", "creativity", "chosen-one"]],
@@ -320,13 +298,10 @@ const tagRules: Array<[RegExp, string[]]> = [
   [/^Up$/, ["grief", "adventure", "friendship"]],
   [/^Zootopia$/, ["animal-cast", "detective", "prejudice"]],
   [/^Big Hero 6$/, ["superhero", "robots", "grief"]],
-]
+];
 
 function stableId(...parts: string[]) {
-  return createHash("sha256")
-    .update(parts.join(":"), "utf8")
-    .digest("hex")
-    .slice(0, 32)
+  return createHash("sha256").update(parts.join(":"), "utf8").digest("hex").slice(0, 32);
 }
 
 function slug(value: string) {
@@ -334,16 +309,16 @@ function slug(value: string) {
     .toLocaleLowerCase()
     .normalize("NFKD")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
+    .replace(/^-|-$/g, "");
 }
 
 function unique<T>(values: T[]) {
-  return [...new Set(values)]
+  return [...new Set(values)];
 }
 
 function inferredTags(title: string, summary: string) {
-  const direct = tagRules.find(([pattern]) => pattern.test(title))?.[1] ?? []
-  const text = summary.toLocaleLowerCase()
+  const direct = tagRules.find(([pattern]) => pattern.test(title))?.[1] ?? [];
+  const text = summary.toLocaleLowerCase();
   const keywordRules: Array<[RegExp, string]> = [
     [/school|student|academy/, "school-life"],
     [/family|father|mother|brother|sister/, "family"],
@@ -355,27 +330,25 @@ function inferredTags(title: string, summary: string) {
     [/friend/, "friendship"],
     [/king|queen|prince|princess|empire/, "royalty"],
     [/time|future|past/, "time"],
-  ]
+  ];
   return unique([
     ...direct,
-    ...keywordRules
-      .filter(([pattern]) => pattern.test(text))
-      .map(([, tag]) => tag),
-  ])
+    ...keywordRules.filter(([pattern]) => pattern.test(text)).map(([, tag]) => tag),
+  ]);
 }
 
 function fallbackTone(genres: string[]) {
-  if (genres.includes("Horror")) return ["Dark", "Tense"]
-  if (genres.includes("Comedy")) return ["Wholesome"]
-  if (genres.includes("Thriller")) return ["Tense"]
-  if (genres.includes("Action")) return ["Energetic"]
-  if (genres.includes("Romance")) return ["Emotional"]
-  if (genres.includes("Drama")) return ["Emotional"]
-  if (genres.includes("Adventure")) return ["Energetic"]
-  return ["Atmospheric"]
+  if (genres.includes("Horror")) return ["Dark", "Tense"];
+  if (genres.includes("Comedy")) return ["Wholesome"];
+  if (genres.includes("Thriller")) return ["Tense"];
+  if (genres.includes("Action")) return ["Energetic"];
+  if (genres.includes("Romance")) return ["Emotional"];
+  if (genres.includes("Drama")) return ["Emotional"];
+  if (genres.includes("Adventure")) return ["Energetic"];
+  return ["Atmospheric"];
 }
 
-const rows = db.select().from(works).all()
+const rows = db.select().from(works).all();
 const currentTermRows = db
   .select({
     workId: workTerms.workId,
@@ -384,65 +357,59 @@ const currentTermRows = db
   })
   .from(workTerms)
   .innerJoin(terms, eq(workTerms.termId, terms.id))
-  .all()
-const currentTermsByWork = new Map<string, Map<string, string[]>>()
+  .all();
+const currentTermsByWork = new Map<string, Map<string, string[]>>();
 for (const row of currentTermRows) {
-  const vocabularies =
-    currentTermsByWork.get(row.workId) ?? new Map<string, string[]>()
-  const values = vocabularies.get(row.vocabulary) ?? []
-  values.push(row.name)
-  vocabularies.set(row.vocabulary, values)
-  currentTermsByWork.set(row.workId, vocabularies)
+  const vocabularies = currentTermsByWork.get(row.workId) ?? new Map<string, string[]>();
+  const values = vocabularies.get(row.vocabulary) ?? [];
+  values.push(row.name);
+  vocabularies.set(row.vocabulary, values);
+  currentTermsByWork.set(row.workId, vocabularies);
 }
 const currentLinksByWork = new Map<
   string,
   Array<{ provider: string; label: string; url: string }>
->()
+>();
 for (const link of db.select().from(externalLinksTable).all()) {
-  if (link.ownerType !== "work") continue
-  const values = currentLinksByWork.get(link.ownerId) ?? []
-  values.push({ provider: link.provider, label: link.label, url: link.url })
-  currentLinksByWork.set(link.ownerId, values)
+  if (link.ownerType !== "work") continue;
+  const values = currentLinksByWork.get(link.ownerId) ?? [];
+  values.push({ provider: link.provider, label: link.label, url: link.url });
+  currentLinksByWork.set(link.ownerId, values);
 }
 
 db.transaction((tx) => {
   for (const work of rows) {
-    const metadata = work.metadata as Metadata
-    const currentTerms = currentTermsByWork.get(work.id)
+    const metadata = work.metadata as Metadata;
+    const currentTerms = currentTermsByWork.get(work.id);
     const override =
       overrides.get(work.canonicalTitle) ??
-      [...overrides.values()].find(
-        (candidate) => candidate.title === work.canonicalTitle
-      )
+      [...overrides.values()].find((candidate) => candidate.title === work.canonicalTitle);
     const initial = normalizeTaxonomy({
       genres: override?.genres ?? currentTerms?.get("genre") ?? [],
       tags: [...(currentTerms?.get("tag") ?? []), ...(override?.tags ?? [])],
       tone: [...(currentTerms?.get("tone") ?? []), ...(override?.tone ?? [])],
-    })
+    });
     const finalTaxonomy = normalizeTaxonomy({
       genres: initial.genres,
       tags: [
         ...initial.tags,
-        ...inferredTags(
-          override?.title ?? work.canonicalTitle,
-          override?.summary ?? work.summary
-        ),
+        ...inferredTags(override?.title ?? work.canonicalTitle, override?.summary ?? work.summary),
       ],
       tone: initial.tone,
-    })
-    const tags = finalTaxonomy.tags
+    });
+    const tags = finalTaxonomy.tags;
     const tone = finalTaxonomy.tone.length
       ? finalTaxonomy.tone
-      : fallbackTone(finalTaxonomy.genres)
+      : fallbackTone(finalTaxonomy.genres);
     const externalLinks = new Map(
-      [
-        ...(currentLinksByWork.get(work.id) ?? []),
-        ...(override?.links ?? []),
-      ].map((link) => [link.url, link])
-    )
-    const releaseStart = override?.releaseStart ?? metadata.releaseStart ?? null
-    const releaseEnd = override?.releaseEnd ?? metadata.releaseEnd ?? null
-    const releaseYear = override?.year ?? work.releaseYear
+      [...(currentLinksByWork.get(work.id) ?? []), ...(override?.links ?? [])].map((link) => [
+        link.url,
+        link,
+      ]),
+    );
+    const releaseStart = override?.releaseStart ?? metadata.releaseStart ?? null;
+    const releaseEnd = override?.releaseEnd ?? metadata.releaseEnd ?? null;
+    const releaseYear = override?.year ?? work.releaseYear;
     const releaseStatus =
       override?.releaseStatus ??
       (work.kind === "movie"
@@ -453,12 +420,12 @@ db.transaction((tx) => {
           ? releaseEnd
             ? "ended"
             : "released"
-          : work.status)
+          : work.status);
     const provisional =
       override?.provisional ??
       (releaseStatus === "announced"
         ? "Release details and content guidance will be reviewed again when the work premieres."
-        : null)
+        : null);
 
     const {
       genres: _genres,
@@ -466,7 +433,7 @@ db.transaction((tx) => {
       tone: _tone,
       externalLinks: _externalLinks,
       ...preservedMetadata
-    } = metadata
+    } = metadata;
     tx.update(works)
       .set({
         canonicalTitle: override?.title ?? work.canonicalTitle,
@@ -478,28 +445,24 @@ db.transaction((tx) => {
           ...preservedMetadata,
           releaseStart,
           releaseEnd,
-          releaseWindow:
-            override?.releaseWindow ??
-            (releaseYear ? String(releaseYear) : "TBA"),
+          releaseWindow: override?.releaseWindow ?? (releaseYear ? String(releaseYear) : "TBA"),
           curation: {
             reviewedAt,
             status: provisional ? "provisional" : "verified",
             notes: provisional,
           },
-          ...(override?.sourceMaterial
-            ? { sourceMaterial: override.sourceMaterial }
-            : {}),
+          ...(override?.sourceMaterial ? { sourceMaterial: override.sourceMaterial } : {}),
         },
         updatedAt: Math.floor(Date.now() / 1000),
       })
       .where(eq(works.id, work.id))
-      .run()
+      .run();
 
     const taxonomyTerms = tx
       .select({ id: terms.id })
       .from(terms)
       .where(inArray(terms.vocabulary, ["genre", "tag", "tone"]))
-      .all()
+      .all();
     if (taxonomyTerms.length) {
       tx.delete(workTerms)
         .where(
@@ -507,32 +470,30 @@ db.transaction((tx) => {
             eq(workTerms.workId, work.id),
             inArray(
               workTerms.termId,
-              taxonomyTerms.map(({ id }) => id)
-            )
-          )
+              taxonomyTerms.map(({ id }) => id),
+            ),
+          ),
         )
-        .run()
+        .run();
     }
     const vocabularies: Array<[string, string[]]> = [
       ["genre", finalTaxonomy.genres],
       ["tag", tags],
       ["tone", tone],
-    ]
+    ];
     for (const [vocabulary, values] of vocabularies) {
       for (const name of values) {
-        const termId = stableId("term", vocabulary, slug(name))
+        const termId = stableId("term", vocabulary, slug(name));
         tx.insert(terms)
           .values({ id: termId, vocabulary, name, slug: slug(name) })
           .onConflictDoNothing()
-          .run()
+          .run();
         const term = tx
           .select({ id: terms.id })
           .from(terms)
-          .where(
-            and(eq(terms.vocabulary, vocabulary), eq(terms.slug, slug(name)))
-          )
-          .get()
-        if (!term) throw new Error(`Could not persist ${vocabulary}/${name}`)
+          .where(and(eq(terms.vocabulary, vocabulary), eq(terms.slug, slug(name))))
+          .get();
+        if (!term) throw new Error(`Could not persist ${vocabulary}/${name}`);
         tx.insert(workTerms)
           .values({
             workId: work.id,
@@ -540,18 +501,13 @@ db.transaction((tx) => {
             source: "catalog-cleanup-v2",
           })
           .onConflictDoNothing()
-          .run()
+          .run();
       }
     }
 
     tx.delete(externalLinksTable)
-      .where(
-        and(
-          eq(externalLinksTable.ownerType, "work"),
-          eq(externalLinksTable.ownerId, work.id)
-        )
-      )
-      .run()
+      .where(and(eq(externalLinksTable.ownerType, "work"), eq(externalLinksTable.ownerId, work.id)))
+      .run();
     for (const link of externalLinks.values()) {
       tx.insert(externalLinksTable)
         .values({
@@ -562,9 +518,9 @@ db.transaction((tx) => {
           label: link.label,
           url: link.url,
         })
-        .run()
+        .run();
     }
   }
-})
+});
 
-console.log(`Cleaned and normalized ${rows.length} catalog records.`)
+console.log(`Cleaned and normalized ${rows.length} catalog records.`);
