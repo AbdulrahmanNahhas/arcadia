@@ -23,12 +23,9 @@ import { Route as TrackerRouteImport } from './routes/tracker'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCatalogRouteImport } from './routes/admin.catalog'
 import { Route as AdminDatabaseRouteImport } from './routes/admin.database'
-import { Route as AdminImportExportRouteImport } from './routes/admin.import-export'
-import { Route as AdminJsonRouteImport } from './routes/admin.json'
 import { Route as AdminPeopleRouteImport } from './routes/admin.people'
 import { Route as AdminPlanetsRouteImport } from './routes/admin.planets'
 import { Route as AdminRelationshipsRouteImport } from './routes/admin.relationships'
-import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminStudiosRouteImport } from './routes/admin.studios'
 import { Route as AdminTrackerRouteImport } from './routes/admin.tracker'
 import { Route as AdminValidationRouteImport } from './routes/admin.validation'
@@ -114,16 +111,6 @@ const AdminDatabaseRoute = AdminDatabaseRouteImport.update({
   path: '/database',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminImportExportRoute = AdminImportExportRouteImport.update({
-  id: '/import-export',
-  path: '/import-export',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminJsonRoute = AdminJsonRouteImport.update({
-  id: '/json',
-  path: '/json',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminPeopleRoute = AdminPeopleRouteImport.update({
   id: '/people',
   path: '/people',
@@ -137,11 +124,6 @@ const AdminPlanetsRoute = AdminPlanetsRouteImport.update({
 const AdminRelationshipsRoute = AdminRelationshipsRouteImport.update({
   id: '/relationships',
   path: '/relationships',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminStudiosRoute = AdminStudiosRouteImport.update({
@@ -229,12 +211,9 @@ export interface FileRoutesByFullPath {
   '/tracker': typeof TrackerRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/database': typeof AdminDatabaseRoute
-  '/admin/import-export': typeof AdminImportExportRoute
-  '/admin/json': typeof AdminJsonRoute
   '/admin/people': typeof AdminPeopleRoute
   '/admin/planets': typeof AdminPlanetsRoute
   '/admin/relationships': typeof AdminRelationshipsRoute
-  '/admin/settings': typeof AdminSettingsRoute
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/tracker': typeof AdminTrackerRoute
   '/admin/validation': typeof AdminValidationRoute
@@ -262,12 +241,9 @@ export interface FileRoutesByTo {
   '/tracker': typeof TrackerRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/database': typeof AdminDatabaseRoute
-  '/admin/import-export': typeof AdminImportExportRoute
-  '/admin/json': typeof AdminJsonRoute
   '/admin/people': typeof AdminPeopleRoute
   '/admin/planets': typeof AdminPlanetsRoute
   '/admin/relationships': typeof AdminRelationshipsRoute
-  '/admin/settings': typeof AdminSettingsRoute
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/tracker': typeof AdminTrackerRoute
   '/admin/validation': typeof AdminValidationRoute
@@ -299,12 +275,9 @@ export interface FileRoutesById {
   '/tracker': typeof TrackerRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/database': typeof AdminDatabaseRoute
-  '/admin/import-export': typeof AdminImportExportRoute
-  '/admin/json': typeof AdminJsonRoute
   '/admin/people': typeof AdminPeopleRoute
   '/admin/planets': typeof AdminPlanetsRoute
   '/admin/relationships': typeof AdminRelationshipsRoute
-  '/admin/settings': typeof AdminSettingsRoute
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/tracker': typeof AdminTrackerRoute
   '/admin/validation': typeof AdminValidationRoute
@@ -337,12 +310,9 @@ export interface FileRouteTypes {
     | '/tracker'
     | '/admin/catalog'
     | '/admin/database'
-    | '/admin/import-export'
-    | '/admin/json'
     | '/admin/people'
     | '/admin/planets'
     | '/admin/relationships'
-    | '/admin/settings'
     | '/admin/studios'
     | '/admin/tracker'
     | '/admin/validation'
@@ -370,12 +340,9 @@ export interface FileRouteTypes {
     | '/tracker'
     | '/admin/catalog'
     | '/admin/database'
-    | '/admin/import-export'
-    | '/admin/json'
     | '/admin/people'
     | '/admin/planets'
     | '/admin/relationships'
-    | '/admin/settings'
     | '/admin/studios'
     | '/admin/tracker'
     | '/admin/validation'
@@ -406,12 +373,9 @@ export interface FileRouteTypes {
     | '/tracker'
     | '/admin/catalog'
     | '/admin/database'
-    | '/admin/import-export'
-    | '/admin/json'
     | '/admin/people'
     | '/admin/planets'
     | '/admin/relationships'
-    | '/admin/settings'
     | '/admin/studios'
     | '/admin/tracker'
     | '/admin/validation'
@@ -547,20 +511,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDatabaseRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/import-export': {
-      id: '/admin/import-export'
-      path: '/import-export'
-      fullPath: '/admin/import-export'
-      preLoaderRoute: typeof AdminImportExportRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/json': {
-      id: '/admin/json'
-      path: '/json'
-      fullPath: '/admin/json'
-      preLoaderRoute: typeof AdminJsonRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/people': {
       id: '/admin/people'
       path: '/people'
@@ -580,13 +530,6 @@ declare module '@tanstack/react-router' {
       path: '/relationships'
       fullPath: '/admin/relationships'
       preLoaderRoute: typeof AdminRelationshipsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/studios': {
@@ -705,12 +648,9 @@ const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
 interface AdminRouteChildren {
   AdminCatalogRoute: typeof AdminCatalogRouteWithChildren
   AdminDatabaseRoute: typeof AdminDatabaseRoute
-  AdminImportExportRoute: typeof AdminImportExportRoute
-  AdminJsonRoute: typeof AdminJsonRoute
   AdminPeopleRoute: typeof AdminPeopleRoute
   AdminPlanetsRoute: typeof AdminPlanetsRoute
   AdminRelationshipsRoute: typeof AdminRelationshipsRoute
-  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStudiosRoute: typeof AdminStudiosRoute
   AdminTrackerRoute: typeof AdminTrackerRoute
   AdminValidationRoute: typeof AdminValidationRoute
@@ -722,12 +662,9 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCatalogRoute: AdminCatalogRouteWithChildren,
   AdminDatabaseRoute: AdminDatabaseRoute,
-  AdminImportExportRoute: AdminImportExportRoute,
-  AdminJsonRoute: AdminJsonRoute,
   AdminPeopleRoute: AdminPeopleRoute,
   AdminPlanetsRoute: AdminPlanetsRoute,
   AdminRelationshipsRoute: AdminRelationshipsRoute,
-  AdminSettingsRoute: AdminSettingsRoute,
   AdminStudiosRoute: AdminStudiosRoute,
   AdminTrackerRoute: AdminTrackerRoute,
   AdminValidationRoute: AdminValidationRoute,

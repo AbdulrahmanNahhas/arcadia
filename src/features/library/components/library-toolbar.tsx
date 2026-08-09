@@ -120,7 +120,6 @@ export function LibraryToolbar({
   groupBy,
   onGroupByChange,
   filter,
-  addWork,
   resultCount,
   savedViews,
 
@@ -149,7 +148,6 @@ export function LibraryToolbar({
   groupBy: GroupBy;
   onGroupByChange: (value: GroupBy) => void;
   filter: React.ReactNode;
-  addWork?: React.ReactNode;
   resultCount: number;
   savedViews: SavedUserView[];
 
@@ -199,7 +197,6 @@ export function LibraryToolbar({
               timelineNewestFirst={timelineNewestFirst}
               onTimelineOrderChange={onTimelineOrderChange}
             />
-            {addWork}
           </div>
         </div>
 

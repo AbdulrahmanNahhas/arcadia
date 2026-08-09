@@ -1157,7 +1157,7 @@ function JsonWorkDialog({ work }: { work: Work }) {
       <DialogTrigger render={<Button type="button" variant="ghost" size="sm" />}>
         <CodeIcon data-icon="inline-start" /> عرض JSON
       </DialogTrigger>
-      <DialogContent dir="rtl" className="max-h-[80dvh] sm:max-w-2xl">
+      <DialogContent dir="rtl" className="max-h-[80dvh] overflow-scroll sm:max-w-2xl">
         <DialogHeader className="text-right">
           <DialogTitle>JSON الخام للسجل</DialogTitle>
           <DialogDescription>للقراءة فقط؛ يعرض آخر نسخة محفوظة من السجل.</DialogDescription>
@@ -1166,7 +1166,7 @@ function JsonWorkDialog({ work }: { work: Work }) {
           readOnly
           value={JSON.stringify(work, null, 2)}
           rows={18}
-          className="resize-y font-mono text-xs"
+          className="resize-y font-mono text-xs ltr"
         />
       </DialogContent>
     </Dialog>

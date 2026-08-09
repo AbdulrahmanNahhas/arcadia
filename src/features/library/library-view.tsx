@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { addSavedView, getSavedViews, getWorks, setWorkFavorite } from "@/server/library.functions";
-import { AddWorkDialog } from "./components/add-work-dialog";
 import { EmptyState } from "./components/empty-state";
 import { Gallery } from "./components/gallery";
 import { GroupedResults } from "./components/grouped-results";
@@ -159,10 +158,6 @@ export function LibraryViewPage({
     savedViewMutation.mutate({ data: next });
   };
 
-  const refreshWorks = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["works"] });
-  };
-
   const clearFilters = () => {
     updateViewState({ search: "", filters: createDefaultFilters() });
     onViewChange();
@@ -214,7 +209,6 @@ export function LibraryViewPage({
               matchingCount={filteredWorks.length}
             />
           }
-          addWork={embedded ? undefined : <AddWorkDialog onCreated={refreshWorks} />}
         />
       </div>
 

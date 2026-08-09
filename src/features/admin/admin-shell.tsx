@@ -1,10 +1,7 @@
 import {
   ActivityIcon,
-  BracketsCurlyIcon,
   BuildingsIcon,
   DatabaseIcon,
-  ExportIcon,
-  GearIcon,
   HouseIcon,
   PlanetIcon,
   ShieldWarningIcon,
@@ -49,7 +46,6 @@ const sections = [
       { title: "نظرة عامة", to: "/admin", icon: HouseIcon, exact: true },
       { title: "الأعمال", to: "/admin/catalog", icon: SquaresFourIcon },
       { title: "قاعدة البيانات", to: "/admin/database", icon: DatabaseIcon },
-      // { title: "محرر JSON", to: "/admin/json", icon: BracketsCurlyIcon },
     ],
   },
   {
@@ -66,8 +62,6 @@ const sections = [
     items: [
       { title: "المتعقّب والنشاط", to: "/admin/tracker", icon: ActivityIcon },
       { title: "التحقق", to: "/admin/validation", icon: ShieldWarningIcon },
-      { title: "الاستيراد والتصدير", to: "/admin/import-export", icon: ExportIcon },
-      { title: "الإعدادات", to: "/admin/settings", icon: GearIcon },
     ],
   },
 ] as const;

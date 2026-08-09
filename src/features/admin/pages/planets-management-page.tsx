@@ -161,7 +161,7 @@ export function PlanetsManagementPage() {
                 المعرّف الداخلي يبقى ثابتاً؛ الرابط يعتمد على slug فريد.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="mt-6">
               <FieldGroup>
                 <div className="grid gap-4 sm:grid-cols-[5rem_1fr_1fr]">
                   <Field>
@@ -290,7 +290,7 @@ export function PlanetsManagementPage() {
                 )}
               </FieldGroup>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex items-center justify-end">
               <Button type="submit" disabled={saveMutation.isPending}>
                 <FloppyDiskIcon data-icon="inline-start" />{" "}
                 {saveMutation.isPending ? "جارٍ الحفظ…" : "حفظ الكوكب"}
@@ -299,7 +299,7 @@ export function PlanetsManagementPage() {
           </form>
         </Card>
       </div>
-      <Card className="m-6 -mt-3 mr-4">
+      <Card className="m-6 -mt-6 mr-4">
         <CardHeader>
           <CardTitle>نقل الأعمال بين الكواكب</CardTitle>
           <CardDescription>النقل يحدّث الإسناد الأساسي نفسه؛ لا ينشئ علاقة ثانية.</CardDescription>
