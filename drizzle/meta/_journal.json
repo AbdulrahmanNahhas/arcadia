@@ -225,6 +225,13 @@
       "when": 1786233600000,
       "tag": "0031_simplify_entity_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1786262308132,
+      "tag": "0032_odd_mandarin",
+      "breakpoints": true
     }
   ]
 }

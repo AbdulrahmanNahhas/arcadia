@@ -578,10 +578,6 @@ export const planets = sqliteTable(
     primaryColor: text("primary_color").notNull(),
     secondaryColor: text("secondary_color").notNull(),
     displayOrder: integer("display_order").notNull().default(0),
-    classificationHints: text("classification_hints", { mode: "json" })
-      .$type<Record<string, string[]>>()
-      .notNull()
-      .default({}),
     isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
     ...timestamps,
   },

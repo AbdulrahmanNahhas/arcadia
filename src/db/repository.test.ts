@@ -799,6 +799,39 @@ describe("version 1 platform foundations", () => {
     ).toHaveLength(1);
   });
 
+  it("lists unassigned eligible works and moves them to a planet", () => {
+    const work = repository.createWork({
+      title: "Planet Without Assignment",
+      kind: "movie",
+      year: 2025,
+      status: "planned",
+      summary: "An unassigned platform work.",
+    });
+    database
+      .delete(schema.workPlanetAssignments)
+      .where(eq(schema.workPlanetAssignments.workId, work.id))
+      .run();
+
+    expect(platformRepository.listUnassignedPlanetWorks()).toContainEqual(
+      expect.objectContaining({ id: work.id, planetId: null }),
+    );
+
+    expect(
+      platformRepository.moveWorksToPlanet({
+        workIds: [work.id],
+        planetId: "planet-action",
+      }),
+    ).toEqual({ planetId: "planet-action", moved: 1 });
+    expect(platformRepository.listUnassignedPlanetWorks()).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: work.id })]),
+    );
+    expect(
+      platformRepository
+        .listPlanetAssignments()
+        .find((assignment) => assignment.workId === work.id),
+    ).toMatchObject({ planetId: "planet-action", source: "manual" });
+  });
+
   it("indexes new records for fuzzy catalog search", () => {
     const work = repository.createWork({
       title: "Celestial Archive",

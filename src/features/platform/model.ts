@@ -11,7 +11,6 @@ export const planetSchema = z.object({
   primaryColor: z.string(),
   secondaryColor: z.string(),
   displayOrder: z.number().int(),
-  classificationHints: z.record(z.string(), z.array(z.string())),
   isActive: z.boolean(),
   workCount: z.number().int().min(0),
   reviewCount: z.number().int().min(0),

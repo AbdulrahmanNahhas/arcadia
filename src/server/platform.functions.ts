@@ -16,6 +16,11 @@ export const getAdminPlanets = createServerFn({ method: "GET" }).handler(async (
   return listPlanets({ includeInactive: true });
 });
 
+export const getAdminUnassignedPlanetWorks = createServerFn({ method: "GET" }).handler(async () => {
+  const { listUnassignedPlanetWorks } = await import("@/db/platform-repository");
+  return listUnassignedPlanetWorks();
+});
+
 export const getPlanetDetail = createServerFn({ method: "GET" })
   .validator(z.object({ slug: z.string().trim().min(1) }))
   .handler(async ({ data }) => {
@@ -161,7 +166,6 @@ const planetInputSchema = z.object({
   primaryColor: z.string().regex(/^#[0-9a-f]{6}$/i),
   secondaryColor: z.string().regex(/^#[0-9a-f]{6}$/i),
   displayOrder: z.number().int().min(0),
-  classificationHints: z.record(z.string(), z.array(z.string())).optional(),
   isActive: z.boolean(),
 });
 

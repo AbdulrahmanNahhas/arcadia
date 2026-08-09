@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -37,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { PlanetWithWorks } from "@/features/platform/model";
 import {
   getAdminPlanets,
+  getAdminUnassignedPlanetWorks,
   moveAdminWorksToPlanet,
   saveAdminPlanet,
 } from "@/server/platform.functions";
@@ -44,8 +45,9 @@ import { AdminPageHeader } from "../components/admin-page-header";
 
 type PlanetDraft = Omit<PlanetWithWorks, "id" | "works" | "workCount" | "reviewCount"> & {
   id?: string;
-  hintsText: string;
 };
+
+const unassignedSourceId = "__unassigned__";
 
 function draftFromPlanet(planet?: PlanetWithWorks): PlanetDraft {
   return {
@@ -58,9 +60,7 @@ function draftFromPlanet(planet?: PlanetWithWorks): PlanetDraft {
     primaryColor: planet?.primaryColor ?? "#7189E8",
     secondaryColor: planet?.secondaryColor ?? "#29355F",
     displayOrder: planet?.displayOrder ?? 100,
-    classificationHints: planet?.classificationHints ?? {},
     isActive: planet?.isActive ?? true,
-    hintsText: JSON.stringify(planet?.classificationHints ?? {}, null, 2),
   };
 }
 
@@ -70,14 +70,16 @@ export function PlanetsManagementPage() {
     queryKey: ["admin-planets"],
     queryFn: () => getAdminPlanets(),
   });
+  const { data: unassignedWorks } = useSuspenseQuery({
+    queryKey: ["admin-unassigned-planet-works"],
+    queryFn: () => getAdminUnassignedPlanetWorks(),
+  });
   const [draft, setDraft] = useState<PlanetDraft>(() => draftFromPlanet(planets[0]));
-  const [sourceId, setSourceId] = useState(planets[0]?.id ?? "");
-  const [targetId, setTargetId] = useState(
-    planets.find((planet) => planet.id !== sourceId)?.id ?? "",
-  );
+  const [sourceId, setSourceId] = useState(unassignedSourceId);
+  const [targetId, setTargetId] = useState(planets.find((planet) => planet.isActive)?.id ?? "");
   const [selectedWorks, setSelectedWorks] = useState<Set<string>>(new Set());
-  const [formError, setFormError] = useState("");
   const source = planets.find((planet) => planet.id === sourceId);
+  const sourceWorks = sourceId === unassignedSourceId ? unassignedWorks : (source?.works ?? []);
   const planetItems = useMemo(
     () => planets.map((planet) => ({ value: planet.id, label: planet.nameAr })),
     [planets],
@@ -85,6 +87,7 @@ export function PlanetsManagementPage() {
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["admin-planets"] }),
+      queryClient.invalidateQueries({ queryKey: ["admin-unassigned-planet-works"] }),
       queryClient.invalidateQueries({ queryKey: ["planets"] }),
       queryClient.invalidateQueries({ queryKey: ["platform-home"] }),
     ]);
@@ -106,29 +109,14 @@ export function PlanetsManagementPage() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    try {
-      const hints = JSON.parse(draft.hintsText) as Record<string, unknown>;
-      if (
-        Object.values(hints).some(
-          (value) => !Array.isArray(value) || value.some((item) => typeof item !== "string"),
-        )
-      )
-        throw new Error("كل قيمة في قواعد الاقتراح يجب أن تكون قائمة نصوص.");
-      setFormError("");
-      const { hintsText: _hintsText, classificationHints: _classificationHints, ...planet } = draft;
-      saveMutation.mutate({
-        data: { ...planet, classificationHints: hints as Record<string, string[]> },
-      });
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : "قواعد الاقتراح ليست JSON صالحاً.");
-    }
+    saveMutation.mutate({ data: draft });
   };
 
   return (
     <div className="flex min-w-0 flex-col gap-8">
       <AdminPageHeader
         title="إدارة الكواكب"
-        description="أنشئ الكواكب وعدّل هويتها وترتيبها وقواعد اقتراحها، ثم انقل الأعمال بينها بإسناد أساسي واحد."
+        description="أنشئ الكواكب وعدّل هويتها وترتيبها، ثم انقل الأعمال بينها بإسناد أساسي واحد."
         actions={
           <Button variant="outline" onClick={() => setDraft(draftFromPlanet())}>
             <PlusIcon data-icon="inline-start" /> كوكب جديد
@@ -286,20 +274,7 @@ export function PlanetsManagementPage() {
                     </div>
                   </Field>
                 </div>
-                <Field>
-                  <FieldLabel htmlFor="planet-hints">قواعد الاقتراح</FieldLabel>
-                  <Textarea
-                    id="planet-hints"
-                    value={draft.hintsText}
-                    onChange={(event) => setDraft({ ...draft, hintsText: event.target.value })}
-                    rows={7}
-                    className="font-mono text-xs"
-                    dir="ltr"
-                  />
-                  <FieldDescription>
-                    JSON: مفاتيح مثل genres وtags وtones، وقيمة كل مفتاح قائمة نصوص.
-                  </FieldDescription>
-                </Field>
+
                 <Field orientation="horizontal">
                   <Switch
                     id="planet-active"
@@ -308,9 +283,9 @@ export function PlanetsManagementPage() {
                   />
                   <FieldLabel htmlFor="planet-active">نشط في المنصة الرئيسية</FieldLabel>
                 </Field>
-                {(formError || saveMutation.error) && (
+                {saveMutation.error && (
                   <Alert variant="destructive">
-                    <AlertDescription>{formError || saveMutation.error?.message}</AlertDescription>
+                    <AlertDescription>{saveMutation.error.message}</AlertDescription>
                   </Alert>
                 )}
               </FieldGroup>
@@ -334,7 +309,7 @@ export function PlanetsManagementPage() {
             <Field>
               <FieldLabel htmlFor="planet-source">من</FieldLabel>
               <Select
-                items={planetItems}
+                items={[{ value: unassignedSourceId, label: "أعمال بلا كوكب" }, ...planetItems]}
                 value={sourceId}
                 onValueChange={(value) => {
                   setSourceId(value ?? "");
@@ -346,6 +321,7 @@ export function PlanetsManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
+                    <SelectItem value={unassignedSourceId}>أعمال بلا كوكب</SelectItem>
                     {planetItems.map((item) => (
                       <SelectItem key={item.value} value={item.value}>
                         {item.label}
@@ -359,7 +335,9 @@ export function PlanetsManagementPage() {
             <Field>
               <FieldLabel htmlFor="planet-target">إلى</FieldLabel>
               <Select
-                items={planetItems}
+                items={planetItems.filter(
+                  (item) => planets.find((planet) => planet.id === item.value)?.isActive,
+                )}
                 value={targetId}
                 onValueChange={(value) => setTargetId(value ?? "")}
               >
@@ -369,7 +347,11 @@ export function PlanetsManagementPage() {
                 <SelectContent>
                   <SelectGroup>
                     {planetItems
-                      .filter((item) => item.value !== sourceId)
+                      .filter(
+                        (item) =>
+                          item.value !== sourceId &&
+                          planets.find((planet) => planet.id === item.value)?.isActive,
+                      )
                       .map((item) => (
                         <SelectItem key={item.value} value={item.value}>
                           {item.label}
@@ -396,16 +378,16 @@ export function PlanetsManagementPage() {
               <AlertDescription>{moveMutation.error.message}</AlertDescription>
             </Alert>
           )}
-          {source?.works.length ? (
+          {sourceWorks.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>
                     <Checkbox
-                      checked={selectedWorks.size === source.works.length}
+                      checked={selectedWorks.size === sourceWorks.length}
                       onCheckedChange={(checked) =>
                         setSelectedWorks(
-                          checked ? new Set(source.works.map((work) => work.id)) : new Set(),
+                          checked ? new Set(sourceWorks.map((work) => work.id)) : new Set(),
                         )
                       }
                       aria-label="تحديد كل الأعمال"
@@ -418,7 +400,7 @@ export function PlanetsManagementPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {source.works.map((work) => (
+                {sourceWorks.map((work) => (
                   <TableRow key={work.id}>
                     <TableCell>
                       <Checkbox
@@ -443,7 +425,11 @@ export function PlanetsManagementPage() {
                     <TableCell>{work.year ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">
-                        {source.reviewCount ? "قد يحتاج مراجعة" : "مراجع"}
+                        {sourceId === unassignedSourceId
+                          ? "غير مسند"
+                          : source?.reviewCount
+                            ? "قد يحتاج مراجعة"
+                            : "مراجع"}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -453,9 +439,15 @@ export function PlanetsManagementPage() {
           ) : (
             <Empty>
               <EmptyHeader>
-                <EmptyTitle>لا توجد أعمال في هذا الكوكب</EmptyTitle>
+                <EmptyTitle>
+                  {sourceId === unassignedSourceId
+                    ? "لا توجد أعمال بلا كوكب"
+                    : "لا توجد أعمال في هذا الكوكب"}
+                </EmptyTitle>
                 <EmptyDescription>
-                  اختر كوكباً آخر أو ابدأ بإسناد عمل من صفحة الكتالوج.
+                  {sourceId === unassignedSourceId
+                    ? "كل الأعمال المؤهلة مسندة إلى كوكب."
+                    : "اختر كوكباً آخر أو ابدأ بإسناد عمل من صفحة الكتالوج."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

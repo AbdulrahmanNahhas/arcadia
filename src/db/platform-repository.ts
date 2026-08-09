@@ -85,7 +85,6 @@ export function listPlanets(
         primaryColor: planet.primaryColor,
         secondaryColor: planet.secondaryColor,
         displayOrder: planet.displayOrder,
-        classificationHints: planet.classificationHints,
         isActive: planet.isActive,
         workCount: planetAssignments.filter((assignment) => worksById.has(assignment.workId))
           .length,
@@ -111,7 +110,6 @@ export function savePlanet(input: {
   primaryColor: string;
   secondaryColor: string;
   displayOrder: number;
-  classificationHints?: Record<string, string[]>;
   isActive: boolean;
 }) {
   const now = Math.floor(Date.now() / 1000);
@@ -127,7 +125,6 @@ export function savePlanet(input: {
       primaryColor: input.primaryColor,
       secondaryColor: input.secondaryColor,
       displayOrder: input.displayOrder,
-      classificationHints: input.classificationHints ?? {},
       isActive: input.isActive,
       createdAt: now,
       updatedAt: now,
@@ -143,7 +140,6 @@ export function savePlanet(input: {
         primaryColor: input.primaryColor,
         secondaryColor: input.secondaryColor,
         displayOrder: input.displayOrder,
-        classificationHints: input.classificationHints ?? {},
         isActive: input.isActive,
         updatedAt: now,
       },
@@ -151,6 +147,14 @@ export function savePlanet(input: {
     .run();
   upsertPlanetSearchDocument(id);
   return listPlanets({ includeInactive: true }).find((planet) => planet.id === id) ?? null;
+}
+
+export function listUnassignedPlanetWorks(): Work[] {
+  const assignedWorkIds = new Set(listPlanetAssignments().map((assignment) => assignment.workId));
+  return listWorks()
+    .filter(isPlatformWork)
+    .filter((work) => !assignedWorkIds.has(work.id))
+    .sort(compareNewestRelease);
 }
 
 export function moveWorksToPlanet(input: { workIds: string[]; planetId: string }) {
@@ -203,7 +207,7 @@ function upsertPlanetSearchDocument(planetId: string) {
       entityId: planet.id,
       primaryText: planet.nameAr,
       secondaryText: planet.nameEn ?? "",
-      keywords: `${planet.description} ${Object.values(planet.classificationHints).flat().join(" ")}`,
+      keywords: planet.description,
       updatedAt: Math.floor(Date.now() / 1000),
     })
     .onConflictDoUpdate({
@@ -211,7 +215,7 @@ function upsertPlanetSearchDocument(planetId: string) {
       set: {
         primaryText: planet.nameAr,
         secondaryText: planet.nameEn ?? "",
-        keywords: `${planet.description} ${Object.values(planet.classificationHints).flat().join(" ")}`,
+        keywords: planet.description,
         updatedAt: Math.floor(Date.now() / 1000),
       },
     })
