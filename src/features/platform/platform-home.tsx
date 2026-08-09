@@ -80,7 +80,7 @@ export function PlatformHome() {
               >
                 <WorkRail
                   title={`${planet.icon} ${planet.nameAr}`}
-                  description={`${planet.workCount} عمل في هذا المدار · الأحدث عرضاً أولاً`}
+                  description={`${planet.workCount} عمل في هذا الكوكب · الأحدث عرضاً أولاً`}
                   works={planet.works}
                   href={{ to: "/planets/$planetSlug", params: { planetSlug: planet.slug } }}
                   variant={index % 3 === 1 ? "banner" : "poster"}

@@ -43,16 +43,13 @@ export function PlatformShell({
             <NavLink to="/planets" active={pathname.startsWith("/planets")} icon={<PlanetIcon />}>
               الكواكب
             </NavLink>
+            <NavLink to="/database" active={pathname === "/database"} icon={<DatabaseIcon />}>
+              قاعدة البيانات
+            </NavLink>
           </nav>
           <div className="ms-auto flex items-center gap-2">
             <GlobalSearch />
-            <Link
-              to="/database"
-              className="hidden size-9 items-center justify-center rounded-md text-muted-foreground transition hover:bg-white/8 hover:text-foreground sm:flex"
-            >
-              <DatabaseIcon />
-              <span className="sr-only">قاعدة البيانات</span>
-            </Link>
+
             <Link
               to="/admin"
               className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
@@ -79,7 +76,7 @@ export function PlatformShell({
           to="/database"
           active={pathname.startsWith("/database")}
           icon={<DatabaseIcon />}
-          label="البيانات"
+          label="قاعدة البيانات"
         />
       </nav>
     </div>

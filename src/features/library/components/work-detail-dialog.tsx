@@ -134,7 +134,7 @@ export function WorkDetailDialog({
           "grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden p-0",
           "rounded-3xl border bg-background shadow-2xl",
           "sm:h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-2rem)]",
-          "sm:w-[calc(100vw-2rem)] sm:max-w-[1480px]",
+          "sm:w-[calc(100vw-2rem)] sm:max-w-370",
           fullScreen &&
             "h-screen! max-h-screen! w-screen max-w-none rounded-none border-0 sm:w-screen sm:max-w-none",
         )}
@@ -160,7 +160,7 @@ export function WorkDetailDialog({
           <WorkHero work={work} favoritePending={favoritePending} toggleFavorite={toggleFavorite} />
           <div
             className={cn(
-              "relative mx-auto grid w-full max-w-[1480px] gap-5 overflow-x-clip px-4 py-5",
+              "relative mx-auto grid w-full max-w-370 gap-5 overflow-x-clip px-4 py-5",
               "bg-background/40 backdrop-blur-xl",
               "sm:px-6 sm:py-7",
               "lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start",
@@ -657,7 +657,7 @@ function LedgerEvent({
     <div className="relative pr-4">
       <span
         className={[
-          "absolute top-2 -right-[9px] size-2 rounded-full",
+          "absolute top-2 -right-2.25 size-2 rounded-full",
           tone === "primary" ? "bg-primary" : "bg-border",
         ].join(" ")}
       />
@@ -709,7 +709,7 @@ function DialogFloatingActions({
       className={cn(
         "absolute top-3 right-3 z-30 flex items-center gap-1 rounded-full",
         "border bg-background/85 p-1 shadow-lg backdrop-blur-xl",
-        "supports-[backdrop-filter]:bg-background/75 sm:top-4 sm:right-4",
+        "supports-backdrop-filter:bg-background/75 sm:top-4 sm:right-4",
       )}
     >
       <Button
@@ -838,7 +838,7 @@ function WorkHero({
       <div
         className={cn(
           "relative overflow-hidden border-b bg-muted/40",
-          work.bannerPath ? "h-[clamp(260px,46vw,620px)]" : "h-[260px] sm:h-[340px]",
+          work.bannerPath ? "h-[clamp(260px,46vw,620px)]" : "h-65 sm:h-85",
         )}
       >
         {work.bannerPath ? (
@@ -871,7 +871,7 @@ function WorkHero({
 
       <div
         className={cn(
-          "relative mx-auto -mt-16 grid w-full max-w-[1440px] items-end overflow-x-hidden!",
+          "relative mx-auto -mt-16 grid w-full max-w-360 items-end overflow-x-hidden!",
           "grid-cols-[112px_minmax(0,1fr)] gap-x-4 gap-y-5 px-4 pb-6",
           "sm:-mt-20 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-x-6 sm:px-6 sm:pb-8",
           "lg:-mt-28 lg:grid-cols-[200px_minmax(0,1fr)_220px] lg:gap-8",
@@ -1162,7 +1162,7 @@ function Property({ label, children }: { label: string; children: ReactNode }) {
     >
       <dt className="rtl text-start text-muted-foreground">{label}</dt>
 
-      <dd className="rtl min-w-0 text-start font-medium break-words">{children}</dd>
+      <dd className="rtl min-w-0 text-start font-medium wrap-break-word">{children}</dd>
     </div>
   );
 }

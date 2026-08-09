@@ -25,9 +25,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import type { Work, WorkStructure } from "@/features/library/model";
+import { useArabicTranslations } from "@/features/library/translations";
 import type { Recommendation, RiskAssessment } from "@/features/platform/model";
 import { cn } from "@/lib/utils";
 import { getEntities } from "@/server/library.functions";
@@ -45,6 +48,7 @@ export function WorkDetailPage({ workId }: { workId: string }) {
     queryKey: ["entities"],
     queryFn: () => getEntities(),
   });
+  const { taxonomyLabel } = useArabicTranslations();
   if (!data)
     return (
       <PlatformShell>
@@ -75,9 +79,22 @@ export function WorkDetailPage({ workId }: { workId: string }) {
               {work.summary || "لم يُضف ملخص تحريري بعد."}
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
-              {[...work.genres, ...work.tags.slice(0, 8), ...work.tone].map((term) => (
-                <Badge key={term} variant="secondary">
-                  {term}
+              {[
+                ...work.genres.map((term) => ({
+                  key: `genre:${term}`,
+                  label: taxonomyLabel("genre", term),
+                })),
+                ...work.tags.slice(0, 8).map((term) => ({
+                  key: `tag:${term}`,
+                  label: taxonomyLabel("tag", term),
+                })),
+                ...work.tone.map((term) => ({
+                  key: `tone:${term}`,
+                  label: taxonomyLabel("tone", term),
+                })),
+              ].map(({ key, label }) => (
+                <Badge key={key} variant="secondary">
+                  {label}
                 </Badge>
               ))}
             </div>
@@ -475,16 +492,36 @@ function SimilarWorks({ recommendations }: { recommendations: Recommendation[] }
       />
       <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {recommendations.map((recommendation) => (
-          <div key={recommendation.work.id}>
+          <div key={recommendation.work.id} className="relative">
             <WorkCard work={recommendation.work} />
-            <p className="mt-2 line-clamp-2 text-[11px] leading-5 text-muted-foreground">
-              {recommendation.score}% ·{" "}
-              {recommendation.reasons
-                .map((reason) => reason.label)
-                .filter(Boolean)
-                .slice(0, 2)
-                .join(" · ")}
-            </p>
+            <Popover>
+              <PopoverTrigger
+                className="absolute bottom-0 left-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Recommendation details"
+              >
+                <InfoIcon className="h-4 w-4" />
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-3" side="top">
+                <div className="font-medium text-foreground text-lg">
+                  التطابق {recommendation.score}%
+                </div>
+
+                {recommendation.reasons && recommendation.reasons.length > 0 && (
+                  <div className="mt-0 space-y-1">
+                    {recommendation.reasons
+                      .filter((reason) => Boolean(reason?.label))
+                      .map((reason, index) => (
+                        <p
+                          key={`${index.toString()}-${reason.label}`}
+                          className="line-clamp-2 text-[11px] leading-5 text-base! text-muted-foreground"
+                        >
+                          - {reason.label}
+                        </p>
+                      ))}
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
         ))}
       </div>

@@ -11,6 +11,12 @@ export const getPlanets = createServerFn({ method: "GET" }).handler(async () => 
   return listPlanets();
 });
 
+export const getPlatformCatalogWorks = createServerFn({ method: "GET" }).handler(async () => {
+  const { listWorks } = await import("@/db/repository");
+  const { isPlatformWork } = await import("@/db/platform-repository");
+  return listWorks().filter(isPlatformWork);
+});
+
 export const getAdminPlanets = createServerFn({ method: "GET" }).handler(async () => {
   const { listPlanets } = await import("@/db/platform-repository");
   return listPlanets({ includeInactive: true });

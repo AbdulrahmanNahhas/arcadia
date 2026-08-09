@@ -40,9 +40,54 @@ export function WorkCard({
 }: {
   work: Work;
   className?: string;
-  variant?: "poster" | "banner";
+  variant?: "poster" | "banner" | "logo";
 }) {
   const KindIcon = kindIcon[work.kind];
+
+  if (variant === "logo") {
+    return (
+      <Link
+        to="/works/$workId"
+        params={{ workId: work.id }}
+        className={cn(
+          "group/card block min-w-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+          className,
+        )}
+      >
+        <article>
+          <div className="relative aspect-square overflow-hidden rounded-xl bg-muted ring-1 ring-white/8 transition duration-300 group-hover/card:-translate-y-1 group-hover/card:ring-white/20 motion-reduce:transition-none">
+            {work.logoPath || work.imagePath ? (
+              <img
+                src={work.logoPath || work.imagePath || undefined}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="size-full object-contain p-5 transition duration-500 group-hover/card:scale-[1.035] motion-reduce:transition-none"
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center bg-linear-to-br from-primary/25 via-muted to-muted p-4 text-center">
+                <span className="font-heading text-sm leading-6">
+                  {work.arabicTitle || work.title}
+                </span>
+              </div>
+            )}
+            {work.calculatedRating !== null && (
+              <span className="absolute inset-e-2 top-2 flex items-center gap-1 rounded-md bg-background/70 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
+                <StarIcon weight="fill" className="text-amber-300" />
+                {work.calculatedRating.toFixed(1)}
+              </span>
+            )}
+          </div>
+          <div className="px-0.5 pt-3">
+            <h3 className="truncate font-heading text-sm font-medium text-foreground">
+              {work.arabicTitle || work.title}
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">{work.year ?? "—"}</p>
+          </div>
+        </article>
+      </Link>
+    );
+  }
 
   if (variant === "banner") {
     return (
@@ -77,7 +122,7 @@ export function WorkCard({
               {work.calculatedRating.toFixed(1)}
             </span>
           )}
-          <div className="absolute inset-x-0 -bottom-22 border border-t-0 pt-47 rounded-b-2xl border-transparent group-hover/card:border-border translate-y-9 p-4 transition-all duration-300 ease-out group-hover/card:translate-y-0 group-focus-visible/card:translate-y-0">
+          <div className="absolute inset-x-0 -bottom-22 border border-t-0 pt-32 rounded-b-2xl border-transparent group-hover/card:border-border translate-y-9 p-4 transition-all duration-300 ease-out group-hover/card:translate-y-0 group-focus-visible/card:translate-y-0">
             <h3 className="truncate font-heading text-sm font-semibold text-white sm:text-base">
               {work.arabicTitle || work.title}
             </h3>
@@ -88,10 +133,10 @@ export function WorkCard({
                 <KindIcon className="size-3" weight="fill" />
                 {kindLabel[work.kind]}
               </span>
-              {work.genres[0] && (
+              {work.animationStudios[0] && (
                 <>
                   <span aria-hidden="true">·</span>
-                  <span className="truncate">{work.genres[0]}</span>
+                  <span className="truncate">{work.animationStudios[0].name}</span>
                 </>
               )}
             </p>
