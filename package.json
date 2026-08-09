@@ -23,6 +23,7 @@
     "db:fetch-literature-covers": "tsx scripts/fetch-literature-covers.ts",
     "db:fetch:studio-images": "tsx scripts/fetch-studio-images.ts",
     "db:seed:literature": "tsx scripts/seed-literature.ts",
+    "db:seed:requested-animation": "tsx scripts/seed-requested-animation.ts",
     "db:sync:contributors": "tsx scripts/sync-anilist-producers.ts",
     "db:sync:producers": "tsx scripts/sync-anilist-producers.ts",
     "db:sync:publishers": "tsx scripts/sync-publication-publishers.ts",

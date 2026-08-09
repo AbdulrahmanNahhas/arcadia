@@ -1,22 +1,26 @@
 import {
   ArrowRightIcon,
-  CalendarBlankIcon,
   CaretDownIcon,
   CheckCircleIcon,
+  CheckIcon,
   ClockIcon,
-  FilmSlateIcon,
-  HeartIcon,
+  FilmStripIcon,
   InfoIcon,
-  ShieldCheckIcon,
+  PlayIcon,
+  PlusIcon,
   StarIcon,
   TelevisionIcon,
-  WarningCircleIcon,
+  ThumbsUpIcon,
 } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -25,11 +29,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Progress } from "@/components/ui/progress";
+import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import type { Work, WorkStructure } from "@/features/library/model";
+import type { Entity, Work, WorkStructure, WorkUnitDetail } from "@/features/library/model";
+import { scoreCriteria, scoreLabel, scoreWeights } from "@/features/library/scoring";
 import { useArabicTranslations } from "@/features/library/translations";
 import type { Recommendation, RiskAssessment } from "@/features/platform/model";
 import { cn } from "@/lib/utils";
@@ -38,6 +52,8 @@ import { getPlatformWorkDetail } from "@/server/platform.functions";
 import { EntityDialog } from "./components/entity-dialog";
 import { PlatformShell } from "./components/platform-shell";
 import { WorkCard } from "./components/work-card";
+
+type PlanetInfo = { slug: string; icon: string; nameAr: string; primaryColor: string } | null;
 
 export function WorkDetailPage({ workId }: { workId: string }) {
   const { data } = useSuspenseQuery({
@@ -64,160 +80,111 @@ export function WorkDetailPage({ workId }: { workId: string }) {
     const entity = entities.find((item) => item.id === credit.entityId);
     return entity?.entityType === "organization" ? [{ entity, credit }] : [];
   });
+  const audienceLabel = work.audience ? taxonomyLabel("audience", work.audience) : null;
+  const hasEpisodes = (["series", "anime"] as Work["kind"][]).includes(work.kind);
+  const hasCast = people.length > 0 || studios.length > 0;
+
+  const tabs = [
+    { id: "overview", label: "نظرة عامة" },
+    hasEpisodes && { id: "episodes", label: "الحلقات" },
+    hasCast && { id: "cast", label: "صنّاع العمل" },
+    { id: "scores", label: "التقييم" },
+    { id: "details", label: "التفاصيل" },
+  ].filter(Boolean) as Array<{ id: string; label: string }>;
 
   return (
-    <PlatformShell immersive>
-      <WorkHero work={work} planet={planet?.planet ?? null} risks={risks} />
-      <div className="mx-auto grid max-w-400 gap-12 px-5 pb-28 pt-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-16">
-        <div className="min-w-0 space-y-14">
-          <section aria-labelledby="story-title">
-            <SectionEyebrow>عن العمل</SectionEyebrow>
-            <h2 id="story-title" className="mt-2 font-heading text-2xl font-semibold">
-              الحكاية، دون جدار من الحقول
-            </h2>
-            <p className="mt-5 max-w-3xl text-lg leading-9 text-foreground/76">
-              {work.summary || "لم يُضف ملخص تحريري بعد."}
-            </p>
-            <div className="mt-7 flex flex-wrap gap-2">
-              {[
-                ...work.genres.map((term) => ({
-                  key: `genre:${term}`,
-                  label: taxonomyLabel("genre", term),
-                })),
-                ...work.tags.slice(0, 8).map((term) => ({
-                  key: `tag:${term}`,
-                  label: taxonomyLabel("tag", term),
-                })),
-                ...work.tone.map((term) => ({
-                  key: `tone:${term}`,
-                  label: taxonomyLabel("tone", term),
-                })),
-              ].map(({ key, label }) => (
-                <Badge key={key} variant="secondary">
-                  {label}
-                </Badge>
-              ))}
-            </div>
-          </section>
+    <PlatformShell>
+      <WorkHero work={work} planet={planet?.planet ?? null} audienceLabel={audienceLabel} />
 
-          {(people.length > 0 || studios.length > 0) && (
-            <section aria-labelledby="credits-title">
-              <SectionHeading
-                id="credits-title"
-                title="صُنّاع وعلاقات مختارة"
-                description="لا تعرض نحّاسينما كل طاقم العمل؛ هذه كيانات منتقاة ومرتبطة بأدوار مطبّعة."
-              />
-              <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {[...people, ...studios].map(({ entity, credit }) => (
-                  <EntityDialog key={`${entity.id}:${credit.role}`} entity={entity}>
-                    <span className="flex w-full items-center gap-3 rounded-xl border border-white/8 bg-card/45 p-3 transition hover:bg-card">
-                      <span className="size-11 shrink-0 overflow-hidden rounded-lg bg-muted">
-                        {entity.imagePath ? (
-                          <img src={entity.imagePath} alt="" className="size-full object-cover" />
-                        ) : null}
-                      </span>
-                      <span className="min-w-0">
-                        <strong className="block truncate text-sm font-medium">
-                          {entity.name}
-                        </strong>
-                        <span className="mt-1 block text-xs text-muted-foreground">
-                          {roleLabels[credit.role] ?? credit.role}
-                        </span>
-                      </span>
-                    </span>
-                  </EntityDialog>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {work.relations.length > 0 && (
-            <section aria-labelledby="relations-title">
-              <SectionHeading
-                id="relations-title"
-                title="مكانه في السلسلة"
-                description="العلاقات التالية تأتي من السجل الفعلي، وبنوعها واتجاهها المحفوظين."
-              />
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {work.relations.map((relation) => (
-                  <Link
-                    key={relation.id}
-                    to="/works/$workId"
-                    params={{ workId: relation.workId }}
-                    className="group grid grid-cols-[4.5rem_1fr_auto] items-center gap-4 rounded-xl border border-white/8 bg-card/45 p-3 transition hover:bg-card"
-                  >
-                    <div className="aspect-2/3 overflow-hidden rounded-lg bg-muted">
-                      {relation.work.imagePath && (
-                        <img
-                          src={relation.work.imagePath}
-                          alt=""
-                          className="size-full object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <Badge variant="outline" className="mb-2">
-                        {relationLabels[relation.relationType] ?? relation.relationType}
-                      </Badge>
-                      <h3 className="truncate font-heading text-sm font-medium">
-                        {relation.work.title}
-                      </h3>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {relation.direction === "outgoing"
-                          ? "ينطلق من هذا العمل"
-                          : "يصل إلى هذا العمل"}
-                      </p>
-                    </div>
-                    <ArrowRightIcon className="rotate-180 text-muted-foreground transition group-hover:-translate-x-1" />
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {(["series", "anime"] as Work["kind"][]).includes(work.kind) && (
-            <EpisodesSection structure={structure} />
-          )}
-
-          <SimilarWorks recommendations={recommendations} />
+      <Tabs defaultValue="overview" className="mx-auto max-w-400 gap-0 px-5 sm:px-8">
+        <div className="sticky top-14 z-30 -mx-5 overflow-x-auto border-y border-border/40 bg-background/80 px-5 backdrop-blur-xl sm:-mx-8 sm:px-8">
+          <TabsList variant="line" className="h-10! min-w-max justify-start gap-3 p-0">
+            {tabs.map((tab) => (
+              <TabsTrigger
+                key={tab.id}
+                value={tab.id}
+                className="h-8 hover:bg-accent! flex-none rounded-full px-3 text-sm"
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </div>
 
-        <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
-          <MetadataPanel work={work} planetName={planet?.planet.nameAr ?? "غير معيّن"} />
-          <div className="rounded-xl border border-white/8 bg-card/45 p-5">
-            <h2 className="font-heading text-sm font-semibold">حالتك المحلية</h2>
-            <p className="mt-3 text-2xl font-semibold">{statusLabels[work.status]}</p>
-            <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-              <span>{work.progressUnit}</span>
-              <span>
-                {work.progress}
-                {work.progressTotal ? ` / ${work.progressTotal}` : ""}
-              </span>
-            </div>
-            {work.progressTotal ? (
-              <Progress value={(work.progress / work.progressTotal) * 100} className="mt-2" />
-            ) : null}
-            <p className="mt-4 text-xs leading-6 text-muted-foreground">
-              هذه حالة المتعقّب المحلي. لا توجد مزامنة تشغيل أو Jellyfin في الإصدار 1.0.
-            </p>
-          </div>
-        </aside>
-      </div>
+        <div className="grid gap-10 md:py-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-14">
+          <main className="min-w-0">
+            <TabsContent value="overview" className="mt-0 focus-visible:outline-none">
+              <OverviewSection work={work} risks={risks} taxonomyLabel={taxonomyLabel} />
+            </TabsContent>
+
+            {hasEpisodes && (
+              <TabsContent value="episodes" className="mt-0 focus-visible:outline-none">
+                <EpisodesSection structure={structure} work={work} />
+              </TabsContent>
+            )}
+
+            {hasCast && (
+              <TabsContent value="cast" className="mt-0 focus-visible:outline-none">
+                <CastSection people={people} studios={studios} />
+              </TabsContent>
+            )}
+
+            <TabsContent value="scores" className="mt-0 focus-visible:outline-none">
+              <ScoreSection work={work} />
+            </TabsContent>
+
+            <TabsContent value="details" className="mt-0 focus-visible:outline-none">
+              <WorkDetails work={work} structure={structure} taxonomyLabel={taxonomyLabel} />
+            </TabsContent>
+          </main>
+
+          <aside className="flex flex-col gap-5 lg:sticky lg:top-32 lg:max-h-[calc(100svh-9rem)] lg:self-start lg:overflow-y-auto lg:pe-2 p-1">
+            <MetadataPanel
+              work={work}
+              planetName={planet?.planet.nameAr ?? "غير معيّن"}
+              audienceLabel={audienceLabel ?? "غير محدد"}
+            />
+            <ParentGuideCard risks={risks} />
+          </aside>
+        </div>
+      </Tabs>
+
+      {recommendations.length > 0 && (
+        <div className="mx-auto max-w-400 px-5 pb-28 sm:px-8">
+          <SimilarSection recommendations={recommendations} />
+        </div>
+      )}
     </PlatformShell>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Hero
+// ---------------------------------------------------------------------------
+
+function Dot() {
+  return (
+    <span aria-hidden className="text-foreground/25">
+      •
+    </span>
   );
 }
 
 function WorkHero({
   work,
   planet,
-  risks,
+  audienceLabel,
 }: {
   work: Work;
-  planet: { slug: string; icon: string; nameAr: string; primaryColor: string } | null;
-  risks: RiskAssessment[];
+  planet: PlanetInfo;
+  audienceLabel: string | null;
 }) {
+  const [inList, setInList] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const glow = planet?.primaryColor ?? "#7c8cf8";
+
   return (
-    <section className="relative isolate min-h-[72svh] overflow-hidden border-b border-white/8">
+    <section className="relative isolate min-h-[76svh] overflow-hidden border-b border-border/40">
       {work.bannerPath || work.imagePath ? (
         <img
           src={work.bannerPath || work.imagePath || undefined}
@@ -225,297 +192,585 @@ function WorkHero({
           className="absolute inset-0 -z-20 size-full object-cover"
         />
       ) : null}
-      <div className="absolute inset-0 -z-10 bg-linear-to-l from-background via-background/85 to-background/25" />
-      <div className="absolute inset-0 -z-10 bg-linear-to-t from-background via-transparent to-black/30" />
-      <div className="mx-auto flex min-h-[72svh] max-w-400 items-end px-5 pb-14 pt-32 sm:px-8 lg:items-center lg:pb-8">
-        <div className="max-w-3xl">
+      {/* signature: an ambient glow keyed to the work's planet color, echoed
+          in the eyebrow chip and the accent bars used across the page */}
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10"
+        style={{ background: `radial-gradient(60% 55% at 78% 15%, ${glow}33, transparent 70%)` }}
+      />
+      <div className="absolute inset-0 -z-10 bg-linear-to-l from-background via-background/85 to-background/30" />
+      <div className="absolute inset-0 -z-10 bg-linear-to-t from-background via-background/10 to-black/20" />
+
+      <div className="mx-auto flex min-h-[76svh] max-w-400 items-end px-5 pb-14 pt-32 sm:px-8 lg:items-center lg:pb-12">
+        <div className="max-w-2xl">
           <Link
             to="/"
-            className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
           >
             <ArrowRightIcon /> الرئيسية
           </Link>
+
           {planet && (
             <Link
               to="/planets/$planetSlug"
               params={{ planetSlug: planet.slug }}
-              className="mb-4 flex w-fit items-center gap-2 text-sm font-medium"
-              style={{ color: planet.primaryColor }}
+              className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold backdrop-blur-sm transition hover:brightness-110"
+              style={{
+                borderColor: `${glow}55`,
+                color: glow,
+                backgroundColor: `${glow}14`,
+              }}
             >
               <span>{planet.icon}</span>
               {planet.nameAr}
             </Link>
           )}
-          <h1 className="text-balance font-heading text-4xl leading-[1.15] font-semibold sm:text-6xl">
+
+          <h1 className="text-balance font-heading text-4xl leading-[1.1] font-semibold sm:text-6xl lg:text-7xl">
             {work.arabicTitle || work.title}
           </h1>
           {work.arabicTitle && (
-            <p className="mt-3 font-mono text-lg text-muted-foreground" dir="ltr">
+            <p className="mt-3 font-mono text-base text-muted-foreground sm:text-lg" dir="ltr">
               {work.title}
             </p>
           )}
-          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-foreground/78">
-            <span>{work.year ?? "—"}</span>
+
+          <div className="mt-6 flex flex-wrap items-center gap-2.5 text-sm text-foreground/75 sm:text-base">
+            {work.year && <span>{work.year}</span>}
+            {work.year && <Dot />}
             <span>{kindLabels[work.kind]}</span>
             {work.runtimeMinutes && (
-              <span className="flex items-center gap-1">
-                <ClockIcon /> {work.runtimeMinutes} دقيقة
-              </span>
+              <>
+                <Dot />
+                <span className="flex items-center gap-1">
+                  <ClockIcon /> {work.runtimeMinutes} د
+                </span>
+              </>
+            )}
+            {audienceLabel && (
+              <>
+                <Dot />
+                <span className="rounded border border-foreground/30 px-1.5 py-0.5 text-[11px] font-semibold tracking-wide">
+                  {audienceLabel}
+                </span>
+              </>
             )}
             {work.calculatedRating !== null && (
-              <span className="flex items-center gap-1">
-                <StarIcon weight="fill" className="text-amber-300" />{" "}
-                {work.calculatedRating.toFixed(1)}
-              </span>
+              <>
+                <Dot />
+                <span className="flex items-center gap-1 font-medium">
+                  <StarIcon weight="fill" /> {work.calculatedRating.toFixed(1)}
+                </span>
+              </>
             )}
+            <Dot />
             <span className="flex items-center gap-1">
-              <CheckCircleIcon className="text-primary" /> {releaseLabels[work.releaseStatus]}
+              <CheckCircleIcon /> {releaseLabels[work.releaseStatus]}
             </span>
           </div>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <ParentGuideDialog risks={risks} work={work} />
-            <span
-              className={cn(
-                buttonVariants({ variant: "secondary", size: "lg" }),
-                "cursor-default bg-white/10",
-              )}
-            >
-              <HeartIcon weight={work.favorite ? "fill" : "regular"} /> {statusLabels[work.status]}
-            </span>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
 
-const RISK_STYLES: Record<string, { badge: string; accent: string }> = {
-  high: {
-    badge: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400",
-    accent: "border-s-red-500/70",
-  },
-  medium: {
-    badge: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
-    accent: "border-s-amber-500/70",
-  },
-  low: {
-    badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-    accent: "border-s-emerald-500/70",
-  },
-};
-
-function RiskBadge({ level }: { level: RiskAssessment["level"] }) {
-  const style = RISK_STYLES[level] ?? RISK_STYLES.low;
-  return (
-    <Badge variant="outline" className={`gap-1 font-normal ${style.badge}`}>
-      {level === "high" ? (
-        <WarningCircleIcon weight="fill" className="size-3" />
-      ) : (
-        <ShieldCheckIcon weight="fill" className="size-3" />
-      )}
-      {riskLabels[level]}
-    </Badge>
-  );
-}
-
-function ParentGuideDialog({ risks, work }: { risks: RiskAssessment[]; work: Work }) {
-  const [openId, setOpenId] = useState<string | null>(risks[0]?.dimensionId ?? null);
-  const notes = [work.contentWarnings, work.analysisNotes].filter(Boolean).join("\n\n");
-
-  return (
-    <Dialog>
-      <DialogTrigger render={<Button size="lg" className="gap-2" />}>
-        <ShieldCheckIcon className="size-4" />
-        دليل المحتوى
-      </DialogTrigger>
-
-      <DialogContent className="platform-surface max-h-[90svh] overflow-y-auto p-0 sm:max-w-2xl">
-        <DialogHeader className="border-b px-6 py-5">
-          <DialogTitle className="font-heading text-xl">دليل المحتوى والتحليل</DialogTitle>
-          <DialogDescription>
-            قراءة منظّمة للمخاطر المحفوظة في قاعدة البيانات، وليست تصنيفاً عمرياً خارجياً.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-2 p-6 pt-0">
-          {risks.length ? (
-            risks.map((risk) => {
-              const isOpen = openId === risk.dimensionId;
-              const style = RISK_STYLES[risk.level] ?? RISK_STYLES.low;
-              return (
-                <div
-                  key={risk.dimensionId}
-                  className={`overflow-hidden rounded-lg border border-s-2 ${style.accent}`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setOpenId(isOpen ? null : risk.dimensionId)}
-                    aria-expanded={isOpen}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-start"
-                  >
-                    <div>
-                      <h3 className="text-sm font-medium">{risk.nameAr}</h3>
-                      {risk.nameEn && (
-                        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground" dir="ltr">
-                          {risk.nameEn}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <RiskBadge level={risk.level} />
-                      <CaretDownIcon
-                        className={`size-3.5 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
-                      />
-                    </div>
-                  </button>
-                  <div
-                    className="grid transition-all duration-200"
-                    style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
-                  >
-                    <p className="overflow-hidden px-4 pb-3.5 text-sm leading-7 text-muted-foreground">
-                      {risk.explanation || risk.notes || risk.description}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <p className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
-              لا توجد تقييمات مخاطر منظّمة لهذا العمل.
+          {work.summary && (
+            <p className="mt-5 line-clamp-2 max-w-xl text-sm leading-7 text-foreground/70 sm:text-base">
+              {work.summary}
             </p>
           )}
 
-          {notes && (
-            <div className="mt-4 rounded-lg border-s-2 border-s-primary bg-primary/5 px-4 py-3.5">
-              <h3 className="flex items-center gap-1.5 text-sm font-medium text-primary">
-                <InfoIcon weight="fill" className="size-3.5" /> ملاحظات التحليل
-              </h3>
-              <p className="mt-1.5 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-                {notes}
-              </p>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function EpisodesSection({ structure }: { structure: WorkStructure }) {
-  const seasons = structure.seasons;
-  const [seasonId, setSeasonId] = useState(seasons[0]?.id ?? "preview");
-  const selected = seasons.find((season) => season.id === seasonId);
-  const episodes = selected?.units.length ? selected.units : mockEpisodes;
-  return (
-    <section aria-labelledby="episodes-title">
-      <SectionHeading
-        id="episodes-title"
-        title="المواسم والحلقات"
-        description={
-          seasons.length
-            ? "بنية حلقات محفوظة في الكتالوج."
-            : "معاينة واجهة الإصدار 2.0؛ بيانات الحلقات التالية نموذجية وليست سجلاً فعلياً."
-        }
-      />
-      <div className="mt-6 rounded-2xl border border-white/8 bg-card/40 p-4 sm:p-6">
-        {!seasons.length && (
-          <div className="mb-5 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-            <InfoIcon className="shrink-0 text-primary" /> حالة نموذجية فقط — لا يوجد تشغيل أو تقدم
-            حلقات متزامن.
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Button size="lg" className="px-7">
+              <PlayIcon weight="fill" data-icon="inline-start" />
+              {work.status === "in-progress" ? "متابعة المشاهدة" : "ابدأ المشاهدة"}
+            </Button>
+            <Button variant="secondary" size="lg">
+              <FilmStripIcon data-icon="inline-start" /> شاهد الإعلان
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-lg"
+              aria-pressed={inList}
+              aria-label={inList ? "إزالة من قائمتي" : "أضف إلى قائمتي"}
+              onClick={() => setInList((value) => !value)}
+            >
+              {inList ? <CheckIcon /> : <PlusIcon />}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-lg"
+              aria-pressed={liked}
+              aria-label={liked ? "إلغاء الإعجاب" : "أعجبني"}
+              onClick={() => setLiked((value) => !value)}
+            >
+              <ThumbsUpIcon weight={liked ? "fill" : "regular"} />
+            </Button>
           </div>
-        )}
-        <Tabs value={seasonId} onValueChange={setSeasonId}>
-          <TabsList>
-            {seasons.length ? (
-              seasons.map((season) => (
-                <TabsTrigger key={season.id} value={season.id}>
-                  {season.title}
-                </TabsTrigger>
-              ))
-            ) : (
-              <TabsTrigger value="preview">الموسم 1 · نموذج</TabsTrigger>
-            )}
-          </TabsList>
-          <TabsContent value={seasonId} className="mt-5 space-y-3">
-            {episodes.slice(0, 6).map((episode, index) => (
-              <article
-                key={"id" in episode ? episode.id : index}
-                className="grid gap-4 rounded-xl border border-white/7 bg-background/30 p-3 sm:grid-cols-[9rem_1fr_auto] sm:items-center"
-              >
-                <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
-                  <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                    <TelevisionIcon size={28} />
-                  </div>
-                  <span className="absolute bottom-2 inset-e-2 rounded bg-black/65 px-1.5 py-0.5 text-[10px] text-white">
-                    {("runtimeMinutes" in episode && episode.runtimeMinutes) || 24} د
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    الحلقة {("unitNumber" in episode && episode.unitNumber) || index + 1}
-                  </p>
-                  <h3 className="mt-1 font-heading text-sm font-semibold">
-                    {("title" in episode && episode.title) || mockEpisodes[index]?.title}
-                  </h3>
-                  <p className="mt-2 line-clamp-2 text-xs leading-6 text-muted-foreground">
-                    {!seasons.length
-                      ? mockEpisodes[index]?.description
-                      : "أضف وصف الحلقة من إدارة البنية عند توفره."}
-                  </p>
-                </div>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {"progress" in episode && episode.progress ? (
-                    <>
-                      <CheckCircleIcon className="text-primary" /> شوهدت
-                    </>
-                  ) : (
-                    "غير مشاهد"
-                  )}
-                </span>
-              </article>
-            ))}
-          </TabsContent>
-        </Tabs>
+        </div>
       </div>
     </section>
   );
 }
 
-function SimilarWorks({ recommendations }: { recommendations: Recommendation[] }) {
-  if (!recommendations.length) return null;
+// ---------------------------------------------------------------------------
+// Shared bits
+// ---------------------------------------------------------------------------
+
+function Subsection({
+  title,
+  description,
+  className,
+}: {
+  title: string;
+  description?: string;
+  className?: string;
+}) {
   return (
-    <section aria-labelledby="similar-title">
-      <SectionHeading
-        id="similar-title"
-        title="المزيد مثل هذا"
-        description="تشابه حتمي متعدد الإشارات؛ لا يكفي اشتراك نوع عام واحد لإظهار العمل."
+    <div className={cn("mb-5 flex items-start gap-3", className)}>
+      <span aria-hidden className="mt-1 h-5 w-1 shrink-0 rounded-full bg-primary" />
+      <div>
+        <h3 className="font-heading text-lg font-semibold">{title}</h3>
+        {description && (
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const riskRank: Record<RiskAssessment["level"], number> = {
+  none: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+};
+
+const riskSurfaceClasses: Record<RiskAssessment["level"], string> = {
+  none: "border-border/40 bg-muted/20",
+  low: "border-primary/20 bg-primary/5",
+  medium: "border-amber-500/30 bg-amber-500/10",
+  high: "border-destructive/30 bg-destructive/10",
+};
+
+function strongestRisk(risks: RiskAssessment[]): RiskAssessment["level"] {
+  return risks.reduce<RiskAssessment["level"]>(
+    (strongest, risk) => (riskRank[risk.level] > riskRank[strongest] ? risk.level : strongest),
+    "none",
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Overview tab
+// ---------------------------------------------------------------------------
+
+function OverviewSection({
+  work,
+  risks,
+  taxonomyLabel,
+}: {
+  work: Work;
+  risks: RiskAssessment[];
+  taxonomyLabel: (vocabulary: string, value: string) => string;
+}) {
+  const chips = [
+    ...work.genres.map((term) => ({ key: `genre:${term}`, label: taxonomyLabel("genre", term) })),
+    ...work.tone.map((term) => ({ key: `tone:${term}`, label: taxonomyLabel("tone", term) })),
+    ...work.tags
+      .slice(0, 10)
+      .map((term) => ({ key: `tag:${term}`, label: taxonomyLabel("tag", term) })),
+  ];
+  const hiddenTagCount = Math.max(0, work.tags.length - 10);
+  const contentRisk = strongestRisk(
+    risks.filter((risk) => risk.slug === "sexuality" || risk.slug === "behavioral"),
+  );
+  const theologyRisk = strongestRisk(risks.filter((risk) => risk.slug === "theology"));
+
+  return (
+    <div className="flex flex-col gap-12">
+      <section>
+        <p className="max-w-4xl text-lg xl:text-2xl leading-10 xl:leading-11 text-foreground/80">
+          {work.summary || "لم يُضف ملخص تحريري بعد."}
+        </p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          {chips.map(({ key, label }) => (
+            <Badge key={key} variant="secondary" className="rounded-full px-3 py-2 h-9 text-sm">
+              {label}
+            </Badge>
+          ))}
+          {hiddenTagCount > 0 && (
+            <Badge
+              variant="outline"
+              className="rounded-full px-3 py-2 h-9 text-sm text-muted-foreground"
+            >
+              +{hiddenTagCount}
+            </Badge>
+          )}
+        </div>
+      </section>
+
+      {(work.contentWarnings || work.analysisNotes) && (
+        <section className="grid gap-4 md:grid-cols-2">
+          {work.contentWarnings && (
+            <Alert className={cn("p-5", riskSurfaceClasses[contentRisk])}>
+              <AlertTitle className="flex items-center justify-between gap-3">
+                <span>تنبيه المحتوى</span>
+                <RiskBadge level={contentRisk} />
+              </AlertTitle>
+              <AlertDescription className="mt-2 whitespace-pre-wrap leading-7">
+                {work.contentWarnings}
+              </AlertDescription>
+            </Alert>
+          )}
+          {work.analysisNotes && (
+            <Alert className={cn("p-5", riskSurfaceClasses[theologyRisk])}>
+              <AlertTitle className="flex items-center justify-between gap-3">
+                <span>ملاحظات التحليل</span>
+                <RiskBadge level={theologyRisk} />
+              </AlertTitle>
+              <AlertDescription className="mt-2 whitespace-pre-wrap leading-7">
+                {work.analysisNotes}
+              </AlertDescription>
+            </Alert>
+          )}
+        </section>
+      )}
+
+      {work.relations.length > 0 && (
+        <section>
+          <Subsection
+            title="مكانه في السلسلة"
+            description="العلاقات التالية تأتي من السجل الفعلي، وبنوعها واتجاهها المحفوظين."
+          />
+          <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:-mx-8 sm:px-8">
+            {work.relations.map((relation) => (
+              <Link
+                key={relation.id}
+                to="/works/$workId"
+                params={{ workId: relation.workId }}
+                className="group w-40 shrink-0 snap-start"
+              >
+                <div className="relative aspect-2/3 overflow-hidden rounded-xl bg-muted ring-1 ring-border/10 transition group-hover:ring-primary/50">
+                  {relation.work.imagePath && (
+                    <img
+                      src={relation.work.imagePath}
+                      alt=""
+                      className="size-full object-cover transition duration-300 group-hover:scale-105"
+                    />
+                  )}
+                  {!relation.work.imagePath && (
+                    <div className="flex size-full items-center justify-center p-4 text-center text-xs text-muted-foreground">
+                      {relation.work.title}
+                    </div>
+                  )}
+                  <Badge variant="secondary" className="absolute top-2 inset-s-2 text-[10px]">
+                    {relationLabels[relation.relationType] ?? relation.relationType}
+                  </Badge>
+                </div>
+                <h4 className="mt-2 truncate text-sm font-medium">{relation.work.title}</h4>
+                <p className="truncate text-xs text-muted-foreground">
+                  {relation.direction === "outgoing" ? "ينطلق من هذا العمل" : "يصل إلى هذا العمل"}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Episodes tab
+// ---------------------------------------------------------------------------
+
+type EpisodePreview = {
+  id: string;
+  number: number;
+  title: string;
+  runtimeMinutes: number | null;
+  releaseAt: number | null;
+  isPlaceholder: boolean;
+};
+
+function buildEpisodeList(
+  units: WorkUnitDetail[],
+  declaredCount: number,
+  seasonId: string,
+): EpisodePreview[] {
+  const count = Math.max(units.length, declaredCount);
+  return Array.from({ length: count }, (_, index) => {
+    const unit = units[index];
+    const number = unit?.unitNumber ?? index + 1;
+    return {
+      id: unit?.id ?? `${seasonId}-${number}`,
+      number,
+      title: unit?.title || `الحلقة ${number}`,
+      runtimeMinutes: unit?.runtimeMinutes ?? null,
+      releaseAt: unit?.releaseAt ?? null,
+      isPlaceholder: !unit,
+    };
+  });
+}
+
+function EpisodesSection({ structure, work }: { structure: WorkStructure; work: Work }) {
+  const seasons = structure.seasons;
+  const [seasonId, setSeasonId] = useState(seasons[0]?.id ?? "preview");
+  const [expandedInline, setExpandedInline] = useState(false);
+  const selected = seasons.find((season) => season.id === seasonId);
+  const seasonUnits = selected?.units ?? structure.ungroupedUnits;
+  const totalEpisodeCount = work.episodeCount || structure.totalUnits || 3;
+  const estimatedSeasonCount =
+    seasons.length > 1 ? Math.ceil(totalEpisodeCount / seasons.length) : totalEpisodeCount;
+  const declaredEpisodeCount = selected?.unitCount ?? (seasonUnits.length || estimatedSeasonCount);
+  const episodes = buildEpisodeList(seasonUnits, declaredEpisodeCount, seasonId);
+  const inlineLimit = expandedInline ? Math.min(episodes.length, 15) : 6;
+  const visibleEpisodes = episodes.slice(0, inlineLimit);
+  const hasMoreThanPreview = episodes.length > 6;
+  const requiresDialog = episodes.length > 15;
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border/40 pb-5">
+        <Subsection
+          title="الحلقات"
+          className="mb-0"
+          description={
+            seasons.length
+              ? `${work.episodeCount ?? structure.totalUnits} حلقة موزعة على ${seasons.length} مواسم.`
+              : `${work.episodeCount ?? structure.totalUnits ?? 3} حلقات في واجهة جاهزة للربط بمصدر حلقات مستقبلي.`
+          }
+        />
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary">{episodes.length} حلقة</Badge>
+          <Select
+            value={seasonId}
+            onValueChange={(value) => {
+              if (!value) return;
+              setSeasonId(value);
+              setExpandedInline(false);
+            }}
+          >
+            <SelectTrigger className="min-w-44">
+              <SelectValue>{selected?.title || "الموسم الأول"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {seasons.length ? (
+                  seasons.map((season) => (
+                    <SelectItem key={season.id} value={season.id}>
+                      {season.title} · {season.unitCount ?? season.units.length} حلقات
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="preview">الموسم الأول</SelectItem>
+                )}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-x-4 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
+        {visibleEpisodes.map((episode) => (
+          <EpisodeCard
+            key={episode.id}
+            episode={episode}
+            className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300 motion-reduce:animate-none"
+          />
+        ))}
+      </div>
+
+      {hasMoreThanPreview && (
+        <div className="mt-8 flex flex-wrap justify-center gap-2">
+          <Button variant="outline" onClick={() => setExpandedInline((value) => !value)}>
+            {expandedInline
+              ? "عرض أقل"
+              : requiresDialog
+                ? "عرض 15 حلقة"
+                : `عرض جميع الحلقات (${episodes.length})`}
+          </Button>
+
+          {requiresDialog && expandedInline && (
+            <Dialog>
+              <DialogTrigger render={<Button variant="secondary" />}>
+                عرض كل الحلقات ({episodes.length})
+              </DialogTrigger>
+              <DialogContent className="grid h-[min(88svh,56rem)] max-w-6xl! grid-rows-[auto_1fr] gap-5 overflow-hidden p-5 sm:p-8">
+                <DialogHeader className="border-b border-border/40 pb-5">
+                  <DialogTitle className="text-xl">{selected?.title ?? "الموسم الأول"}</DialogTitle>
+                  <DialogDescription>
+                    {episodes.length} حلقة — تصفح الحلقات دون مغادرة صفحة العمل.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="overflow-y-auto pe-1">
+                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {episodes.map((episode) => (
+                      <EpisodeCard key={episode.id} episode={episode} />
+                    ))}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EpisodeCard({ episode, className }: { episode: EpisodePreview; className?: string }) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "group flex min-w-0 flex-col rounded-xl text-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        className,
+      )}
+      aria-label={`تشغيل الحلقة ${episode.number}`}
+    >
+      <div className="relative aspect-video overflow-hidden rounded-xl bg-muted ring-1 ring-border/10 transition group-hover:ring-primary/50">
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40">
+          <TelevisionIcon className="size-8" />
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
+          <span className="flex size-11 items-center justify-center rounded-full bg-white text-black">
+            <PlayIcon weight="fill" />
+          </span>
+        </div>
+        <span className="absolute top-2 inset-s-2 rounded-md bg-black/65 px-2 py-0.5 text-[11px] font-medium text-white">
+          {episode.number}
+        </span>
+        <span className="absolute bottom-2 inset-e-2 rounded bg-black/65 px-1.5 py-0.5 text-[10px] text-white">
+          {episode.runtimeMinutes ?? 24} د
+        </span>
+      </div>
+      <h4 className="mt-3 truncate font-heading text-sm font-semibold">{episode.title}</h4>
+      <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+        {episode.isPlaceholder
+          ? "ستُضاف تفاصيل الحلقة من المصدر عند الربط."
+          : episode.releaseAt
+            ? "تاريخ الإصدار محفوظ"
+            : "تفاصيل الحلقة محفوظة في الكتالوج."}
+      </p>
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Cast & crew tab
+// ---------------------------------------------------------------------------
+
+// type CastEntity = { id: string; name: string; imagePath: string | null };
+type Credited = { entity: Entity; credit: Work["contributors"][number] };
+
+function CastSection({ people, studios }: { people: Credited[]; studios: Credited[] }) {
+  return (
+    <div className="flex flex-col gap-12">
+      {people.length > 0 && (
+        <section>
+          <Subsection
+            title="الممثلون وصنّاع العمل"
+            description="قائمة منتقاة من الأشخاص المرتبطين بأدوار واضحة في هذا العمل."
+          />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {people.map(({ entity, credit }) => (
+              <EntityDialog key={`${entity.id}:${credit.role}`} entity={entity}>
+                <button
+                  type="button"
+                  className="group flex min-w-0 w-full items-center gap-4 rounded-2xl border border-border/40 bg-card/45 p-4 text-start transition hover:border-primary/30 hover:bg-card focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                >
+                  <Avatar className="size-20 ring-1 ring-border/40 transition group-hover:ring-primary/60">
+                    {entity.imagePath && <AvatarImage src={entity.imagePath} alt="" />}
+                    <AvatarFallback>{entity.name.slice(0, 1)}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0">
+                    <strong className="block truncate font-heading text-base font-semibold">
+                      {entity.name}
+                    </strong>
+                    <span className="mt-1 block truncate text-sm text-muted-foreground">
+                      {roleLabels[credit.role] ?? credit.role}
+                    </span>
+                  </span>
+                </button>
+              </EntityDialog>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {studios.length > 0 && (
+        <section>
+          <Subsection
+            title="جهات الإنتاج"
+            description="الاستوديوهات والجهات المرتبطة بهذا العمل."
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            {studios.map(({ entity, credit }) => (
+              <EntityDialog key={`${entity.id}:${credit.role}`} entity={entity}>
+                <span className="flex min-w-0 items-center gap-4 rounded-2xl border border-border/40 bg-card/45 p-4 transition hover:border-primary/30 hover:bg-card">
+                  <span className="size-24 shrink-0 overflow-hidden rounded-xl bg-muted">
+                    {entity.imagePath ? (
+                      <img src={entity.imagePath} alt="" className="size-full object-cover" />
+                    ) : (
+                      <span className="flex size-full items-center justify-center font-heading text-lg text-muted-foreground">
+                        {entity.name.slice(0, 1)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="min-w-0">
+                    <strong className="block truncate font-heading text-lg font-semibold">
+                      {entity.name}
+                    </strong>
+                    <span className="mt-1 block text-sm text-muted-foreground">
+                      {roleLabels[credit.role] ?? credit.role}
+                    </span>
+                  </span>
+                </span>
+              </EntityDialog>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Similar tab
+// ---------------------------------------------------------------------------
+
+function SimilarSection({ recommendations }: { recommendations: Recommendation[] }) {
+  return (
+    <section className="border-t border-border/40 pt-12">
+      <Subsection
+        title="قد يعجبك أيضًا"
+        description="أعمال قريبة في النبرة والموضوع والطاقم، رتبت لتسهيل الاستكشاف التالي."
       />
-      <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-visible px-5 py-4 pb-5 sm:-mx-8 sm:px-8">
         {recommendations.map((recommendation) => (
-          <div key={recommendation.work.id} className="relative">
+          <div
+            key={recommendation.work.id}
+            className="relative w-36 shrink-0 snap-start sm:w-44 lg:w-48"
+          >
             <WorkCard work={recommendation.work} />
             <Popover>
               <PopoverTrigger
-                className="absolute bottom-0 left-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Recommendation details"
+                className="absolute bottom-0 left-0 flex size-7 items-center justify-center rounded-full bg-background/75 text-muted-foreground ring-1 ring-white/10 transition hover:text-foreground"
+                aria-label="تفاصيل سبب الاقتراح"
               >
-                <InfoIcon className="h-4 w-4" />
+                <InfoIcon />
               </PopoverTrigger>
               <PopoverContent className="w-72 p-3" side="top">
-                <div className="font-medium text-foreground text-lg">
+                <div className="text-lg font-medium text-foreground">
                   التطابق {recommendation.score}%
                 </div>
-
-                {recommendation.reasons && recommendation.reasons.length > 0 && (
-                  <div className="mt-0 space-y-1">
+                {recommendation.reasons.length > 0 && (
+                  <div className="mt-2 flex flex-col gap-1">
                     {recommendation.reasons
-                      .filter((reason) => Boolean(reason?.label))
+                      .filter((reason) => Boolean(reason.label))
                       .map((reason, index) => (
                         <p
                           key={`${index.toString()}-${reason.label}`}
-                          className="line-clamp-2 text-[11px] leading-5 text-base! text-muted-foreground"
+                          className="line-clamp-2 text-[11px] leading-5 text-muted-foreground"
                         >
-                          - {reason.label}
+                          {reason.label}
                         </p>
                       ))}
                   </div>
@@ -529,69 +784,400 @@ function SimilarWorks({ recommendations }: { recommendations: Recommendation[] }
   );
 }
 
-function MetadataPanel({ work, planetName }: { work: Work; planetName: string }) {
-  const rows = [
-    ["النوع", kindLabels[work.kind], <FilmSlateIcon key="kind" />],
-    ["الإصدار", work.releaseStart || String(work.year ?? "—"), <CalendarBlankIcon key="date" />],
-    ["الحالة", releaseLabels[work.releaseStatus], <CheckCircleIcon key="state" />],
-    ["الكوكب", planetName, <span key="planet">◉</span>],
-    ["الجمهور", work.audience || "غير محدد", <InfoIcon key="audience" />],
-  ] as const;
+// ---------------------------------------------------------------------------
+// Scores tab
+// ---------------------------------------------------------------------------
+
+function ScoreSection({ work }: { work: Work }) {
+  const availableCriteria = scoreCriteria.filter(
+    (criterion) => work.scoreComponents[criterion] !== undefined,
+  );
+  const isComplete = availableCriteria.length === scoreCriteria.length;
+
   return (
-    <div className="rounded-xl border border-white/8 bg-card/45 p-5">
-      <h2 className="mb-4 font-heading text-sm font-semibold">بطاقة السجل</h2>
-      <dl>
-        {rows.map(([label, value, icon]) => (
-          <div
-            key={label}
-            className="flex items-start gap-3 border-t border-white/7 py-3 first:border-0"
-          >
-            <dt className="mt-0.5 text-muted-foreground">{icon}</dt>
-            <div className="min-w-0">
-              <dt className="text-[11px] text-muted-foreground">{label}</dt>
-              <dd className="mt-0.5 truncate text-sm">{value}</dd>
-            </div>
-          </div>
-        ))}
-      </dl>
+    <div>
+      <Subsection
+        title="بصمة التقييم"
+        description="تفصيل الدرجات والأوزان التي تكوّن النتيجة النهائية على مقياس من عشرة."
+      />
+
+      {availableCriteria.length === 0 ? (
+        <Empty className="border border-border/40 bg-card/30">
+          <EmptyHeader>
+            <EmptyTitle>لم يُقيّم هذا العمل بعد</EmptyTitle>
+            <EmptyDescription>
+              ستظهر هنا درجات القصة والشخصيات والحِرفة عند إضافتها إلى السجل.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <Card className="border-border/40 bg-card/35">
+            <CardHeader className="border-b border-border/40">
+              <CardTitle>مكوّنات التقييم</CardTitle>
+              <CardDescription>يمثّل طول كل شريط الدرجة قبل تطبيق وزنها.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6">
+              {scoreCriteria.map((criterion) => {
+                const value = work.scoreComponents[criterion];
+                const label = scoreLabel(criterion, work.kind).ar;
+                const weight = Math.round(scoreWeights[criterion] * 100);
+                return (
+                  <Progress
+                    key={criterion}
+                    value={value === undefined ? null : value * 10}
+                    className={cn(value === undefined && "opacity-45")}
+                  >
+                    <ProgressLabel>{label}</ProgressLabel>
+                    <Badge variant="outline" className="font-mono text-[10px]">
+                      الوزن {weight}%
+                    </Badge>
+                    <ProgressValue className="font-mono font-semibold text-foreground">
+                      {() => (value === undefined ? "—" : value.toFixed(1))}
+                    </ProgressValue>
+                  </Progress>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/40 bg-card/45">
+            <CardHeader className="border-b border-border/40">
+              <CardTitle>النتيجة المحسوبة</CardTitle>
+              <CardDescription>مجموع مساهمة كل معيار بعد تطبيق وزنه.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-end justify-between gap-4 border-b border-border/40 pb-5">
+                <div>
+                  <p className="text-xs text-muted-foreground">التقييم النهائي</p>
+                  <p className="mt-1 text-sm text-muted-foreground">من 10</p>
+                </div>
+                <p className="font-mono text-5xl font-semibold tracking-tight tabular-nums">
+                  {work.calculatedRating?.toFixed(1) ?? "—"}
+                </p>
+              </div>
+
+              <dl className="mt-2 flex flex-col">
+                {scoreCriteria.map((criterion) => {
+                  const value = work.scoreComponents[criterion];
+                  const contribution = value === undefined ? null : value * scoreWeights[criterion];
+                  return (
+                    <div
+                      key={criterion}
+                      className="flex items-center justify-between gap-3 border-b border-border/30 py-2.5 last:border-0"
+                    >
+                      <dt className="truncate text-xs text-muted-foreground">
+                        {scoreLabel(criterion, work.kind).ar}
+                      </dt>
+                      <dd className="font-mono text-xs tabular-nums">
+                        {contribution === null ? "—" : `+${contribution.toFixed(2)}`}
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            </CardContent>
+          </Card>
+
+          <Alert className="border-primary/20 bg-primary/5 xl:col-span-2">
+            <AlertTitle>كيف تُحسب النتيجة؟</AlertTitle>
+            <AlertDescription className="mt-2 leading-7">
+              تُضرب كل درجة في وزنها، ثم تُجمع المساهمات وتُقرّب النتيجة إلى منزلة عشرية واحدة. لا يظهر
+              تقييم نهائي حتى تُسجّل المعايير الستة كلها
+              {isComplete ? " — وجميعها متاحة لهذا العمل." : "."}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
     </div>
   );
 }
 
-function SectionEyebrow({ children }: { children: string }) {
-  return <p className="text-xs font-semibold tracking-[0.16em] text-primary">{children}</p>;
-}
-function SectionHeading({
-  id,
-  title,
-  description,
+// ---------------------------------------------------------------------------
+// Details tab
+// ---------------------------------------------------------------------------
+
+function WorkDetails({
+  work,
+  structure,
+  taxonomyLabel,
 }: {
-  id: string;
-  title: string;
-  description: string;
+  work: Work;
+  structure: WorkStructure;
+  taxonomyLabel: (vocabulary: string, value: string) => string;
 }) {
+  const formatList = (values: string[], vocabulary?: string) =>
+    values.map((value) => (vocabulary ? taxonomyLabel(vocabulary, value) : value)).join("، ");
+  const primaryDetails: Array<readonly [string, string]> = [
+    ["العنوان الأصلي", work.title],
+    ...(work.aliases.length ? [["العناوين البديلة", formatList(work.aliases)] as const] : []),
+    ...(work.country.length ? [["الدول", formatList(work.country, "country")] as const] : []),
+    ...(work.audience ? [["الجمهور", taxonomyLabel("audience", work.audience)] as const] : []),
+  ];
+  const formatDetails: Array<readonly [string, string]> = [
+    ...(work.runtimeMinutes ? [["المدة", `${work.runtimeMinutes} دقيقة`] as const] : []),
+    ...(work.playtimeMinutes ? [["مدة اللعب", `${work.playtimeMinutes} دقيقة`] as const] : []),
+    ...(work.kind === "series" || work.kind === "anime"
+      ? [
+          ...(structure.seasons.length
+            ? [["عدد المواسم", `${structure.seasons.length} موسم`] as const]
+            : []),
+          ...(work.episodeCount || structure.totalUnits
+            ? [["عدد الحلقات", `${work.episodeCount || structure.totalUnits} حلقة`] as const]
+            : []),
+        ]
+      : []),
+    ...(work.kind === "novel" || work.kind === "manga" || work.kind === "comic"
+      ? [
+          ...(work.pageCount ? [["عدد الصفحات", `${work.pageCount} صفحة`] as const] : []),
+          ...(work.chapterCount ? [["عدد الفصول", `${work.chapterCount} فصل`] as const] : []),
+          ...(work.volumeCount ? [["عدد المجلدات", `${work.volumeCount} مجلد`] as const] : []),
+        ]
+      : []),
+    ...(work.routeCount && (work.kind === "game" || work.kind === "visual-novel")
+      ? [["عدد المسارات", `${work.routeCount} مسار`] as const]
+      : []),
+  ];
+  const releaseDetails: Array<readonly [string, string]> = [
+    ["حالة الإصدار", releaseLabels[work.releaseStatus]],
+    ...(work.releaseStart ? [["بداية العرض", work.releaseStart] as const] : []),
+    ...(work.releaseEnd ? [["نهاية العرض", work.releaseEnd] as const] : []),
+    ...(work.sourceMaterial
+      ? [
+          ["المادة الأصلية", work.sourceMaterial.type] as const,
+          ...(work.sourceMaterial.publication
+            ? [["النشر", work.sourceMaterial.publication] as const]
+            : []),
+          ...(work.sourceMaterial.serialization.length
+            ? [["التسلسل", formatList(work.sourceMaterial.serialization)] as const]
+            : []),
+        ]
+      : []),
+    ...(work.publication?.format ? [["صيغة النشر", work.publication.format] as const] : []),
+    ...(work.publication?.publisher ? [["الناشر", work.publication.publisher] as const] : []),
+    ...(work.publication?.imprint ? [["علامة النشر", work.publication.imprint] as const] : []),
+  ];
+  const hasTaxonomy = work.genres.length > 0 || work.tone.length > 0 || work.tags.length > 0;
+
   return (
-    <header>
-      <SectionEyebrow>من سجل نحّاسينما</SectionEyebrow>
-      <h2 id={id} className="mt-2 font-heading text-2xl font-semibold">
-        {title}
-      </h2>
-      <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">{description}</p>
-    </header>
+    <Card className="border-border/40 bg-card/35">
+      <CardHeader className="border-b border-border/40">
+        <CardTitle className="text-xl">تفاصيل العمل</CardTitle>
+        <CardDescription>
+          بيانات الكتالوج المتاحة، مرتبة من دون حقول فارغة أو معلومات شخصية.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid items-start gap-x-8 gap-y-10 md:grid-cols-2 xl:grid-cols-3">
+        <DetailGroup title="الهوية والتصنيف" items={primaryDetails} />
+        {formatDetails.length > 0 && <DetailGroup title="الأرقام والصيغة" items={formatDetails} />}
+        <DetailGroup title="الإصدار والمصدر" items={releaseDetails} />
+        {hasTaxonomy && (
+          <section className="border-t border-border/40 pt-8 md:col-span-2 xl:col-span-3">
+            <h3 className="font-heading text-sm font-semibold">التصنيف والموضوعات</h3>
+            <div className="mt-5 gap-8 grid  md:grid-cols-2">
+              {work.tone.length > 0 && (
+                <TaxonomyBadges
+                  title="الطابع"
+                  values={work.tone.map((value) => taxonomyLabel("tone", value))}
+                />
+              )}
+              {work.genres.length > 0 && (
+                <TaxonomyBadges
+                  title="الأنواع"
+                  values={work.genres.map((value) => taxonomyLabel("genre", value))}
+                />
+              )}
+              {work.tags.length > 0 && (
+                <TaxonomyBadges
+                  className="col-span-2"
+                  title="الوسوم"
+                  values={work.tags.map((value) => taxonomyLabel("tag", value))}
+                />
+              )}
+            </div>
+          </section>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
-const mockEpisodes = [
-  {
-    title: "مدخل إلى العالم",
-    description: "صورة مصغّرة ووصف وتاريخ إصدار ستأتي من مصدر الحلقة المستقبلي.",
-  },
-  {
-    title: "الخيط الأول",
-    description: "مساحة تقدم قابلة للربط لاحقاً بمعرّف خارجي دون تغيير هوية العمل.",
-  },
-  { title: "نقطة التحول", description: "حالة مشاهدة نموذجية مع مكان واضح للمدة وتاريخ العرض." },
-];
+function TaxonomyBadges({
+  title,
+  values,
+  className = "",
+}: {
+  title: string;
+  values: string[];
+  className?: string;
+}) {
+  return (
+    <div className={cn("md:px-5", className)}>
+      <h4 className="text-xs font-medium text-muted-foreground">{title}</h4>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {values.map((value) => (
+          <Badge key={value} variant="secondary" className="rounded-full px-3 h-8 py-1.5 text-sm">
+            {value}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DetailGroup({
+  title,
+  items,
+  className,
+}: {
+  title: string;
+  items: Array<readonly [string, string]>;
+  className?: string;
+}) {
+  return (
+    <section className={className}>
+      <h3 className="font-heading text-sm font-semibold">{title}</h3>
+      <dl className="mt-3 flex flex-col border-t border-border/40">
+        {items.map(([label, value]) => (
+          <div
+            key={label}
+            className="grid grid-cols-[7rem_1fr] gap-3 border-b border-border/30 py-3"
+          >
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="min-w-0 text-sm leading-6">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar
+// ---------------------------------------------------------------------------
+
+function MetadataPanel({
+  work,
+  planetName,
+  audienceLabel,
+}: {
+  work: Work;
+  planetName: string;
+  audienceLabel: string;
+}) {
+  const rows = [
+    ["النوع", kindLabels[work.kind]],
+    ["الإصدار", work.releaseStart || String(work.year ?? "—")],
+    ["الحالة", releaseLabels[work.releaseStatus]],
+    ["الكوكب", planetName],
+    ["الجمهور", audienceLabel],
+  ] as const;
+  return (
+    <Card size="sm" className="border-border/40 bg-card/45">
+      <CardHeader className="border-b border-border/40">
+        <CardTitle>بطاقة السجل</CardTitle>
+        <CardDescription className="text-xs">أهم بيانات الكتالوج في لمحة واحدة.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <dl className="flex flex-col">
+          {rows.map(([label, value]) => (
+            <div
+              key={label}
+              className="grid grid-cols-[5rem_1fr] gap-3 border-b border-border/30 py-3 last:border-0 last:pb-0"
+            >
+              <dt className="text-xs text-muted-foreground">{label}</dt>
+              <dd className="min-w-0 truncate text-sm">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RiskBadge({ level }: { level: RiskAssessment["level"] }) {
+  return (
+    <Badge
+      variant={level === "high" ? "destructive" : level === "medium" ? "outline" : "secondary"}
+    >
+      {riskLabels[level]}
+    </Badge>
+  );
+}
+
+function ParentGuideCard({ risks }: { risks: RiskAssessment[] }) {
+  const [openId, setOpenId] = useState<string | null>(risks[0]?.dimensionId ?? null);
+  const highRiskCount = risks.filter((risk) => risk.level === "high").length;
+
+  return (
+    <Card size="sm" className="border-border/40 bg-card/45">
+      <CardHeader className="border-b border-border/40">
+        <CardTitle>دليل الوالدين</CardTitle>
+        <CardDescription className="text-xs">
+          نظرة سريعة على الموضوعات الحساسة قبل المشاهدة.
+        </CardDescription>
+        <div className="mt-2 flex items-center gap-2">
+          <Badge variant={highRiskCount ? "destructive" : "secondary"}>
+            {highRiskCount ? `${highRiskCount} تنبيه مرتفع` : "لا توجد تنبيهات مرتفعة"}
+          </Badge>
+          <span className="text-xs text-muted-foreground">{risks.length} محاور</span>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {risks.length ? (
+          risks.map((risk) => {
+            const isOpen = openId === risk.dimensionId;
+            return (
+              <Collapsible
+                key={risk.dimensionId}
+                open={isOpen}
+                onOpenChange={(open) => setOpenId(open ? risk.dimensionId : null)}
+                className="overflow-hidden rounded-xl border border-border/40 bg-background/20"
+              >
+                <CollapsibleTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between gap-3 px-3 py-3 text-start"
+                    />
+                  }
+                >
+                  <h3 className="text-sm font-medium">{risk.nameAr}</h3>
+                  <div className="flex items-center gap-2">
+                    <RiskBadge level={risk.level} />
+                    <CaretDownIcon
+                      className={cn(
+                        "text-muted-foreground transition-transform",
+                        isOpen && "rotate-180",
+                      )}
+                    />
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0">
+                  <p className="border-t border-border/30 px-3 py-3 text-sm leading-7 text-muted-foreground">
+                    {risk.explanation || risk.notes || risk.description}
+                  </p>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })
+        ) : (
+          <Empty className="border p-6">
+            <EmptyHeader>
+              <EmptyTitle className="text-base">لا توجد تنبيهات مسجلة</EmptyTitle>
+              <EmptyDescription>لم تُضف تقييمات منظمة لهذا العمل بعد.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Labels
+// ---------------------------------------------------------------------------
+
 const kindLabels: Record<Work["kind"], string> = {
   movie: "فيلم",
   series: "مسلسل",
@@ -601,14 +1187,6 @@ const kindLabels: Record<Work["kind"], string> = {
   manga: "مانغا",
   "visual-novel": "رواية مرئية",
   comic: "قصص مصوّرة",
-};
-const statusLabels: Record<Work["status"], string> = {
-  saved: "محفوظ",
-  planned: "في الخطة",
-  "in-progress": "قيد المتابعة",
-  completed: "مكتمل",
-  paused: "متوقف مؤقتاً",
-  dropped: "متروك",
 };
 const releaseLabels: Record<Work["releaseStatus"], string> = {
   announced: "معلن",
