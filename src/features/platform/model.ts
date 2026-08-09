@@ -109,7 +109,7 @@ export type OrganizationRelationship = {
 };
 
 export type PlatformHomeData = {
-  featured: Work | null;
+  featured: Work[];
   continueExploring: Work[];
   recentlyAdded: Work[];
   highlyRated: Work[];

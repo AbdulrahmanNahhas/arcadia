@@ -297,15 +297,10 @@ export function listRiskAssessments(workId: string): RiskAssessment[] {
 
 export function getPlatformHomeData(): PlatformHomeData {
   const catalog = listWorks().filter(isPlatformWork);
-  const featured =
-    [...catalog]
-      .filter((work) => work.bannerPath && work.logoPath)
-      .sort(
-        (left, right) =>
-          Number(right.favorite) - Number(left.favorite) ||
-          (right.calculatedRating ?? 0) - (left.calculatedRating ?? 0) ||
-          compareNewestRelease(left, right),
-      )[0] ?? null;
+  const featured = [...catalog]
+    .filter((work) => work.bannerPath && work.logoPath && work.imagePath)
+    .sort((left, right) => right.addedAt - left.addedAt)
+    .slice(0, 10);
   return {
     featured,
     continueExploring: catalog.filter((work) => work.status === "in-progress").slice(0, 12),
