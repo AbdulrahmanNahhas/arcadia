@@ -35,6 +35,7 @@ import { Route as AdminValidationRouteImport } from './routes/admin.validation'
 import { Route as ApiAgentRouteImport } from './routes/api.agent'
 import { Route as EntitiesIndexRouteImport } from './routes/entities.index'
 import { Route as EntitiesEntityIdRouteImport } from './routes/entities.$entityId'
+import { Route as PeoplePersonIdRouteImport } from './routes/people.$personId'
 import { Route as PlanetsIndexRouteImport } from './routes/planets.index'
 import { Route as PlanetsPlanetSlugRouteImport } from './routes/planets.$planetSlug'
 import { Route as StudiosStudioIdRouteImport } from './routes/studios.$studioId'
@@ -173,6 +174,11 @@ const EntitiesEntityIdRoute = EntitiesEntityIdRouteImport.update({
   path: '/$entityId',
   getParentRoute: () => EntitiesRoute,
 } as any)
+const PeoplePersonIdRoute = PeoplePersonIdRouteImport.update({
+  id: '/people/$personId',
+  path: '/people/$personId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlanetsIndexRoute = PlanetsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/admin/validation': typeof AdminValidationRoute
   '/api/agent': typeof ApiAgentRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/people/$personId': typeof PeoplePersonIdRoute
   '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
   '/studios/$studioId': typeof StudiosStudioIdRoute
   '/works/$workId': typeof WorksWorkIdRoute
@@ -266,6 +273,7 @@ export interface FileRoutesByTo {
   '/admin/validation': typeof AdminValidationRoute
   '/api/agent': typeof ApiAgentRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/people/$personId': typeof PeoplePersonIdRoute
   '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
   '/studios/$studioId': typeof StudiosStudioIdRoute
   '/works/$workId': typeof WorksWorkIdRoute
@@ -302,6 +310,7 @@ export interface FileRoutesById {
   '/admin/validation': typeof AdminValidationRoute
   '/api/agent': typeof ApiAgentRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/people/$personId': typeof PeoplePersonIdRoute
   '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
   '/studios/$studioId': typeof StudiosStudioIdRoute
   '/works/$workId': typeof WorksWorkIdRoute
@@ -339,6 +348,7 @@ export interface FileRouteTypes {
     | '/admin/validation'
     | '/api/agent'
     | '/entities/$entityId'
+    | '/people/$personId'
     | '/planets/$planetSlug'
     | '/studios/$studioId'
     | '/works/$workId'
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/admin/validation'
     | '/api/agent'
     | '/entities/$entityId'
+    | '/people/$personId'
     | '/planets/$planetSlug'
     | '/studios/$studioId'
     | '/works/$workId'
@@ -406,6 +417,7 @@ export interface FileRouteTypes {
     | '/admin/validation'
     | '/api/agent'
     | '/entities/$entityId'
+    | '/people/$personId'
     | '/planets/$planetSlug'
     | '/studios/$studioId'
     | '/works/$workId'
@@ -430,6 +442,7 @@ export interface RootRouteChildren {
   PlanetsRoute: typeof PlanetsRouteWithChildren
   TrackerRoute: typeof TrackerRoute
   ApiAgentRoute: typeof ApiAgentRoute
+  PeoplePersonIdRoute: typeof PeoplePersonIdRoute
   StudiosStudioIdRoute: typeof StudiosStudioIdRoute
   WorksWorkIdRoute: typeof WorksWorkIdRoute
 }
@@ -618,6 +631,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EntitiesEntityIdRouteImport
       parentRoute: typeof EntitiesRoute
     }
+    '/people/$personId': {
+      id: '/people/$personId'
+      path: '/people/$personId'
+      fullPath: '/people/$personId'
+      preLoaderRoute: typeof PeoplePersonIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/planets/': {
       id: '/planets/'
       path: '/'
@@ -758,6 +778,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlanetsRoute: PlanetsRouteWithChildren,
   TrackerRoute: TrackerRoute,
   ApiAgentRoute: ApiAgentRoute,
+  PeoplePersonIdRoute: PeoplePersonIdRoute,
   StudiosStudioIdRoute: StudiosStudioIdRoute,
   WorksWorkIdRoute: WorksWorkIdRoute,
 }

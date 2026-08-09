@@ -300,7 +300,7 @@ function EntityCard({ entity }: { entity: Entity }) {
                 loading="lazy"
               />
             ) : (
-              <div className="flex size-full items-center justify-center bg-gradient-to-br from-muted to-muted/50 font-mono text-sm font-semibold text-muted-foreground">
+              <div className="flex size-full items-center justify-center bg-linear-to-br from-muted to-muted/50 font-mono text-sm font-semibold text-muted-foreground">
                 {entityMonogram(entity.name) || <EntityIcon className="size-6" />}
               </div>
             )}

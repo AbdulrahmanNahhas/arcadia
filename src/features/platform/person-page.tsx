@@ -1,19 +1,15 @@
-import {
-  ArrowRightIcon,
-  BuildingsIcon,
-  CalendarBlankIcon,
-  GitBranchIcon,
-} from "@phosphor-icons/react";
+import { ArrowRightIcon, BriefcaseIcon, GitBranchIcon, UserIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { contributionRoleLabels } from "@/features/entities/entity-labels";
 import { getEntities } from "@/server/library.functions";
 import { getStudioLineage } from "@/server/platform.functions";
 import { EntityDialog } from "./components/entity-dialog";
 import { PlatformShell } from "./components/platform-shell";
 
-export function StudioPage({ studioId }: { studioId: string }) {
+export function PersonPage({ personId }: { personId: string }) {
   const { data: entities } = useSuspenseQuery({
     queryKey: ["entities"],
     queryFn: () => getEntities(),
@@ -22,27 +18,30 @@ export function StudioPage({ studioId }: { studioId: string }) {
     queryKey: ["studio-lineage"],
     queryFn: () => getStudioLineage(),
   });
-  const studio = entities.find(
-    (entity) => entity.id === studioId && entity.entityType === "organization",
+  const person = entities.find(
+    (entity) => entity.id === personId && entity.entityType === "person",
   );
-  if (!studio)
+
+  if (!person)
     return (
       <PlatformShell>
-        <div className="mx-auto max-w-3xl px-5 py-32">تعذر العثور على الاستوديو.</div>
+        <div className="mx-auto max-w-3xl px-5 py-32">تعذر العثور على الشخص.</div>
       </PlatformShell>
     );
-  const related = relationships.filter(
-    (relationship) => relationship.source.id === studio.id || relationship.target.id === studio.id,
+
+  const related = relationships.filter((relationship) =>
+    relationship.people.some(({ entity }) => entity.id === person.id),
   );
+
   return (
     <PlatformShell>
       <section className="archive-grid border-b border-white/8">
         <div className="mx-auto grid max-w-400 gap-8 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-[13rem_1fr] lg:items-center">
-          <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl">
-            {studio.imagePath ? (
-              <img src={studio.imagePath} alt="" className="size-full object-contain p-0" />
+          <div className="flex aspect-square items-center justify-center overflow-hidden rounded-full border border-white/10 bg-card shadow-2xl">
+            {person.imagePath ? (
+              <img src={person.imagePath} alt="" className="size-full object-cover" />
             ) : (
-              <BuildingsIcon size={64} className="text-muted-foreground" />
+              <UserIcon size={64} className="text-muted-foreground" />
             )}
           </div>
           <div>
@@ -52,16 +51,15 @@ export function StudioPage({ studioId }: { studioId: string }) {
             >
               <ArrowRightIcon /> الرئيسية
             </Link>
-            <p className="mt-8 text-xs font-semibold tracking-[0.16em] text-primary">سجل منظمة</p>
+            <p className="mt-8 text-xs font-semibold tracking-[0.16em] text-primary">سجل شخص</p>
             <h1 className="mt-3 font-heading text-4xl leading-tight font-semibold sm:text-6xl">
-              {studio.name}
+              {person.name}
             </h1>
-            {studio.alternativeNames.length > 0 && (
-              <p className="mt-3 text-muted-foreground">{studio.alternativeNames.join(" · ")}</p>
+            {person.alternativeNames.length > 0 && (
+              <p className="mt-3 text-muted-foreground">{person.alternativeNames.join(" · ")}</p>
             )}
             <p className="mt-6 max-w-3xl text-lg leading-9 text-foreground/75">
-              {studio.description ||
-                "لم يُكتب التاريخ التحريري لهذا الاستوديو بعد. يمكن إثراؤه دون حشر العلاقات التاريخية في الوصف."}
+              {person.description || "لم تُكتب السيرة التحريرية لهذا الشخص بعد."}
             </p>
           </div>
         </div>
@@ -71,7 +69,7 @@ export function StudioPage({ studioId }: { studioId: string }) {
           <section>
             <h2 className="font-heading text-2xl font-semibold">أعمال مرتبطة</h2>
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
-              {studio.works.map((work) => (
+              {person.works.map((work) => (
                 <Link
                   key={work.id}
                   to="/works/$workId"
@@ -90,7 +88,14 @@ export function StudioPage({ studioId }: { studioId: string }) {
                   <h3 className="mt-2 truncate text-sm font-medium">
                     {work.arabicTitle || work.title}
                   </h3>
-                  <p className="mt-1 text-xs text-muted-foreground">{work.year ?? "—"}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                    <span>{work.year ?? "—"}</span>
+                    {work.roles.map((role) => (
+                      <Badge key={role} variant="outline" className="px-1 py-0 text-[10px]">
+                        {contributionRoleLabels[role]}
+                      </Badge>
+                    ))}
+                  </div>
                 </Link>
               ))}
             </div>
@@ -98,55 +103,47 @@ export function StudioPage({ studioId }: { studioId: string }) {
           <section>
             <h2 className="font-heading text-2xl font-semibold">التاريخ والسلالة</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              علاقات مطبّعة، وليست استنتاجات من نصوص الوصف.
+              العلاقات التي سُجِّل هذا الشخص مشاركاً فيها.
             </p>
             {related.length ? (
               <div className="mt-6 space-y-3">
                 {related.map((relationship) => {
-                  const other =
-                    relationship.source.id === studio.id
-                      ? relationship.target
-                      : relationship.source;
+                  const participation = relationship.people.find(
+                    ({ entity }) => entity.id === person.id,
+                  );
                   return (
                     <div
                       key={relationship.id}
                       className="rounded-xl border border-white/8 bg-card/45 p-5"
                     >
                       <div className="flex flex-wrap items-center gap-3">
-                        <EntityDialog entity={other}>
+                        <EntityDialog entity={relationship.source}>
                           <span className="font-heading font-semibold hover:text-primary">
-                            {other.name}
+                            {relationship.source.name}
                           </span>
                         </EntityDialog>
                         <Badge variant="outline">{relationship.type.nameAr}</Badge>
+                        <EntityDialog entity={relationship.target}>
+                          <span className="font-heading font-semibold hover:text-primary">
+                            {relationship.target.name}
+                          </span>
+                        </EntityDialog>
                         {relationship.occurredOn && (
                           <span className="text-xs text-muted-foreground">
                             {relationship.occurredOn}
                           </span>
                         )}
                       </div>
+                      {participation && (
+                        <p className="mt-3 text-sm text-muted-foreground">
+                          الدور: {participation.role}
+                        </p>
+                      )}
                       {relationship.description && (
                         <p className="mt-3 text-sm leading-7 text-muted-foreground">
                           {relationship.description}
                         </p>
                       )}
-                      <div className="mt-3 flex -space-x-2 space-x-reverse">
-                        {relationship.people.slice(0, 3).map(({ entity }) => (
-                          <EntityDialog key={entity.id} entity={entity}>
-                            <span className="flex size-8 items-center justify-center overflow-hidden rounded-full border-2 border-card bg-muted text-xs">
-                              {entity.imagePath ? (
-                                <img
-                                  src={entity.imagePath}
-                                  alt=""
-                                  className="size-full object-cover"
-                                />
-                              ) : (
-                                entity.name.slice(0, 1)
-                              )}
-                            </span>
-                          </EntityDialog>
-                        ))}
-                      </div>
                     </div>
                   );
                 })}
@@ -155,9 +152,7 @@ export function StudioPage({ studioId }: { studioId: string }) {
               <Empty className="mt-6 min-h-56 border border-dashed border-white/10">
                 <EmptyHeader>
                   <EmptyTitle>لا توجد علاقات سلالة مسجلة</EmptyTitle>
-                  <EmptyDescription>
-                    الواجهة جاهزة؛ لن نختلق روابط غير موجودة في قاعدة البيانات.
-                  </EmptyDescription>
+                  <EmptyDescription>لا توجد مشاركات تاريخية موثقة لهذا الشخص بعد.</EmptyDescription>
                 </EmptyHeader>
               </Empty>
             )}
@@ -165,31 +160,33 @@ export function StudioPage({ studioId }: { studioId: string }) {
         </div>
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-xl border border-white/8 bg-card/45 p-5">
-            <h2 className="font-heading text-sm font-semibold">بيانات المنظمة</h2>
+            <h2 className="font-heading text-sm font-semibold">بيانات الشخص</h2>
             <dl className="mt-4 space-y-4">
               <Meta
-                icon={<CalendarBlankIcon />}
-                label="التأسيس"
-                value={studio.establishedAt || "غير موثّق"}
-              />
-              <Meta
-                icon={<BuildingsIcon />}
+                icon={<BriefcaseIcon />}
                 label="أعمال مرتبطة"
-                value={String(studio.workCount)}
+                value={String(person.workCount)}
               />
+              <Meta icon={<UserIcon />} label="أدوار" value={String(person.roles.length)} />
               <Meta
                 icon={<GitBranchIcon />}
-                label="علاقات تاريخية"
+                label="مشاركات تاريخية"
                 value={String(related.length)}
               />
             </dl>
           </div>
-          <Link
-            to="/lineage"
-            className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/8 p-5 text-sm font-medium text-primary"
-          >
-            استكشف خريطة السلالة <ArrowRightIcon className="rotate-180" />
-          </Link>
+          {person.roles.length > 0 && (
+            <div className="rounded-xl border border-white/8 bg-card/45 p-5">
+              <h2 className="font-heading text-sm font-semibold">الأدوار</h2>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {person.roles.map(({ role, count }) => (
+                  <Badge key={role} variant="outline">
+                    {contributionRoleLabels[role]} · {count}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </aside>
       </div>
     </PlatformShell>
