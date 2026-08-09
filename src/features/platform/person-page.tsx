@@ -55,9 +55,7 @@ export function PersonPage({ personId }: { personId: string }) {
             <h1 className="mt-3 font-heading text-4xl leading-tight font-semibold sm:text-6xl">
               {person.name}
             </h1>
-            {person.alternativeNames.length > 0 && (
-              <p className="mt-3 text-muted-foreground">{person.alternativeNames.join(" · ")}</p>
-            )}
+
             <p className="mt-6 max-w-3xl text-lg leading-9 text-foreground/75">
               {person.description || "لم تُكتب السيرة التحريرية لهذا الشخص بعد."}
             </p>

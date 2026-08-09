@@ -71,9 +71,7 @@ export function EntityDialog({
                   {categoryLabel}
                 </div>
                 <DialogTitle className="text-2xl leading-tight">{entity.name}</DialogTitle>
-                <DialogDescription className="mt-1">
-                  {entity.alternativeNames.slice(0, 3).join(" · ") || defaultAltName}
-                </DialogDescription>
+                <DialogDescription className="mt-1">{defaultAltName}</DialogDescription>
               </div>
             </div>
           </DialogHeader>

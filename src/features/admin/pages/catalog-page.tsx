@@ -4,6 +4,7 @@ import {
   PlusIcon,
   SelectionPlusIcon,
   TrashIcon,
+  XIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -23,7 +24,7 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -133,27 +134,61 @@ export function AdminCatalogPage() {
                 {visible.length} من أصل {works.length} عمل
               </CardDescription>
             </div>
-            {selectedIds.size > 0 ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2">
-                <Badge>{selectedIds.size} محدد</Badge>
-                <Button size="sm" variant="outline" onClick={() => setBulkEditOpen(true)}>
-                  <SelectionPlusIcon data-icon="inline-start" /> تعديل سريع
-                </Button>
-                <Button size="sm" onClick={() => setJsonEditorOpen(true)}>
-                  <NotePencilIcon data-icon="inline-start" /> محرر JSON
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => setDeletingIds([...selectedIds])}
-                >
-                  <TrashIcon data-icon="inline-start" /> حذف
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
-                  مسح التحديد
-                </Button>
+            {selectedIds.size > 0 && (
+              <div className="fixed bottom-6 inset-x-0 z-50 mx-auto max-w-xl px-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-200">
+                <div className="flex items-center justify-between gap-3 rounded-xl border bg-background/95 p-2.5 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80 dir-rtl">
+                  {/* جهة اليمين: العداد ومسح التحديد */}
+                  <div className="flex items-center gap-2 pr-1">
+                    <Badge variant="secondary" className="h-7 px-2.5 text-xs font-semibold">
+                      {selectedIds.size} محدد
+                    </Badge>
+                    <Separator orientation="vertical" className="h-4" />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => setSelectedIds(new Set())}
+                    >
+                      <XIcon className="me-1.5 h-3.5 w-3.5" />
+                      إلغاء التحديد
+                    </Button>
+                  </div>
+
+                  {/* جهة اليسار: أزرار الإجراءات */}
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={() => setBulkEditOpen(true)}
+                    >
+                      <SelectionPlusIcon className="h-3.5 w-3.5" />
+                      تعديل سريع
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={() => setJsonEditorOpen(true)}
+                    >
+                      <NotePencilIcon className="h-3.5 w-3.5" />
+                      محرر JSON
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={() => setDeletingIds([...selectedIds])}
+                    >
+                      <TrashIcon className="h-3.5 w-3.5" />
+                      حذف
+                    </Button>
+                  </div>
+                </div>
               </div>
-            ) : null}
+            )}
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Field className="min-w-0 flex-1">
@@ -213,7 +248,6 @@ export function AdminCatalogPage() {
                       checked={selectedIds.has(work.id)}
                       onCheckedChange={(checked) => toggleWork(work.id, checked)}
                       onEdit={() => setEditingWork(work)}
-                      onDelete={() => setDeletingIds([work.id])}
                     />
                   ))}
                 </TableBody>
@@ -319,13 +353,11 @@ function CatalogRow({
   checked,
   onCheckedChange,
   onEdit,
-  onDelete,
 }: {
   work: Work;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   onEdit: () => void;
-  onDelete: () => void;
 }) {
   return (
     <TableRow data-state={checked ? "selected" : undefined}>
@@ -366,21 +398,8 @@ function CatalogRow({
       <TableCell className="font-mono">{work.calculatedRating?.toFixed(1) ?? "—"}</TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onEdit}
-            aria-label={`تعديل ${work.title}`}
-          >
+          <Button variant="ghost" size="icon" onClick={onEdit} aria-label={`تعديل ${work.title}`}>
             <NotePencilIcon />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onDelete}
-            aria-label={`حذف ${work.title}`}
-          >
-            <TrashIcon />
           </Button>
         </div>
       </TableCell>

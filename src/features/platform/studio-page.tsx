@@ -56,9 +56,7 @@ export function StudioPage({ studioId }: { studioId: string }) {
             <h1 className="mt-3 font-heading text-4xl leading-tight font-semibold sm:text-6xl">
               {studio.name}
             </h1>
-            {studio.alternativeNames.length > 0 && (
-              <p className="mt-3 text-muted-foreground">{studio.alternativeNames.join(" · ")}</p>
-            )}
+
             <p className="mt-6 max-w-3xl text-lg leading-9 text-foreground/75">
               {studio.description ||
                 "لم يُكتب التاريخ التحريري لهذا الاستوديو بعد. يمكن إثراؤه دون حشر العلاقات التاريخية في الوصف."}

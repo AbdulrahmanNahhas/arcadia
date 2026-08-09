@@ -158,12 +158,24 @@ export const deleteWorks = createServerFn({ method: "POST" })
     return repository.deleteWorks(data.ids);
   });
 
+export const uploadEntityImage = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      dataUrl: z.string().max(14_000_000),
+      fileName: z.string().trim().min(1).max(255),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { storeWorkImage } = await import("@/db/repository");
+    return storeWorkImage({ ...data, assetType: "profile" });
+  });
+
 export const uploadWorkImage = createServerFn({ method: "POST" })
   .validator(
     z.object({
       dataUrl: z.string().max(14_000_000),
       fileName: z.string().trim().min(1).max(255),
-      assetType: z.enum(["poster", "banner", "logo"]),
+      assetType: z.enum(["poster", "banner", "logo", "profile"]),
     }),
   )
   .handler(async ({ data }) => {

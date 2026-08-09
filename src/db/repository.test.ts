@@ -65,23 +65,24 @@ describe("admin record persistence", () => {
         entityType: "organization",
         description: "Independent animation studio.",
         imagePath: "/media/entities/example.webp",
+        primaryUrl: "https://example.com/studio",
         malId: 42,
-        sourceUrl: "https://example.com/studio",
-        sourceProvider: "Example",
-        establishedAt: "2020",
+        anilistId: 42,
+        imdbId: "co0000042",
+        wikipediaUrl: "https://en.wikipedia.org/wiki/Example",
+        establishedAt: "2020-01-01",
+        birthDate: null,
+        deathDate: null,
         favorites: 12,
-        alternativeNames: ["Example Animation", "Example Animation"],
-        externalIdentities: [
-          { provider: "AniList", externalId: "42", url: "https://example.com/42" },
-        ],
       }),
     );
 
     expect(created).toMatchObject({
       workCount: 0,
-      alternativeNames: ["Example Animation"],
       imagePath: "/media/entities/example.webp",
-      externalIdentities: [{ provider: "AniList", externalId: "42" }],
+      primaryUrl: "https://example.com/studio",
+      anilistId: 42,
+      imdbId: "co0000042",
     });
     expect(repository.listEntities().some(({ id }) => id === created.id)).toBe(true);
 
@@ -89,13 +90,11 @@ describe("admin record persistence", () => {
       ...created,
       description: "Updated profile.",
       imagePath: null,
-      externalIdentities: [],
     });
     expect(updated).toMatchObject({
       id: created.id,
       description: "Updated profile.",
       imagePath: null,
-      externalIdentities: [],
     });
   });
 
@@ -107,13 +106,15 @@ describe("admin record persistence", () => {
         entityType: "organization",
         description: "",
         imagePath: null,
+        primaryUrl: null,
         malId: null,
-        sourceUrl: null,
-        sourceProvider: null,
+        anilistId: null,
+        imdbId: null,
+        wikipediaUrl: null,
         establishedAt: null,
+        birthDate: null,
+        deathDate: null,
         favorites: null,
-        alternativeNames: [],
-        externalIdentities: [],
       }),
     );
 
@@ -866,13 +867,15 @@ describe("version 1 platform foundations", () => {
         entityType,
         description: "",
         imagePath: null,
+        primaryUrl: null,
         malId: null,
-        sourceUrl: null,
-        sourceProvider: null,
+        anilistId: null,
+        imdbId: null,
+        wikipediaUrl: null,
         establishedAt: null,
+        birthDate: null,
+        deathDate: null,
         favorites: null,
-        alternativeNames: [],
-        externalIdentities: [],
       });
     const source = saveEntity("Relationship Source Studio", "organization");
     const target = saveEntity("Relationship Target Studio", "organization");

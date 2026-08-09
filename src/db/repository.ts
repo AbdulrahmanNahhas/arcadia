@@ -152,7 +152,7 @@ function purgeUnreferencedLocalMedia(paths: string[]) {
 export function storeWorkImage(input: {
   dataUrl: string;
   fileName: string;
-  assetType: "poster" | "banner" | "logo";
+  assetType: "poster" | "banner" | "logo" | "profile";
 }) {
   const match = /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/.exec(
     input.dataUrl,
@@ -479,22 +479,6 @@ export function listEntities(): Entity[] {
       .map((asset) => [asset.ownerId, asset.relativePath]),
   );
   const contributionsByEntity = new Map<string, Array<typeof workContributors.$inferSelect>>();
-  const aliasesByEntity = new Map<string, string[]>();
-  for (const alias of db.select().from(entityAliases).all()) {
-    const values = aliasesByEntity.get(alias.entityId) ?? [];
-    values.push(alias.alias);
-    aliasesByEntity.set(alias.entityId, values);
-  }
-  const identitiesByEntity = new Map<string, Entity["externalIdentities"]>();
-  for (const identity of db.select().from(entityExternalIdentities).all()) {
-    const values = identitiesByEntity.get(identity.entityId) ?? [];
-    values.push({
-      provider: identity.provider,
-      externalId: identity.externalId,
-      url: identity.url,
-    });
-    identitiesByEntity.set(identity.entityId, values);
-  }
 
   for (const contribution of db
     .select()
@@ -513,12 +497,16 @@ export function listEntities(): Entity[] {
     .all()
     .map((entity) => {
       const metadata = entity.metadata as {
+        primaryUrl?: unknown;
         malId?: unknown;
-        sourceUrl?: unknown;
-        sourceProvider?: unknown;
+        anilistId?: unknown;
+        imdbId?: unknown;
+        wikipediaUrl?: unknown;
         establishedAt?: unknown;
+        birthDate?: unknown;
+        deathDate?: unknown;
         favorites?: unknown;
-        alternativeNames?: unknown;
+        sourceUrl?: unknown;
       };
       const contributions = contributionsByEntity.get(entity.id) ?? [];
       const roles = new Map<Entity["roles"][number]["role"], number>();
@@ -558,27 +546,20 @@ export function listEntities(): Entity[] {
         entityType: entity.entityType as Entity["entityType"],
         description: entity.description,
         imagePath: imageByEntity.get(entity.id) ?? null,
-        malId: typeof metadata.malId === "number" ? metadata.malId : null,
-        sourceUrl: typeof metadata.sourceUrl === "string" ? metadata.sourceUrl : null,
-        sourceProvider:
-          typeof metadata.sourceProvider === "string"
-            ? metadata.sourceProvider
-            : typeof metadata.malId === "number"
-              ? "MyAnimeList"
+        primaryUrl:
+          typeof metadata.primaryUrl === "string"
+            ? metadata.primaryUrl
+            : typeof metadata.sourceUrl === "string"
+              ? metadata.sourceUrl
               : null,
+        malId: typeof metadata.malId === "number" ? metadata.malId : null,
+        anilistId: typeof metadata.anilistId === "number" ? metadata.anilistId : null,
+        imdbId: typeof metadata.imdbId === "string" ? metadata.imdbId : null,
+        wikipediaUrl: typeof metadata.wikipediaUrl === "string" ? metadata.wikipediaUrl : null,
         establishedAt: typeof metadata.establishedAt === "string" ? metadata.establishedAt : null,
+        birthDate: typeof metadata.birthDate === "string" ? metadata.birthDate : null,
+        deathDate: typeof metadata.deathDate === "string" ? metadata.deathDate : null,
         favorites: typeof metadata.favorites === "number" ? metadata.favorites : null,
-        alternativeNames: [
-          ...new Set([
-            ...(aliasesByEntity.get(entity.id) ?? []),
-            ...(Array.isArray(metadata.alternativeNames)
-              ? metadata.alternativeNames.filter(
-                  (name): name is string => typeof name === "string" && Boolean(name.trim()),
-                )
-              : []),
-          ]),
-        ],
-        externalIdentities: identitiesByEntity.get(entity.id) ?? [],
         workCount: linkedWorks.size,
         roles: [...roles.entries()]
           .map(([role, count]) => ({ role, count }))
@@ -614,12 +595,18 @@ export function saveEntity(input: AdminEntityInput): Entity {
   const now = Math.floor(Date.now() / 1000);
   const metadata: Record<string, unknown> = {
     ...((existing?.metadata as Record<string, unknown> | null) ?? {}),
+    primaryUrl: input.primaryUrl,
     malId: input.malId,
-    sourceUrl: input.sourceUrl,
-    sourceProvider: input.sourceProvider,
-    establishedAt: input.establishedAt,
+    anilistId: input.anilistId,
+    imdbId: input.imdbId,
+    wikipediaUrl: input.wikipediaUrl,
+    establishedAt: input.entityType === "organization" ? input.establishedAt : null,
+    birthDate: input.entityType === "person" ? input.birthDate : null,
+    deathDate: input.entityType === "person" ? input.deathDate : null,
     favorites: input.favorites,
   };
+  delete metadata.sourceUrl;
+  delete metadata.sourceProvider;
   delete metadata.alternativeNames;
 
   db.transaction((tx) => {
@@ -648,28 +635,7 @@ export function saveEntity(input: AdminEntityInput): Entity {
       .run();
 
     tx.delete(entityAliases).where(eq(entityAliases.entityId, id)).run();
-    const aliases = new Map(
-      input.alternativeNames.map((alias) => [alias.trim().toLocaleLowerCase(), alias.trim()]),
-    );
-    for (const [normalizedAlias, alias] of aliases) {
-      if (!alias || normalizedAlias === input.name.toLocaleLowerCase()) continue;
-      tx.insert(entityAliases)
-        .values({ id: crypto.randomUUID(), entityId: id, alias, normalizedAlias })
-        .run();
-    }
-
     tx.delete(entityExternalIdentities).where(eq(entityExternalIdentities.entityId, id)).run();
-    const identities = new Map(
-      input.externalIdentities.map((identity) => [
-        `${identity.provider.toLocaleLowerCase()}:${identity.externalId.toLocaleLowerCase()}`,
-        identity,
-      ]),
-    );
-    for (const identity of identities.values()) {
-      tx.insert(entityExternalIdentities)
-        .values({ id: crypto.randomUUID(), entityId: id, ...identity })
-        .run();
-    }
 
     const profile = tx
       .select()
@@ -708,7 +674,7 @@ export function saveEntity(input: AdminEntityInput): Entity {
     entityType: input.entityType === "person" ? "person" : "studio",
     entityId: id,
     primaryText: input.name,
-    secondaryText: input.alternativeNames.join(" "),
+    secondaryText: [input.imdbId, input.wikipediaUrl, input.primaryUrl].filter(Boolean).join(" "),
     keywords: input.description,
     imagePath: input.imagePath,
   });

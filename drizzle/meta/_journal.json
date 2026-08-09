@@ -218,6 +218,13 @@
       "when": 1786199000000,
       "tag": "0030_add_latvia_belgium",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1786233600000,
+      "tag": "0031_simplify_entity_profiles",
+      "breakpoints": true
     }
   ]
 }

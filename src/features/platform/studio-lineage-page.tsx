@@ -86,7 +86,7 @@ export function StudioLineagePage() {
     return new Set(
       graph.nodes
         .filter((node) =>
-          [node.entity.name, node.entity.sortName, ...node.entity.alternativeNames]
+          [node.entity.name, node.entity.sortName]
             .join(" ")
             .toLocaleLowerCase()
             .includes(normalizedSearch),

@@ -19,7 +19,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -169,11 +169,6 @@ export function EntityDetailPage({ entityId }: { entityId: string }) {
               <h1 className="mt-3 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl" dir="ltr">
                 {entity.name}
               </h1>
-              {entity.alternativeNames.length > 0 && (
-                <p className="mt-2 text-sm text-muted-foreground" dir="ltr">
-                  {entity.alternativeNames.join(" · ")}
-                </p>
-              )}
             </div>
           </div>
         </section>
@@ -268,6 +263,12 @@ export function EntityDetailPage({ entityId }: { entityId: string }) {
                 {entity.establishedAt && (
                   <ProfileFact icon={CalendarBlankIcon} label="تأسس" value={entity.establishedAt} />
                 )}
+                {entity.birthDate && (
+                  <ProfileFact icon={CalendarBlankIcon} label="الميلاد" value={entity.birthDate} />
+                )}
+                {entity.deathDate && (
+                  <ProfileFact icon={CalendarBlankIcon} label="الوفاة" value={entity.deathDate} />
+                )}
                 {entity.favorites !== null && (
                   <ProfileFact
                     icon={HeartIcon}
@@ -280,14 +281,25 @@ export function EntityDetailPage({ entityId }: { entityId: string }) {
                   label="الأعمال"
                   value={String(entity.workCount)}
                 />
-                {entity.sourceUrl && (
+                {entity.primaryUrl && (
                   <a
-                    href={entity.sourceUrl}
+                    href={entity.primaryUrl}
                     target="_blank"
                     rel="noreferrer"
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-1")}
                   >
-                    {entity.sourceProvider ?? "المصدر"}
+                    الرابط المرجعي
+                    <ArrowSquareOutIcon data-icon="inline-end" />
+                  </a>
+                )}
+                {entity.wikipediaUrl && (
+                  <a
+                    href={entity.wikipediaUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-1")}
+                  >
+                    ويكيبيديا
                     <ArrowSquareOutIcon data-icon="inline-end" />
                   </a>
                 )}
@@ -303,51 +315,6 @@ export function EntityDetailPage({ entityId }: { entityId: string }) {
                   <p className="text-sm leading-7 text-muted-foreground" dir="auto">
                     {entity.description}
                   </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {entity.externalIdentities.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>المعرّفات الخارجية</CardTitle>
-                  <CardDescription>المراجع المرتبطة بهذا السجل.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-2">
-                  {entity.externalIdentities.map((identity) =>
-                    identity.url ? (
-                      <Button
-                        key={`${identity.provider}:${identity.externalId}`}
-                        variant="outline"
-                        size="sm"
-                        nativeButton={false}
-                        render={
-                          // biome-ignore lint/a11y/useAnchorContent: Button supplies the rendered anchor's accessible content.
-                          <a
-                            href={identity.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={`${identity.provider}: ${identity.externalId}`}
-                          />
-                        }
-                        className="justify-between"
-                      >
-                        <span>{identity.provider}</span>
-                        <span dir="ltr">{identity.externalId}</span>
-                        <ArrowSquareOutIcon data-icon="inline-end" />
-                      </Button>
-                    ) : (
-                      <div
-                        key={`${identity.provider}:${identity.externalId}`}
-                        className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
-                      >
-                        <span>{identity.provider}</span>
-                        <span className="font-mono text-xs" dir="ltr">
-                          {identity.externalId}
-                        </span>
-                      </div>
-                    ),
-                  )}
                 </CardContent>
               </Card>
             )}

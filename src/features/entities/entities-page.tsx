@@ -85,12 +85,10 @@ export function EntitiesPage({
         if (!query) return true;
         return [
           entity.name,
-          ...entity.alternativeNames,
           entity.description,
-          ...entity.externalIdentities.flatMap(({ provider, externalId }) => [
-            provider,
-            externalId,
-          ]),
+          entity.primaryUrl ?? "",
+          entity.wikipediaUrl ?? "",
+          entity.imdbId ?? "",
           ...entity.roles.map(({ role }) => contributionRoleLabels[role]),
           ...entity.works.map(({ title, arabicTitle }) => [title, arabicTitle ?? ""].join(" ")),
         ]
