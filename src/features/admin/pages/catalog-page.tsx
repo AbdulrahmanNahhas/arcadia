@@ -136,7 +136,7 @@ export function AdminCatalogPage() {
             </div>
             {selectedIds.size > 0 && (
               <div className="fixed bottom-6 inset-x-0 z-50 mx-auto max-w-xl px-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-200">
-                <div className="flex items-center justify-between gap-3 rounded-xl border bg-background/95 p-2.5 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80 dir-rtl">
+                <div className="flex items-center justify-between gap-3 rounded-xl border bg-background/95 p-2.5 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/80 dir-rtl">
                   {/* جهة اليمين: العداد ومسح التحديد */}
                   <div className="flex items-center gap-2 pr-1">
                     <Badge variant="secondary" className="h-7 px-2.5 text-xs font-semibold">

@@ -158,7 +158,7 @@ export function RelationshipEditor({ work, works, onChange }: RelationshipEditor
                 className="flex flex-col items-stretch gap-2 rounded-md border border-border/60 bg-muted/30 p-2.5 transition-colors hover:border-border lg:flex-row lg:items-center"
               >
                 {/* Target Work Dropdown */}
-                <div className="flex min-w-[200px]">
+                <div className="flex min-w-50">
                   <Select
                     items={candidates.map((candidate) => ({
                       value: candidate.id,
@@ -266,7 +266,7 @@ export function RelationshipEditor({ work, works, onChange }: RelationshipEditor
                 </div>
 
                 {/* Notes Input */}
-                <div className="min-w-[140px] flex-1">
+                <div className="min-w-35 flex-1">
                   <Input
                     value={relation.notes}
                     placeholder="ملاحظة، مثلاً الموسم الأول"
@@ -275,7 +275,7 @@ export function RelationshipEditor({ work, works, onChange }: RelationshipEditor
                   />
                 </div>
 
-                <div className="min-w-[120px] flex-1">
+                <div className="min-w-30 flex-1">
                   <Input
                     value={relation.provenance}
                     placeholder="مصدر العلاقة"
@@ -284,7 +284,7 @@ export function RelationshipEditor({ work, works, onChange }: RelationshipEditor
                   />
                 </div>
 
-                <div className="min-w-[120px] flex-1">
+                <div className="min-w-30 flex-1">
                   <Input
                     value={relation.externalKey ?? ""}
                     placeholder="المعرّف الخارجي"
