@@ -2,7 +2,6 @@ import {
   ArrowLeftIcon,
   CompassIcon,
   DatabaseIcon,
-  PlanetIcon,
   SparkleIcon,
   StarIcon,
 } from "@phosphor-icons/react";
@@ -47,26 +46,15 @@ export function PlatformHome() {
         <PlanetIndex planets={data.planets} />
 
         <WorkRail
-          title="اختياراتك الأعلى تقييماً"
-          description="أعمال صعدت وفق معاييرك أنت، لا وفق قائمة عامة."
+          title="الأعلى تقييماً"
+          description="أعمال صعدت وفق معاييرنا الخاصة، لا وفق قائمة عامة."
           works={data.highlyRated}
           variant="banner"
         />
 
         {populatedPlanets.length > 0 && (
-          <section className="flex flex-col gap-20" aria-labelledby="planet-collections-title">
-            <div className="mx-auto w-full max-w-400 border-b border-white/10 pb-6 px-6">
-              <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.16em] text-primary">
-                <PlanetIcon weight="fill" /> من كل مدار
-              </p>
-              <h2
-                id="planet-collections-title"
-                className="mt-3 max-w-2xl font-heading text-3xl leading-tight font-semibold sm:text-4xl"
-              >
-                مجموعات تتبدّل إيقاعاتها مع محتواها.
-              </h2>
-            </div>
-
+          <section className="flex flex-col gap-16" aria-labelledby="planet-collections-title">
+            {" "}
             {populatedPlanets.map((planet, index) => (
               <div
                 key={planet.id}
@@ -294,9 +282,6 @@ function PlanetIndex({ planets }: { planets: PlanetWithWorks[] }) {
             لا قوائم هنا. اعبر من بوابة إلى عالم.
           </h2>
         </div>
-        <p className="max-w-md text-sm leading-7 text-muted-foreground">
-          كل بوابة تستعير مشهداً من داخل كوكبها، ويتغيّر مدارها مع نمو مجموعتك.
-        </p>
       </div>
 
       <div className="relative mt-10  overflow-visible bg-card/10 p-0 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle,currentColor_1px,transparent_1px)] before:bg-size-[42px_42px] before:text-foreground before:opacity-[0.04]">

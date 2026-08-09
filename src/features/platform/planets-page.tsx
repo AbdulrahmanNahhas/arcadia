@@ -1,10 +1,4 @@
-import {
-  ArrowLeftIcon,
-  FilmStripIcon,
-  PlanetIcon,
-  PopcornIcon,
-  SparkleIcon,
-} from "@phosphor-icons/react";
+import { ArrowLeftIcon, FilmStripIcon, PlanetIcon, PopcornIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
@@ -41,7 +35,7 @@ export function PlanetsPage() {
         <header className="relative mx-auto max-w-7xl px-6 py-16 sm:px-8 sm:py-20 lg:py-24">
           <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <h1 className="mt-6 font-heading text-4xl font-black leading-[1.5] sm:text-6xl lg:text-7xl">
+              <h1 className="mt-6 text-3xl font-heading font-semibold leading-normal sm:text-5xl lg:text-6xl">
                 اعبر البوابة إلى <br />
                 <span className="bg-linear-to-l from-primary via-purple-300 to-amber-200 bg-clip-text text-transparent">
                   عالمك المفضل.

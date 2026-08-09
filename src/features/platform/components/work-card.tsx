@@ -8,7 +8,7 @@ import {
   TelevisionSimpleIcon,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import type { Work } from "@/features/library/model";
+import { taxonomyLabels, type Work } from "@/features/library/model";
 import { cn } from "@/lib/utils";
 
 export const kindLabel: Record<Work["kind"], string> = {
@@ -33,6 +33,10 @@ const kindIcon: Record<Work["kind"], typeof StarIcon> = {
   "visual-novel": BookOpenIcon,
 };
 
+function taxonomyLabel<T extends Record<PropertyKey, string>>(labels: T, value: string) {
+  return value in labels ? labels[value as keyof T] : value;
+}
+
 export function WorkCard({
   work,
   className,
@@ -43,6 +47,14 @@ export function WorkCard({
   variant?: "poster" | "banner" | "logo";
 }) {
   const KindIcon = kindIcon[work.kind];
+
+  const durationText = work.episodeCount
+    ? `${work.episodeCount} حلقة`
+    : work.runtimeMinutes
+      ? `${work.runtimeMinutes} دقيقة`
+      : null;
+
+  const studioOrCreator = work.animationStudios?.[0]?.name || work.creator || null;
 
   if (variant === "logo") {
     return (
@@ -55,14 +67,14 @@ export function WorkCard({
         )}
       >
         <article>
-          <div className="relative aspect-square overflow-hidden rounded-xl bg-muted ring-1 ring-white/8 transition duration-300 group-hover/card:-translate-y-1 group-hover/card:ring-white/20 motion-reduce:transition-none">
+          <div className="relative aspect-square overflow-hidden rounded-xl bg-muted ring-1 ring-white/8 transition duration-300 group-hover/card:-translate-y-1 group-focus-visible/card:-translate-y-1 group-hover/card:ring-white/20 group-focus-visible/card:ring-white/20 motion-reduce:transition-none">
             {work.logoPath || work.imagePath ? (
               <img
                 src={work.logoPath || work.imagePath || undefined}
                 alt=""
                 loading="lazy"
                 decoding="async"
-                className="size-full object-contain p-5 transition duration-500 group-hover/card:scale-[1.035] motion-reduce:transition-none"
+                className="size-full object-contain p-5 transition duration-500 group-hover/card:scale-[1.035] group-focus-visible/card:scale-[1.035] motion-reduce:transition-none"
               />
             ) : (
               <div className="flex size-full items-center justify-center bg-linear-to-br from-primary/25 via-muted to-muted p-4 text-center">
@@ -82,7 +94,14 @@ export function WorkCard({
             <h3 className="truncate font-heading text-sm font-medium text-foreground">
               {work.arabicTitle || work.title}
             </h3>
-            <p className="mt-1 text-xs text-muted-foreground">{work.year ?? "—"}</p>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>{work.year ?? "—"}</span>
+              <span aria-hidden="true">·</span>
+              <span className="flex items-center gap-1">
+                <KindIcon className="size-3" />
+                {kindLabel[work.kind]}
+              </span>
+            </p>
           </div>
         </article>
       </Link>
@@ -95,18 +114,18 @@ export function WorkCard({
         to="/works/$workId"
         params={{ workId: work.id }}
         className={cn(
-          "group/card mt-1.5 block min-w-0 snap-start overflow-visible rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring pb-13",
+          "group/card mt-1.5 block min-w-0 snap-start overflow-visible rounded-2xl pb-13 focus-visible:outline-2 focus-visible:pb-18 focus-visible:outline-offset-2 focus-visible:outline-ring",
           className,
         )}
       >
-        <article className="relative aspect-video overflow-visible rounded-2xl bg-muted shadow-lg shadow-background/10 ring-1 ring-white/8 transition-all duration-600 ease-out group-hover/card:z-10 group-hover/card:-translate-y-2 group-hover/card:scale-[1.020] group-hover/card:shadow-2xl group-hover/card:shadow-background/40 group-hover/card:ring-white/25 group-focus-visible/card:-translate-y-2 group-focus-visible/card:scale-[1.025]">
+        <article className="relative aspect-video overflow-visible rounded-2xl bg-muted shadow-lg shadow-background/10 ring-1 ring-white/8 transition-all duration-600 ease-out group-hover/card:z-10 group-focus-visible/card:z-10 group-hover/card:-translate-y-2 group-focus-visible/card:-translate-y-2 group-hover/card:scale-[1.020] group-focus-visible/card:scale-[1.020] group-hover/card:shadow-2xl group-focus-visible/card:shadow-2xl group-hover/card:shadow-background/40 group-focus-visible/card:shadow-background/40 group-hover/card:ring-white/25 group-focus-visible/card:ring-white/25">
           {work.bannerPath || work.imagePath ? (
             <img
               src={work.bannerPath || work.imagePath || undefined}
               alt=""
               loading="lazy"
               decoding="async"
-              className="size-full rounded-2xl overflow-hidden object-cover transition duration-700 ease-out group-hover/card:scale-100 group-focus-visible/card:scale-100 motion-reduce:transition-none"
+              className="size-full overflow-hidden rounded-2xl object-cover transition duration-700 ease-out group-hover/card:scale-100 group-focus-visible/card:scale-100 motion-reduce:transition-none"
             />
           ) : (
             <div className="flex size-full items-end bg-linear-to-t from-primary/25 via-muted to-muted p-4">
@@ -115,36 +134,85 @@ export function WorkCard({
               </span>
             </div>
           )}
-          <div className="absolute -inset-1  bg-linear-to-t from-background/0 via-background/0 to-transparent transition duration-500 group-hover/card:from-background group-hover/card:via-background/35 group-focus-visible/card:from-background group-focus-visible/card:via-background/35" />
-          {work.calculatedRating !== null && (
-            <span className="absolute inset-e-3 top-3 flex items-center gap-1 rounded-full bg-background/60 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
-              <StarIcon weight="fill" className="text-amber-300" />
-              {work.calculatedRating.toFixed(1)}
-            </span>
-          )}
-          <div className="absolute inset-x-0 -bottom-22 border border-t-0 pt-32 rounded-b-2xl border-transparent group-hover/card:border-border translate-y-9 p-4 transition-all duration-300 ease-out group-hover/card:translate-y-0 group-focus-visible/card:translate-y-0">
-            <h3 className="truncate font-heading text-sm font-semibold text-white sm:text-base">
-              {work.arabicTitle || work.title}
-            </h3>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-white/70">
-              <span>{work.year ?? "—"}</span>
-              <span aria-hidden="true">·</span>
-              <span className="flex items-center gap-1">
-                <KindIcon className="size-3" weight="fill" />
-                {kindLabel[work.kind]}
+          <div
+            className={cn(
+              "absolute -inset-1 bg-linear-to-t from-background/0 via-background/0 via-40% to-transparent transition duration-200",
+              "group-hover/card:from-background group-focus-visible/card:from-background group-hover/card:via-background/70 group-focus-visible/card:via-background/70",
+            )}
+          />
+
+          {/* Top Badges (Audience & Rating) */}
+          <div className="absolute inset-x-3 top-2 flex items-center justify-between pointer-events-none">
+            {work.audience && taxonomyLabels.audiences?.[work.audience] ? (
+              <span className="rounded-full bg-background/60 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-md ring-1 ring-white/10">
+                {taxonomyLabels.audiences[work.audience]}
               </span>
-              {work.animationStudios[0] && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span className="truncate">{work.animationStudios[0].name}</span>
-                </>
-              )}
-            </p>
-            <div className="mt-3 flex items-center justify-between border-t border-white/15 pt-2.5 text-xs text-white opacity-0 transition-opacity delay-75 duration-300 group-hover/card:opacity-100 group-focus-visible/card:opacity-100">
-              <span className="line-clamp-1 text-white/65">
-                {work.summary || "افتح سجل العمل الكامل"}
+            ) : (
+              <span />
+            )}
+
+            {work.calculatedRating !== null && (
+              <span className="flex items-center gap-1 rounded-full bg-background/60 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md ring-1 ring-white/10">
+                <StarIcon weight="fill" className="text-amber-300" />
+                {work.calculatedRating.toFixed(1)}
               </span>
-              <span className="ms-3 flex shrink-0 items-center gap-1 rounded-full bg-white px-2.5 py-1 font-semibold text-background">
+            )}
+          </div>
+
+          {/* Slide-Up Panel */}
+          <div className="absolute inset-x-0 -bottom-12 border border-t-0 pt-12 rounded-b-2xl border-transparent p-4 translate-y-0 transition-all delay-50 duration-300 ease-out group-hover/card:-bottom-20 group-focus-visible/card:-bottom-20 group-hover/card:pb-10 group-focus-visible/card:pb-10 group-hover/card:border-border group-focus-visible/card:border-border">
+            <div className="relative top-22 group-hover/card:top-8 group-focus-visible/card:top-8 duration-300">
+              <h3 className="truncate font-heading text-sm font-semibold text-white sm:text-base">
+                {work.arabicTitle || work.title}
+              </h3>
+
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-white/70">
+                <span>{work.year ?? "—"}</span>
+                <span aria-hidden="true">·</span>
+                <span className="flex items-center gap-1">
+                  <KindIcon className="size-3" weight="fill" />
+                  {kindLabel[work.kind]}
+                </span>
+                {durationText && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>{durationText}</span>
+                  </>
+                )}
+                {studioOrCreator && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span className="truncate max-w-30">{studioOrCreator}</span>
+                  </>
+                )}
+              </p>
+            </div>
+
+            {/* Bottom Section: Mapped Genres + Tones */}
+            <div className="relative top-12 mt-4 flex h-10 items-start justify-between gap-2 pt-2.5 text-xs text-white opacity-0 transition-all delay-50 duration-300 group-hover/card:top-4 group-focus-visible/card:top-4 group-hover/card:opacity-100 group-focus-visible/card:opacity-100">
+              <div className="flex max-h-10 flex-wrap items-center gap-1 px-px overflow-hidden">
+                {/* Genres */}
+                {work.genres.map((genre) => (
+                  <span
+                    key={genre}
+                    className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur-xs"
+                  >
+                    {taxonomyLabel(taxonomyLabels.genres, genre)}
+                  </span>
+                ))}
+
+                {/* Tones */}
+                {work.tone?.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded bg-primary/25 ring-1 ring-primary/30 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground backdrop-blur-xs"
+                  >
+                    {taxonomyLabel(taxonomyLabels.tones, t)}
+                  </span>
+                ))}
+              </div>
+
+              <span className="ms-3 flex relative top-4 shrink-0 items-center gap-1 rounded-full bg-white px-2.5 py-1 font-semibold text-background">
                 استكشف
                 <ArrowLeftIcon />
               </span>
@@ -155,24 +223,25 @@ export function WorkCard({
     );
   }
 
+  // Default: Poster
   return (
     <Link
       to="/works/$workId"
       params={{ workId: work.id }}
       className={cn(
-        "max-w-100 group/card block min-w-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+        "max-w-100 group/card block min-w-0 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
         className,
       )}
     >
       <article>
-        <div className="relative aspect-2/3 overflow-hidden rounded-xl bg-muted ring-1 ring-white/8 transition duration-300 group-hover/card:-translate-y-1 group-hover/card:ring-white/20 motion-reduce:transition-none">
+        <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted shadow-md shadow-black/20 ring-1 ring-white/10 transition-all duration-500 ease-out group-hover/card:-translate-y-1.5 group-focus-visible/card:-translate-y-1.5 group-hover/card:shadow-2xl group-focus-visible/card:shadow-2xl group-hover/card:shadow-black/40 group-focus-visible/card:shadow-black/40 group-hover/card:ring-white/20 group-focus-visible/card:ring-white/20 motion-reduce:transition-none">
           {work.imagePath ? (
             <img
               src={work.imagePath}
               alt=""
               loading="lazy"
               decoding="async"
-              className="size-full object-cover transition duration-500 group-hover/card:scale-[1.035] motion-reduce:transition-none"
+              className="size-full object-cover transition-transform duration-700 ease-out group-hover/card:scale-105 group-focus-visible/card:scale-105 motion-reduce:transition-none"
             />
           ) : (
             <div className="flex size-full items-end bg-linear-to-t from-primary/25 via-muted to-muted p-4">
@@ -181,25 +250,65 @@ export function WorkCard({
               </span>
             </div>
           )}
-          <div className="absolute inset-x-0 bottom-0 h-2/5 bg-linear-to-t from-background/75 to-transparent opacity-0 transition-opacity group-hover/card:opacity-100" />
-          {work.calculatedRating !== null && (
-            <span className="absolute inset-e-2 top-2 flex items-center gap-1 rounded-md bg-background/70 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
-              <StarIcon weight="fill" className="text-amber-300" />
-              {work.calculatedRating.toFixed(1)}
+
+          {/* Gradient Overlay for Hover */}
+          <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/25 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100 group-focus-visible/card:opacity-100" />
+
+          {/* Top Badges (Audience & Rating) */}
+          <div className="absolute inset-x-2.5 top-2.5 flex items-center justify-between pointer-events-none z-10">
+            {work.audience && taxonomyLabels.audiences?.[work.audience] ? (
+              <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur-md ring-1 ring-white/10">
+                {taxonomyLabels.audiences[work.audience]}
+              </span>
+            ) : (
+              <span />
+            )}
+
+            {work.calculatedRating !== null && (
+              <span className="flex items-center gap-1 rounded-full bg-background/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-md ring-1 ring-white/10">
+                <StarIcon weight="fill" className="text-amber-300 size-3" />
+                {work.calculatedRating.toFixed(1)}
+              </span>
+            )}
+          </div>
+
+          {/* Hover Bottom Overlay: Genre Chips + Arrow CTA */}
+          <div className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-2 opacity-0 transition-all duration-300 translate-y-2 group-hover/card:translate-y-0 group-focus-visible/card:translate-y-0 group-hover/card:opacity-100 group-focus-visible/card:opacity-100 z-10">
+            <div className="flex flex-wrap gap-1 overflow-hidden">
+              {work.genres.slice(0, 2).map((genre) => (
+                <span
+                  key={genre}
+                  className="rounded-md bg-white/20 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-xs ring-1 ring-white/10"
+                >
+                  {taxonomyLabel(taxonomyLabels.genres, genre)}
+                </span>
+              ))}
+            </div>
+
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white text-background shadow-lg transition-transform duration-200 group-hover/card:scale-110 group-focus-visible/card:scale-110">
+              <ArrowLeftIcon className="size-3.5" />
             </span>
-          )}
+          </div>
         </div>
-        <div className="px-0.5 pt-3">
-          <h3 className="truncate font-heading text-sm font-medium text-foreground">
+
+        {/* Text Section Below Poster */}
+        <div className="px-0.5 pt-2.5">
+          <h3 className="truncate font-heading text-sm font-semibold text-foreground transition-colors duration-200 group-hover/card:text-primary group-focus-visible/card:text-primary">
             {work.arabicTitle || work.title}
           </h3>
-          <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
             <span>{work.year ?? "—"}</span>
             <span aria-hidden="true">·</span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 transition-colors group-hover/card:text-foreground/80 group-focus-visible/card:text-foreground/80">
               <KindIcon className="size-3" />
               {kindLabel[work.kind]}
             </span>
+            {durationText && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="truncate">{durationText}</span>
+              </>
+            )}
           </p>
         </div>
       </article>

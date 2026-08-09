@@ -1,4 +1,4 @@
-import { ArrowRightIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, ImageIcon, ImageSquareIcon, PanoramaIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -11,6 +11,13 @@ import { WorkCard } from "./components/work-card";
 
 type WorkView = "poster" | "banner" | "logo";
 type WorkSort = "added" | "newest" | "oldest" | "ranked";
+
+const SORT_LABELS: Record<string, string> = {
+  ranked: "الأعلى تقييماً أولاً",
+  added: "الأحدث إضافةً أولاً",
+  oldest: "الأقدم إصداراً أولاً",
+  newest: "الأحدث إصداراً أولاً",
+};
 
 function releaseTimestamp(work: Work) {
   const exact = work.releaseStart ? Date.parse(`${work.releaseStart}T00:00:00Z`) : Number.NaN;
@@ -46,66 +53,103 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
     );
   return (
     <PlatformShell immersive>
-      <section className="relative isolate overflow-hidden border-b border-white/8">
+      <section
+        className="relative isolate overflow-hidden border-b border-white/10"
+        style={
+          {
+            "--planet-color": planet.primaryColor,
+            "--planet-secondary": planet.secondaryColor,
+          } as React.CSSProperties
+        }
+      >
+        {/* Dynamic Radial Ambient Light */}
         <div
-          className="absolute inset-0 -z-20"
+          className="pointer-events-none absolute inset-0 -z-20 opacity-80"
           style={{
-            background: `radial-gradient(circle at 75% 20%, ${planet.primaryColor}55, transparent 35rem), linear-gradient(135deg, ${planet.secondaryColor}22, transparent 60%)`,
+            background: `radial-gradient(circle at 75% 20%, ${planet.primaryColor}44, transparent 35rem), linear-gradient(135deg, ${planet.secondaryColor}18, transparent 60%)`,
           }}
+          aria-hidden="true"
         />
-        <div className="archive-grid absolute inset-0 -z-10 opacity-50" />
-        <div className="mx-auto max-w-400 px-5 pb-16 pt-32 sm:px-8 sm:pb-8">
+
+        <div className="archive-grid pointer-events-none absolute inset-0 -z-10 opacity-40" />
+
+        <div className="mx-auto max-w-7xl px-5 pb-12 pt-24 sm:px-8 sm:pb-10 sm:pt-28">
+          {/* Back Link */}
           <Link
             to="/planets"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            className="group inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            <ArrowRightIcon /> كل الكواكب
+            <ArrowRightIcon className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
+            <span>كل الكواكب</span>
           </Link>
-          <div className="mt-10 flex max-w-3xl items-start gap-5">
+
+          {/* Planet Info Header */}
+          <div className="mt-8 flex max-w-3xl items-start gap-5 sm:gap-6">
+            {/* Planet Avatar Icon */}
             <span
-              className="flex size-20 shrink-0 items-center justify-center rounded-full border text-4xl"
+              className="flex size-16 shrink-0 items-center justify-center rounded-2xl border text-3xl shadow-2xl backdrop-blur-md sm:size-20 sm:rounded-3xl sm:text-4xl"
               style={{
-                borderColor: `${planet.primaryColor}99`,
-                background: `${planet.primaryColor}18`,
-                boxShadow: `0 0 60px ${planet.primaryColor}33`,
+                borderColor: `${planet.primaryColor}80`,
+                background: `${planet.primaryColor}15`,
+                boxShadow: `0 0 50px ${planet.primaryColor}25`,
               }}
             >
               {planet.icon}
             </span>
-            <div>
-              <p
-                className="text-xs font-semibold tracking-[0.18em]"
-                style={{ color: planet.primaryColor }}
-              >
-                كوكب نحّاسينما
-              </p>
-              <h1 className="mt-3 font-heading text-4xl leading-tight font-semibold sm:text-6xl">
+
+            <div className="space-y-1">
+              {/* Eyebrow Badge */}
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full border px-3 py-0.5 font-mono text-xs font-semibold backdrop-blur-sm"
+                  style={{
+                    backgroundColor: `${planet.primaryColor}12`,
+                    borderColor: `${planet.primaryColor}30`,
+                    color: planet.primaryColor,
+                  }}
+                >
+                  <span
+                    className="size-1.5 rounded-full animate-pulse"
+                    style={{ background: planet.primaryColor }}
+                  />
+                  كوكب نحّاسينما
+                </span>
+              </div>
+
+              {/* Titles */}
+              <h1 className="font-heading text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
                 {planet.nameAr}
               </h1>
+
               {planet.nameEn && (
-                <p className="mt-2 font-mono text-sm text-muted-foreground" dir="ltr">
+                <p
+                  className="font-mono text-xs tracking-wider text-muted-foreground/80 sm:text-sm"
+                  dir="ltr"
+                >
                   {planet.nameEn}
                 </p>
               )}
             </div>
           </div>
-          <p className="mt-8 max-w-2xl text-lg leading-9 text-foreground/75">
-            {planet.description}
-          </p>
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
-            <p className="text-sm text-muted-foreground">
-              {planet.workCount} عمل ·{" "}
-              {sort === "ranked"
-                ? "الأعلى تقييماً أولاً"
-                : sort === "added"
-                  ? "الأحدث إضافةً أولاً"
-                  : sort === "oldest"
-                    ? "الأقدم إصداراً أولاً"
-                    : "الأحدث إصداراً أولاً"}
+
+          {/* Description */}
+          {planet.description && (
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-foreground/80 sm:text-lg sm:leading-8">
+              {planet.description}
             </p>
-            <div className="order-first flex flex-wrap items-center gap-3" dir="ltr">
+          )}
+
+          {/* Controls Toolbar */}
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-6">
+            <p className="text-xs text-muted-foreground sm:text-sm">
+              <span className="font-semibold text-foreground">{planet.workCount || 0}</span> عمل ·{" "}
+              <span>{SORT_LABELS[sort] || SORT_LABELS.newest}</span>
+            </p>
+
+            <div className="flex flex-wrap items-center gap-4">
+              {/* View Switcher */}
               <div className="flex items-center gap-2" dir="rtl">
-                <span className="text-xs text-muted-foreground">العرض</span>
+                <span className="text-xs font-medium text-muted-foreground">العرض</span>
                 <ToggleGroup
                   value={[view]}
                   multiple={false}
@@ -118,13 +162,21 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
                     if (next) setView(next);
                   }}
                 >
-                  <ToggleGroupItem value="poster">بوستر</ToggleGroupItem>
-                  <ToggleGroupItem value="banner">خلفية</ToggleGroupItem>
-                  <ToggleGroupItem value="logo">شعار</ToggleGroupItem>
+                  <ToggleGroupItem value="poster" aria-label="عرض بوستر" className="px-2.5">
+                    <ImageIcon className="size-4" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="banner" aria-label="عرض بانر" className="px-2.5">
+                    <PanoramaIcon className="size-4" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="logo" aria-label="عرض شعار" className="px-2.5">
+                    <ImageSquareIcon className="size-4" />
+                  </ToggleGroupItem>
                 </ToggleGroup>
               </div>
+
+              {/* Sort Switcher */}
               <div className="flex items-center gap-2" dir="rtl">
-                <span className="text-xs text-muted-foreground">الترتيب</span>
+                <span className="text-xs font-medium text-muted-foreground">الترتيب</span>
                 <ToggleGroup
                   value={[sort]}
                   multiple={false}
@@ -137,10 +189,18 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
                     if (next) setSort(next);
                   }}
                 >
-                  <ToggleGroupItem value="added">الجديد</ToggleGroupItem>
-                  <ToggleGroupItem value="newest">الأحدث</ToggleGroupItem>
-                  <ToggleGroupItem value="oldest">الأقدم</ToggleGroupItem>
-                  <ToggleGroupItem value="ranked">التقييم</ToggleGroupItem>
+                  <ToggleGroupItem value="added" className="px-3 text-xs">
+                    الجديد
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="newest" className="px-3 text-xs">
+                    الأحدث
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="oldest" className="px-3 text-xs">
+                    الأقدم
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="ranked" className="px-3 text-xs">
+                    التقييم
+                  </ToggleGroupItem>
                 </ToggleGroup>
               </div>
             </div>
