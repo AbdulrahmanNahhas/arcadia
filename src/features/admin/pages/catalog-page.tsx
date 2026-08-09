@@ -23,14 +23,7 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import {
   Table,
   TableBody,
@@ -42,21 +35,26 @@ import {
 import { BulkEditDialog } from "@/features/admin/components/bulk-edit";
 import { WorkEditor } from "@/features/admin/components/editor-form";
 import { JsonEditorDialog } from "@/features/admin/components/json-editor";
+import { AdvancedFilter } from "@/features/library/filter-sheet";
+import {
+  buildFacetOptions,
+  createDefaultFilters,
+  workMatchesFilters,
+} from "@/features/library/filtering";
 import type { Work } from "@/features/library/model";
 import { deleteWorks, getEntities, getWorks } from "@/server/library.functions";
 import { AdminPageHeader } from "../components/admin-page-header";
 
-const kindOptions = [
-  { value: "all", label: "كل الأنواع" },
-  { value: "movie", label: "فيلم" },
-  { value: "series", label: "مسلسل" },
-  { value: "anime", label: "أنمي" },
-  { value: "game", label: "لعبة" },
-  { value: "novel", label: "رواية" },
-  { value: "manga", label: "مانغا" },
-  { value: "visual-novel", label: "رواية مرئية" },
-  { value: "comic", label: "قصص مصوّرة" },
-] as const;
+const kindLabels = {
+  movie: "فيلم",
+  series: "مسلسل",
+  anime: "أنمي",
+  game: "لعبة",
+  novel: "رواية",
+  manga: "مانغا",
+  "visual-novel": "رواية مرئية",
+  comic: "قصص مصوّرة",
+} as const;
 
 export function AdminCatalogPage() {
   const queryClient = useQueryClient();
@@ -66,24 +64,25 @@ export function AdminCatalogPage() {
     queryFn: () => getEntities(),
   });
   const [search, setSearch] = useState("");
-  const [kind, setKind] = useState("all");
+  const [filters, setFilters] = useState(createDefaultFilters);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingWork, setEditingWork] = useState<Work | null>(null);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
+  const facetOptions = useMemo(() => buildFacetOptions(works), [works]);
   const visible = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return works.filter(
       (work) =>
-        (kind === "all" || work.kind === kind) &&
+        workMatchesFilters(work, filters) &&
         (!query ||
           [work.title, work.arabicTitle ?? "", ...work.aliases]
             .join(" ")
             .toLocaleLowerCase()
             .includes(query)),
     );
-  }, [kind, search, works]);
+  }, [filters, search, works]);
   const visibleIds = visible.map(({ id }) => id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const refresh = async () => {
@@ -156,8 +155,8 @@ export function AdminCatalogPage() {
               </div>
             ) : null}
           </div>
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]">
-            <Field>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Field className="min-w-0 flex-1">
               <FieldLabel className="sr-only" htmlFor="catalog-search">
                 بحث الأعمال
               </FieldLabel>
@@ -173,29 +172,14 @@ export function AdminCatalogPage() {
                 </InputGroupAddon>
               </InputGroup>
             </Field>
-            <Field>
-              <FieldLabel className="sr-only" htmlFor="catalog-kind">
-                نوع العمل
-              </FieldLabel>
-              <Select
-                items={kindOptions}
-                value={kind}
-                onValueChange={(value) => setKind(value ?? "all")}
-              >
-                <SelectTrigger id="catalog-kind" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {kindOptions.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
+            <AdvancedFilter
+              filters={filters}
+              facetOptions={facetOptions}
+              onChange={setFilters}
+              matchingCount={visible.length}
+              title="فلترة سجلات الكتالوج"
+              triggerLabel="الفلاتر"
+            />
           </div>
         </CardHeader>
         <CardContent className="px-0">
@@ -239,7 +223,7 @@ export function AdminCatalogPage() {
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>لا توجد أعمال مطابقة</EmptyTitle>
-                <EmptyDescription>غيّر البحث أو مرشح النوع.</EmptyDescription>
+                <EmptyDescription>غيّر البحث أو الفلاتر.</EmptyDescription>
               </EmptyHeader>
             </Empty>
           )}
@@ -370,9 +354,7 @@ function CatalogRow({
         </div>
       </TableCell>
       <TableCell>
-        <Badge variant="outline">
-          {kindOptions.find((item) => item.value === work.kind)?.label ?? work.kind}
-        </Badge>
+        <Badge variant="outline">{kindLabels[work.kind] ?? work.kind}</Badge>
       </TableCell>
       <TableCell className="font-mono">{work.year ?? "—"}</TableCell>
       <TableCell>

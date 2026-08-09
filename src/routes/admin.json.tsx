@@ -1,3 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { JsonWorkspacePage } from "@/features/admin/pages/json-workspace-page";
-export const Route = createFileRoute("/admin/json")({ component: JsonWorkspacePage });
+import { createFileRoute, redirect } from "@tanstack/react-router";
+
+export const Route = createFileRoute("/admin/json")({
+  beforeLoad: () => {
+    throw redirect({ to: "/admin/catalog" });
+  },
+});

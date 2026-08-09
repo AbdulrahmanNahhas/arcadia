@@ -49,7 +49,7 @@ const sections = [
       { title: "نظرة عامة", to: "/admin", icon: HouseIcon, exact: true },
       { title: "الأعمال", to: "/admin/catalog", icon: SquaresFourIcon },
       { title: "قاعدة البيانات", to: "/admin/database", icon: DatabaseIcon },
-      { title: "محرر JSON", to: "/admin/json", icon: BracketsCurlyIcon },
+      // { title: "محرر JSON", to: "/admin/json", icon: BracketsCurlyIcon },
     ],
   },
   {

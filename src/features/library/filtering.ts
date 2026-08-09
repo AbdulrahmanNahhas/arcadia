@@ -271,7 +271,7 @@ function matchesSelection(selection: FacetSelection, values: string[]) {
 }
 
 export function workMatchesFilters(work: Work, filters: WorkFilterState) {
-  if (work.isPrivate && !filters.privateOnly) return false;
+  if (filters.privateOnly ? !work.isPrivate : work.isPrivate) return false;
   if (filters.kinds.length && !filters.kinds.includes(work.kind)) return false;
   if (filters.excludedKinds.includes(work.kind)) return false;
   if (filters.statuses.length && !filters.statuses.includes(work.status)) return false;

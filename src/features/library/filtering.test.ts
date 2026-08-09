@@ -60,14 +60,11 @@ describe("default discovery visibility", () => {
     expect(workMatchesFilters(work({ kind: "movie", isSequelMovie: true }), filters)).toBe(true);
   });
 
-  it("hides private works until the private filter is enabled", () => {
+  it("shows only private works when the private filter is enabled", () => {
     expect(workMatchesFilters(work({ isPrivate: true }), createDefaultFilters())).toBe(false);
-    expect(
-      workMatchesFilters(work({ isPrivate: true }), {
-        ...createDefaultFilters(),
-        privateOnly: true,
-      }),
-    ).toBe(true);
+    const privateOnlyFilters = { ...createDefaultFilters(), privateOnly: true };
+    expect(workMatchesFilters(work({ isPrivate: true }), privateOnlyFilters)).toBe(true);
+    expect(workMatchesFilters(work({ isPrivate: false }), privateOnlyFilters)).toBe(false);
   });
 });
 
