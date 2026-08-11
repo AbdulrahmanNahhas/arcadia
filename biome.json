@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!src/routeTree.gen.ts"]
+    "includes": ["**", "!apps/web/src/routeTree.gen.ts"]
   },
   "formatter": {
     "indentStyle": "space",
@@ -26,11 +26,6 @@
       "tailwindDirectives": true
     }
   },
-  "linter": {
-    "rules": {
-      "recommended": true
-    }
-  },
   "assist": {
     "actions": {
       "source": {
@@ -40,7 +35,7 @@
   },
   "overrides": [
     {
-      "includes": ["src/styles.css"],
+      "includes": ["apps/web/src/styles.css"],
       "linter": {
         "rules": {
           "complexity": {

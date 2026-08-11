@@ -1,46 +1,82 @@
 # Arcadia
 
-Arcadia is a local-first, configurable media knowledge base built with TanStack
-Start, React, TypeScript, TanStack Router and Query, shadcn/ui on Base UI,
-Tailwind CSS, Drizzle ORM, SQLite, and Zod.
+Arcadia v2 is an Arabic-first, RTL-first family media archive. It models titles as umbrella
+records with seasons, films, specials, and episodes beneath them, then combines editorial
+scores, family-safety classifications, people, studios, planets, and relationships in one
+searchable catalog.
 
-The database uses one generic work model for anime, animated and live-action
-series, movies, manga, novels, games, visual novels, and comics. Objective
-metadata, personal state, vocabularies, people/organizations, collections,
-assets, links, and future similarity artifacts remain separate.
+The project is a pnpm monorepo:
 
-## NixOS development
-
-This project targets Node.js 26 and does not require global Node or pnpm:
-
-```bash
-nix develop
-pnpm dev
+```text
+apps/api            Hono API and OpenAPI document
+apps/web            React 19 and TanStack Start client
+packages/contracts  shared Zod schemas and generated API types
+packages/database   PostgreSQL schema, migrations, seed, and v1 importer
+packages/domain     taxonomy, classification, policy, and scoring rules
+packages/i18n       Arabic and English interface vocabulary
+scripts             repository command-line tools
 ```
 
-For a one-off command:
+## Development
+
+Arcadia targets Node.js 26. Enter the reproducible Nix environment and start PostgreSQL, the
+API on port 3001, and the web app on port 3000:
 
 ```bash
-nix develop path:.
-pnpm build
+devenv up
 ```
 
-The SQLite database is stored at `data/arcadia.db` in WAL mode. Set
-`ARCADIA_DB_PATH` to use another local path.
+`DATABASE_URL`, `VITE_API_URL`, and development-only mock identity are supplied by
+`devenv.nix`. The API refuses mock administrator access in production.
 
-## Literature seed and audit
-
-The literature seed adds the curated local manga and novel catalog without
-touching imported animation records. It is safe to rerun. The audit is
-read-only and reports catalog counts plus referential-integrity and duplicate
-vocabulary checks.
+Database changes are explicit; startup never runs migrations automatically:
 
 ```bash
-pnpm db:seed:literature
-pnpm db:fetch-literature-covers
-pnpm db:clean
-pnpm db:audit
+devenv shell -- pnpm db:generate
+devenv shell -- pnpm db:migrate
+devenv shell -- pnpm db:seed
 ```
 
-`db:clean` applies Arcadia's controlled genre, tag, and tone vocabularies to
-every work and records the review date.
+The active database is PostgreSQL and its migration history lives only in
+`packages/database/drizzle/`. The single retained `data/arcadia.db` file is a read-only v1
+recovery/import source. To rebuild a v2 catalog from it:
+
+```bash
+devenv shell -- pnpm db:import -- --dry-run
+devenv shell -- pnpm db:import
+devenv shell -- pnpm db:restore:legacy
+```
+
+The importer writes `migration-report.json` and never mutates the SQLite source.
+
+## API and CLI
+
+OpenAPI is available at `http://127.0.0.1:3001/openapi.json`. With the API running, inspect
+the catalog as JSON from the command line:
+
+```bash
+devenv shell -- pnpm arcadia -- health
+devenv shell -- pnpm arcadia -- titles --search "monster" --limit 20
+devenv shell -- pnpm arcadia -- title <title-id>
+devenv shell -- pnpm arcadia -- list planets
+```
+
+Set `ARCADIA_API_URL` to inspect another local API origin. Regenerate checked-in API types
+after changing the OpenAPI contract:
+
+```bash
+devenv shell -- pnpm client:generate
+```
+
+## Verification
+
+Run the static checks, unit/integration tests, and production builds inside the Nix
+environment. API and database integration tests expect the development PostgreSQL database
+to be migrated and seeded.
+
+```bash
+devenv shell -- pnpm check
+devenv shell -- pnpm test
+devenv shell -- pnpm build
+nix shell nixpkgs#chromium --command devenv shell -- pnpm test:e2e
+```

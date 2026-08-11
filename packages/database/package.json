@@ -1,0 +1,38 @@
+{
+  "name": "@arcadia/database",
+  "version": "2.0.0",
+  "description": "PostgreSQL schema, migrations, seed data, and one-time SQLite importer for Arcadia v2.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
+    "db:seed": "tsx src/seed.ts",
+    "db:studio": "drizzle-kit studio --config drizzle.config.ts",
+    "db:import": "tsx src/import-v1.ts",
+    "db:import:knowledge": "tsx src/import-v1-knowledge.ts",
+    "db:consolidate": "tsx src/consolidate-v1-franchises.ts",
+    "db:repair:scores": "tsx src/repair-v1-duplicate-scores.ts"
+  },
+  "dependencies": {
+    "@arcadia/domain": "workspace:*",
+    "better-sqlite3": "^12.11.1",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22",
+    "drizzle-kit": "^0.31.8",
+    "tsx": "^4.23.1",
+    "typescript": "^6",
+    "vitest": "^4.0.18"
+  }
+}

@@ -1,0 +1,587 @@
+{
+  "source": {
+    "works": 218,
+    "seasons": 38,
+    "units": 607
+  },
+  "imported": {
+    "titles": 194,
+    "installments": 208,
+    "episodes": 296
+  },
+  "skipped": {
+    "nonMediaWorks": 24,
+    "nonEpisodeUnits": 311
+  },
+  "unresolvedRelationships": [
+    {
+      "id": "0e29aae6-1c9c-453c-9b67-52fa41c3c1e7",
+      "source_work_id": "literature-manga-blue-box",
+      "target_work_id": "animation-tv-blue-box",
+      "relation_type": "adaptation",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": "Reviewed source-to-adaptation direction."
+    },
+    {
+      "id": "170e8f48-d1a8-40f2-88f1-fed7024b8184",
+      "source_work_id": "83bc45c9-4ebc-4650-a726-02450352f506",
+      "target_work_id": "animation-movies-suzume",
+      "relation_type": "related",
+      "is_directed": 0,
+      "provenance": "migration",
+      "external_key": null,
+      "notes": "Inspired By"
+    },
+    {
+      "id": "53b0c401-ff5b-4ead-afcb-17a0c52cae2a",
+      "source_work_id": "literature-manga-solo-leveling",
+      "target_work_id": "animation-tv-solo-leveling",
+      "relation_type": "adaptation",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": "Reviewed source-to-adaptation direction."
+    }
+  ],
+  "ambiguousScores": [
+    {
+      "work_id": "animation-tv-arcane",
+      "criterion": "story",
+      "value": 9,
+      "updated_at": 1786289389
+    },
+    {
+      "work_id": "animation-tv-arcane",
+      "criterion": "characters",
+      "value": 10,
+      "updated_at": 1786289389
+    },
+    {
+      "work_id": "animation-tv-arcane",
+      "criterion": "depth",
+      "value": 9,
+      "updated_at": 1786289389
+    },
+    {
+      "work_id": "animation-tv-arcane",
+      "criterion": "worldBuilding",
+      "value": 10,
+      "updated_at": 1786289389
+    },
+    {
+      "work_id": "animation-tv-arcane",
+      "criterion": "originality",
+      "value": 8,
+      "updated_at": 1786289389
+    },
+    {
+      "work_id": "animation-tv-arcane",
+      "criterion": "craft",
+      "value": 10,
+      "updated_at": 1786289389
+    },
+    {
+      "work_id": "animation-tv-demon-slayer",
+      "criterion": "story",
+      "value": 7,
+      "updated_at": 1786289390
+    },
+    {
+      "work_id": "animation-tv-demon-slayer",
+      "criterion": "characters",
+      "value": 7,
+      "updated_at": 1786289390
+    },
+    {
+      "work_id": "animation-tv-demon-slayer",
+      "criterion": "depth",
+      "value": 6,
+      "updated_at": 1786289390
+    },
+    {
+      "work_id": "animation-tv-demon-slayer",
+      "criterion": "worldBuilding",
+      "value": 7,
+      "updated_at": 1786289390
+    },
+    {
+      "work_id": "animation-tv-demon-slayer",
+      "criterion": "originality",
+      "value": 5,
+      "updated_at": 1786289390
+    },
+    {
+      "work_id": "animation-tv-demon-slayer",
+      "criterion": "craft",
+      "value": 10,
+      "updated_at": 1786289390
+    },
+    {
+      "work_id": "animation-tv-my-happy-marriage",
+      "criterion": "story",
+      "value": 7,
+      "updated_at": 1786289393
+    },
+    {
+      "work_id": "animation-tv-my-happy-marriage",
+      "criterion": "characters",
+      "value": 8,
+      "updated_at": 1786289393
+    },
+    {
+      "work_id": "animation-tv-my-happy-marriage",
+      "criterion": "depth",
+      "value": 7,
+      "updated_at": 1786289393
+    },
+    {
+      "work_id": "animation-tv-my-happy-marriage",
+      "criterion": "worldBuilding",
+      "value": 7,
+      "updated_at": 1786289393
+    },
+    {
+      "work_id": "animation-tv-my-happy-marriage",
+      "criterion": "originality",
+      "value": 6,
+      "updated_at": 1786289393
+    },
+    {
+      "work_id": "animation-tv-my-happy-marriage",
+      "criterion": "craft",
+      "value": 8,
+      "updated_at": 1786289393
+    },
+    {
+      "work_id": "animation-tv-one-punch-man",
+      "criterion": "story",
+      "value": 7,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-one-punch-man",
+      "criterion": "characters",
+      "value": 7.5,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-one-punch-man",
+      "criterion": "depth",
+      "value": 7.5,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-one-punch-man",
+      "criterion": "worldBuilding",
+      "value": 7.5,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-one-punch-man",
+      "criterion": "originality",
+      "value": 9,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-one-punch-man",
+      "criterion": "craft",
+      "value": 7.5,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-oshi-no-ko",
+      "criterion": "story",
+      "value": 8,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-oshi-no-ko",
+      "criterion": "characters",
+      "value": 9,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-oshi-no-ko",
+      "criterion": "depth",
+      "value": 9,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-oshi-no-ko",
+      "criterion": "worldBuilding",
+      "value": 9,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-oshi-no-ko",
+      "criterion": "originality",
+      "value": 9,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-oshi-no-ko",
+      "criterion": "craft",
+      "value": 9,
+      "updated_at": 1786289394
+    },
+    {
+      "work_id": "animation-tv-sakamoto-days",
+      "criterion": "story",
+      "value": 7,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-sakamoto-days",
+      "criterion": "characters",
+      "value": 8,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-sakamoto-days",
+      "criterion": "depth",
+      "value": 6,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-sakamoto-days",
+      "criterion": "worldBuilding",
+      "value": 8,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-sakamoto-days",
+      "criterion": "originality",
+      "value": 7,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-sakamoto-days",
+      "criterion": "craft",
+      "value": 8,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-solo-leveling",
+      "criterion": "story",
+      "value": 7,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-solo-leveling",
+      "criterion": "characters",
+      "value": 6,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-solo-leveling",
+      "criterion": "depth",
+      "value": 5,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-solo-leveling",
+      "criterion": "worldBuilding",
+      "value": 7,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-solo-leveling",
+      "criterion": "originality",
+      "value": 6,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-solo-leveling",
+      "criterion": "craft",
+      "value": 9,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-spy-family",
+      "criterion": "story",
+      "value": 7,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-spy-family",
+      "criterion": "characters",
+      "value": 9,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-spy-family",
+      "criterion": "depth",
+      "value": 7,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-spy-family",
+      "criterion": "worldBuilding",
+      "value": 8,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-spy-family",
+      "criterion": "originality",
+      "value": 8,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-spy-family",
+      "criterion": "craft",
+      "value": 9,
+      "updated_at": 1786289395
+    },
+    {
+      "work_id": "animation-tv-vinland-saga",
+      "criterion": "story",
+      "value": 9,
+      "updated_at": 1786289397
+    },
+    {
+      "work_id": "animation-tv-vinland-saga",
+      "criterion": "characters",
+      "value": 10,
+      "updated_at": 1786289397
+    },
+    {
+      "work_id": "animation-tv-vinland-saga",
+      "criterion": "depth",
+      "value": 10,
+      "updated_at": 1786289397
+    },
+    {
+      "work_id": "animation-tv-vinland-saga",
+      "criterion": "worldBuilding",
+      "value": 9,
+      "updated_at": 1786289397
+    },
+    {
+      "work_id": "animation-tv-vinland-saga",
+      "criterion": "originality",
+      "value": 8,
+      "updated_at": 1786289397
+    },
+    {
+      "work_id": "animation-tv-vinland-saga",
+      "criterion": "craft",
+      "value": 10,
+      "updated_at": 1786289397
+    }
+  ],
+  "manualMovieGrouping": [
+    {
+      "id": "f89d7815-5741-456f-ad6a-75a088e5d38e",
+      "source_work_id": "animation-movies-demon-slayer-mugen-train-arc",
+      "target_work_id": "animation-movies-demon-slayer-infinity-castle",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "3514f75f-6b60-445b-a6fb-e52e5a7c5652",
+      "source_work_id": "animation-movies-cars",
+      "target_work_id": "animation-movies-cars-2",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "f6cd1f9d-1892-4824-8514-e19641a9e619",
+      "source_work_id": "animation-movies-cars-2",
+      "target_work_id": "animation-movies-cars-3",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "f3f83c4d-fe0b-4513-9106-265a2aefb1cb",
+      "source_work_id": "animation-movies-despicable-me",
+      "target_work_id": "animation-movies-despicable-me-2",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "22268a00-3175-4d39-b9f1-17b8c0f12814",
+      "source_work_id": "animation-movies-despicable-me-2",
+      "target_work_id": "animation-movies-despicable-me-3",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "c28af45d-fdb0-4fca-b9f9-2104e36ac736",
+      "source_work_id": "animation-movies-hotel-transylvania",
+      "target_work_id": "animation-movies-hotel-transylvania-2",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "bc62f613-5fa1-4b94-95bd-8895c07aaef8",
+      "source_work_id": "animation-movies-hotel-transylvania-2",
+      "target_work_id": "animation-movies-hotel-transylvania-3-summer-vacation",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "8756228f-bfc7-482b-827f-bee554bd3e05",
+      "source_work_id": "animation-movies-how-to-train-your-dragon",
+      "target_work_id": "animation-movies-how-to-train-your-dragon-2",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "0a1b107e-4772-49de-9538-71a84409ed74",
+      "source_work_id": "animation-movies-ice-age",
+      "target_work_id": "animation-movies-ice-age-the-meltdown",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "4ebd4eba-a286-438f-b3f0-2a1c93025fe0",
+      "source_work_id": "animation-movies-ice-age-the-meltdown",
+      "target_work_id": "animation-movies-ice-age-dawn-of-the-dinosaurs",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "486d67d5-1d02-4cb5-90fe-5fa2ba443a98",
+      "source_work_id": "animation-movies-ice-age-dawn-of-the-dinosaurs",
+      "target_work_id": "animation-movies-ice-age-continental-drift",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "f7ff2d15-39eb-4b08-8b4f-49cfd824f18f",
+      "source_work_id": "animation-movies-the-incredibles",
+      "target_work_id": "animation-movies-incredibles-2",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "e4df4a9d-3b6d-42df-b41b-610f4e7192b2",
+      "source_work_id": "animation-movies-kung-fu-panda",
+      "target_work_id": "animation-movies-kung-fu-panda-2",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "d01a6b5b-20b3-4e66-9f9a-585a560e9fe1",
+      "source_work_id": "animation-movies-kung-fu-panda-2",
+      "target_work_id": "animation-movies-kung-fu-panda-3",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "59d33c89-befc-4a85-aef3-a5fd8185ea4e",
+      "source_work_id": "animation-movies-madagascar",
+      "target_work_id": "animation-movies-madagascar-escape-2-africa",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "ff160138-df80-443f-9c5d-6d8a752ed7fa",
+      "source_work_id": "animation-movies-madagascar-escape-2-africa",
+      "target_work_id": "animation-movies-madagascar-3-europes-most-wanted",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "a3179fc8-dd0e-4c8d-8c68-f51d0796af30",
+      "source_work_id": "animation-movies-the-angry-birds-movie",
+      "target_work_id": "animation-movies-the-angry-birds-movie-2",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "078e8d1a-ec93-4377-9ff1-bf9896a85c07",
+      "source_work_id": "animation-movies-the-secret-life-of-pets",
+      "target_work_id": "animation-movies-the-secret-life-of-pets-2",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "75be9527-371b-41d1-96ab-2afb6d1e2110",
+      "source_work_id": "animation-movies-toy-story",
+      "target_work_id": "animation-movies-toy-story-2",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "dc6333e2-c3e4-4361-bb5c-ec57df3d8560",
+      "source_work_id": "animation-movies-toy-story-2",
+      "target_work_id": "animation-movies-toy-story-3",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    },
+    {
+      "id": "3ad3b53b-721f-4c3a-8b89-1caf16b5e96a",
+      "source_work_id": "animation-movies-toy-story-3",
+      "target_work_id": "animation-movies-toy-story-4",
+      "relation_type": "sequel",
+      "is_directed": 1,
+      "provenance": "override:reviewed",
+      "external_key": null,
+      "notes": ""
+    }
+  ],
+  "missingArtwork": []
+}

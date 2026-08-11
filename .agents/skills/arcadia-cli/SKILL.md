@@ -1,51 +1,55 @@
 ---
 name: arcadia-cli
-description: Inspect the database of a running local Arcadia server through its read-only, JSON CLI. Use when an agent needs to list or filter works, fetch complete work details, discover database tables or columns, or inspect raw rows without opening Arcadia's SQLite file directly.
+description: Inspect a running Arcadia v2 catalog through its read-only JSON API CLI. Use when an agent needs to check API and PostgreSQL readiness, search umbrella titles or flattened installments, fetch complete title details, or list public planets, people, studios, and relationships without querying databases directly.
 ---
 
 # Arcadia CLI
 
-Run commands from the Arcadia repository. Keep the development server running at
-`http://127.0.0.1:3000`, or set `ARCADIA_URL` to its origin. Treat stdout as JSON.
+Run commands from the Arcadia repository. Keep the v2 API running at
+`http://127.0.0.1:3001`, or set `ARCADIA_API_URL` to its origin. Treat stdout as JSON and
+stderr as diagnostics.
+
+Check API and PostgreSQL readiness first:
+
+```bash
+devenv shell -- pnpm arcadia -- health
+```
 
 ## Find works
 
 Start broad, inspect `total`, then refine or paginate:
 
 ```bash
-devenv shell -- pnpm arcadia -- works --search "monster" --limit 20
-devenv shell -- pnpm arcadia -- works --kind anime --genre Drama --status completed
-devenv shell -- pnpm arcadia -- works --favorite --year-from 2020
+devenv shell -- pnpm arcadia -- titles --search "monster" --limit 20
+devenv shell -- pnpm arcadia -- titles --mode installments --sort release
+devenv shell -- pnpm arcadia -- titles --planet animation --genre drama --offset 20
 ```
 
-Repeat a filter or comma-separate values to match any supplied value. Different
-filters combine with AND. Use `--offset` with `--limit` for pagination.
+Available filters mirror the v2 browse contract: `--search`, `--mode`, `--sort`, `--genre`,
+`--tone`, `--tag`, `--planet`, `--limit`, and `--offset`. Inspect `total`, then refine or
+paginate.
 
 ## Get complete work details
 
-Use the exact ID returned by `works`:
+Use the exact UUID returned by `titles`:
 
 ```bash
-devenv shell -- pnpm arcadia -- work <work-id>
+devenv shell -- pnpm arcadia -- title <title-id>
 ```
 
-Read `work` for the normalized projection, `structure` and `trackingEntries` for
-activity data, and `records` for the raw rows connected to that work.
+Read `installments`, `relationships`, and `credits` for the normalized v2 structure.
 
-## Inspect any table
-
-Discover before querying unfamiliar data:
+## List public catalog resources
 
 ```bash
-devenv shell -- pnpm arcadia -- tables
-devenv shell -- pnpm arcadia -- schema work_terms
-devenv shell -- pnpm arcadia -- table work_terms --where work_id=<work-id> --limit 100
+devenv shell -- pnpm arcadia -- list planets
+devenv shell -- pnpm arcadia -- list people
+devenv shell -- pnpm arcadia -- list studios
+devenv shell -- pnpm arcadia -- list relationships
+devenv shell -- pnpm arcadia -- list organization-relationships
 ```
 
-Repeat `--where column=value` to combine exact predicates with AND. Add
-`--order <column> --desc` when stable ordering matters. Use the literal value
-`null` to match SQL NULL.
-
-Run `devenv shell -- pnpm arcadia -- --help` for the complete option list. Do not
-write to the database through another tool while using this skill; this CLI is
-intentionally read-only.
+Run `devenv shell -- pnpm arcadia -- --help` for the full interface. The CLI exposes only
+public GET endpoints and cannot mutate the catalog. Use the current PostgreSQL schema in
+`packages/database/src/schema.ts` only when API output needs structural interpretation; do
+not open the retained v1 SQLite archive.

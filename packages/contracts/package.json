@@ -1,0 +1,26 @@
+{
+  "name": "@arcadia/contracts",
+  "version": "2.0.0",
+  "description": "Shared Zod schemas and generated OpenAPI types for Arcadia v2.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./openapi": "./src/generated.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "generate": "openapi-typescript ${OPENAPI_URL:-http://127.0.0.1:3001/openapi.json} -o src/generated.ts"
+  },
+  "dependencies": {
+    "@arcadia/domain": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.10.1",
+    "typescript": "^6",
+    "vitest": "^4.0.18"
+  }
+}

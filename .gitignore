@@ -8,6 +8,8 @@ dist-ssr
 .wrangler
 .output
 .vinxi
+test-results/
+playwright-report/
 __unconfig*
 todos.json
 
@@ -27,6 +29,3 @@ devenv.local.yaml
 
 # direnv
 .direnv
-
-# pre-commit
-.pre-commit-config.yaml

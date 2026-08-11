@@ -1,5 +1,5 @@
 {
-  description = "Arcadia local-first media library";
+  description = "Arcadia v2 Arabic-first family media archive";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 

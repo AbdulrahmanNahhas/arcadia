@@ -1,0 +1,22 @@
+{
+  "name": "@arcadia/i18n",
+  "version": "2.0.0",
+  "description": "Arabic and English interface vocabulary for Arcadia.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@arcadia/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^6",
+    "vitest": "^4.0.18"
+  }
+}
