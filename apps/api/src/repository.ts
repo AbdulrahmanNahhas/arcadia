@@ -35,17 +35,50 @@ async function relatedData(titleIds: string[]) {
       tones: [] as SqlRow[],
       tags: [] as SqlRow[],
       planets: [] as SqlRow[],
+      aliases: [] as SqlRow[],
+      credits: [] as SqlRow[],
     };
   const sql = database().client;
-  const [installments, scores, genres, tones, tags, planets] = await Promise.all([
+  const [installments, scores, genres, tones, tags, planets, aliases, credits] = await Promise.all([
     sql`select i.*, (select count(*)::int from episodes e where e.installment_id=i.id) as episode_count from installments i where i.title_id in ${sql(titleIds)} order by i.position`,
     sql`select s.* from installment_scores s join installments i on i.id=s.installment_id where i.title_id in ${sql(titleIds)}`,
     sql`select x.title_id, v.slug from title_genres x join genres v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
     sql`select x.title_id, v.slug from title_tones x join tones v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
     sql`select x.title_id, v.slug from title_tags x join tags v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
     sql`select x.title_id, p.id, p.slug, p.name_ar, p.icon from title_planets x join planets p on p.id=x.planet_id where x.title_id in ${sql(titleIds)} order by p.display_order`,
+    sql`select title_id, title from title_aliases where title_id in ${sql(titleIds)} order by title`,
+    sql`select c.title_id, e.id, e.name, e.kind, r.slug as role from contributions c join entities e on e.id=c.entity_id join roles r on r.id=c.role_id where c.title_id in ${sql(titleIds)} order by c.position, e.sort_name`,
   ]);
-  return { installments, scores, genres, tones, tags, planets };
+  return { installments, scores, genres, tones, tags, planets, aliases, credits };
+}
+
+function aggregateReleaseStatus(rows: SqlRow[]): TitleSummary["releaseStatus"] {
+  const statuses = rows.map((row) => String(row.status));
+  if (statuses.includes("releasing")) return "releasing";
+  if (statuses.includes("announced")) return "announced";
+  if (statuses.length && statuses.every((status) => status === "ended")) return "ended";
+  if (statuses.includes("released")) return "released";
+  if (statuses.includes("ended")) return "ended";
+  return "unknown";
+}
+
+function averageScoreComponents(scores: Score[]): TitleSummary["score"]["components"] {
+  return Object.fromEntries(
+    (["story", "characters", "depth", "worldBuilding", "originality", "craft"] as const).map(
+      (criterion) => {
+        const values = scores
+          .map((score) => score[criterion])
+          .filter((value): value is number => typeof value === "number");
+        return [
+          criterion,
+          values.length
+            ? Math.round((values.reduce((total, value) => total + value, 0) / values.length) * 10) /
+              10
+            : null,
+        ];
+      },
+    ),
+  ) as TitleSummary["score"]["components"];
 }
 
 function summary(
@@ -68,7 +101,12 @@ function summary(
     bannerPath: row.banner_path ? String(row.banner_path) : null,
     logoPath: row.logo_path ? String(row.logo_path) : null,
     releaseYear: numeric(row.release_year),
+    releaseStatus: aggregateReleaseStatus(ownInstallments),
     ...(includePrivate ? { isPrivate: Boolean(row.is_private) } : {}),
+    aliases: data.aliases
+      .filter((item) => item.title_id === row.id)
+      .map((item) => String(item.title)),
+    contentWarnings: row.content_warnings ? String(row.content_warnings) : null,
     genres: data.genres
       .filter((item) => item.title_id === row.id)
       .map((item) => item.slug) as TitleSummary["genres"],
@@ -86,7 +124,7 @@ function summary(
           icon: String(planet.icon),
         }
       : null,
-    score: titleRating(ownScores),
+    score: { ...titleRating(ownScores), components: averageScoreComponents(ownScores) },
     classifications: ownInstallments.map(
       (item) =>
         installment(
@@ -95,6 +133,14 @@ function summary(
           data.scores.find((score) => score.installment_id === item.id),
         ).classification,
     ),
+    credits: data.credits
+      .filter((item) => item.title_id === row.id)
+      .map((item) => ({
+        id: String(item.id),
+        name: String(item.name),
+        kind: item.kind as "person" | "organization",
+        role: String(item.role),
+      })),
   };
 }
 

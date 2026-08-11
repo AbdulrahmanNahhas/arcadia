@@ -35,23 +35,37 @@ test("merged title restores Arabic editorial data, score, and installment poster
 
 test("browse switches to flattened installments", async ({ page }) => {
   await page.goto("/browse");
-  await expect(page.getByRole("button", { name: "الأحدث" })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: "العناوين" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
-  await expect(page.getByRole("button", { name: "الجديد" })).toHaveCount(0);
-  await page.getByRole("button", { name: "الأقدم" }).click();
-  await expect(page.getByRole("button", { name: "الأقدم" })).toHaveAttribute(
+  await expect(page.getByRole("heading", { name: "ضيّق الاختيار" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "متوسط" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "صغير" }).click();
+  await expect(page.getByRole("button", { name: "صغير" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "إخفاء المرشحات" }).click();
+  await expect(page.getByRole("heading", { name: "ضيّق الاختيار" })).toHaveCount(0);
+  await page.getByRole("button", { name: "إظهار المرشحات" }).click();
+  await page.getByRole("button", { name: "المواسم والإصدارات" }).click();
+  await expect(page.getByRole("button", { name: "المواسم والإصدارات" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
-  await page.getByRole("button", { name: "المواسم والأفلام" }).click();
-  await expect(page.getByRole("button", { name: "الأقدم" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await expect(page.getByText(/من \d+ عمل/)).toBeVisible();
   await expect(page.locator('a[href^="/titles/"]').first()).toBeVisible();
+});
+
+test("browse filters remain usable on a mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/browse");
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator('a[href^="/titles/"]').first()).toBeVisible();
+  await page.getByRole("button", { name: /^المرشحات/ }).click();
+  await expect(page.getByRole("heading", { name: "مرشحات قاعدة البيانات" })).toBeVisible();
+  await page.getByLabel("مرشحات قاعدة البيانات").getByText("التقييم", { exact: true }).click();
+  await expect(
+    page.getByLabel("مرشحات قاعدة البيانات").getByText("التقييم العام", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /عرض \d+ نتيجة/ })).toBeVisible();
 });
 
 test("people and studio cards open their restored detail pages", async ({ page }) => {
@@ -83,7 +97,7 @@ test("admin catalog opens the full-page v2 editor", async ({ page }) => {
   await expect(editLink).toBeVisible();
   await editLink.click();
   await expect(page).toHaveURL(/\/admin\/catalog\/[0-9a-f-]+$/);
-  await expect(page.getByText("عمل خاص", { exact: true })).toBeVisible();
+  await expect(page.getByText(/^(ظاهر للعامة|عمل خاص)$/)).toBeVisible();
   await expect(page.getByRole("button", { name: "تعديل البنية" })).toBeVisible();
 });
 

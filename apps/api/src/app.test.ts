@@ -48,6 +48,34 @@ describe("Arcadia API contract", () => {
     );
   });
 
+  it("keeps aggregate announced titles traceable to announced installments", async () => {
+    const [titlesResponse, moreTitlesResponse, ...installmentResponses] = await Promise.all([
+      app.request("/api/v1/titles?mode=titles&limit=100"),
+      app.request("/api/v1/titles?mode=titles&limit=100&offset=100"),
+      app.request("/api/v1/titles?mode=installments&limit=100"),
+      app.request("/api/v1/titles?mode=installments&limit=100&offset=100"),
+      app.request("/api/v1/titles?mode=installments&limit=100&offset=200"),
+    ]);
+    const titlePages = (await Promise.all([
+      titlesResponse.json(),
+      moreTitlesResponse.json(),
+    ])) as Array<{
+      items: Array<{ id: string; releaseStatus: string }>;
+    }>;
+    const titles = titlePages.flatMap((page) => page.items);
+    const installmentPages = (await Promise.all(
+      installmentResponses.map((response) => response.json()),
+    )) as Array<{ items: Array<{ titleId: string; status: string }> }>;
+    const installments = installmentPages.flatMap((page) => page.items);
+    const announcedTitleIds = titles
+      .filter((item) => item.releaseStatus === "announced")
+      .map((item) => item.id);
+    const announcedInstallmentTitleIds = new Set(
+      installments.filter((item) => item.status === "announced").map((item) => item.titleId),
+    );
+    expect(announcedTitleIds.every((id) => announcedInstallmentTitleIds.has(id))).toBe(true);
+  });
+
   it("finds titles and their installments by linked studio name", async () => {
     const [match] = await database().client`
       select t.id as "titleId", e.name as "studioName"

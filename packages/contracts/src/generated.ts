@@ -84,12 +84,19 @@ export interface paths {
                     /** Format: uuid */
                     id: string;
                     canonicalTitle: string;
+                    /** @enum {string} */
+                    kind: "movie" | "anime";
                     titleAr: string | null;
                     summary: string;
                     posterPath: string | null;
                     bannerPath: string | null;
                     logoPath: string | null;
                     releaseYear: number | null;
+                    /** @enum {string} */
+                    releaseStatus: "announced" | "releasing" | "released" | "ended" | "unknown";
+                    isPrivate?: boolean;
+                    aliases: string[];
+                    contentWarnings: string | null;
                     genres: (
                       | "action"
                       | "adventure"
@@ -142,6 +149,109 @@ export interface paths {
                       | "training"
                       | "slow-burn"
                       | "childhood-classic"
+                      | "male-protagonist"
+                      | "female-protagonist"
+                      | "animated-movie"
+                      | "child-cast"
+                      | "ensemble-cast"
+                      | "teen-cast"
+                      | "nonhuman-characters"
+                      | "animal-cast"
+                      | "adult-cast"
+                      | "survival"
+                      | "anime-movie"
+                      | "workplace"
+                      | "urban-setting"
+                      | "conspiracy"
+                      | "crime-organization"
+                      | "rural-setting"
+                      | "detailed-worldbuilding"
+                      | "bullying"
+                      | "literary-classic"
+                      | "memory"
+                      | "political-intrigue"
+                      | "revenge"
+                      | "philosophy"
+                      | "redemption"
+                      | "sibling-relationship"
+                      | "swordplay"
+                      | "animals"
+                      | "class-conflict"
+                      | "mental-health"
+                      | "spirits"
+                      | "demons"
+                      | "hidden-identity"
+                      | "identity"
+                      | "mortality"
+                      | "robots"
+                      | "antihero"
+                      | "grief"
+                      | "healing"
+                      | "moral-ambiguity"
+                      | "mythology"
+                      | "parenthood"
+                      | "time-travel"
+                      | "trauma"
+                      | "adoption"
+                      | "body-horror"
+                      | "folklore"
+                      | "prejudice"
+                      | "rivalry"
+                      | "school-club"
+                      | "education"
+                      | "episodic"
+                      | "family-life"
+                      | "mind-games"
+                      | "royal-court"
+                      | "technology"
+                      | "art"
+                      | "investigation"
+                      | "island-setting"
+                      | "manipulation"
+                      | "maritime-setting"
+                      | "peace-and-nonviolence"
+                      | "underdog"
+                      | "corporate-power"
+                      | "disability"
+                      | "fairy-tales"
+                      | "post-apocalyptic"
+                      | "religion"
+                      | "steampunk"
+                      | "toys"
+                      | "video-games"
+                      | "anthology"
+                      | "assassins"
+                      | "detective"
+                      | "dystopia"
+                      | "guns"
+                      | "kaiju"
+                      | "natural-disaster"
+                      | "police"
+                      | "prehistoric-life"
+                      | "racing"
+                      | "rebellion"
+                      | "social-anxiety"
+                      | "witches"
+                      | "aliens"
+                      | "childhood"
+                      | "college"
+                      | "dragons"
+                      | "environment"
+                      | "espionage"
+                      | "fugitive"
+                      | "gods"
+                      | "idol-industry"
+                      | "intergenerational-conflict"
+                      | "lost-civilization"
+                      | "marriage"
+                      | "otaku-culture"
+                      | "overpowered-protagonist"
+                      | "pirates"
+                      | "regret"
+                      | "slavery"
+                      | "vikings"
+                      | "virtual-world"
+                      | "writing"
                     )[];
                     planet: {
                       /** Format: uuid */
@@ -154,6 +264,14 @@ export interface paths {
                       rating: number | null;
                       scored: number;
                       total: number;
+                      components: {
+                        story: number | null;
+                        characters: number | null;
+                        depth: number | null;
+                        worldBuilding: number | null;
+                        originality: number | null;
+                        craft: number | null;
+                      };
                     };
                     classifications: {
                       /** @enum {string} */
@@ -166,6 +284,14 @@ export interface paths {
                       behavioral: "none" | "low" | "medium" | "high";
                       /** @enum {string} */
                       theology: "none" | "low" | "medium" | "high";
+                    }[];
+                    credits: {
+                      /** Format: uuid */
+                      id: string;
+                      name: string;
+                      /** @enum {string} */
+                      kind: "person" | "organization";
+                      role: string;
                     }[];
                   }
                 | {
@@ -261,12 +387,19 @@ export interface paths {
               /** Format: uuid */
               id: string;
               canonicalTitle: string;
+              /** @enum {string} */
+              kind: "movie" | "anime";
               titleAr: string | null;
               summary: string;
               posterPath: string | null;
               bannerPath: string | null;
               logoPath: string | null;
               releaseYear: number | null;
+              /** @enum {string} */
+              releaseStatus: "announced" | "releasing" | "released" | "ended" | "unknown";
+              isPrivate?: boolean;
+              aliases: string[];
+              contentWarnings: string | null;
               genres: (
                 | "action"
                 | "adventure"
@@ -319,6 +452,109 @@ export interface paths {
                 | "training"
                 | "slow-burn"
                 | "childhood-classic"
+                | "male-protagonist"
+                | "female-protagonist"
+                | "animated-movie"
+                | "child-cast"
+                | "ensemble-cast"
+                | "teen-cast"
+                | "nonhuman-characters"
+                | "animal-cast"
+                | "adult-cast"
+                | "survival"
+                | "anime-movie"
+                | "workplace"
+                | "urban-setting"
+                | "conspiracy"
+                | "crime-organization"
+                | "rural-setting"
+                | "detailed-worldbuilding"
+                | "bullying"
+                | "literary-classic"
+                | "memory"
+                | "political-intrigue"
+                | "revenge"
+                | "philosophy"
+                | "redemption"
+                | "sibling-relationship"
+                | "swordplay"
+                | "animals"
+                | "class-conflict"
+                | "mental-health"
+                | "spirits"
+                | "demons"
+                | "hidden-identity"
+                | "identity"
+                | "mortality"
+                | "robots"
+                | "antihero"
+                | "grief"
+                | "healing"
+                | "moral-ambiguity"
+                | "mythology"
+                | "parenthood"
+                | "time-travel"
+                | "trauma"
+                | "adoption"
+                | "body-horror"
+                | "folklore"
+                | "prejudice"
+                | "rivalry"
+                | "school-club"
+                | "education"
+                | "episodic"
+                | "family-life"
+                | "mind-games"
+                | "royal-court"
+                | "technology"
+                | "art"
+                | "investigation"
+                | "island-setting"
+                | "manipulation"
+                | "maritime-setting"
+                | "peace-and-nonviolence"
+                | "underdog"
+                | "corporate-power"
+                | "disability"
+                | "fairy-tales"
+                | "post-apocalyptic"
+                | "religion"
+                | "steampunk"
+                | "toys"
+                | "video-games"
+                | "anthology"
+                | "assassins"
+                | "detective"
+                | "dystopia"
+                | "guns"
+                | "kaiju"
+                | "natural-disaster"
+                | "police"
+                | "prehistoric-life"
+                | "racing"
+                | "rebellion"
+                | "social-anxiety"
+                | "witches"
+                | "aliens"
+                | "childhood"
+                | "college"
+                | "dragons"
+                | "environment"
+                | "espionage"
+                | "fugitive"
+                | "gods"
+                | "idol-industry"
+                | "intergenerational-conflict"
+                | "lost-civilization"
+                | "marriage"
+                | "otaku-culture"
+                | "overpowered-protagonist"
+                | "pirates"
+                | "regret"
+                | "slavery"
+                | "vikings"
+                | "virtual-world"
+                | "writing"
               )[];
               planet: {
                 /** Format: uuid */
@@ -331,6 +567,14 @@ export interface paths {
                 rating: number | null;
                 scored: number;
                 total: number;
+                components: {
+                  story: number | null;
+                  characters: number | null;
+                  depth: number | null;
+                  worldBuilding: number | null;
+                  originality: number | null;
+                  craft: number | null;
+                };
               };
               classifications: {
                 /** @enum {string} */
@@ -344,7 +588,14 @@ export interface paths {
                 /** @enum {string} */
                 theology: "none" | "low" | "medium" | "high";
               }[];
-              contentWarnings: string | null;
+              credits: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                /** @enum {string} */
+                kind: "person" | "organization";
+                role: string;
+              }[];
               analysisNotes: string | null;
               installments: {
                 /** Format: uuid */
@@ -401,14 +652,6 @@ export interface paths {
                 /** Format: uuid */
                 titleId: string;
                 title: string;
-              }[];
-              credits: {
-                /** Format: uuid */
-                id: string;
-                name: string;
-                /** @enum {string} */
-                kind: "person" | "organization";
-                role: string;
               }[];
             };
           };

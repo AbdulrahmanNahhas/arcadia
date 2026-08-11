@@ -5,6 +5,8 @@ import type {
 } from "@/features/platform/model";
 import { apiFetch } from "@/lib/api";
 import {
+  allAdminInstallmentWorks,
+  allAdminWorks,
   allInstallmentWorks,
   allWorks,
   detailToStructure,
@@ -52,6 +54,12 @@ export async function getPlatformCatalogInstallments(
   { data }: Data<{ query?: string }> = { data: {} },
 ) {
   return allInstallmentWorks(data.query);
+}
+export async function getAdminPlatformCatalogWorks() {
+  return allAdminWorks();
+}
+export async function getAdminPlatformCatalogInstallments() {
+  return allAdminInstallmentWorks();
 }
 export async function getAdminUnassignedPlanetWorks() {
   return (await allWorks()).filter((work) => !work.planetId);

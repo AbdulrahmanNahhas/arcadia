@@ -3,6 +3,7 @@ import {
   NotePencilIcon,
   PlusIcon,
   SelectionPlusIcon,
+  SidebarSimpleIcon,
   TrashIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -27,13 +28,14 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Separator } from "@/components/ui/separator";
 import { BulkEditDialog } from "@/features/admin/components/bulk-edit";
 import { JsonEditorDialog } from "@/features/admin/components/json-editor";
-import { AdvancedFilter } from "@/features/library/filter-sheet";
 import {
-  buildFacetOptions,
-  createDefaultFilters,
-  workMatchesFilters,
-} from "@/features/library/filtering";
+  buildCatalogFacetOptions,
+  createCatalogFilters,
+  workMatchesCatalogFilters,
+} from "@/features/catalog/catalog-filtering";
+import { CatalogFilterSheet, CatalogFilterSidebar } from "@/features/catalog/catalog-filters";
 import type { Work } from "@/features/library/model";
+import { cn } from "@/lib/utils";
 import { deleteWorks, getAdminWorks } from "@/server/library.functions";
 import { AdminPageHeader } from "../components/admin-page-header";
 
@@ -55,17 +57,18 @@ export function AdminCatalogPage() {
     queryFn: () => getAdminWorks(),
   });
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState(createDefaultFilters);
+  const [filters, setFilters] = useState(createCatalogFilters);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
-  const facetOptions = useMemo(() => buildFacetOptions(works), [works]);
+  const facetOptions = useMemo(() => buildCatalogFacetOptions(works), [works]);
   const visible = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return works.filter(
       (work) =>
-        workMatchesFilters(work, filters) &&
+        workMatchesCatalogFilters(work, filters) &&
         (!query ||
           [work.title, work.arabicTitle ?? "", ...work.aliases]
             .join(" ")
@@ -100,6 +103,14 @@ export function AdminCatalogPage() {
       checked ? next.add(id) : next.delete(id);
       return next;
     });
+  };
+  const filterProps = {
+    filters,
+    onChange: setFilters,
+    options: facetOptions,
+    matchingCount: visible.length,
+    onClear: () => setFilters(createCatalogFilters()),
+    allowPrivacy: true,
   };
 
   return (
@@ -195,46 +206,56 @@ export function AdminCatalogPage() {
                 </InputGroupAddon>
               </InputGroup>
             </Field>
-            <AdvancedFilter
-              filters={filters}
-              facetOptions={facetOptions}
-              onChange={setFilters}
-              matchingCount={visible.length}
-              title="فلترة سجلات الكتالوج"
-              triggerLabel="الفلاتر"
-            />
+            <CatalogFilterSheet {...filterProps} />
+            <Button
+              variant={showFilters ? "secondary" : "outline"}
+              className="hidden lg:inline-flex"
+              aria-pressed={showFilters}
+              onClick={() => setShowFilters((current) => !current)}
+            >
+              <SidebarSimpleIcon data-icon="inline-start" />
+              {showFilters ? "إخفاء المرشحات" : "إظهار المرشحات"}
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="px-0">
-          {visible.length ? (
-            <div className="px-6 pb-6">
-              <div className="mb-5 flex w-fit items-center gap-2 text-sm text-muted-foreground">
-                <Checkbox
-                  aria-label="تحديد كل النتائج الحالية"
-                  checked={allVisibleSelected}
-                  onCheckedChange={(checked) => toggleVisible(checked === true)}
-                />
-                تحديد كل النتائج الحالية
-              </div>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
-                {visible.map((work) => (
-                  <CatalogCard
-                    key={work.id}
-                    work={work}
-                    checked={selectedIds.has(work.id)}
-                    onCheckedChange={(checked) => toggleWork(work.id, checked)}
+          <div
+            className={cn(
+              "grid items-start gap-6 px-6 pb-6",
+              showFilters && "lg:grid-cols-[19rem_minmax(0,1fr)]",
+            )}
+          >
+            {showFilters ? <CatalogFilterSidebar {...filterProps} /> : null}
+            {visible.length ? (
+              <div className="min-w-0">
+                <div className="mb-5 flex w-fit items-center gap-2 text-sm text-muted-foreground">
+                  <Checkbox
+                    aria-label="تحديد كل النتائج الحالية"
+                    checked={allVisibleSelected}
+                    onCheckedChange={(checked) => toggleVisible(checked === true)}
                   />
-                ))}
+                  تحديد كل النتائج الحالية
+                </div>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
+                  {visible.map((work) => (
+                    <CatalogCard
+                      key={work.id}
+                      work={work}
+                      checked={selectedIds.has(work.id)}
+                      onCheckedChange={(checked) => toggleWork(work.id, checked)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : (
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>لا توجد أعمال مطابقة</EmptyTitle>
-                <EmptyDescription>غيّر البحث أو الفلاتر.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          )}
+            ) : (
+              <Empty className="min-h-80 border border-dashed">
+                <EmptyHeader>
+                  <EmptyTitle>لا توجد أعمال مطابقة</EmptyTitle>
+                  <EmptyDescription>غيّر البحث أو الفلاتر.</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
+          </div>
         </CardContent>
       </Card>
       <BulkEditDialog

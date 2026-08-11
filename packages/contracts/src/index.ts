@@ -60,7 +60,10 @@ export const titleSummarySchema = z.object({
   bannerPath: z.string().nullable(),
   logoPath: z.string().nullable(),
   releaseYear: z.number().int().nullable(),
+  releaseStatus: installmentStatusSchema,
   isPrivate: z.boolean().optional(),
+  aliases: z.array(z.string()),
+  contentWarnings: z.string().nullable(),
   genres: z.array(taxonomySchema("genres")),
   tones: z.array(taxonomySchema("tones")),
   tags: z.array(taxonomySchema("tags")),
@@ -71,11 +74,19 @@ export const titleSummarySchema = z.object({
     rating: z.number().nullable(),
     scored: z.number().int(),
     total: z.number().int(),
+    components: scoreSchema,
   }),
   classifications: z.array(effectiveClassificationSchema),
+  credits: z.array(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+      kind: z.enum(["person", "organization"]),
+      role: z.string(),
+    }),
+  ),
 });
 export const titleDetailSchema = titleSummarySchema.extend({
-  contentWarnings: z.string().nullable(),
   analysisNotes: z.string().nullable(),
   installments: z.array(installmentSchema),
   relationships: z.array(
@@ -84,14 +95,6 @@ export const titleDetailSchema = titleSummarySchema.extend({
       type: z.string(),
       titleId: z.string().uuid(),
       title: z.string(),
-    }),
-  ),
-  credits: z.array(
-    z.object({
-      id: z.string().uuid(),
-      name: z.string(),
-      kind: z.enum(["person", "organization"]),
-      role: z.string(),
     }),
   ),
 });

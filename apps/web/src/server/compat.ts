@@ -112,22 +112,7 @@ export function titleToWork(title: TitleSummary | TitleDetail): Work {
           },
         }))
       : [];
-  const completeScores = installments
-    .filter((item) => item.rating !== null)
-    .map((item) => item.score);
-  const score = completeScores.length
-    ? Object.fromEntries(
-        ["story", "characters", "depth", "worldBuilding", "originality", "craft"].map(
-          (criterion) => [
-            criterion,
-            completeScores.reduce(
-              (total, item) => total + Number(item[criterion as keyof typeof item] ?? 0),
-              0,
-            ) / completeScores.length,
-          ],
-        ),
-      )
-    : null;
+  const score = title.score.components;
   const now = Date.now();
   return {
     id: title.id,
@@ -135,7 +120,7 @@ export function titleToWork(title: TitleSummary | TitleDetail): Work {
     arabicTitle: title.titleAr,
     kind: title.kind,
     year: title.releaseYear,
-    releaseStatus: first?.status ?? "unknown",
+    releaseStatus: title.releaseStatus,
     isPrivate: title.isPrivate ?? false,
     planetId: title.planet?.id ?? null,
     runtimeMinutes: first?.runtimeMinutes ?? null,
@@ -157,12 +142,12 @@ export function titleToWork(title: TitleSummary | TitleDetail): Work {
     summary: title.summary,
     tags: title.tags.map((slug) => controlledLabel("tags", slug)),
     genres: title.genres.map((slug) => controlledLabel("genres", slug)) as Work["genres"],
-    aliases: [],
+    aliases: title.aliases,
     studios: credits.filter((item) => item.entityType === "organization").map((item) => item.name),
     audience: audience(title.classifications[0]?.audience),
     sharedWith: [],
     tone: title.tones.map((slug) => controlledLabel("tones", slug)) as Work["tone"],
-    contentWarnings: "contentWarnings" in title ? title.contentWarnings : null,
+    contentWarnings: title.contentWarnings,
     analysisNotes: "analysisNotes" in title ? title.analysisNotes : null,
     riskProfile: title.classifications[0]
       ? {
@@ -171,9 +156,7 @@ export function titleToWork(title: TitleSummary | TitleDetail): Work {
           theology: title.classifications[0].theology,
         }
       : null,
-    scoreComponents: score
-      ? Object.fromEntries(Object.entries(score).filter((entry) => entry[1] !== null))
-      : {},
+    scoreComponents: Object.fromEntries(Object.entries(score).filter((entry) => entry[1] !== null)),
     externalLinks: [],
     releaseStart: first?.releaseDate ?? null,
     releaseEnd: null,
@@ -273,32 +256,7 @@ export async function allWorks(query?: string) {
   return (await allTitles(query)).map(titleToWork);
 }
 
-export async function allInstallmentWorks(query?: string) {
-  const search = query?.trim();
-  const [titles, first] = await Promise.all([
-    allTitles(search),
-    browseTitles({
-      limit: 100,
-      offset: 0,
-      mode: "installments",
-      sort: "release",
-      ...(search ? { q: search } : {}),
-    }),
-  ]);
-  const remaining = await Promise.all(
-    Array.from({ length: Math.max(0, Math.ceil(first.total / 100) - 1) }, (_, index) =>
-      browseTitles({
-        limit: 100,
-        offset: (index + 1) * 100,
-        mode: "installments",
-        sort: "release",
-        ...(search ? { q: search } : {}),
-      }),
-    ),
-  );
-  const items = [...first.items, ...remaining.flatMap((page) => page.items)].filter(
-    (item): item is Installment => "titleId" in item,
-  );
+function installmentWorks(items: Installment[], titles: TitleSummary[]) {
   const titlesById = new Map(titles.map((title) => [title.id, titleToWork(title)]));
   const now = Date.now();
   return items.map((item): Work => {
@@ -312,8 +270,8 @@ export async function allInstallmentWorks(query?: string) {
       kind: title?.kind ?? (item.kind === "season" ? "anime" : "movie"),
       year: item.releaseDate ? Number(item.releaseDate.slice(0, 4)) : null,
       releaseStatus: item.status,
-      isPrivate: false,
-      planetId: null,
+      isPrivate: title?.isPrivate ?? false,
+      planetId: title?.planetId ?? null,
       runtimeMinutes: item.runtimeMinutes,
       playtimeMinutes: null,
       pageCount: null,
@@ -339,7 +297,7 @@ export async function allInstallmentWorks(query?: string) {
       tone: title?.tone ?? [],
       country: title?.country ?? [],
       audience: audience(item.classification.audience),
-      contentWarnings: null,
+      contentWarnings: title?.contentWarnings ?? null,
       analysisNotes: null,
       riskProfile: item.classification,
       scoreComponents: Object.fromEntries(
@@ -370,19 +328,69 @@ export async function allInstallmentWorks(query?: string) {
   });
 }
 
+export async function allInstallmentWorks(query?: string) {
+  const search = query?.trim();
+  const [titles, first] = await Promise.all([
+    allTitles(search),
+    browseTitles({
+      limit: 100,
+      offset: 0,
+      mode: "installments",
+      sort: "release",
+      ...(search ? { q: search } : {}),
+    }),
+  ]);
+  const remaining = await Promise.all(
+    Array.from({ length: Math.max(0, Math.ceil(first.total / 100) - 1) }, (_, index) =>
+      browseTitles({
+        limit: 100,
+        offset: (index + 1) * 100,
+        mode: "installments",
+        sort: "release",
+        ...(search ? { q: search } : {}),
+      }),
+    ),
+  );
+  const items = [...first.items, ...remaining.flatMap((page) => page.items)].filter(
+    (item): item is Installment => "titleId" in item,
+  );
+  return installmentWorks(items, titles);
+}
+
 export async function allAdminTitles() {
   const first = await apiFetch<{ items: TitleSummary[]; total: number }>(
     "/api/v1/admin/titles?limit=100",
   );
-  const second =
-    first.total > 100
-      ? await apiFetch<{ items: TitleSummary[] }>("/api/v1/admin/titles?limit=100&offset=100")
-      : null;
-  return [...first.items, ...(second?.items ?? [])];
+  const remaining = await Promise.all(
+    Array.from({ length: Math.max(0, Math.ceil(first.total / 100) - 1) }, (_, index) =>
+      apiFetch<{ items: TitleSummary[] }>(
+        `/api/v1/admin/titles?limit=100&offset=${(index + 1) * 100}`,
+      ),
+    ),
+  );
+  return [...first.items, ...remaining.flatMap((page) => page.items)];
 }
 
 export async function allAdminWorks() {
   return (await allAdminTitles()).map(titleToWork);
+}
+
+export async function allAdminInstallmentWorks() {
+  const titles = await allAdminTitles();
+  const first = await apiFetch<{ items: Array<TitleSummary | Installment>; total: number }>(
+    "/api/v1/admin/titles?mode=installments&limit=100",
+  );
+  const remaining = await Promise.all(
+    Array.from({ length: Math.max(0, Math.ceil(first.total / 100) - 1) }, (_, index) =>
+      apiFetch<{ items: Array<TitleSummary | Installment> }>(
+        `/api/v1/admin/titles?mode=installments&limit=100&offset=${(index + 1) * 100}`,
+      ),
+    ),
+  );
+  const items = [...first.items, ...remaining.flatMap((page) => page.items)].filter(
+    (item): item is Installment => "titleId" in item,
+  );
+  return installmentWorks(items, titles);
 }
 
 export async function fullAdminDetail(id: string) {
