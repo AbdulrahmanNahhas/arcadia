@@ -1,5 +1,19 @@
 import { expect, test } from "@playwright/test";
 
+test("home watch radar handles pinned works without banner artwork", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem("arcadia:demo-profile", "demo-admin"));
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "اعرض نداء البوق: أنشودة الحرب" }).click();
+  await expect(page.getByRole("heading", { name: "نداء البوق: أنشودة الحرب" })).toBeVisible();
+  await page.getByRole("button", { name: "افتح الرادار كاملًا" }).click();
+  const radar = page.getByRole("dialog");
+  await expect(radar.getByRole("heading", { name: "على رادار المشاهدة" })).toBeVisible();
+  await expect(radar.locator('a[href^="/titles/"]')).toHaveCount(8);
+  await expect(radar.getByRole("heading", { name: "غاتشياكوتا" })).toHaveCount(1);
+});
+
 test("family profile browses an accessible title in RTL", async ({ page }) => {
   await page.goto("/profiles");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");

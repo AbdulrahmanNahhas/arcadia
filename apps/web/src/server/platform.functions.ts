@@ -19,32 +19,42 @@ import {
 
 type Data<T> = { data: T };
 export async function getPlatformHome() {
-  const [works, installments, planets] = await Promise.all([
-    allWorks(),
-    allInstallmentWorks(),
-    planetsWithWorks(),
-  ]);
+  const [works, planets] = await Promise.all([allWorks(), planetsWithWorks()]);
   const rated = [...works]
     .filter((work) => work.calculatedRating !== null)
     .sort((a, b) => (b.calculatedRating ?? 0) - (a.calculatedRating ?? 0));
-  const recentlyReleased = installments
-    .filter((work) => work.releaseStatus === "released" && work.releaseStart)
-    .sort(
-      (left, right) =>
-        Date.parse(`${right.releaseStart}T00:00:00Z`) -
-          Date.parse(`${left.releaseStart}T00:00:00Z`) ||
-        (left.arabicTitle || left.title).localeCompare(right.arabicTitle || right.title, "ar"),
-    )
-    .slice(0, 10);
+  const worksById = new Map(works.map((work) => [work.id, work]));
   return {
-    featured: works.filter((work) => work.bannerPath).slice(0, 6),
+    watchRadar: watchRadarTitleIds.flatMap((id) => {
+      const work = worksById.get(id);
+      return work ? [work] : [];
+    }),
     continueExploring: [],
-    recentlyAdded: recentlyReleased,
     highlyRated: rated.slice(0, 18),
     recentlyUpdated: works.slice(-18).reverse(),
     planets,
   };
 }
+
+export async function getAdminWatchRadar() {
+  const works = await allAdminWorks();
+  const worksById = new Map(works.map((work) => [work.id, work]));
+  return watchRadarTitleIds.flatMap((id) => {
+    const work = worksById.get(id);
+    return work ? [work] : [];
+  });
+}
+
+const watchRadarTitleIds = [
+  "b9bff940-6a81-45e1-b163-db9bf2f83918", // Kagurabachi
+  "e75348fd-43c0-437d-a2c9-ce2d0d9d39ec", // Vivy -Fluorite Eye's Song-
+  "b923f224-5034-4e1e-bcbd-8d93ca0afa4f", // LONA
+  "e8567c80-208c-47e8-8eac-538247d6bb6f", // 86 EIGHTY-SIX
+  "0b53166a-db33-4b94-ba71-85cd5e645cb9", // The Bugle Call: Song of War
+  "ffe31844-fcf1-432e-8b0a-2e30f11a91c3", // PLUTO
+  "54c1da35-b596-4eba-b021-930014990392", // The One Piece
+  "616be2ac-19c7-4b42-ac22-70198b67b5e7", // Gachiakuta (admin-only while private)
+] as const;
 export const getPlanets = () => planetsWithWorks();
 export const getAdminPlanets = () => planetsWithWorks(true);
 export async function getPlatformCatalogWorks({ data }: Data<{ query?: string }> = { data: {} }) {

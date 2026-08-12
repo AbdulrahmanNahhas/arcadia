@@ -521,6 +521,8 @@ function projectedTitleValue(work: CompleteRecord["work"], field: TitleJsonField
   if (field === "credits") {
     return work.contributors.map((credit) => ({
       entityId: credit.entityId,
+      name: credit.name,
+      entityType: credit.entityType,
       role: credit.role,
       isPrimary: credit.isPrimary,
     }));
@@ -556,6 +558,8 @@ function editableTitleValue(field: TitleJsonField, value: unknown) {
       if (!isObject(credit)) throw new Error(`title.credits.${index} must be an object.`);
       return {
         entityId: credit.entityId,
+        name: credit.name,
+        entityType: credit.entityType,
         role: credit.role,
         isPrimary: credit.isPrimary ?? false,
       };

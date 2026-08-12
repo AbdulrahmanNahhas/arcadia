@@ -108,9 +108,8 @@ export type OrganizationRelationship = {
 };
 
 export type PlatformHomeData = {
-  featured: Work[];
+  watchRadar: Work[];
   continueExploring: Work[];
-  recentlyAdded: Work[];
   highlyRated: Work[];
   recentlyUpdated: Work[];
   planets: PlanetWithWorks[];
