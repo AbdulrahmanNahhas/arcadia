@@ -40,7 +40,7 @@ export type EntityDirectorySearch = {
 
 function visibleWorkCount(entity: Entity) {
   return entity.works.filter(
-    (work) => work.status !== "saved" && work.releaseStatus !== "announced" && !work.isSequelMovie,
+    (work) => work.status !== "saved" && work.releaseStatus !== "upcoming" && !work.isSequelMovie,
   ).length;
 }
 

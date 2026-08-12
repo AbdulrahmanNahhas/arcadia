@@ -90,7 +90,7 @@ export function WorkDetailPage({
   ].filter(Boolean) as Array<{ id: string; label: string }>;
 
   return (
-    <PlatformShell>
+    <PlatformShell immersive>
       <WorkHero work={work} planet={planet?.planet ?? null} audienceLabel={audienceLabel} />
 
       <Tabs
@@ -194,7 +194,7 @@ function WorkHero({
   const glow = planet?.primaryColor ?? "#7c8cf8";
 
   return (
-    <section className="relative isolate min-h-[76svh] overflow-hidden border-b border-border/40">
+    <section className="relative isolate min-h-[80svh] overflow-hidden border-b border-border/40">
       {work.bannerPath || work.imagePath ? (
         <img
           src={work.bannerPath || work.imagePath || undefined}
@@ -209,18 +209,11 @@ function WorkHero({
         className="absolute inset-0 -z-10"
         style={{ background: `radial-gradient(60% 55% at 78% 15%, ${glow}33, transparent 70%)` }}
       />
-      <div className="absolute inset-0 -z-10 bg-linear-to-l from-background via-background/85 to-background/30" />
-      <div className="absolute inset-0 -z-10 bg-linear-to-t from-background via-background/10 to-black/20" />
+      <div className="absolute inset-0 -z-10 bg-linear-to-tl from-background via-25% via-background to-background/0" />
+      {/*<div className="absolute inset-0 -z-10 bg-linear-to-t from-background via-background/10 to-bacgronund/20" />*/}
 
-      <div className="mx-auto flex min-h-[76svh] max-w-400 items-end px-5 pb-14 pt-32 sm:px-8 lg:items-center lg:pb-12">
+      <div className="mx-auto flex min-h-[80svh] max-w-400 items-end px-5 pb-14 pt-32 sm:px-8 lg:items-center lg:pb-0">
         <div className="max-w-2xl">
-          <Link
-            to="/"
-            className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
-          >
-            <ArrowRightIcon /> الرئيسية
-          </Link>
-
           {planet && (
             <Link
               to="/planets/$planetSlug"
@@ -237,7 +230,7 @@ function WorkHero({
             </Link>
           )}
 
-          <h1 className="text-balance font-heading text-4xl leading-[1.1] font-semibold sm:text-6xl lg:text-7xl">
+          <h1 className="text-balance font-heading text-4xl leading-normal font-semibold sm:text-6xl lg:text-7xl">
             {work.arabicTitle || work.title}
           </h1>
           {work.arabicTitle && (
@@ -1279,10 +1272,10 @@ const kindLabels: Record<Work["kind"], string> = {
   comic: "قصص مصوّرة",
 };
 const releaseLabels: Record<Work["releaseStatus"], string> = {
-  announced: "معلن",
-  releasing: "يعرض الآن",
-  released: "صدر",
-  ended: "منتهٍ",
+  upcoming: "قادم",
+  airing: "يعرض الآن",
+  returning: "مستمر",
+  completed: "مكتمل",
   unknown: "غير معروف",
 };
 const riskLabels: Record<RiskAssessment["level"], string> = {

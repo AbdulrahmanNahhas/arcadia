@@ -22,6 +22,27 @@
       "when": 1786375454608,
       "tag": "0002_unknown_squadron_supreme",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786530263606,
+      "tag": "0003_nappy_catseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786530539399,
+      "tag": "0004_furry_thunderbolts",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786530540000,
+      "tag": "0005_release_status_lifecycle",
+      "breakpoints": true
     }
   ]
 }

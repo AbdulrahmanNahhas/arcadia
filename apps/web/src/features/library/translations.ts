@@ -35,10 +35,10 @@ export function progressUnitLabelAr(value: string) {
 }
 
 const valueLabelsAr: Readonly<Record<string, string>> = {
-  announced: "مُعلن",
-  releasing: "قيد الإصدار",
-  released: "صدر",
-  ended: "منتهٍ",
+  upcoming: "قادم",
+  airing: "يعرض الآن",
+  returning: "مستمر",
+  completed: "مكتمل",
   unknown: "غير معروف",
   none: "لا يوجد",
   low: "منخفض",

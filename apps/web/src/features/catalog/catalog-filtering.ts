@@ -116,7 +116,12 @@ export function workMatchesCatalogFilters(work: Work, filters: CatalogFilterStat
   if (filters.yearFrom !== null && (work.year === null || work.year < filters.yearFrom))
     return false;
   if (filters.yearTo !== null && (work.year === null || work.year > filters.yearTo)) return false;
-  if ((work.calculatedRating ?? -1) < filters.minimumRating) return false;
+  if (
+    filters.minimumRating > 0 &&
+    (work.calculatedRating === null || work.calculatedRating < filters.minimumRating)
+  ) {
+    return false;
+  }
   if (
     scoreCriteria.some((criterion) => {
       const minimum = filters.minimumScores[criterion];

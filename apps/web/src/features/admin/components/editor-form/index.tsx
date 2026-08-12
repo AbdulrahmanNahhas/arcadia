@@ -615,10 +615,12 @@ function WorkEditorFormFields({
 
             <Field label="حالة الإصدار">
               <Select
-                items={["announced", "releasing", "released", "ended", "unknown"].map((status) => ({
-                  value: status,
-                  label: taxonomyLabel("release-status", status),
-                }))}
+                items={["upcoming", "airing", "returning", "completed", "unknown"].map(
+                  (status) => ({
+                    value: status,
+                    label: taxonomyLabel("release-status", status),
+                  }),
+                )}
                 value={draft.releaseStatus}
                 onValueChange={(value) =>
                   setDraft({
@@ -632,7 +634,7 @@ function WorkEditorFormFields({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {["announced", "releasing", "released", "ended", "unknown"].map((status) => (
+                    {["upcoming", "airing", "returning", "completed", "unknown"].map((status) => (
                       <SelectItem key={status} value={status} className="capitalize">
                         {taxonomyLabel("release-status", status)}
                       </SelectItem>

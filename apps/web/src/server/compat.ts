@@ -269,7 +269,7 @@ function installmentWorks(items: Installment[], titles: TitleSummary[]) {
       installmentTitle: item.title,
       kind: title?.kind ?? (item.kind === "season" ? "anime" : "movie"),
       year: item.releaseDate ? Number(item.releaseDate.slice(0, 4)) : null,
-      releaseStatus: item.status,
+      releaseStatus: title?.releaseStatus ?? "unknown",
       isPrivate: title?.isPrivate ?? false,
       planetId: title?.planetId ?? null,
       runtimeMinutes: item.runtimeMinutes,
@@ -406,7 +406,7 @@ export async function planetsWithWorks(includeInactive = false): Promise<PlanetW
         .filter(
           (work) =>
             work.planetId === row.id &&
-            work.releaseStatus !== "announced" &&
+            work.releaseStatus !== "upcoming" &&
             work.releaseStart !== "unknown",
         )
         .sort((left, right) => {

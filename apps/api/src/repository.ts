@@ -52,14 +52,23 @@ async function relatedData(titleIds: string[]) {
   return { installments, scores, genres, tones, tags, planets, aliases, credits };
 }
 
-function aggregateReleaseStatus(rows: SqlRow[]): TitleSummary["releaseStatus"] {
-  const statuses = rows.map((row) => String(row.status));
-  if (statuses.includes("releasing")) return "releasing";
-  if (statuses.includes("announced")) return "announced";
-  if (statuses.length && statuses.every((status) => status === "ended")) return "ended";
-  if (statuses.includes("released")) return "released";
-  if (statuses.includes("ended")) return "ended";
+/**
+ * A title does not store a mutable release state. Its lifecycle is always the
+ * result of its installments, which makes movies, television, and anime agree.
+ */
+export function titleReleaseStatusFromInstallments(
+  statuses: readonly string[],
+): TitleSummary["releaseStatus"] {
+  if (!statuses.length || statuses.includes("unknown")) return "unknown";
+  if (statuses.includes("airing")) return "airing";
+  if (statuses.every((status) => status === "announced")) return "upcoming";
+  if (statuses.includes("announced") && statuses.includes("completed")) return "returning";
+  if (statuses.every((status) => status === "completed")) return "completed";
   return "unknown";
+}
+
+function aggregateReleaseStatus(rows: SqlRow[]): TitleSummary["releaseStatus"] {
+  return titleReleaseStatusFromInstallments(rows.map((row) => String(row.status)));
 }
 
 function averageScoreComponents(scores: Score[]): TitleSummary["score"]["components"] {
@@ -103,9 +112,16 @@ function summary(
     releaseYear: numeric(row.release_year),
     releaseStatus: aggregateReleaseStatus(ownInstallments),
     ...(includePrivate ? { isPrivate: Boolean(row.is_private) } : {}),
-    aliases: data.aliases
-      .filter((item) => item.title_id === row.id)
-      .map((item) => String(item.title)),
+    aliases: [
+      ...new Map(
+        data.aliases
+          .filter((item) => item.title_id === row.id)
+          .map((item) => {
+            const alias = String(item.title);
+            return [alias.trim().toLocaleLowerCase(), alias] as const;
+          }),
+      ).values(),
+    ],
     contentWarnings: row.content_warnings ? String(row.content_warnings) : null,
     genres: data.genres
       .filter((item) => item.title_id === row.id)
@@ -125,14 +141,18 @@ function summary(
         }
       : null,
     score: { ...titleRating(ownScores), components: averageScoreComponents(ownScores) },
-    classifications: ownInstallments.map(
-      (item) =>
-        installment(
-          item,
-          row,
-          data.scores.find((score) => score.installment_id === item.id),
-        ).classification,
-    ),
+    classifications: [
+      ...new Map(
+        ownInstallments.map((item) => {
+          const classification = installment(
+            item,
+            row,
+            data.scores.find((score) => score.installment_id === item.id),
+          ).classification;
+          return [JSON.stringify(classification), classification] as const;
+        }),
+      ).values(),
+    ],
     credits: data.credits
       .filter((item) => item.title_id === row.id)
       .map((item) => ({

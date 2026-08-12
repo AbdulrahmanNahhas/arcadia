@@ -409,7 +409,7 @@ export const entitySchema = z.object({
       kind: workKindSchema,
       year: z.number().int().nullable(),
       status: personalStatusSchema,
-      releaseStatus: z.enum(["announced", "releasing", "released", "ended", "unknown"]),
+      releaseStatus: z.enum(["upcoming", "airing", "returning", "completed", "unknown"]),
       calculatedRating: z.number().min(0).max(10).nullable(),
       isSequelMovie: z.boolean(),
       imagePath: z.string().nullable(),
@@ -469,7 +469,7 @@ export const relatedWorkSchema = z.object({
   title: z.string(),
   kind: workKindSchema,
   year: z.number().int().nullable(),
-  releaseStatus: z.enum(["announced", "releasing", "released", "ended", "unknown"]),
+  releaseStatus: z.enum(["upcoming", "airing", "returning", "completed", "unknown"]),
   imagePath: z.string().nullable(),
 });
 
@@ -487,7 +487,7 @@ export const workSchema = z.object({
   installmentTitle: z.string().nullable().optional(),
   kind: workKindSchema,
   year: z.number().int().nullable(),
-  releaseStatus: z.enum(["announced", "releasing", "released", "ended", "unknown"]),
+  releaseStatus: z.enum(["upcoming", "airing", "returning", "completed", "unknown"]),
   isPrivate: z.boolean().default(false),
   planetId: z.string().nullable().default(null),
   runtimeMinutes: z.number().int().min(0).nullable(),
@@ -613,7 +613,7 @@ export type WorkSeasonDetail = {
   title: string;
   installmentKind?: "season" | "movie" | "special";
   summary?: string;
-  releaseStatus?: "announced" | "releasing" | "released" | "ended" | "unknown";
+  releaseStatus?: "announced" | "airing" | "completed" | "unknown";
   rating?: number | null;
   score?: {
     story: number | null;
@@ -656,9 +656,7 @@ export const editableWorkSeasonSchema = z.object({
   title: z.string().trim().min(1),
   installmentKind: z.enum(["season", "movie", "special"]).default("season"),
   summary: z.string().default(""),
-  releaseStatus: z
-    .enum(["announced", "releasing", "released", "ended", "unknown"])
-    .default("unknown"),
+  releaseStatus: z.enum(["announced", "airing", "completed", "unknown"]).default("unknown"),
   posterPath: z.string().nullable().default(null),
   score: z
     .object({

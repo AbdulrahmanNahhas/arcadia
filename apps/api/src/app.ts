@@ -80,6 +80,12 @@ type AdminStructureSeason = Partial<{
   runtimeMinutes: number | null;
   units: AdminStructureUnit[];
 }>;
+function initialInstallmentStatus(value: string | undefined) {
+  if (value === "upcoming" || value === "announced") return "announced";
+  if (value === "airing") return "airing";
+  if (value === "returning" || value === "completed") return "completed";
+  return "unknown";
+}
 const adminScoreSchema = z.object({
   story: z.number().min(0).max(10).nullable().optional(),
   characters: z.number().min(0).max(10).nullable().optional(),
@@ -96,9 +102,7 @@ const adminStructureSchema = z.object({
         title: z.string().trim().min(1),
         installmentKind: z.enum(["season", "movie", "special"]).default("season"),
         summary: z.string().default(""),
-        releaseStatus: z
-          .enum(["announced", "releasing", "released", "ended", "unknown"])
-          .default("unknown"),
+        releaseStatus: z.enum(["announced", "airing", "completed", "unknown"]).default("unknown"),
         posterPath: z.string().nullable().default(null),
         position: z.number().int().min(0),
         releaseAt: z.number().nullable().optional(),
@@ -164,8 +168,13 @@ async function replaceTitleKnowledge(
 ) {
   if (input.aliases) {
     await sql`delete from title_aliases where title_id=${titleId}`;
-    for (const alias of input.aliases.filter((value) => value.trim()))
-      await sql`insert into title_aliases (title_id, title) values (${titleId}, ${alias.trim()}) on conflict do nothing`;
+    const aliases = new Map<string, string>();
+    for (const value of input.aliases) {
+      const alias = value.trim();
+      if (alias) aliases.set(alias.toLocaleLowerCase(), alias);
+    }
+    for (const alias of aliases.values())
+      await sql`insert into title_aliases (title_id, title) values (${titleId}, ${alias}) on conflict do nothing`;
   }
   const taxonomies = [
     ["genres", "title_genres", input.genres],
@@ -287,7 +296,14 @@ for (const resource of ["planets", "people", "studios", "relationships"] as cons
               coalesce((select json_agg(item order by item.title) from (
                 select t.id, t.canonical_title as title, t.title_ar as "arabicTitle", t.release_year as year,
                   case when bool_or(i.kind='season') then 'anime' else 'movie' end as kind,
-                  coalesce(min(i.status::text), 'unknown') as "releaseStatus", t.poster_path as "imagePath",
+                  case
+                    when count(i.id) = 0 or bool_or(i.status = 'unknown') then 'unknown'
+                    when bool_or(i.status = 'airing') then 'airing'
+                    when bool_and(i.status = 'announced') then 'upcoming'
+                    when bool_or(i.status = 'announced') and bool_or(i.status = 'completed') then 'returning'
+                    when bool_and(i.status = 'completed') then 'completed'
+                    else 'unknown'
+                  end as "releaseStatus", t.poster_path as "imagePath",
                   array_agg(distinct r.slug) as roles
                 from contributions c join titles t on t.id=c.title_id join roles r on r.id=c.role_id
                 left join installments i on i.title_id=t.id where c.entity_id=e.id and not t.is_private
@@ -299,7 +315,14 @@ for (const resource of ["planets", "people", "studios", "relationships"] as cons
                 coalesce((select json_agg(item order by item.title) from (
                   select t.id, t.canonical_title as title, t.title_ar as "arabicTitle", t.release_year as year,
                     case when bool_or(i.kind='season') then 'anime' else 'movie' end as kind,
-                    coalesce(min(i.status::text), 'unknown') as "releaseStatus", t.poster_path as "imagePath",
+                  case
+                    when count(i.id) = 0 or bool_or(i.status = 'unknown') then 'unknown'
+                    when bool_or(i.status = 'airing') then 'airing'
+                    when bool_and(i.status = 'announced') then 'upcoming'
+                    when bool_or(i.status = 'announced') and bool_or(i.status = 'completed') then 'returning'
+                    when bool_and(i.status = 'completed') then 'completed'
+                    else 'unknown'
+                  end as "releaseStatus", t.poster_path as "imagePath",
                     array_agg(distinct r.slug) as roles
                   from contributions c join titles t on t.id=c.title_id join roles r on r.id=c.role_id
                   left join installments i on i.title_id=t.id where c.entity_id=e.id and not t.is_private
@@ -460,7 +483,7 @@ app.post("/api/v1/admin/titles", async (context) => {
         behavioral_risk=${risk.behavioral ?? "none"}, theology_risk=${risk.theology ?? "none"}, updated_at=now()
       where id=${String(input.id)} returning id`;
     if (!row) return context.json({ message: "Title not found" }, 404);
-    await sql`update installments set title=${title}, summary=${String(input.summary ?? "")}, runtime_minutes=${input.runtimeMinutes ?? null}, status=${input.releaseStatus ?? "unknown"}, updated_at=now() where title_id=${String(input.id)} and (select count(*) from installments where title_id=${String(input.id)})=1`;
+    await sql`update installments set title=${title}, summary=${String(input.summary ?? "")}, runtime_minutes=${input.runtimeMinutes ?? null}, status=${initialInstallmentStatus(input.releaseStatus)}, updated_at=now() where title_id=${String(input.id)} and (select count(*) from installments where title_id=${String(input.id)})=1`;
     await replaceTitleKnowledge(sql, String(input.id), input);
     await purgeUnreferencedMedia([
       previousMedia?.poster_path,
@@ -474,7 +497,7 @@ app.post("/api/v1/admin/titles", async (context) => {
     values (${title}, ${title.toLocaleLowerCase()}, ${input.arabicTitle ?? null}, ${String(input.summary ?? "")}, ${input.contentWarnings ?? null}, ${input.analysisNotes ?? null}, ${input.year ?? null}, ${input.imagePath ?? null}, ${input.bannerPath ?? null}, ${input.logoPath ?? null}, ${input.isPrivate ?? false}, ${audience}) returning id`;
   if (!row) return context.json({ message: "Could not create title" }, 500);
   const kind = ["series", "anime"].includes(String(input.kind)) ? "season" : "movie";
-  await sql`insert into installments (title_id, kind, position, title, summary, status, runtime_minutes) values (${row.id}, ${kind}, 1, ${title}, ${String(input.summary ?? "")}, ${input.releaseStatus ?? "unknown"}, ${input.runtimeMinutes ?? null})`;
+  await sql`insert into installments (title_id, kind, position, title, summary, status, runtime_minutes) values (${row.id}, ${kind}, 1, ${title}, ${String(input.summary ?? "")}, ${initialInstallmentStatus(input.releaseStatus)}, ${input.runtimeMinutes ?? null})`;
   await replaceTitleKnowledge(sql, String(row.id), input);
   return context.json({ id: String(row.id) }, 201);
 });

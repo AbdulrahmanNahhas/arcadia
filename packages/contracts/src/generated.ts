@@ -93,7 +93,7 @@ export interface paths {
                     logoPath: string | null;
                     releaseYear: number | null;
                     /** @enum {string} */
-                    releaseStatus: "announced" | "releasing" | "released" | "ended" | "unknown";
+                    releaseStatus: "upcoming" | "airing" | "returning" | "completed" | "unknown";
                     isPrivate?: boolean;
                     aliases: string[];
                     contentWarnings: string | null;
@@ -307,7 +307,7 @@ export interface paths {
                     releaseDate: string | null;
                     runtimeMinutes: number | null;
                     /** @enum {string} */
-                    status: "announced" | "releasing" | "released" | "ended" | "unknown";
+                    status: "announced" | "airing" | "completed" | "unknown";
                     posterPath: string | null;
                     episodeCount: number | null;
                     classification: {
@@ -396,7 +396,7 @@ export interface paths {
               logoPath: string | null;
               releaseYear: number | null;
               /** @enum {string} */
-              releaseStatus: "announced" | "releasing" | "released" | "ended" | "unknown";
+              releaseStatus: "upcoming" | "airing" | "returning" | "completed" | "unknown";
               isPrivate?: boolean;
               aliases: string[];
               contentWarnings: string | null;
@@ -610,7 +610,7 @@ export interface paths {
                 releaseDate: string | null;
                 runtimeMinutes: number | null;
                 /** @enum {string} */
-                status: "announced" | "releasing" | "released" | "ended" | "unknown";
+                status: "announced" | "airing" | "completed" | "unknown";
                 posterPath: string | null;
                 episodeCount: number | null;
                 classification: {

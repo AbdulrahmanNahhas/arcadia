@@ -2,11 +2,13 @@ import { ageSchema, audienceSchema, riskLevelSchema, taxonomySchema } from "@arc
 import { z } from "zod";
 
 export const installmentKindSchema = z.enum(["season", "movie", "special"]);
-export const installmentStatusSchema = z.enum([
-  "announced",
-  "releasing",
-  "released",
-  "ended",
+export const installmentStatusSchema = z.enum(["announced", "airing", "completed", "unknown"]);
+/** A title lifecycle is derived from the factual status of its installments. */
+export const titleReleaseStatusSchema = z.enum([
+  "upcoming",
+  "airing",
+  "returning",
+  "completed",
   "unknown",
 ]);
 export const effectiveClassificationSchema = z.object({
@@ -60,7 +62,7 @@ export const titleSummarySchema = z.object({
   bannerPath: z.string().nullable(),
   logoPath: z.string().nullable(),
   releaseYear: z.number().int().nullable(),
-  releaseStatus: installmentStatusSchema,
+  releaseStatus: titleReleaseStatusSchema,
   isPrivate: z.boolean().optional(),
   aliases: z.array(z.string()),
   contentWarnings: z.string().nullable(),
@@ -122,4 +124,6 @@ export const healthSchema = z.object({
 export type TitleSummary = z.infer<typeof titleSummarySchema>;
 export type TitleDetail = z.infer<typeof titleDetailSchema>;
 export type Installment = z.infer<typeof installmentSchema>;
+export type InstallmentStatus = z.infer<typeof installmentStatusSchema>;
+export type TitleReleaseStatus = z.infer<typeof titleReleaseStatusSchema>;
 export type BrowseResponse = z.infer<typeof browseResponseSchema>;

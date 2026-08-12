@@ -87,7 +87,7 @@ export function EntityDetailPage({ entityId }: { entityId: string }) {
         (work) =>
           (showHidden ||
             (work.status !== "saved" &&
-              work.releaseStatus !== "announced" &&
+              work.releaseStatus !== "upcoming" &&
               !work.isSequelMovie)) &&
           (role === "all" || work.roles.includes(role)) &&
           (kind === "all" || work.kind === kind),

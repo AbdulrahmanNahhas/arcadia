@@ -47,10 +47,10 @@ type CatalogFiltersProps = {
 };
 
 const fixedLabels: Record<string, string> = {
-  announced: "مُعلن",
-  releasing: "يعرض الآن",
-  released: "صدر",
-  ended: "منتهٍ",
+  upcoming: "قادم",
+  airing: "يعرض الآن",
+  returning: "مستمر",
+  completed: "مكتمل",
   unknown: "غير معروف",
   rated: "مقيّم",
   unrated: "غير مقيّم",
@@ -167,14 +167,18 @@ function CatalogFilterContent(props: CatalogFiltersProps) {
 
   return (
     <div className="flex flex-col px-5 pb-6">
-      <FilterSection title="العمل والإصدار" description="النوع، حالة الإصدار، ومستوى العرض" open>
+      <FilterSection
+        title="العمل والإصدار"
+        description="النوع وحالة العمل المحسوبة من أجزائه ومستوى العرض"
+        open
+      >
         <FacetList
           facet="kinds"
           options={props.options.kinds}
           filters={props.filters}
           onCycle={updateFacet}
         />
-        <FacetLabel>حالة الإصدار</FacetLabel>
+        <FacetLabel>حالة العمل</FacetLabel>
         <FacetList
           facet="releaseStatuses"
           options={props.options.releaseStatuses}

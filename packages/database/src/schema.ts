@@ -22,9 +22,8 @@ export const riskEnum = pgEnum("risk_level", ["none", "low", "medium", "high"]);
 export const installmentKindEnum = pgEnum("installment_kind", ["season", "movie", "special"]);
 export const releaseStatusEnum = pgEnum("release_status", [
   "announced",
-  "releasing",
-  "released",
-  "ended",
+  "airing",
+  "completed",
   "unknown",
 ]);
 export const entityKindEnum = pgEnum("entity_kind", ["person", "organization"]);
@@ -91,6 +90,7 @@ export const titleAliases = pgTable(
   },
   (t) => [
     uniqueIndex("title_alias_identity_uq").on(t.titleId, t.title, t.language),
+    uniqueIndex("title_alias_normalized_identity_uq").on(t.titleId, sql`lower(btrim(${t.title}))`),
     index("title_alias_search_trgm_idx").using("gin", sql`${t.title} gin_trgm_ops`),
   ],
 );

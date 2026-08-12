@@ -8,7 +8,7 @@ import {
 
 const work = {
   kind: "anime",
-  releaseStatus: "ended",
+  releaseStatus: "completed",
   isPrivate: false,
   year: 2024,
   calculatedRating: 8.2,
@@ -37,9 +37,9 @@ describe("catalog filtering", () => {
 
   it("applies release status to title-level works", () => {
     const filters = createCatalogFilters();
-    filters.facets.releaseStatuses.include = ["released"];
+    filters.facets.releaseStatuses.include = ["upcoming"];
     expect(workMatchesCatalogFilters(work, filters)).toBe(false);
-    filters.facets.releaseStatuses.include = ["ended"];
+    filters.facets.releaseStatuses.include = ["completed"];
     expect(workMatchesCatalogFilters(work, filters)).toBe(true);
   });
 
@@ -49,6 +49,14 @@ describe("catalog filtering", () => {
     expect(workMatchesCatalogFilters(work, filters)).toBe(false);
     filters.minimumScores.depth = 8;
     expect(workMatchesCatalogFilters(work, filters)).toBe(true);
+  });
+
+  it("keeps unrated works visible until a minimum rating is selected", () => {
+    const unratedWork = { ...work, calculatedRating: null };
+    const filters = createCatalogFilters();
+    expect(workMatchesCatalogFilters(unratedWork, filters)).toBe(true);
+    filters.minimumRating = 1;
+    expect(workMatchesCatalogFilters(unratedWork, filters)).toBe(false);
   });
 
   it("defaults to public works and supports all/private admin visibility", () => {

@@ -48,7 +48,7 @@ describe("Arcadia API contract", () => {
     );
   });
 
-  it("keeps aggregate announced titles traceable to announced installments", async () => {
+  it("calculates upcoming titles from their announced installments", async () => {
     const [titlesResponse, moreTitlesResponse, ...installmentResponses] = await Promise.all([
       app.request("/api/v1/titles?mode=titles&limit=100"),
       app.request("/api/v1/titles?mode=titles&limit=100&offset=100"),
@@ -68,7 +68,7 @@ describe("Arcadia API contract", () => {
     )) as Array<{ items: Array<{ titleId: string; status: string }> }>;
     const installments = installmentPages.flatMap((page) => page.items);
     const announcedTitleIds = titles
-      .filter((item) => item.releaseStatus === "announced")
+      .filter((item) => item.releaseStatus === "upcoming")
       .map((item) => item.id);
     const announcedInstallmentTitleIds = new Set(
       installments.filter((item) => item.status === "announced").map((item) => item.titleId),
