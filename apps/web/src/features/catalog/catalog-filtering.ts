@@ -13,6 +13,9 @@ export type CatalogFacetKey =
   | "countries"
   | "studios"
   | "contributors"
+  | "awardPrograms"
+  | "awardCategories"
+  | "awardResults"
   | "ratingStates"
   | "warningStates"
   | "structureStates"
@@ -43,6 +46,9 @@ export const catalogFacetKeys: CatalogFacetKey[] = [
   "countries",
   "studios",
   "contributors",
+  "awardPrograms",
+  "awardCategories",
+  "awardResults",
   "ratingStates",
   "warningStates",
   "structureStates",
@@ -93,6 +99,15 @@ export function getCatalogFacetValues(work: Work, key: CatalogFacetKey): string[
   if (key === "countries") return work.country;
   if (key === "studios") return work.studios;
   if (key === "contributors") return [...new Set(work.contributors.map(({ name }) => name))];
+  if (key === "awardPrograms") {
+    return [...new Set(work.awards.map(({ organizationName }) => organizationName))];
+  }
+  if (key === "awardCategories") {
+    return [...new Set(work.awards.map(({ category }) => category))];
+  }
+  if (key === "awardResults") {
+    return [...new Set(work.awards.map(({ result }) => result))];
+  }
   if (key === "ratingStates") return [work.calculatedRating === null ? "unrated" : "rated"];
   if (key === "warningStates") return [work.contentWarnings ? "warnings" : "none"];
   if (key === "structureStates") {
@@ -128,6 +143,24 @@ export function workMatchesCatalogFilters(work: Work, filters: CatalogFilterStat
       const score = work.scoreComponents[criterion];
       return minimum !== undefined && (score === undefined || score < minimum);
     })
+  ) {
+    return false;
+  }
+  const selectedAwardPrograms = filters.facets.awardPrograms.include;
+  const selectedAwardCategories = filters.facets.awardCategories.include;
+  const selectedAwardResults = filters.facets.awardResults.include;
+  if (
+    (selectedAwardPrograms.length ||
+      selectedAwardCategories.length ||
+      selectedAwardResults.length) &&
+    !work.awards.some(
+      (recognition) =>
+        (!selectedAwardPrograms.length ||
+          selectedAwardPrograms.includes(recognition.organizationName)) &&
+        (!selectedAwardCategories.length ||
+          selectedAwardCategories.includes(recognition.category)) &&
+        (!selectedAwardResults.length || selectedAwardResults.includes(recognition.result)),
+    )
   ) {
     return false;
   }

@@ -1,10 +1,20 @@
-import type { BrowseResponse, Installment, TitleDetail, TitleSummary } from "@arcadia/contracts";
+import type {
+  AwardRecognition,
+  BrowseResponse,
+  Installment,
+  TitleDetail,
+  TitleSummary,
+} from "@arcadia/contracts";
 import {
   type Classification,
   effectiveClassification,
+  effectivePolicy,
   installmentRating,
+  isClassificationAllowed,
+  isVisibleToPolicy,
   type Score,
   titleRating,
+  type VisibilityPolicy,
 } from "@arcadia/domain";
 import { database } from "./database";
 
@@ -34,22 +44,153 @@ async function relatedData(titleIds: string[]) {
       genres: [] as SqlRow[],
       tones: [] as SqlRow[],
       tags: [] as SqlRow[],
+      countries: [] as SqlRow[],
       planets: [] as SqlRow[],
       aliases: [] as SqlRow[],
       credits: [] as SqlRow[],
+      awards: [] as SqlRow[],
     };
   const sql = database().client;
-  const [installments, scores, genres, tones, tags, planets, aliases, credits] = await Promise.all([
-    sql`select i.*, (select count(*)::int from episodes e where e.installment_id=i.id) as episode_count from installments i where i.title_id in ${sql(titleIds)} order by i.position`,
-    sql`select s.* from installment_scores s join installments i on i.id=s.installment_id where i.title_id in ${sql(titleIds)}`,
-    sql`select x.title_id, v.slug from title_genres x join genres v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
-    sql`select x.title_id, v.slug from title_tones x join tones v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
-    sql`select x.title_id, v.slug from title_tags x join tags v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
-    sql`select x.title_id, p.id, p.slug, p.name_ar, p.icon from title_planets x join planets p on p.id=x.planet_id where x.title_id in ${sql(titleIds)} order by p.display_order`,
-    sql`select title_id, title from title_aliases where title_id in ${sql(titleIds)} order by title`,
-    sql`select c.title_id, e.id, e.name, e.kind, r.slug as role from contributions c join entities e on e.id=c.entity_id join roles r on r.id=c.role_id where c.title_id in ${sql(titleIds)} order by c.position, e.sort_name`,
+  const [installments, scores, genres, tones, tags, countries, planets, aliases, credits, awards] =
+    await Promise.all([
+      sql`select i.*,
+      (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.installment_id=i.id and maa.role='poster' and maa.is_primary limit 1) as poster_path,
+      (select count(*)::int from episodes e where e.installment_id=i.id) as episode_count
+      from installments i where i.title_id in ${sql(titleIds)} order by i.position`,
+      sql`select s.* from installment_scores s join installments i on i.id=s.installment_id where i.title_id in ${sql(titleIds)}`,
+      sql`select x.title_id, v.id, v.slug from title_genres x join genres v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
+      sql`select x.title_id, v.slug from title_tones x join tones v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
+      sql`select x.title_id, v.id, v.slug from title_tags x join tags v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
+      sql`select x.title_id, v.slug from title_countries x join countries v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
+      sql`select x.title_id, p.id, p.slug, p.name_ar, p.icon from title_planets x join planets p on p.id=x.planet_id where x.title_id in ${sql(titleIds)} order by p.display_order`,
+      sql`select title_id, title from title_aliases where title_id in ${sql(titleIds)} order by title`,
+      sql`select c.title_id, e.id, e.name, e.kind, r.slug as role from contributions c join entities e on e.id=c.entity_id join roles r on r.id=c.role_id where c.title_id in ${sql(titleIds)} order by c.position, e.sort_name`,
+      sql`select a.*, i.title as installment_title from award_recognitions a left join installments i on i.id=a.installment_id where a.title_id in ${sql(titleIds)} order by a.is_featured desc, a.year desc nulls last, a.position, a.organization_name, a.category`,
+    ]);
+  return {
+    installments,
+    scores,
+    genres,
+    tones,
+    tags,
+    countries,
+    planets,
+    aliases,
+    credits,
+    awards,
+  };
+}
+
+export async function visibilityPolicyForAccount(
+  accountId: string,
+): Promise<VisibilityPolicy | null> {
+  const sql = database().client;
+  const [row, titleRows, tagRows, genreRows, entityRows, planetRows] = await Promise.all([
+    sql`select p.audience, p.age, p.sexuality_risk, p.behavioral_risk, p.theology_risk,
+      r.audience as restriction_audience, r.age as restriction_age,
+      r.sexuality_risk as restriction_sexuality_risk,
+      r.behavioral_risk as restriction_behavioral_risk,
+      r.theology_risk as restriction_theology_risk
+      from accounts a
+      join account_content_policies p on p.account_id=a.id
+      join account_admin_restrictions r on r.account_id=a.id
+      where a.id=${accountId} and a.status='active'`,
+    sql`select title_id as id from account_title_blocks where account_id=${accountId}`,
+    sql`select tag_id as id from account_tag_blocks where account_id=${accountId}`,
+    sql`select genre_id as id from account_genre_blocks where account_id=${accountId}`,
+    sql`select entity_id as id from account_entity_blocks where account_id=${accountId}`,
+    sql`select planet_id as id from account_planet_blocks where account_id=${accountId}`,
   ]);
-  return { installments, scores, genres, tones, tags, planets, aliases, credits };
+  const policyRow = row[0];
+  if (!policyRow) return null;
+  const own = titleClassification(policyRow);
+  const restriction: Classification = {
+    audience: policyRow.restriction_audience as Classification["audience"],
+    age: policyRow.restriction_age as Classification["age"],
+    sexuality: policyRow.restriction_sexuality_risk as Classification["sexuality"],
+    behavioral: policyRow.restriction_behavioral_risk as Classification["behavioral"],
+    theology: policyRow.restriction_theology_risk as Classification["theology"],
+  };
+  const ids = (rows: SqlRow[]) => new Set(rows.map((item) => String(item.id)));
+  return {
+    maximum: effectivePolicy(own, restriction),
+    blockedTitleIds: ids(titleRows),
+    blockedTagIds: ids(tagRows),
+    blockedGenreIds: ids(genreRows),
+    blockedEntityIds: ids(entityRows),
+    blockedPlanetIds: ids(planetRows),
+  };
+}
+
+function isTitleVisible(
+  row: SqlRow,
+  data: Awaited<ReturnType<typeof relatedData>>,
+  policy: VisibilityPolicy,
+) {
+  const titleId = String(row.id);
+  if (
+    !isVisibleToPolicy(
+      {
+        id: titleId,
+        classification: titleClassification(row),
+        tagIds: data.tags.filter((item) => item.title_id === row.id).map((item) => String(item.id)),
+        genreIds: data.genres
+          .filter((item) => item.title_id === row.id)
+          .map((item) => String(item.id)),
+        entityIds: data.credits
+          .filter((item) => item.title_id === row.id)
+          .map((item) => String(item.id)),
+        planetIds: data.planets
+          .filter((item) => item.title_id === row.id)
+          .map((item) => String(item.id)),
+      },
+      policy,
+    )
+  ) {
+    return false;
+  }
+  return data.installments
+    .filter((item) => item.title_id === row.id)
+    .every((item) =>
+      isClassificationAllowed(
+        effectiveClassification(titleClassification(row), {
+          audience: item.audience_override as Classification["audience"] | null,
+          age: item.age_override as Classification["age"] | null,
+          sexuality: item.sexuality_risk_override as Classification["sexuality"] | null,
+          behavioral: item.behavioral_risk_override as Classification["behavioral"] | null,
+          theology: item.theology_risk_override as Classification["theology"] | null,
+        }),
+        policy.maximum,
+      ),
+    );
+}
+
+export async function visibleTitleIdsForAccount(accountId: string, titleIds: string[]) {
+  if (!titleIds.length) return new Set<string>();
+  const policy = await visibilityPolicyForAccount(accountId);
+  if (!policy) return new Set<string>();
+  const rows = await database()
+    .client`select * from titles where id in ${database().client(titleIds)} and not is_private`;
+  const data = await relatedData(rows.map((row) => String(row.id)));
+  return new Set(
+    rows.filter((row) => isTitleVisible(row, data, policy)).map((row) => String(row.id)),
+  );
+}
+
+function award(row: SqlRow): AwardRecognition {
+  return {
+    id: String(row.id),
+    organizationSlug: String(row.organization_slug),
+    organizationName: String(row.organization_name),
+    category: String(row.category),
+    year: numeric(row.year),
+    result: row.result as AwardRecognition["result"],
+    isFeatured: Boolean(row.is_featured),
+    installmentId: row.installment_id ? String(row.installment_id) : null,
+    installmentTitle: row.installment_title ? String(row.installment_title) : null,
+    sourceUrl: row.source_url ? String(row.source_url) : null,
+    notes: row.notes ? String(row.notes) : null,
+  };
 }
 
 /**
@@ -132,6 +273,9 @@ function summary(
     tags: data.tags
       .filter((item) => item.title_id === row.id)
       .map((item) => item.slug) as TitleSummary["tags"],
+    countries: data.countries
+      .filter((item) => item.title_id === row.id)
+      .map((item) => String(item.slug)),
     planet: planet
       ? {
           id: String(planet.id),
@@ -161,10 +305,16 @@ function summary(
         kind: item.kind as "person" | "organization",
         role: String(item.role),
       })),
+    awards: data.awards.filter((item) => item.title_id === row.id).map(award),
   };
 }
 
-function installment(row: SqlRow, title: SqlRow, scoreRow?: SqlRow): Installment {
+function installment(
+  row: SqlRow,
+  title: SqlRow,
+  scoreRow?: SqlRow,
+  awards: SqlRow[] = [],
+): Installment {
   const base = titleClassification(title);
   const overrideMap = {
     audience: row.audience_override,
@@ -192,6 +342,7 @@ function installment(row: SqlRow, title: SqlRow, scoreRow?: SqlRow): Installment
       .map(([key]) => key),
     score: score as Installment["score"],
     rating: installmentRating(score),
+    awards: awards.filter((item) => item.installment_id === row.id).map(award),
   };
 }
 
@@ -264,23 +415,36 @@ export async function browse(
     offset: number;
   },
   includePrivate = false,
+  accountId?: string,
 ): Promise<BrowseResponse> {
   const sql = database().client;
   const pattern = `%${input.q ?? ""}%`;
   const searchCondition = sql`(${input.q ?? ""} = '' or t.canonical_title ilike ${pattern} or t.title_ar ilike ${pattern} or a.title ilike ${pattern} or exists (select 1 from contributions c join entities e on e.id=c.entity_id left join entity_aliases ea on ea.entity_id=e.id where c.title_id=t.id and e.kind='organization' and (e.name ilike ${pattern} or e.sort_name ilike ${pattern} or ea.alias ilike ${pattern})))`;
   if (input.mode === "installments") {
-    const matchingTitles =
-      await sql`select distinct t.* from titles t left join title_aliases a on a.title_id=t.id where (${includePrivate} or not t.is_private) and ${searchCondition} order by t.sort_title`;
+    const matchingTitles = await sql`select distinct t.*,
+        (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='poster' and maa.is_primary limit 1) as poster_path,
+        (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='banner' and maa.is_primary limit 1) as banner_path,
+        (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='logo' and maa.is_primary limit 1) as logo_path
+        from titles t left join title_aliases a on a.title_id=t.id where (${includePrivate} or not t.is_private) and ${searchCondition} order by t.sort_title`;
     const allData = await relatedData(matchingTitles.map((row) => String(row.id)));
-    const titlesById = new Map(matchingTitles.map((title) => [String(title.id), title]));
+    const policy = accountId ? await visibilityPolicyForAccount(accountId) : null;
+    const visibleTitles = accountId
+      ? policy
+        ? matchingTitles.filter((row) => isTitleVisible(row, allData, policy))
+        : []
+      : matchingTitles;
+    const titlesById = new Map(visibleTitles.map((title) => [String(title.id), title]));
     const matchingInstallments = sortInstallments(
-      allData.installments.map((row) =>
-        installment(
-          row,
-          titlesById.get(String(row.title_id)) as SqlRow,
-          allData.scores.find((score) => score.installment_id === row.id),
+      allData.installments
+        .filter((row) => titlesById.has(String(row.title_id)))
+        .map((row) =>
+          installment(
+            row,
+            titlesById.get(String(row.title_id)) as SqlRow,
+            allData.scores.find((score) => score.installment_id === row.id),
+            allData.awards,
+          ),
         ),
-      ),
       titlesById,
       input.sort,
     );
@@ -290,11 +454,20 @@ export async function browse(
       items: matchingInstallments.slice(input.offset, input.offset + input.limit),
     };
   }
-  const rows =
-    await sql`select distinct t.* from titles t left join title_aliases a on a.title_id=t.id where (${includePrivate} or not t.is_private) and ${searchCondition}`;
+  const rows = await sql`select distinct t.*,
+      (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='poster' and maa.is_primary limit 1) as poster_path,
+      (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='banner' and maa.is_primary limit 1) as banner_path,
+      (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='logo' and maa.is_primary limit 1) as logo_path
+      from titles t left join title_aliases a on a.title_id=t.id where (${includePrivate} or not t.is_private) and ${searchCondition}`;
   const data = await relatedData(rows.map((row) => String(row.id)));
+  const policy = accountId ? await visibilityPolicyForAccount(accountId) : null;
+  const visibleRows = accountId
+    ? policy
+      ? rows.filter((row) => isTitleVisible(row, data, policy))
+      : []
+    : rows;
   const items = sortTitleSummaries(
-    rows.map((row) => summary(row, data, includePrivate)),
+    visibleRows.map((row) => summary(row, data, includePrivate)),
     input.sort,
   );
   return {
@@ -304,12 +477,23 @@ export async function browse(
   };
 }
 
-export async function titleDetail(id: string, includePrivate = false): Promise<TitleDetail | null> {
+export async function titleDetail(
+  id: string,
+  includePrivate = false,
+  accountId?: string,
+): Promise<TitleDetail | null> {
   const sql = database().client;
-  const [row] =
-    await sql`select * from titles where id=${id} and (${includePrivate} or not is_private)`;
+  const [row] = await sql`select t.*,
+      (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='poster' and maa.is_primary limit 1) as poster_path,
+      (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='banner' and maa.is_primary limit 1) as banner_path,
+      (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='logo' and maa.is_primary limit 1) as logo_path
+      from titles t where id=${id} and (${includePrivate} or not is_private)`;
   if (!row) return null;
   const data = await relatedData([id]);
+  if (accountId) {
+    const policy = await visibilityPolicyForAccount(accountId);
+    if (!policy || !isTitleVisible(row, data, policy)) return null;
+  }
   const installmentRows = await Promise.all(
     data.installments.map(async (item) => {
       const episodeRows =
@@ -319,6 +503,7 @@ export async function titleDetail(id: string, includePrivate = false): Promise<T
           item,
           row,
           data.scores.find((score) => score.installment_id === item.id),
+          data.awards,
         ),
         episodes: episodeRows.map((episode) => ({
           id: String(episode.id),
@@ -335,17 +520,27 @@ export async function titleDetail(id: string, includePrivate = false): Promise<T
     await sql`select r.id, r.kind as type, other.id as title_id, other.canonical_title as title from title_relations r join titles other on other.id=case when r.source_title_id=${id} then r.target_title_id else r.source_title_id end where (r.source_title_id=${id} or r.target_title_id=${id}) and (${includePrivate} or not other.is_private)`;
   const credits =
     await sql`select e.id, e.name, e.kind, r.slug as role from contributions c join entities e on e.id=c.entity_id join roles r on r.id=c.role_id where c.title_id=${id} order by c.position`;
+  const visibleRelationshipIds = accountId
+    ? await visibleTitleIdsForAccount(
+        accountId,
+        relationships.map((item) => String(item.title_id)),
+      )
+    : null;
   return {
     ...summary(row, data, includePrivate),
     contentWarnings: row.content_warnings ? String(row.content_warnings) : null,
     analysisNotes: row.analysis_notes ? String(row.analysis_notes) : null,
     installments: installmentRows,
-    relationships: relationships.map((item) => ({
-      id: String(item.id),
-      type: String(item.type),
-      titleId: String(item.title_id),
-      title: String(item.title),
-    })),
+    relationships: relationships
+      .filter(
+        (item) => !visibleRelationshipIds || visibleRelationshipIds.has(String(item.title_id)),
+      )
+      .map((item) => ({
+        id: String(item.id),
+        type: String(item.type),
+        titleId: String(item.title_id),
+        title: String(item.title),
+      })),
     credits: credits.map((credit) => ({
       id: String(credit.id),
       name: String(credit.name),

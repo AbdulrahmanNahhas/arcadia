@@ -62,6 +62,8 @@ const fixedLabels: Record<string, string> = {
   title: "عنوان كامل",
   season: "موسم",
   standalone: "فيلم أو إصدار مستقل",
+  winner: "فائز",
+  nominee: "مرشّح",
   General: "عام",
   Teen: "مراهقون",
   "Young Adult": "شباب",
@@ -227,6 +229,33 @@ function CatalogFilterContent(props: CatalogFiltersProps) {
           في العناوين المتعددة، كل معيار هو متوسط درجات المواسم أو الإصدارات المسجّلة.
         </p>
       </FilterSection>
+
+      {props.options.awardPrograms.length > 0 ? (
+        <FilterSection title="الجوائز" description="الجهة المانحة والنتيجة المسجّلة" open>
+          <FacetList
+            facet="awardPrograms"
+            options={props.options.awardPrograms}
+            filters={props.filters}
+            onCycle={updateFacet}
+            searchable
+          />
+          <FacetLabel>النتيجة</FacetLabel>
+          <FacetList
+            facet="awardResults"
+            options={props.options.awardResults}
+            filters={props.filters}
+            onCycle={updateFacet}
+          />
+          <FacetLabel>الفئة</FacetLabel>
+          <FacetList
+            facet="awardCategories"
+            options={props.options.awardCategories}
+            filters={props.filters}
+            onCycle={updateFacet}
+            searchable
+          />
+        </FilterSection>
+      ) : null}
 
       <FilterSection title="التصنيفات" description="النوع الفني، الجو، والموضوعات">
         <FacetList

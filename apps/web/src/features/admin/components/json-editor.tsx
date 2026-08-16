@@ -1,5 +1,6 @@
 "use client";
 
+import { adminSchemaFieldGuide } from "@arcadia/contracts";
 import {
   ArrowsClockwiseIcon,
   BracketsCurlyIcon,
@@ -1161,6 +1162,25 @@ export function JsonEditorDialog({
     }
   };
 
+  const copySchemaGuide = async () => {
+    const fields = selectedFields.map((field) => ({
+      field,
+      ...(adminSchemaFieldGuide[field as keyof typeof adminSchemaFieldGuide] ?? {
+        purpose: PROJECTION_FIELDS.find((candidate) => candidate.key === field)?.label ?? field,
+        required: false,
+        nullable: true,
+        shape: "See the projected JSON value",
+      }),
+    }));
+    try {
+      await navigator.clipboard.writeText(
+        JSON.stringify({ schema: "Arcadia admin record projection v1", fields }, null, 2),
+      );
+    } catch {
+      setError("تعذر نسخ دليل المخطط إلى الحافظة.");
+    }
+  };
+
   const findNext = () => {
     const textarea = textareaRef.current;
     if (!textarea || !documentSearch) return;
@@ -1459,6 +1479,15 @@ export function JsonEditorDialog({
                     </div>
                   </PopoverContent>
                 </Popover>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={copySchemaGuide}
+                >
+                  <ClipboardTextIcon data-icon="inline-start" />
+                  نسخ دليل المخطط
+                </Button>
               </div>
               <div className="flex flex-col gap-2">
                 <p className="text-xs font-semibold">السجلات المعروضة</p>

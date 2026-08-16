@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import {
@@ -19,25 +20,27 @@ export function ValidationPage() {
     queryFn: () => getCatalogValidation(),
   });
   const errors = issues.filter((issue) => issue.severity === "error").length;
+  const automatic = issues.filter((issue) => issue.autoRepairable).length;
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex min-w-0 flex-col gap-8">
       <AdminPageHeader
         title="التحقق من البيانات"
         description="مشكلات صريحة تحتاج مراجعة؛ لا تُصلح القيم الملتبسة تلقائياً."
       />
-      <Card className="m-6 mt-0 mr-4">
+      <Card className="mx-5 mb-6 min-w-0 sm:mx-6">
         <CardHeader>
           <CardTitle>نتيجة الفحص</CardTitle>
           <CardDescription>
-            {issues.length} ملاحظة، منها {errors} أخطاء مانعة.
+            {issues.length} ملاحظة، منها {errors} أخطاء مانعة و{automatic} إصلاحات آمنة.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           {issues.length ? (
-            <Table>
+            <Table className="min-w-[58rem]">
               <TableHeader>
                 <TableRow>
                   <TableHead>المستوى</TableHead>
+                  <TableHead>الفئة</TableHead>
                   <TableHead>السجل</TableHead>
                   <TableHead>المسار</TableHead>
                   <TableHead>المشكلة</TableHead>
@@ -61,14 +64,37 @@ export function ValidationPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
+                      <Badge variant="outline">{issue.category ?? "integrity"}</Badge>
+                    </TableCell>
+                    <TableCell>
                       <strong className="block text-sm">{issue.title}</strong>
                       <span className="text-xs text-muted-foreground">
                         {issue.entityType} · {issue.entityId}
                       </span>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{issue.path}</TableCell>
-                    <TableCell>{issue.message}</TableCell>
-                    <TableCell className="text-muted-foreground">{issue.action}</TableCell>
+                    <TableCell className="max-w-64 truncate font-mono text-xs" dir="ltr">
+                      {issue.path}
+                    </TableCell>
+                    <TableCell className="max-w-80 whitespace-normal">{issue.message}</TableCell>
+                    <TableCell>
+                      <p className="text-muted-foreground">{issue.action}</p>
+                      {issue.repairPath ? (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="mt-1 px-0"
+                          nativeButton={false}
+                          render={<a href={issue.repairPath} />}
+                        >
+                          فتح شاشة الإصلاح
+                        </Button>
+                      ) : null}
+                      {issue.autoRepairable ? (
+                        <Badge variant="secondary" className="ms-2">
+                          آمن تلقائياً
+                        </Badge>
+                      ) : null}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

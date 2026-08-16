@@ -16,22 +16,21 @@ const titleCase: Record<string, string> = {
   "young-adult": "Young Adult",
 };
 const roleValues = new Set([
-  "author",
-  "original-author",
-  "writer",
-  "screenwriter",
-  "director",
-  "illustrator",
-  "artist",
-  "animation-studio",
-  "production-company",
-  "producer",
-  "developer",
-  "publisher",
-  "composer",
-  "editor",
-  "translator",
   "creator",
+  "original_author",
+  "director",
+  "writer",
+  "producer",
+  "executive_producer",
+  "creative_producer",
+  "character_designer",
+  "art_director",
+  "scene_design",
+  "composer",
+  "animation_studio",
+  "production_company",
+  "distributor",
+  "publisher",
 ]);
 
 export function labelFromSlug(slug: string) {
@@ -158,16 +157,17 @@ export function titleToWork(title: TitleSummary | TitleDetail): Work {
       : null,
     scoreComponents: Object.fromEntries(Object.entries(score).filter((entry) => entry[1] !== null)),
     externalLinks: [],
+    awards: title.awards,
     releaseStart: first?.releaseDate ?? null,
     releaseEnd: null,
     watchDates: null,
-    country: [],
+    country: title.countries.map(labelFromSlug) as Work["country"],
     sourceMaterial: null,
     publication: null,
     curation: null,
     contributors: credits,
-    animationStudios: credits.filter((item) => item.role === "animation-studio"),
-    productionCompanies: credits.filter((item) => item.role === "production-company"),
+    animationStudios: credits.filter((item) => item.role === "animation_studio"),
+    productionCompanies: credits.filter((item) => item.role === "production_company"),
     publishers: credits.filter((item) => item.role === "publisher"),
     relations,
     isSequelMovie: relations.some((item) => item.relationType === "sequel"),
@@ -304,6 +304,10 @@ function installmentWorks(items: Installment[], titles: TitleSummary[]) {
         Object.entries(item.score).filter(([, value]) => value !== null),
       ),
       externalLinks: [],
+      awards: [
+        ...(title?.awards.filter((recognition) => recognition.installmentId === null) ?? []),
+        ...item.awards,
+      ],
       releaseStart: item.releaseDate,
       releaseEnd: null,
       watchDates: null,
@@ -397,18 +401,16 @@ export async function fullAdminDetail(id: string) {
   return apiFetch<TitleDetail>(`/api/v1/admin/titles/${id}`);
 }
 
-export async function planetsWithWorks(includeInactive = false): Promise<PlanetWithWorks[]> {
-  const [rows, works] = await Promise.all([fetchPlanets(), allWorks()]);
+export async function planetsWithWorks(includePrivate = false): Promise<PlanetWithWorks[]> {
+  const [rows, works] = await Promise.all([
+    fetchPlanets(),
+    includePrivate ? allAdminWorks() : allWorks(),
+  ]);
 
   return rows
     .map((row, index) => {
       const planetWorks = works
-        .filter(
-          (work) =>
-            work.planetId === row.id &&
-            work.releaseStatus !== "upcoming" &&
-            work.releaseStart !== "unknown",
-        )
+        .filter((work) => work.planetId === row.id)
         .sort((left, right) => {
           const yearLeft = left.year ? Number(left.year) : 0;
           const yearRight = right.year ? Number(right.year) : 0;
@@ -434,7 +436,7 @@ export async function planetsWithWorks(includeInactive = false): Promise<PlanetW
 
       return { ...planet, works: planetWorks };
     })
-    .filter((planet) => includeInactive || planet.isActive);
+    .filter((planet) => planet.isActive);
 }
 export async function entities(): Promise<Entity[]> {
   type EntityRow = {

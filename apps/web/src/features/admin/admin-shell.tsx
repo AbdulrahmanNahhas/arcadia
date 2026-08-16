@@ -1,16 +1,19 @@
 import {
   BuildingsIcon,
+  ChartBarIcon,
   HouseIcon,
+  ImagesIcon,
   PlanetIcon,
+  PulseIcon,
   ShieldWarningIcon,
   SquaresFourIcon,
+  TranslateIcon,
   TreeStructureIcon,
   UserGearIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import type { ComponentType } from "react";
-import { useEffect, useState } from "react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -37,14 +40,18 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { currentProfile, type DemoProfile } from "@/features/profiles/model";
+import { useCurrentAccount } from "@/features/accounts/api";
 
 const sections = [
   {
     label: "المكتبة",
     items: [
       { title: "نظرة عامة", to: "/admin", icon: HouseIcon, exact: true },
+      { title: "عمليات الأرشيف", to: "/admin/archive", icon: PulseIcon },
+      { title: "الإحصاءات", to: "/admin/statistics", icon: ChartBarIcon },
       { title: "الأعمال", to: "/admin/catalog", icon: SquaresFourIcon },
+      { title: "مكتبة الوسائط", to: "/admin/media", icon: ImagesIcon },
+      { title: "المفردات والترجمات", to: "/admin/vocabularies", icon: TranslateIcon },
     ],
   },
   {
@@ -59,7 +66,7 @@ const sections = [
   {
     label: "الحسابات والنظام",
     items: [
-      { title: "الحسابات والسياسات", to: "/admin/profiles", icon: UserGearIcon },
+      { title: "الحسابات والسياسات", to: "/admin/accounts", icon: UserGearIcon },
       { title: "التحقق", to: "/admin/validation", icon: ShieldWarningIcon },
     ],
   },
@@ -70,37 +77,37 @@ const pageTitles = new Map(
 );
 
 export function AdminShell() {
-  const [profile, setProfile] = useState<DemoProfile | null>(null);
-  useEffect(() => setProfile(currentProfile()), []);
+  const { data, isPending } = useCurrentAccount();
+  const account = data?.account;
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const pageTitle =
     [...pageTitles.entries()].find(([path]) =>
       path === "/admin" ? pathname === path : pathname.startsWith(path),
     )?.[1] ?? "لوحة الإدارة";
 
-  if (!profile) return <div className="min-h-svh bg-background" />;
-  if (profile.accountKind !== "admin")
+  if (isPending) return <div className="min-h-svh bg-background" />;
+  if (!account || (account.role !== "owner" && account.role !== "editor"))
     return (
       <main className="flex min-h-svh items-center justify-center px-5" dir="rtl">
         <div className="max-w-lg rounded-3xl border bg-card p-8 text-center">
           <ShieldWarningIcon className="mx-auto size-10 text-primary" />
           <h1 className="mt-5 font-heading text-2xl font-semibold">
-            لوحة الإدارة مقفلة لهذا الملف
+            لوحة الإدارة مقفلة لهذا الحساب
           </h1>
           <p className="mt-3 leading-7 text-muted-foreground">
-            اختر ملف مدير أركاديا وأدخل الرقم التجريبي أولاً. هذا حاجز محلي للتطوير وليس مصادقة
-            إنتاجية.
+            هذا الحساب عضو في العائلة ولا يملك صلاحيات تحرير. يستطيع المالك تفويض صلاحيات دقيقة من
+            صفحة الحسابات.
           </p>
-          <Button className="mt-6" nativeButton={false} render={<Link to="/profiles" />}>
-            اختيار ملف المدير
+          <Button className="mt-6" nativeButton={false} render={<Link to="/accounts" />}>
+            العودة إلى الحسابات
           </Button>
         </div>
       </main>
     );
   return (
-    <SidebarProvider dir="rtl">
+    <SidebarProvider dir="rtl" defaultOpen={false}>
       <AdminSidebar pathname={pathname} />
-      <SidebarInset>
+      <SidebarInset className="min-w-0 overflow-x-clip">
         <header className="sticky top-0 flex h-14 shrink-0 items-center gap-4 bg-background z-10 rounded-full px-3">
           <SidebarTrigger className="-me-1 rotate-180" variant={"outline"} size={"icon-lg"} />
           <Breadcrumb>
@@ -125,9 +132,7 @@ export function AdminShell() {
             <span className="hidden sm:inline">المنصة</span>
           </Button>
         </header>
-        {/*<div className="flex min-w-0 flex-1 flex-col p-4 sm:p-6 lg:p-8">*/}
         <Outlet />
-        {/*</div>*/}
       </SidebarInset>
     </SidebarProvider>
   );

@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
-import { existsSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import postgres from "postgres";
@@ -97,9 +97,22 @@ if (!dryRun) {
     for (const work of mediaWorks) {
       const titleId = titleIds.get(String(work.id)) as string;
       const workAssets = assets.filter((asset) => asset.owner_id === work.id);
-      const asset = (kind: string) =>
-        workAssets.find((item) => item.asset_type === kind)?.relative_path as string | undefined;
-      await tx`insert into titles (id, canonical_title, sort_title, summary, release_year, poster_path, banner_path, logo_path) values (${titleId}, ${String(work.canonical_title)}, ${String(work.sort_title)}, ${String(work.summary ?? "")}, ${work.release_year as number | null}, ${asset("poster") ?? null}, ${asset("banner") ?? null}, ${asset("logo") ?? null}) on conflict (id) do nothing`;
+      await tx`insert into titles (id, canonical_title, sort_title, summary, release_year) values (${titleId}, ${String(work.canonical_title)}, ${String(work.sort_title)}, ${String(work.summary ?? "")}, ${work.release_year as number | null}) on conflict (id) do nothing`;
+      for (const sourceAsset of workAssets) {
+        const path = String(sourceAsset.relative_path);
+        const filePath = resolve(repositoryRoot, "apps/web/public", `.${path}`);
+        if (!existsSync(filePath)) continue;
+        const bytes = readFileSync(filePath);
+        const sha256 = createHash("sha256").update(bytes).digest("hex");
+        const role = String(sourceAsset.asset_type);
+        if (!["poster", "banner", "logo"].includes(role)) continue;
+        const [mediaAsset] = await tx`insert into media_assets
+          (path, sha256, mime_type, byte_size, width, height, original_filename)
+          values (${path}, ${sha256}, ${String(sourceAsset.mime_type)}, ${bytes.byteLength}, ${Math.max(1, Number(sourceAsset.width ?? 1))}, ${Math.max(1, Number(sourceAsset.height ?? 1))}, ${basename(path)})
+          on conflict (sha256) do update set updated_at=now() returning id`;
+        await tx`insert into media_asset_assignments (asset_id, role, title_id, is_primary)
+          values (${mediaAsset?.id}, ${role}, ${titleId}, true) on conflict do nothing`;
+      }
       const ownSeasons = seasons.filter((season) => season.work_id === work.id);
       const groups =
         work.kind === "movie"

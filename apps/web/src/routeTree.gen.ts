@@ -10,26 +10,35 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ArchiveRouteImport } from './routes/archive'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as EntitiesRouteImport } from './routes/entities'
 import { Route as LineageRouteImport } from './routes/lineage'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PeopleRouteImport } from './routes/people'
 import { Route as PlanetsRouteImport } from './routes/planets'
 import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StudiosRouteImport } from './routes/studios'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAccountsRouteImport } from './routes/admin.accounts'
+import { Route as AdminArchiveRouteImport } from './routes/admin.archive'
 import { Route as AdminCatalogRouteImport } from './routes/admin.catalog'
+import { Route as AdminMediaRouteImport } from './routes/admin.media'
 import { Route as AdminPeopleRouteImport } from './routes/admin.people'
 import { Route as AdminPlanetsRouteImport } from './routes/admin.planets'
 import { Route as AdminProfilesRouteImport } from './routes/admin.profiles'
 import { Route as AdminRelationshipsRouteImport } from './routes/admin.relationships'
+import { Route as AdminStatisticsRouteImport } from './routes/admin.statistics'
 import { Route as AdminStudiosRouteImport } from './routes/admin.studios'
 import { Route as AdminValidationRouteImport } from './routes/admin.validation'
+import { Route as AdminVocabulariesRouteImport } from './routes/admin.vocabularies'
 import { Route as EntitiesIndexRouteImport } from './routes/entities.index'
 import { Route as EntitiesEntityIdRouteImport } from './routes/entities.$entityId'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as PeopleIndexRouteImport } from './routes/people.index'
 import { Route as PeoplePersonIdRouteImport } from './routes/people.$personId'
 import { Route as PlanetsIndexRouteImport } from './routes/planets.index'
@@ -47,9 +56,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountsRoute = AccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArchiveRoute = ArchiveRouteImport.update({
+  id: '/archive',
+  path: '/archive',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BrowseRoute = BrowseRouteImport.update({
@@ -70,6 +89,11 @@ const EntitiesRoute = EntitiesRouteImport.update({
 const LineageRoute = LineageRouteImport.update({
   id: '/lineage',
   path: '/lineage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PeopleRoute = PeopleRouteImport.update({
@@ -102,9 +126,24 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAccountsRoute = AdminAccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminArchiveRoute = AdminArchiveRouteImport.update({
+  id: '/archive',
+  path: '/archive',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCatalogRoute = AdminCatalogRouteImport.update({
   id: '/catalog',
   path: '/catalog',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMediaRoute = AdminMediaRouteImport.update({
+  id: '/media',
+  path: '/media',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminPeopleRoute = AdminPeopleRouteImport.update({
@@ -127,6 +166,11 @@ const AdminRelationshipsRoute = AdminRelationshipsRouteImport.update({
   path: '/relationships',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminStatisticsRoute = AdminStatisticsRouteImport.update({
+  id: '/statistics',
+  path: '/statistics',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminStudiosRoute = AdminStudiosRouteImport.update({
   id: '/studios',
   path: '/studios',
@@ -135,6 +179,11 @@ const AdminStudiosRoute = AdminStudiosRouteImport.update({
 const AdminValidationRoute = AdminValidationRouteImport.update({
   id: '/validation',
   path: '/validation',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminVocabulariesRoute = AdminVocabulariesRouteImport.update({
+  id: '/vocabularies',
+  path: '/vocabularies',
   getParentRoute: () => AdminRoute,
 } as any)
 const EntitiesIndexRoute = EntitiesIndexRouteImport.update({
@@ -146,6 +195,11 @@ const EntitiesEntityIdRoute = EntitiesEntityIdRouteImport.update({
   id: '/$entityId',
   path: '/$entityId',
   getParentRoute: () => EntitiesRoute,
+} as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PeopleIndexRoute = PeopleIndexRouteImport.update({
   id: '/',
@@ -206,24 +260,33 @@ const TitlesTitleIdInstallmentsInstallmentIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRoute
   '/admin': typeof AdminRouteWithChildren
+  '/archive': typeof ArchiveRoute
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
   '/entities': typeof EntitiesRouteWithChildren
   '/lineage': typeof LineageRoute
+  '/login': typeof LoginRoute
   '/people': typeof PeopleRouteWithChildren
   '/planets': typeof PlanetsRouteWithChildren
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
   '/studios': typeof StudiosRouteWithChildren
+  '/admin/accounts': typeof AdminAccountsRoute
+  '/admin/archive': typeof AdminArchiveRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
+  '/admin/media': typeof AdminMediaRoute
   '/admin/people': typeof AdminPeopleRoute
   '/admin/planets': typeof AdminPlanetsRoute
   '/admin/profiles': typeof AdminProfilesRoute
   '/admin/relationships': typeof AdminRelationshipsRoute
+  '/admin/statistics': typeof AdminStatisticsRoute
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/validation': typeof AdminValidationRoute
+  '/admin/vocabularies': typeof AdminVocabulariesRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/people/$personId': typeof PeoplePersonIdRoute
   '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
   '/studios/$studioId': typeof StudiosStudioIdRoute
@@ -240,18 +303,27 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRoute
+  '/archive': typeof ArchiveRoute
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
   '/lineage': typeof LineageRoute
+  '/login': typeof LoginRoute
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
+  '/admin/accounts': typeof AdminAccountsRoute
+  '/admin/archive': typeof AdminArchiveRoute
+  '/admin/media': typeof AdminMediaRoute
   '/admin/people': typeof AdminPeopleRoute
   '/admin/planets': typeof AdminPlanetsRoute
   '/admin/profiles': typeof AdminProfilesRoute
   '/admin/relationships': typeof AdminRelationshipsRoute
+  '/admin/statistics': typeof AdminStatisticsRoute
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/validation': typeof AdminValidationRoute
+  '/admin/vocabularies': typeof AdminVocabulariesRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/people/$personId': typeof PeoplePersonIdRoute
   '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
   '/studios/$studioId': typeof StudiosStudioIdRoute
@@ -269,24 +341,33 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRoute
   '/admin': typeof AdminRouteWithChildren
+  '/archive': typeof ArchiveRoute
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
   '/entities': typeof EntitiesRouteWithChildren
   '/lineage': typeof LineageRoute
+  '/login': typeof LoginRoute
   '/people': typeof PeopleRouteWithChildren
   '/planets': typeof PlanetsRouteWithChildren
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
   '/studios': typeof StudiosRouteWithChildren
+  '/admin/accounts': typeof AdminAccountsRoute
+  '/admin/archive': typeof AdminArchiveRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
+  '/admin/media': typeof AdminMediaRoute
   '/admin/people': typeof AdminPeopleRoute
   '/admin/planets': typeof AdminPlanetsRoute
   '/admin/profiles': typeof AdminProfilesRoute
   '/admin/relationships': typeof AdminRelationshipsRoute
+  '/admin/statistics': typeof AdminStatisticsRoute
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/validation': typeof AdminValidationRoute
+  '/admin/vocabularies': typeof AdminVocabulariesRoute
   '/entities/$entityId': typeof EntitiesEntityIdRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/people/$personId': typeof PeoplePersonIdRoute
   '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
   '/studios/$studioId': typeof StudiosStudioIdRoute
@@ -305,24 +386,33 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accounts'
     | '/admin'
+    | '/archive'
     | '/browse'
     | '/compare'
     | '/entities'
     | '/lineage'
+    | '/login'
     | '/people'
     | '/planets'
     | '/profiles'
     | '/settings'
     | '/studios'
+    | '/admin/accounts'
+    | '/admin/archive'
     | '/admin/catalog'
+    | '/admin/media'
     | '/admin/people'
     | '/admin/planets'
     | '/admin/profiles'
     | '/admin/relationships'
+    | '/admin/statistics'
     | '/admin/studios'
     | '/admin/validation'
+    | '/admin/vocabularies'
     | '/entities/$entityId'
+    | '/invite/$token'
     | '/people/$personId'
     | '/planets/$planetSlug'
     | '/studios/$studioId'
@@ -339,18 +429,27 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accounts'
+    | '/archive'
     | '/browse'
     | '/compare'
     | '/lineage'
+    | '/login'
     | '/profiles'
     | '/settings'
+    | '/admin/accounts'
+    | '/admin/archive'
+    | '/admin/media'
     | '/admin/people'
     | '/admin/planets'
     | '/admin/profiles'
     | '/admin/relationships'
+    | '/admin/statistics'
     | '/admin/studios'
     | '/admin/validation'
+    | '/admin/vocabularies'
     | '/entities/$entityId'
+    | '/invite/$token'
     | '/people/$personId'
     | '/planets/$planetSlug'
     | '/studios/$studioId'
@@ -367,24 +466,33 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/accounts'
     | '/admin'
+    | '/archive'
     | '/browse'
     | '/compare'
     | '/entities'
     | '/lineage'
+    | '/login'
     | '/people'
     | '/planets'
     | '/profiles'
     | '/settings'
     | '/studios'
+    | '/admin/accounts'
+    | '/admin/archive'
     | '/admin/catalog'
+    | '/admin/media'
     | '/admin/people'
     | '/admin/planets'
     | '/admin/profiles'
     | '/admin/relationships'
+    | '/admin/statistics'
     | '/admin/studios'
     | '/admin/validation'
+    | '/admin/vocabularies'
     | '/entities/$entityId'
+    | '/invite/$token'
     | '/people/$personId'
     | '/planets/$planetSlug'
     | '/studios/$studioId'
@@ -402,16 +510,20 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountsRoute: typeof AccountsRoute
   AdminRoute: typeof AdminRouteWithChildren
+  ArchiveRoute: typeof ArchiveRoute
   BrowseRoute: typeof BrowseRoute
   CompareRoute: typeof CompareRoute
   EntitiesRoute: typeof EntitiesRouteWithChildren
   LineageRoute: typeof LineageRoute
+  LoginRoute: typeof LoginRoute
   PeopleRoute: typeof PeopleRouteWithChildren
   PlanetsRoute: typeof PlanetsRouteWithChildren
   ProfilesRoute: typeof ProfilesRoute
   SettingsRoute: typeof SettingsRoute
   StudiosRoute: typeof StudiosRouteWithChildren
+  InviteTokenRoute: typeof InviteTokenRoute
   TitlesTitleIdRoute: typeof TitlesTitleIdRoute
   TitlesTitleIdInstallmentsInstallmentIdRoute: typeof TitlesTitleIdInstallmentsInstallmentIdRoute
 }
@@ -425,11 +537,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accounts': {
+      id: '/accounts'
+      path: '/accounts'
+      fullPath: '/accounts'
+      preLoaderRoute: typeof AccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/archive': {
+      id: '/archive'
+      path: '/archive'
+      fullPath: '/archive'
+      preLoaderRoute: typeof ArchiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/browse': {
@@ -458,6 +584,13 @@ declare module '@tanstack/react-router' {
       path: '/lineage'
       fullPath: '/lineage'
       preLoaderRoute: typeof LineageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/people': {
@@ -502,11 +635,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/accounts': {
+      id: '/admin/accounts'
+      path: '/accounts'
+      fullPath: '/admin/accounts'
+      preLoaderRoute: typeof AdminAccountsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/archive': {
+      id: '/admin/archive'
+      path: '/archive'
+      fullPath: '/admin/archive'
+      preLoaderRoute: typeof AdminArchiveRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/catalog': {
       id: '/admin/catalog'
       path: '/catalog'
       fullPath: '/admin/catalog'
       preLoaderRoute: typeof AdminCatalogRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/media': {
+      id: '/admin/media'
+      path: '/media'
+      fullPath: '/admin/media'
+      preLoaderRoute: typeof AdminMediaRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/people': {
@@ -537,6 +691,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRelationshipsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/statistics': {
+      id: '/admin/statistics'
+      path: '/statistics'
+      fullPath: '/admin/statistics'
+      preLoaderRoute: typeof AdminStatisticsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/studios': {
       id: '/admin/studios'
       path: '/studios'
@@ -549,6 +710,13 @@ declare module '@tanstack/react-router' {
       path: '/validation'
       fullPath: '/admin/validation'
       preLoaderRoute: typeof AdminValidationRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/vocabularies': {
+      id: '/admin/vocabularies'
+      path: '/vocabularies'
+      fullPath: '/admin/vocabularies'
+      preLoaderRoute: typeof AdminVocabulariesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/entities/': {
@@ -564,6 +732,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/entities/$entityId'
       preLoaderRoute: typeof EntitiesEntityIdRouteImport
       parentRoute: typeof EntitiesRoute
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/people/': {
       id: '/people/'
@@ -660,25 +835,35 @@ const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminAccountsRoute: typeof AdminAccountsRoute
+  AdminArchiveRoute: typeof AdminArchiveRoute
   AdminCatalogRoute: typeof AdminCatalogRouteWithChildren
+  AdminMediaRoute: typeof AdminMediaRoute
   AdminPeopleRoute: typeof AdminPeopleRoute
   AdminPlanetsRoute: typeof AdminPlanetsRoute
   AdminProfilesRoute: typeof AdminProfilesRoute
   AdminRelationshipsRoute: typeof AdminRelationshipsRoute
+  AdminStatisticsRoute: typeof AdminStatisticsRoute
   AdminStudiosRoute: typeof AdminStudiosRoute
   AdminValidationRoute: typeof AdminValidationRoute
+  AdminVocabulariesRoute: typeof AdminVocabulariesRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminCatalogNewRoute: typeof AdminCatalogNewRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAccountsRoute: AdminAccountsRoute,
+  AdminArchiveRoute: AdminArchiveRoute,
   AdminCatalogRoute: AdminCatalogRouteWithChildren,
+  AdminMediaRoute: AdminMediaRoute,
   AdminPeopleRoute: AdminPeopleRoute,
   AdminPlanetsRoute: AdminPlanetsRoute,
   AdminProfilesRoute: AdminProfilesRoute,
   AdminRelationshipsRoute: AdminRelationshipsRoute,
+  AdminStatisticsRoute: AdminStatisticsRoute,
   AdminStudiosRoute: AdminStudiosRoute,
   AdminValidationRoute: AdminValidationRoute,
+  AdminVocabulariesRoute: AdminVocabulariesRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminCatalogNewRoute: AdminCatalogNewRoute,
 }
@@ -740,16 +925,20 @@ const StudiosRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountsRoute: AccountsRoute,
   AdminRoute: AdminRouteWithChildren,
+  ArchiveRoute: ArchiveRoute,
   BrowseRoute: BrowseRoute,
   CompareRoute: CompareRoute,
   EntitiesRoute: EntitiesRouteWithChildren,
   LineageRoute: LineageRoute,
+  LoginRoute: LoginRoute,
   PeopleRoute: PeopleRouteWithChildren,
   PlanetsRoute: PlanetsRouteWithChildren,
   ProfilesRoute: ProfilesRoute,
   SettingsRoute: SettingsRoute,
   StudiosRoute: StudiosRouteWithChildren,
+  InviteTokenRoute: InviteTokenRoute,
   TitlesTitleIdRoute: TitlesTitleIdRoute,
   TitlesTitleIdInstallmentsInstallmentIdRoute:
     TitlesTitleIdInstallmentsInstallmentIdRoute,

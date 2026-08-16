@@ -1,3 +1,4 @@
+import { vocabularyFallbackLabel } from "@arcadia/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { getTaxonomyTerms } from "@/server/library.functions";
 import type { FacetKey } from "./filtering";
@@ -50,22 +51,21 @@ const valueLabelsAr: Readonly<Record<string, string>> = {
   "not assessed": "غير مقيّم",
   structured: "مقسّم إلى وحدات",
   unstructured: "غير مقسّم",
-  author: "مؤلف",
-  "original-author": "مؤلف أصلي",
-  writer: "كاتب",
-  screenwriter: "كاتب سيناريو",
-  director: "مخرج",
-  illustrator: "رسّام",
-  artist: "فنان",
-  "animation-studio": "استوديو الرسوم المتحركة",
-  "production-company": "شركة إنتاج",
-  producer: "منتج",
-  developer: "مطوّر",
-  publisher: "ناشر",
-  composer: "ملحن",
-  editor: "محرر",
-  translator: "مترجم",
   creator: "منشئ",
+  original_author: "مؤلف أصلي",
+  director: "مخرج",
+  writer: "كاتب",
+  producer: "منتج",
+  executive_producer: "منتج تنفيذي",
+  creative_producer: "منتج إبداعي",
+  character_designer: "مصمم شخصيات",
+  art_director: "مدير فني",
+  scene_design: "تصميم المشاهد",
+  composer: "ملحن",
+  animation_studio: "استوديو الرسوم المتحركة",
+  production_company: "شركة إنتاج",
+  distributor: "موزّع",
+  publisher: "ناشر",
   person: "شخص",
   organization: "مؤسسة",
 };
@@ -117,7 +117,9 @@ export function useArabicTranslations() {
 
   const databaseLabels = new Map(
     terms.flatMap((term) =>
-      term.labelAr ? [[`${term.vocabulary}:${term.labelEn}`, term.labelAr] as const] : [],
+      term.labelAr
+        ? [[`${term.vocabulary.replace(/s$/, "")}:${term.slug}`, term.labelAr] as const]
+        : [],
     ),
   );
 
@@ -125,7 +127,9 @@ export function useArabicTranslations() {
     const fallback = fallbackTaxonomyLabels[vocabulary]?.[value];
     if (vocabulary === "country" && fallback) return fallback;
     return (
-      databaseLabels.get(`${vocabulary}:${value}`) ?? fallback ?? valueLabelsAr[value] ?? value
+      databaseLabels.get(`${vocabulary}:${value}`) ??
+      fallback ??
+      vocabularyFallbackLabel("ar", vocabulary, value)
     );
   };
 

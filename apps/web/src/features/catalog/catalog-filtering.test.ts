@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Work } from "../library/model";
 import {
+  buildCatalogFacetOptions,
   createCatalogFilters,
   cycleCatalogSelection,
   workMatchesCatalogFilters,
@@ -20,6 +21,21 @@ const work = {
   country: ["Japan"],
   studios: ["Studio A"],
   contributors: [{ name: "Creator A" }],
+  awards: [
+    {
+      id: "00000000-0000-4000-8000-000000000001",
+      organizationSlug: "academy-awards",
+      organizationName: "Academy Awards — Oscars",
+      category: "Best Animated Feature",
+      year: 2024,
+      result: "winner",
+      isFeatured: true,
+      installmentId: null,
+      installmentTitle: null,
+      sourceUrl: null,
+      notes: null,
+    },
+  ],
   contentWarnings: "Violence",
   installmentId: null,
   episodeCount: 12,
@@ -51,12 +67,59 @@ describe("catalog filtering", () => {
     expect(workMatchesCatalogFilters(work, filters)).toBe(true);
   });
 
+  it("builds and applies country facets from title metadata", () => {
+    const otherWork: Work = { ...work, id: "other", country: ["United States"] };
+    const options = buildCatalogFacetOptions([work, otherWork]);
+    expect(options.countries).toEqual([
+      { value: "Japan", count: 1 },
+      { value: "United States", count: 1 },
+    ]);
+
+    const filters = createCatalogFilters();
+    filters.facets.countries.include = ["Japan"];
+    expect(workMatchesCatalogFilters(work, filters)).toBe(true);
+    expect(workMatchesCatalogFilters(otherWork, filters)).toBe(false);
+  });
+
   it("keeps unrated works visible until a minimum rating is selected", () => {
     const unratedWork = { ...work, calculatedRating: null };
     const filters = createCatalogFilters();
     expect(workMatchesCatalogFilters(unratedWork, filters)).toBe(true);
     filters.minimumRating = 1;
     expect(workMatchesCatalogFilters(unratedWork, filters)).toBe(false);
+  });
+
+  it("filters award winners by program without losing title-level recognition", () => {
+    const filters = createCatalogFilters();
+    filters.facets.awardPrograms.include = ["Academy Awards — Oscars"];
+    filters.facets.awardResults.include = ["winner"];
+    expect(workMatchesCatalogFilters(work, filters)).toBe(true);
+    filters.facets.awardResults.include = ["nominee"];
+    expect(workMatchesCatalogFilters(work, filters)).toBe(false);
+  });
+
+  it("matches an award program, category, and result on the same recognition", () => {
+    const mixedAwardsWork: Work = {
+      ...work,
+      awards: [
+        ...work.awards,
+        {
+          ...work.awards[0],
+          id: "00000000-0000-4000-8000-000000000002",
+          organizationSlug: "annie-awards",
+          organizationName: "Annie Awards",
+          category: "Best Animated Feature — Independent",
+          result: "nominee",
+        },
+      ],
+    };
+    const filters = createCatalogFilters();
+    filters.facets.awardPrograms.include = ["Annie Awards"];
+    filters.facets.awardResults.include = ["winner"];
+    expect(workMatchesCatalogFilters(mixedAwardsWork, filters)).toBe(false);
+    filters.facets.awardResults.include = ["nominee"];
+    filters.facets.awardCategories.include = ["Best Animated Feature — Independent"];
+    expect(workMatchesCatalogFilters(mixedAwardsWork, filters)).toBe(true);
   });
 
   it("defaults to public works and supports all/private admin visibility", () => {

@@ -61,7 +61,7 @@ export function AdminCatalogPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const facetOptions = useMemo(() => buildCatalogFacetOptions(works), [works]);
   const visible = useMemo(() => {
@@ -124,7 +124,7 @@ export function AdminCatalogPage() {
           </Button>
         }
       />
-      <Card className="m-6 mr-5 mt-0 px-0 pb-0">
+      <Card className="mx-5 mb-6 min-w-0 px-0 pb-0 sm:mx-6">
         <CardHeader className="gap-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -236,7 +236,7 @@ export function AdminCatalogPage() {
                   />
                   تحديد كل النتائج الحالية
                 </div>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
+                <div className="grid min-w-0 grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
                   {visible.map((work) => (
                     <CatalogCard
                       key={work.id}

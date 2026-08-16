@@ -13,7 +13,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
-    "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
+    "db:migrate": "tsx src/prepare-media-backfill.ts && drizzle-kit migrate --config drizzle.config.ts",
     "db:seed": "tsx src/seed.ts",
     "db:studio": "drizzle-kit studio --config drizzle.config.ts",
     "db:import": "tsx src/import-v1.ts",
@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@arcadia/domain": "workspace:*",
+    "better-auth": "^1.6.29",
     "better-sqlite3": "^12.11.1",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.7"

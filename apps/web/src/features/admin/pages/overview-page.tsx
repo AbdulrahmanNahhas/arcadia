@@ -4,7 +4,7 @@ import {
   FilmSlateIcon,
   LinkSimpleIcon,
   PlanetIcon,
-  ShieldWarningIcon,
+  ShieldCheckIcon,
   SparkleIcon,
   TelevisionSimpleIcon,
   UserIcon,
@@ -164,6 +164,22 @@ export function AdminOverviewPage() {
                 count={metrics.missing_posters}
                 to="/admin/catalog"
               />
+              <QueueItem
+                label="أصول غير مستخدمة"
+                count={metrics.unreferenced_assets}
+                to="/admin/media"
+              />
+              <QueueItem
+                label="أخطاء حذف ملفات"
+                count={metrics.media_failures}
+                to="/admin/media"
+                urgent
+              />
+              <QueueItem
+                label="مصطلحات مؤرشفة مستخدمة"
+                count={metrics.inactive_term_usage}
+                to="/admin/vocabularies"
+              />
             </CardContent>
           </Card>
         </div>
@@ -197,21 +213,22 @@ export function AdminOverviewPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>حدود نسخة ألفا</CardTitle>
-              <CardDescription>الحالة التشغيلية التي يجب ألا تُفهم كمصادقة إنتاجية.</CardDescription>
+              <CardTitle>حالة النظام</CardTitle>
+              <CardDescription>المصادقة والتكاملات المتاحة في هذه النسخة.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <Alert>
-                <ShieldWarningIcon />
-                <AlertTitle>الإدارة تجريبية ومحلية</AlertTitle>
+                <ShieldCheckIcon />
+                <AlertTitle>جلسات الحسابات مفعّلة</AlertTitle>
                 <AlertDescription>
-                  اختيار ملف المدير ورقمه حاجز واجهة فقط. واجهات الإدارة ترفض التشغيل الإنتاجي حتى
-                  إضافة المصادقة الحقيقية.
+                  تحمي Better Auth الواجهة وواجهات API بجلسات حقيقية وصلاحيات دقيقة. حسابات البذور
+                  مخصصة للتطوير فقط، والتسجيل العام مغلق لصالح الدعوات وإدارة المالك.
                 </AlertDescription>
               </Alert>
               <Separator />
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">PostgreSQL جاهز</Badge>
+                <Badge variant="secondary">Better Auth جاهز</Badge>
                 <Badge variant="outline">OpenAPI v1</Badge>
                 <Badge variant="outline">Jellyfin مؤجل</Badge>
                 <Badge variant="outline">التشغيل مؤجل</Badge>

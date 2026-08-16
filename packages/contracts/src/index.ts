@@ -26,6 +26,20 @@ export const scoreSchema = z.object({
   originality: z.number().min(0).max(10).nullable(),
   craft: z.number().min(0).max(10).nullable(),
 });
+export const awardResultSchema = z.enum(["winner", "nominee"]);
+export const awardRecognitionSchema = z.object({
+  id: z.string().uuid(),
+  organizationSlug: z.string().min(1),
+  organizationName: z.string().min(1),
+  category: z.string().min(1),
+  year: z.number().int().min(1900).max(2100).nullable(),
+  result: awardResultSchema,
+  isFeatured: z.boolean(),
+  installmentId: z.string().uuid().nullable(),
+  installmentTitle: z.string().nullable(),
+  sourceUrl: z.string().url().nullable(),
+  notes: z.string().nullable(),
+});
 export const episodeSchema = z.object({
   id: z.string().uuid(),
   number: z.number(),
@@ -50,6 +64,7 @@ export const installmentSchema = z.object({
   classificationOverrides: z.array(z.string()),
   score: scoreSchema,
   rating: z.number().nullable(),
+  awards: z.array(awardRecognitionSchema),
   episodes: z.array(episodeSchema).optional(),
 });
 export const titleSummarySchema = z.object({
@@ -69,6 +84,7 @@ export const titleSummarySchema = z.object({
   genres: z.array(taxonomySchema("genres")),
   tones: z.array(taxonomySchema("tones")),
   tags: z.array(taxonomySchema("tags")),
+  countries: z.array(z.string()),
   planet: z
     .object({ id: z.string().uuid(), slug: z.string(), nameAr: z.string(), icon: z.string() })
     .nullable(),
@@ -87,6 +103,7 @@ export const titleSummarySchema = z.object({
       role: z.string(),
     }),
   ),
+  awards: z.array(awardRecognitionSchema),
 });
 export const titleDetailSchema = titleSummarySchema.extend({
   analysisNotes: z.string().nullable(),
@@ -121,9 +138,759 @@ export const healthSchema = z.object({
   database: z.enum(["ready", "unavailable"]),
   version: z.literal("v2"),
 });
+
+export const adminErrorSchema = z.object({
+  message: z.string(),
+  issues: z.array(z.unknown()).optional(),
+});
+export const mediaAssetRoleSchema = z.enum(["poster", "banner", "logo", "profile"]);
+export const mediaOwnerSchema = z
+  .object({
+    titleId: z.string().uuid().optional(),
+    installmentId: z.string().uuid().optional(),
+    episodeId: z.string().uuid().optional(),
+    entityId: z.string().uuid().optional(),
+  })
+  .refine((value) => Object.values(value).filter(Boolean).length === 1, {
+    message: "Exactly one media owner is required",
+  });
+export const mediaAssetSchema = z.object({
+  id: z.string().uuid(),
+  path: z.string().startsWith("/media/"),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  mimeType: z.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]),
+  byteSize: z.number().int().positive(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  originalFilename: z.string(),
+  focalX: z.number().int().min(0).max(100),
+  focalY: z.number().int().min(0).max(100),
+  usageCount: z.number().int().min(0),
+  health: z.enum(["healthy", "missing", "deletion-failed"]),
+  deletionError: z.string().nullable(),
+  assignments: z.array(
+    z.object({
+      id: z.string().uuid(),
+      role: mediaAssetRoleSchema,
+      isPrimary: z.boolean(),
+      owner: mediaOwnerSchema,
+      ownerLabel: z.string(),
+    }),
+  ),
+});
+export const adminMediaUploadSchema = z.object({
+  dataUrl: z.string().max(14_000_000),
+  fileName: z.string().trim().min(1).max(255),
+  ownerName: z.string().trim().min(1).max(200),
+  role: mediaAssetRoleSchema,
+  owner: mediaOwnerSchema.optional(),
+  isPrimary: z.boolean().default(true),
+});
+export const adminMediaAssignmentSchema = z.object({
+  assetId: z.string().uuid(),
+  role: mediaAssetRoleSchema,
+  owner: mediaOwnerSchema,
+  isPrimary: z.boolean().default(true),
+});
+export const adminMediaSearchSchema = z.object({
+  q: z.string().trim().max(160).optional(),
+  health: z
+    .enum(["all", "healthy", "missing", "deletion-failed", "reused", "unused", "oversized"])
+    .default("all"),
+  role: mediaAssetRoleSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export const vocabularyNameSchema = z.enum([
+  "genres",
+  "tones",
+  "tags",
+  "countries",
+  "roles",
+  "audiences",
+  "ages",
+  "risk-levels",
+  "release-statuses",
+]);
+export const vocabularyTermSchema = z.object({
+  id: z.string().min(1),
+  vocabulary: vocabularyNameSchema,
+  slug: z.string(),
+  labelEn: z.string(),
+  labelAr: z.string(),
+  descriptionEn: z.string(),
+  descriptionAr: z.string(),
+  position: z.number().int().min(0),
+  isActive: z.boolean(),
+  usageCount: z.number().int().min(0),
+  /** Set only for contribution roles; it determines who can receive the credit. */
+  entityType: z.enum(["person", "organization"]).nullable(),
+});
+export const adminVocabularyInputSchema = z.object({
+  id: z.string().min(1).optional(),
+  vocabulary: vocabularyNameSchema,
+  slug: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  labelEn: z.string().trim().min(1).max(120),
+  labelAr: z.string().trim().min(1).max(120),
+  descriptionEn: z.string().max(1000).default(""),
+  descriptionAr: z.string().max(1000).default(""),
+  position: z.number().int().min(0),
+  isActive: z.boolean().default(true),
+  entityType: z.enum(["person", "organization"]).nullable().default(null),
+});
+
+export const validationIssueSchema = z.object({
+  id: z.string(),
+  severity: z.enum(["error", "warning", "info"]),
+  category: z.enum(["integrity", "metadata", "media", "vocabulary", "jellyfin"]),
+  entityType: z.string(),
+  entityId: z.string(),
+  title: z.string(),
+  path: z.string(),
+  message: z.string(),
+  action: z.string(),
+  repairPath: z.string().nullable(),
+  autoRepairable: z.boolean(),
+});
+export const adminStatisticsSchema = z.object({
+  visibility: z.array(z.object({ key: z.string(), value: z.number().int() })),
+  kinds: z.array(z.object({ key: z.string(), value: z.number().int() })),
+  releaseTimeline: z.array(z.object({ year: z.number().int(), value: z.number().int() })),
+  installmentStatus: z.array(z.object({ key: z.string(), value: z.number().int() })),
+  genres: z.array(z.object({ key: z.string(), labelAr: z.string(), value: z.number().int() })),
+  tags: z.array(z.object({ key: z.string(), labelAr: z.string(), value: z.number().int() })),
+  tones: z.array(z.object({ key: z.string(), labelAr: z.string(), value: z.number().int() })),
+  countries: z.array(z.object({ key: z.string(), labelAr: z.string(), value: z.number().int() })),
+  planets: z.array(z.object({ key: z.string(), labelAr: z.string(), value: z.number().int() })),
+  scoreDistribution: z.array(z.object({ bucket: z.string(), value: z.number().int() })),
+  scoreCoverage: z.object({ scored: z.number().int(), total: z.number().int() }),
+  media: z.object({
+    assets: z.number().int(),
+    bytes: z.number().int(),
+    reused: z.number().int(),
+    roles: z.array(z.object({ key: z.string(), value: z.number().int() })),
+    formats: z.array(z.object({ key: z.string(), value: z.number().int() })),
+  }),
+  contributors: z.array(
+    z.object({ key: z.string(), labelAr: z.string(), value: z.number().int() }),
+  ),
+});
+
+export const accountKindSchema = z.enum(["admin", "family", "personal"]);
+export const accountStatusSchema = z.enum(["invited", "active", "suspended"]);
+export const accountRoleSchema = z.enum(["owner", "editor", "member"]);
+export const avatarKeySchema = z.enum(["orbit-1", "orbit-2", "orbit-3", "orbit-4", "orbit-5"]);
+export const accountCapabilitySchema = z.enum([
+  "catalog.view",
+  "catalog.edit",
+  "people.edit",
+  "studios.edit",
+  "awards.edit",
+  "accounts.manage",
+  "policies.manage",
+  "social.moderate",
+  "media.manage",
+  "analytics.view",
+]);
+export const accountPreferencesSchema = z.object({
+  theme: z.enum(["dark", "light"]),
+  preferredAudio: z.array(z.string()),
+  allowedAudio: z.array(z.string()),
+  subtitleMode: z.enum(["off", "allowed"]),
+  canSwitchTracks: z.boolean(),
+  autoplay: z.boolean(),
+  hideSpoilers: z.boolean(),
+  spoilerMode: z.enum(["cover", "hide", "show"]),
+  notifyFamilyActivity: z.boolean(),
+  notifyReplies: z.boolean(),
+  defaultSavedViewId: z.string().uuid().nullable(),
+  homeLayout: z.record(z.string(), z.unknown()),
+  dashboardLayout: z.record(z.string(), z.unknown()),
+});
+export const familyAccountSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().nullable(),
+  displayName: z.string(),
+  kind: accountKindSchema,
+  role: accountRoleSchema,
+  status: accountStatusSchema,
+  avatarKey: avatarKeySchema,
+  bio: z.string(),
+  capabilities: z.array(accountCapabilitySchema),
+  preferences: accountPreferencesSchema,
+  contentPolicy: effectiveClassificationSchema,
+  isCurrent: z.boolean(),
+});
+export const sessionAccountSchema = z.object({
+  account: familyAccountSchema,
+  expiresAt: z.string(),
+});
+export const signInInputSchema = z.object({
+  username: z.string().trim().min(3).max(30),
+  password: z.string().min(8).max(128),
+  rememberMe: z.boolean().default(true),
+});
+export const updateAccountInputSchema = z.object({
+  displayName: z.string().trim().min(2).max(80).optional(),
+  avatarKey: avatarKeySchema.optional(),
+  bio: z.string().trim().max(280).optional(),
+  preferences: accountPreferencesSchema.partial().optional(),
+  contentPolicy: effectiveClassificationSchema.optional(),
+});
+export const createAccountInputSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(3)
+    .max(30)
+    .regex(/^[a-zA-Z0-9_]+$/),
+  password: z.string().min(8).max(128),
+  displayName: z.string().trim().min(2).max(80),
+  kind: accountKindSchema,
+  role: accountRoleSchema.default("member"),
+  avatarKey: avatarKeySchema,
+  capabilities: z.array(accountCapabilitySchema).default([]),
+});
+export const createInviteInputSchema = createAccountInputSchema.omit({ password: true }).extend({
+  expiresInHours: z
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 30)
+    .default(72),
+});
+export const acceptInviteInputSchema = z.object({
+  token: z.string().min(32).max(256),
+  password: z.string().min(8).max(128),
+});
+export const adminUpdateAccountInputSchema = z.object({
+  displayName: z.string().trim().min(2).max(80).optional(),
+  kind: accountKindSchema.optional(),
+  role: accountRoleSchema.optional(),
+  status: accountStatusSchema.optional(),
+  avatarKey: avatarKeySchema.optional(),
+  capabilities: z.array(accountCapabilitySchema).optional(),
+  contentPolicy: effectiveClassificationSchema.optional(),
+  adminRestrictions: effectiveClassificationSchema.optional(),
+  blockedTitleIds: z.array(z.string().uuid()).optional(),
+  blockedTagIds: z.array(z.string().uuid()).optional(),
+  blockedGenreIds: z.array(z.string().uuid()).optional(),
+  blockedEntityIds: z.array(z.string().uuid()).optional(),
+  blockedPlanetIds: z.array(z.string().uuid()).optional(),
+});
+const restrictionOptionSchema = z.object({
+  id: z.string().uuid(),
+  label: z.string(),
+  description: z.string().nullable().optional(),
+  kind: z.string().nullable().optional(),
+});
+export const accountRestrictionEditorSchema = z.object({
+  blockedTitleIds: z.array(z.string().uuid()),
+  blockedTagIds: z.array(z.string().uuid()),
+  blockedGenreIds: z.array(z.string().uuid()),
+  blockedEntityIds: z.array(z.string().uuid()),
+  blockedPlanetIds: z.array(z.string().uuid()),
+  options: z.object({
+    titles: z.array(restrictionOptionSchema),
+    tags: z.array(restrictionOptionSchema),
+    genres: z.array(restrictionOptionSchema),
+    entities: z.array(restrictionOptionSchema),
+    planets: z.array(restrictionOptionSchema),
+  }),
+});
+export const accountPolicyPreviewSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().nullable(),
+  displayName: z.string(),
+  kind: accountKindSchema,
+  role: accountRoleSchema,
+  status: accountStatusSchema,
+  avatarKey: avatarKeySchema,
+  capabilities: z.array(accountCapabilitySchema),
+  contentPolicy: effectiveClassificationSchema,
+  adminRestrictions: effectiveClassificationSchema,
+  titleBlockCount: z.number().int().min(0),
+  tagBlockCount: z.number().int().min(0),
+  genreBlockCount: z.number().int().min(0),
+  entityBlockCount: z.number().int().min(0),
+  planetBlockCount: z.number().int().min(0),
+  lastSeenAt: z.string().nullable(),
+  authenticationReady: z.literal(true),
+});
+
+export const libraryStatusSchema = z.enum([
+  "planned",
+  "watching",
+  "completed",
+  "paused",
+  "dropped",
+]);
+export const accountTitleStateSchema = z.object({
+  titleId: z.string().uuid(),
+  status: libraryStatusSchema.nullable(),
+  isFavorite: z.boolean(),
+  personalRating: z.number().int().min(1).max(5).nullable(),
+  notes: z.string().max(2000),
+  startedAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  updatedAt: z.string(),
+});
+export const titleReviewSchema = z.object({
+  id: z.string().uuid(),
+  titleId: z.string().uuid(),
+  author: familyAccountSchema.pick({ id: true, displayName: true, avatarKey: true }),
+  rating: z.number().int().min(1).max(5),
+  body: z.string().max(1200),
+  containsSpoilers: z.boolean(),
+  reactions: z.record(z.string(), z.number().int().min(0)),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export const titleCommentSchema = z.object({
+  id: z.string().uuid(),
+  titleId: z.string().uuid(),
+  parentId: z.string().uuid().nullable(),
+  author: familyAccountSchema.pick({ id: true, displayName: true, avatarKey: true }),
+  body: z.string().min(1).max(1200),
+  containsSpoilers: z.boolean(),
+  reactions: z.record(z.string(), z.number().int().min(0)),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export const socialReactionSchema = z.enum(["heart", "clap", "laugh", "wow", "think"]);
+export const upsertTitleStateInputSchema = z.object({
+  status: libraryStatusSchema.nullable().optional(),
+  isFavorite: z.boolean().optional(),
+  personalRating: z.number().int().min(1).max(5).nullable().optional(),
+  notes: z.string().max(2000).optional(),
+});
+export const upsertPlaybackInputSchema = z.object({
+  installmentId: z.string().uuid(),
+  episodeId: z.string().uuid().nullable().default(null),
+  positionSeconds: z.number().int().min(0),
+  completed: z.boolean().default(false),
+});
+export const upsertReviewInputSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  body: z.string().trim().max(1200).default(""),
+  containsSpoilers: z.boolean().default(false),
+});
+export const createCommentInputSchema = z.object({
+  parentId: z.string().uuid().nullable().default(null),
+  body: z.string().trim().min(1).max(1200),
+  containsSpoilers: z.boolean().default(false),
+});
+export const reactionInputSchema = z.object({ emoji: socialReactionSchema });
+export const familyActivitySchema = z.object({
+  id: z.string(),
+  kind: z.enum(["review", "comment", "favorite", "status"]),
+  account: familyAccountSchema.pick({ id: true, displayName: true, avatarKey: true }),
+  title: z.object({ id: z.string().uuid(), name: z.string(), posterPath: z.string().nullable() }),
+  body: z.string().nullable(),
+  rating: z.number().int().min(1).max(5).nullable(),
+  createdAt: z.string(),
+});
+export const titleSocialSchema = z.object({
+  state: accountTitleStateSchema.nullable(),
+  reviews: z.array(titleReviewSchema),
+  comments: z.array(titleCommentSchema),
+});
+export const notificationSchema = z.object({
+  id: z.string().uuid(),
+  kind: z.enum(["reply", "reaction", "review", "catalog", "system"]),
+  message: z.string(),
+  titleId: z.string().uuid().nullable(),
+  readAt: z.string().nullable(),
+  createdAt: z.string(),
+  actor: familyAccountSchema.pick({ id: true, displayName: true, avatarKey: true }).nullable(),
+});
+export const awardCategoryOptionSchema = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  nameAr: z.string(),
+  nameEn: z.string().nullable(),
+});
+export const awardOrganizationOptionSchema = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  nameAr: z.string(),
+  nameEn: z.string().nullable(),
+  websiteUrl: z.string().url().nullable(),
+  categories: z.array(awardCategoryOptionSchema),
+});
+export const awardOptionsSchema = z.array(awardOrganizationOptionSchema);
+export const createAwardOrganizationSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  nameAr: z.string().trim().min(2).max(160),
+  nameEn: z.string().trim().max(160).nullable().default(null),
+  websiteUrl: z.string().url().nullable().default(null),
+});
+export const createAwardCategorySchema = z.object({
+  organizationId: z.string().uuid(),
+  slug: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  nameAr: z.string().trim().min(2).max(160),
+  nameEn: z.string().trim().max(160).nullable().default(null),
+});
+
+export const collectionVisibilitySchema = z.enum(["private", "family"]);
+export const workflowStatusSchema = z.enum([
+  "draft",
+  "in_review",
+  "approved",
+  "published",
+  "archived",
+]);
+export const archiveRequestKindSchema = z.enum([
+  "missing_work",
+  "correction",
+  "planet",
+  "metadata",
+]);
+export const archiveRequestStatusSchema = z.enum(["open", "in_progress", "resolved", "rejected"]);
+export const recommendationStatusSchema = z.enum(["pending", "accepted", "deferred", "dismissed"]);
+export const jobStatusSchema = z.enum(["queued", "running", "completed", "failed", "cancelled"]);
+
+const compactTitleSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  posterPath: z.string().nullable(),
+});
+export const viewHistoryItemSchema = z.object({
+  title: compactTitleSchema,
+  viewedAt: z.string(),
+  visitCount: z.number().int().positive(),
+});
+export const savedViewSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  query: z.record(z.string(), z.unknown()),
+  isDefault: z.boolean(),
+  notifyNew: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export const savedViewInputSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  query: z.record(z.string(), z.unknown()).default({}),
+  isDefault: z.boolean().default(false),
+  notifyNew: z.boolean().default(false),
+});
+export const collectionItemSchema = z.object({
+  title: compactTitleSchema,
+  position: z.number().int().min(0),
+  note: z.string().max(600),
+  addedAt: z.string(),
+});
+export const collectionSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  description: z.string(),
+  visibility: collectionVisibilitySchema,
+  isSmart: z.boolean(),
+  ranked: z.boolean(),
+  coverPath: z.string().nullable(),
+  rules: z.record(z.string(), z.unknown()).nullable(),
+  owner: familyAccountSchema.pick({ id: true, displayName: true, avatarKey: true }),
+  contributorCount: z.number().int().min(0),
+  items: z.array(collectionItemSchema),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export const collectionInputSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  description: z.string().trim().max(1000).default(""),
+  visibility: collectionVisibilitySchema.default("private"),
+  isSmart: z.boolean().default(false),
+  ranked: z.boolean().default(false),
+  rules: z.record(z.string(), z.unknown()).nullable().default(null),
+});
+export const collectionItemInputSchema = z.object({
+  titleId: z.string().uuid(),
+  note: z.string().trim().max(600).default(""),
+});
+export const familyRecommendationSchema = z.object({
+  id: z.string().uuid(),
+  sender: familyAccountSchema.pick({ id: true, displayName: true, avatarKey: true }),
+  recipient: familyAccountSchema.pick({ id: true, displayName: true, avatarKey: true }),
+  title: compactTitleSchema,
+  reason: z.string(),
+  status: recommendationStatusSchema,
+  createdAt: z.string(),
+  respondedAt: z.string().nullable(),
+});
+export const createRecommendationInputSchema = z.object({
+  recipientAccountId: z.string().uuid(),
+  titleId: z.string().uuid(),
+  reason: z.string().trim().min(1).max(400),
+});
+export const familyEventSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  notes: z.string(),
+  scheduledFor: z.string().nullable(),
+  status: z.enum(["planning", "scheduled", "completed", "cancelled"]),
+  creator: familyAccountSchema.pick({ id: true, displayName: true, avatarKey: true }),
+  candidates: z.array(
+    z.object({
+      title: compactTitleSchema,
+      votes: z.number().int().min(0),
+      votedByMe: z.boolean(),
+    }),
+  ),
+  createdAt: z.string(),
+});
+export const familyEventInputSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  notes: z.string().trim().max(1000).default(""),
+  scheduledFor: z.string().datetime().nullable().default(null),
+  candidateTitleIds: z.array(z.string().uuid()).min(1).max(12),
+});
+export const archiveRequestSchema = z.object({
+  id: z.string().uuid(),
+  kind: archiveRequestKindSchema,
+  status: archiveRequestStatusSchema,
+  title: z.string(),
+  body: z.string(),
+  requester: familyAccountSchema.pick({ id: true, displayName: true, avatarKey: true }),
+  targetType: z.string().nullable(),
+  targetId: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export const archiveRequestInputSchema = z.object({
+  kind: archiveRequestKindSchema,
+  title: z.string().trim().min(2).max(160),
+  body: z.string().trim().min(2).max(2000),
+  targetType: z.string().max(40).nullable().default(null),
+  targetId: z.string().max(100).nullable().default(null),
+});
+export const auditEntrySchema = z.object({
+  id: z.string().uuid(),
+  actorName: z.string().nullable(),
+  action: z.string(),
+  targetType: z.string(),
+  targetId: z.string().nullable(),
+  summary: z.string(),
+  changes: z.record(z.string(), z.unknown()),
+  createdAt: z.string(),
+});
+export const editorialRevisionSchema = auditEntrySchema.extend({
+  revision: z.number().int().positive(),
+  snapshot: z.record(z.string(), z.unknown()),
+});
+export const backgroundJobSchema = z.object({
+  id: z.string().uuid(),
+  type: z.string(),
+  status: jobStatusSchema,
+  progress: z.number().int().min(0).max(100),
+  result: z.record(z.string(), z.unknown()).nullable(),
+  error: z.string().nullable(),
+  createdAt: z.string(),
+  finishedAt: z.string().nullable(),
+});
+export const archiveQualitySchema = z.object({
+  entityType: z.string(),
+  entityId: z.string(),
+  label: z.string(),
+  score: z.number().int().min(0).max(100),
+  issues: z.array(z.string()),
+});
+export const duplicateCandidateSchema = z.object({
+  entityType: z.enum(["title", "entity"]),
+  normalizedValue: z.string(),
+  candidates: z.array(z.object({ id: z.string(), label: z.string() })).min(2),
+});
+export const sourceEvidenceSchema = z.object({
+  id: z.string().uuid(),
+  entityType: z.string(),
+  entityId: z.string(),
+  fieldPath: z.string(),
+  sourceNote: z.string(),
+  sourceUrl: z.string().nullable(),
+  verificationStatus: z.enum(["unverified", "verified", "rejected"]),
+  checkedAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export const sourceEvidenceInputSchema = z.object({
+  entityType: z.string().trim().min(1).max(40),
+  entityId: z.string().trim().min(1).max(100),
+  fieldPath: z.string().trim().min(1).max(120),
+  sourceNote: z.string().trim().min(2).max(1000),
+  sourceUrl: z.string().url().nullable().default(null),
+  verificationStatus: z.enum(["unverified", "verified", "rejected"]).default("unverified"),
+});
+export const releaseCalendarItemSchema = z.object({
+  installmentId: z.string().uuid(),
+  titleId: z.string().uuid(),
+  title: z.string(),
+  installmentTitle: z.string(),
+  kind: z.enum(["season", "movie", "special"]),
+  releaseDate: z.string(),
+  followed: z.boolean(),
+});
+export const permissionExplanationSchema = z.object({
+  accountId: z.string().uuid(),
+  targetType: z.string(),
+  targetId: z.string(),
+  allowed: z.boolean(),
+  reasons: z.array(z.string()),
+});
+
+export const adminSchemaFieldGuide = {
+  "title.canonicalTitle": {
+    purpose: "Canonical display and sort title",
+    required: true,
+    nullable: false,
+    shape: "string",
+  },
+  "title.titleAr": {
+    purpose: "Preferred Arabic title",
+    required: false,
+    nullable: true,
+    shape: "string | null",
+  },
+  "title.aliases": {
+    purpose: "Searchable alternative titles",
+    required: true,
+    nullable: false,
+    shape: "string[]",
+  },
+  "title.summary": {
+    purpose: "Editorial title summary",
+    required: true,
+    nullable: false,
+    shape: "string",
+  },
+  "title.releaseYear": {
+    purpose: "Four-digit release year",
+    required: false,
+    nullable: true,
+    shape: "integer | null",
+  },
+  "title.isPrivate": {
+    purpose: "Hide title from public catalog",
+    required: true,
+    nullable: false,
+    shape: "boolean",
+  },
+  "title.audience": {
+    purpose: "Default audience classification",
+    required: true,
+    nullable: false,
+    shape: audienceSchema.options.join(" | "),
+  },
+  "title.risks": {
+    purpose: "Default risk levels by dimension",
+    required: true,
+    nullable: false,
+    shape: `{ sexuality | behavioral | theology: ${riskLevelSchema.options.join(" | ")} }`,
+  },
+  "structure.installments.kind": {
+    purpose: "Installment form",
+    required: true,
+    nullable: false,
+    shape: installmentKindSchema.options.join(" | "),
+  },
+  "structure.installments.status": {
+    purpose: "Factual release state",
+    required: true,
+    nullable: false,
+    shape: installmentStatusSchema.options.join(" | "),
+  },
+  "structure.installments.position": {
+    purpose: "Stable non-negative order",
+    required: true,
+    nullable: false,
+    shape: "integer >= 0",
+  },
+  "structure.installments.releaseDate": {
+    purpose: "ISO calendar date",
+    required: false,
+    nullable: true,
+    shape: "YYYY-MM-DD | null",
+  },
+  "structure.installments.runtimeMinutes": {
+    purpose: "Non-negative runtime",
+    required: false,
+    nullable: true,
+    shape: "integer >= 0 | null",
+  },
+  "structure.installments.episodes.number": {
+    purpose: "Unique episode number within installment",
+    required: true,
+    nullable: false,
+    shape: "positive number",
+  },
+  "structure.installments.episodes.position": {
+    purpose: "Stable non-negative episode order",
+    required: true,
+    nullable: false,
+    shape: "integer >= 0",
+  },
+  "structure.installments.episodes.releaseDate": {
+    purpose: "ISO episode release date",
+    required: false,
+    nullable: true,
+    shape: "YYYY-MM-DD | null",
+  },
+} as const;
 export type TitleSummary = z.infer<typeof titleSummarySchema>;
 export type TitleDetail = z.infer<typeof titleDetailSchema>;
 export type Installment = z.infer<typeof installmentSchema>;
 export type InstallmentStatus = z.infer<typeof installmentStatusSchema>;
 export type TitleReleaseStatus = z.infer<typeof titleReleaseStatusSchema>;
+export type AwardRecognition = z.infer<typeof awardRecognitionSchema>;
+export type AwardResult = z.infer<typeof awardResultSchema>;
 export type BrowseResponse = z.infer<typeof browseResponseSchema>;
+export type MediaAsset = z.infer<typeof mediaAssetSchema>;
+export type VocabularyTerm = z.infer<typeof vocabularyTermSchema>;
+export type ValidationIssue = z.infer<typeof validationIssueSchema>;
+export type AdminStatistics = z.infer<typeof adminStatisticsSchema>;
+export type AccountPolicyPreview = z.infer<typeof accountPolicyPreviewSchema>;
+export type AccountKind = z.infer<typeof accountKindSchema>;
+export type AccountStatus = z.infer<typeof accountStatusSchema>;
+export type AccountRole = z.infer<typeof accountRoleSchema>;
+export type AccountCapability = z.infer<typeof accountCapabilitySchema>;
+export type AvatarKey = z.infer<typeof avatarKeySchema>;
+export type FamilyAccount = z.infer<typeof familyAccountSchema>;
+export type SessionAccount = z.infer<typeof sessionAccountSchema>;
+export type AccountPreferences = z.infer<typeof accountPreferencesSchema>;
+export type UpdateAccountInput = z.infer<typeof updateAccountInputSchema>;
+export type CreateAccountInput = z.infer<typeof createAccountInputSchema>;
+export type CreateInviteInput = z.infer<typeof createInviteInputSchema>;
+export type AdminUpdateAccountInput = z.infer<typeof adminUpdateAccountInputSchema>;
+export type AccountRestrictionEditor = z.infer<typeof accountRestrictionEditorSchema>;
+export type AccountTitleState = z.infer<typeof accountTitleStateSchema>;
+export type TitleReview = z.infer<typeof titleReviewSchema>;
+export type TitleComment = z.infer<typeof titleCommentSchema>;
+export type TitleSocial = z.infer<typeof titleSocialSchema>;
+export type FamilyActivity = z.infer<typeof familyActivitySchema>;
+export type Notification = z.infer<typeof notificationSchema>;
+export type AwardOrganizationOption = z.infer<typeof awardOrganizationOptionSchema>;
+export type Collection = z.infer<typeof collectionSchema>;
+export type CollectionItem = z.infer<typeof collectionItemSchema>;
+export type SavedView = z.infer<typeof savedViewSchema>;
+export type ViewHistoryItem = z.infer<typeof viewHistoryItemSchema>;
+export type FamilyRecommendation = z.infer<typeof familyRecommendationSchema>;
+export type FamilyEvent = z.infer<typeof familyEventSchema>;
+export type ArchiveRequest = z.infer<typeof archiveRequestSchema>;
+export type AuditEntry = z.infer<typeof auditEntrySchema>;
+export type EditorialRevision = z.infer<typeof editorialRevisionSchema>;
+export type BackgroundJob = z.infer<typeof backgroundJobSchema>;
+export type ArchiveQuality = z.infer<typeof archiveQualitySchema>;
+export type DuplicateCandidate = z.infer<typeof duplicateCandidateSchema>;
+export type SourceEvidence = z.infer<typeof sourceEvidenceSchema>;
+export type ReleaseCalendarItem = z.infer<typeof releaseCalendarItemSchema>;
+export type WorkflowStatus = z.infer<typeof workflowStatusSchema>;
+export type PermissionExplanation = z.infer<typeof permissionExplanationSchema>;

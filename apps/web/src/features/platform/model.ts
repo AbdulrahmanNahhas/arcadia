@@ -78,12 +78,23 @@ export type Recommendation = {
 export type ValidationIssue = {
   id: string;
   severity: "error" | "warning" | "info";
-  entityType: "work" | "person" | "studio" | "planet" | "relationship" | "asset" | "search";
+  category?: "integrity" | "metadata" | "media" | "vocabulary" | "jellyfin";
+  entityType:
+    | "work"
+    | "person"
+    | "studio"
+    | "planet"
+    | "relationship"
+    | "asset"
+    | "search"
+    | "vocabulary";
   entityId: string;
   title: string;
   path: string;
   message: string;
   action: string;
+  repairPath?: string | null;
+  autoRepairable?: boolean;
 };
 
 export type OrganizationRelationship = {

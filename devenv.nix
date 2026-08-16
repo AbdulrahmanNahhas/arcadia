@@ -22,6 +22,7 @@
   env.DATABASE_URL = "postgresql://127.0.0.1/arcadia";
   env.VITE_API_URL = "http://127.0.0.1:3001";
   env.ARCADIA_MOCK_AUTH = "true";
+  env.ARCADIA_SEED_DEMO_ACCOUNTS = "true";
 
   packages = with pkgs; [
     biome

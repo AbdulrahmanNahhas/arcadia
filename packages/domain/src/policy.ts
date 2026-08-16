@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Classification } from "./classification";
-import { intersectClassifications } from "./classification";
+import { intersectClassifications, isClassificationAllowed } from "./classification";
 
 export const filterTreeSchema: z.ZodType<FilterTree> = z.lazy(() =>
   z.union([
@@ -8,7 +8,7 @@ export const filterTreeSchema: z.ZodType<FilterTree> = z.lazy(() =>
     z.object({ op: z.literal("not"), child: filterTreeSchema }),
     z.object({
       op: z.literal("in"),
-      field: z.enum(["planet", "genre", "tag"]),
+      field: z.enum(["planet", "genre", "tag", "tone", "country", "person", "studio"]),
       values: z.array(z.string().min(1)).min(1).max(100),
     }),
   ]),
@@ -16,7 +16,42 @@ export const filterTreeSchema: z.ZodType<FilterTree> = z.lazy(() =>
 export type FilterTree =
   | { op: "and" | "or"; children: FilterTree[] }
   | { op: "not"; child: FilterTree }
-  | { op: "in"; field: "planet" | "genre" | "tag"; values: string[] };
+  | {
+      op: "in";
+      field: "planet" | "genre" | "tag" | "tone" | "country" | "person" | "studio";
+      values: string[];
+    };
+
+export type VisibilityPolicy = {
+  maximum: Classification;
+  blockedTitleIds: ReadonlySet<string>;
+  blockedTagIds: ReadonlySet<string>;
+  blockedGenreIds: ReadonlySet<string>;
+  blockedEntityIds: ReadonlySet<string>;
+  blockedPlanetIds: ReadonlySet<string>;
+};
+
+export type VisibilityCandidate = {
+  id: string;
+  classification: Classification;
+  tagIds?: readonly string[];
+  genreIds?: readonly string[];
+  entityIds?: readonly string[];
+  planetIds?: readonly string[];
+};
+
+export function isVisibleToPolicy(candidate: VisibilityCandidate, policy: VisibilityPolicy) {
+  if (!isClassificationAllowed(candidate.classification, policy.maximum)) return false;
+  if (policy.blockedTitleIds.has(candidate.id)) return false;
+  const hasBlocked = (values: readonly string[] | undefined, blocked: ReadonlySet<string>) =>
+    values?.some((value) => blocked.has(value)) ?? false;
+  return !(
+    hasBlocked(candidate.tagIds, policy.blockedTagIds) ||
+    hasBlocked(candidate.genreIds, policy.blockedGenreIds) ||
+    hasBlocked(candidate.entityIds, policy.blockedEntityIds) ||
+    hasBlocked(candidate.planetIds, policy.blockedPlanetIds)
+  );
+}
 
 export const languagePolicySchema = z
   .object({

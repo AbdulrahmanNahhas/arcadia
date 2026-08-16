@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import postgres from "postgres";
@@ -43,6 +43,23 @@ for (const work of sourceWorks) {
 
 const sourcePlanets = rows("planets");
 const sourceEntities = rows("entities");
+const legacyRoleMap: Record<string, string> = {
+  author: "original_author",
+  "original-author": "original_author",
+  writer: "writer",
+  screenwriter: "writer",
+  director: "director",
+  illustrator: "character_designer",
+  artist: "art_director",
+  "animation-studio": "animation_studio",
+  "production-company": "production_company",
+  developer: "production_company",
+  publisher: "publisher",
+  composer: "composer",
+  editor: "writer",
+  translator: "writer",
+  creator: "creator",
+};
 const planetIds = new Map<string, string>();
 const entityIds = new Map<string, string>();
 const profileAssets = rows("assets").filter(
@@ -73,9 +90,22 @@ await sql.begin(async (tx) => {
     const image = profileAssets.find((asset) => asset.owner_id === entity.id)?.relative_path as
       | string
       | undefined;
-    await tx`insert into entities (id, kind, name, sort_name, description, profile_path)
-      values (${id}, ${entity.entity_type as string}, ${entity.name as string}, ${entity.sort_name as string}, ${String(entity.description ?? "")}, ${image ?? null})
-      on conflict (kind, sort_name) do update set name=excluded.name, description=excluded.description, profile_path=coalesce(excluded.profile_path, entities.profile_path)`;
+    await tx`insert into entities (id, kind, name, sort_name, description)
+      values (${id}, ${entity.entity_type as string}, ${entity.name as string}, ${entity.sort_name as string}, ${String(entity.description ?? "")})
+      on conflict (kind, sort_name) do update set name=excluded.name, description=excluded.description`;
+    if (image) {
+      const sourceAsset = profileAssets.find((asset) => asset.owner_id === entity.id);
+      const filePath = resolve(repositoryRoot, "apps/web/public", `.${image}`);
+      if (sourceAsset && existsSync(filePath)) {
+        const bytes = readFileSync(filePath);
+        const [asset] = await tx`insert into media_assets
+          (path, sha256, mime_type, byte_size, width, height, original_filename)
+          values (${image}, ${createHash("sha256").update(bytes).digest("hex")}, ${String(sourceAsset.mime_type)}, ${bytes.byteLength}, ${Math.max(1, Number(sourceAsset.width ?? 1))}, ${Math.max(1, Number(sourceAsset.height ?? 1))}, ${basename(image)})
+          on conflict (sha256) do update set updated_at=now() returning id`;
+        await tx`insert into media_asset_assignments (asset_id, role, entity_id, is_primary)
+          values (${asset?.id}, 'profile', ${id}, true) on conflict do nothing`;
+      }
+    }
   }
   for (const alias of rows("entity_aliases")) {
     const entityId = entityIds.get(String(alias.entity_id));
@@ -83,16 +113,18 @@ await sql.begin(async (tx) => {
       await tx`insert into entity_aliases (entity_id, alias, language) select ${entityId}, ${alias.alias as string}, ${alias.language as string | null} where not exists (select 1 from entity_aliases where entity_id=${entityId} and alias=${alias.alias as string})`;
   }
 
-  const roles = [...new Set(rows("work_contributions").map((item) => String(item.role)))];
-  for (const [position, role] of roles.entries())
-    await tx`insert into roles (slug, label_en, label_ar, position) values (${role}, ${role}, ${role}, ${position}) on conflict (slug) do nothing`;
-  const targetRoles = await tx`select id, slug from roles`;
+  const targetRoles = await tx`select id, slug, entity_kind from roles`;
   for (const credit of rows("work_contributions")) {
     const titleId = titleIds.get(String(credit.work_id));
     const entityId = entityIds.get(String(credit.entity_id));
-    const roleId = targetRoles.find((role) => role.slug === credit.role)?.id;
-    if (titleId && entityId && roleId)
-      await tx`insert into contributions (title_id, entity_id, role_id, position, is_primary) values (${titleId}, ${entityId}, ${roleId}, ${Number(credit.position ?? 0)}, ${Boolean(credit.is_primary)}) on conflict (title_id, entity_id, role_id) do update set position=excluded.position, is_primary=excluded.is_primary`;
+    const roleSlug = legacyRoleMap[String(credit.role)];
+    if (!roleSlug) throw new Error(`Unsupported legacy contribution role: ${String(credit.role)}`);
+    const sourceEntity = sourceEntities.find((entity) => entity.id === credit.entity_id);
+    const role = targetRoles.find((item) => item.slug === roleSlug);
+    if (role && sourceEntity && role.entity_kind !== sourceEntity.entity_type)
+      throw new Error(`Legacy role ${String(credit.role)} is incompatible with its entity type`);
+    if (titleId && entityId && role)
+      await tx`insert into contributions (title_id, entity_id, role_id, position, is_primary) values (${titleId}, ${entityId}, ${role.id}, ${Number(credit.position ?? 0)}, ${Boolean(credit.is_primary)}) on conflict (title_id, entity_id, role_id) do update set position=excluded.position, is_primary=excluded.is_primary`;
   }
 
   const sourceTerms = rows("terms");
@@ -151,7 +183,11 @@ await sql.begin(async (tx) => {
     if (!titleId) continue;
     const details = metadata(work);
     await tx`update titles set content_warnings=${typeof details.contentWarnings === "string" ? details.contentWarnings : null}, analysis_notes=${typeof details.analysisNotes === "string" ? details.analysisNotes : null} where id=${titleId}`;
-    await tx`update installments set poster_path=(select poster_path from titles where id=${titleId}) where title_id=${titleId} and poster_path is null`;
+    await tx`insert into media_asset_assignments (asset_id, role, installment_id, is_primary)
+      select title_asset.asset_id, 'poster', i.id, true from installments i
+      join media_asset_assignments title_asset on title_asset.title_id=${titleId} and title_asset.role='poster' and title_asset.is_primary
+      where i.title_id=${titleId} and not exists (select 1 from media_asset_assignments own where own.installment_id=i.id and own.role='poster' and own.is_primary)
+      on conflict do nothing`;
   }
   const scoresByWork = new Map<string, Record<string, number>>();
   for (const score of rows("personal_scores")) {
@@ -172,7 +208,7 @@ await sql.begin(async (tx) => {
   for (const link of rows("external_links")) {
     const titleId = titleIds.get(String(link.owner_id));
     if (titleId)
-      await tx`insert into external_identities (owner_type, owner_id, provider, external_id, url) values ('title', ${titleId}, ${link.provider as string}, ${String(link.external_id ?? link.url)}, ${link.url as string}) on conflict do nothing`;
+      await tx`insert into external_identities (title_id, provider, external_id, url) values (${titleId}, ${link.provider as string}, ${String(link.external_id ?? link.url)}, ${link.url as string}) on conflict do nothing`;
   }
   for (const relation of rows("work_relations")) {
     const sourceId = titleIds.get(String(relation.source_work_id));

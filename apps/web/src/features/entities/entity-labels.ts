@@ -6,22 +6,21 @@ export const entityTypeLabels: Record<Entity["entityType"], string> = {
 };
 
 export const contributionRoleLabels: Record<WorkContribution["role"], string> = {
-  author: "مؤلف",
-  "original-author": "مؤلف أصلي",
-  writer: "كاتب",
-  screenwriter: "كاتب سيناريو",
-  director: "مخرج",
-  illustrator: "رسّام",
-  artist: "فنان",
-  "animation-studio": "استوديو رسوم متحركة",
-  "production-company": "شركة إنتاج",
-  producer: "منتج",
-  developer: "مطوّر",
-  publisher: "ناشر",
-  composer: "ملحن",
-  editor: "محرر",
-  translator: "مترجم",
   creator: "منشئ",
+  original_author: "مؤلف أصلي",
+  director: "مخرج",
+  writer: "كاتب",
+  producer: "منتج",
+  executive_producer: "منتج تنفيذي",
+  creative_producer: "منتج إبداعي",
+  character_designer: "مصمم شخصيات",
+  art_director: "مدير فني",
+  scene_design: "تصميم المشاهد",
+  composer: "ملحن",
+  animation_studio: "استوديو رسوم متحركة",
+  production_company: "شركة إنتاج",
+  distributor: "موزّع",
+  publisher: "ناشر",
 };
 
 export function entityMonogram(name: string) {

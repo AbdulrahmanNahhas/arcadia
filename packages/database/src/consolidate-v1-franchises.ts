@@ -147,13 +147,16 @@ await sql.begin(async (tx) => {
     for (const sourceId of presentMembers) {
       const memberTargetId = targetBySource.get(sourceId) as string;
       const sourceWork = workById.get(sourceId) as Row;
-      const memberTitle =
-        await tx`select canonical_title, title_ar, poster_path from titles where id=${memberTargetId}`;
       const installments =
         await tx`select id from installments where title_id=${memberTargetId} order by position`;
       for (const installment of installments) {
         temporaryPosition++;
-        await tx`update installments set title_id=${rootTargetId}, position=${temporaryPosition}, poster_path=coalesce(poster_path, ${memberTitle[0]?.poster_path ?? null}), title=case when kind='movie' then ${String(sourceWork.canonical_title)} else title end where id=${installment.id}`;
+        await tx`update installments set title_id=${rootTargetId}, position=${temporaryPosition}, title=case when kind='movie' then ${String(sourceWork.canonical_title)} else title end where id=${installment.id}`;
+        await tx`insert into media_asset_assignments (asset_id, role, installment_id, is_primary)
+          select x.asset_id, 'poster', ${installment.id}, true from media_asset_assignments x
+          where x.title_id=${memberTargetId} and x.role='poster' and x.is_primary
+            and not exists (select 1 from media_asset_assignments own where own.installment_id=${installment.id} and own.role='poster' and own.is_primary)
+          on conflict do nothing`;
         movedInstallments.push({ id: String(installment.id), sourceWork });
       }
       if (memberTargetId === rootTargetId) continue;
@@ -167,7 +170,7 @@ await sql.begin(async (tx) => {
       await tx`insert into contributions (title_id, entity_id, role_id, position, is_primary) select ${rootTargetId}, entity_id, role_id, position, is_primary from contributions where title_id=${memberTargetId} on conflict do nothing`;
       await tx`insert into title_aliases (title_id, title, language, script, is_preferred) select ${rootTargetId}, title, language, script, false from title_aliases where title_id=${memberTargetId} on conflict do nothing`;
       await tx`insert into title_aliases (title_id, title, is_preferred) values (${rootTargetId}, ${String(sourceWork.canonical_title)}, false) on conflict do nothing`;
-      await tx`update external_identities set owner_id=${rootTargetId} where owner_type='title' and owner_id=${memberTargetId}`;
+      await tx`update external_identities set title_id=${rootTargetId} where title_id=${memberTargetId}`;
     }
     for (const [index, installment] of movedInstallments.entries())
       await tx`update installments set position=${index + 1} where id=${installment.id}`;

@@ -6,7 +6,9 @@ import {
   ImageSquareIcon,
   InfoIcon,
   LockKeyIcon,
+  MagnifyingGlassIcon,
   TrashIcon,
+  TrophyIcon,
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -84,6 +86,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import {
   getAdminWorkStructure,
+  getMediaAssets,
   getWorkStructure,
   saveWork,
   saveWorkStructure,
@@ -91,37 +94,13 @@ import {
 } from "@/server/library.functions";
 import { getAdminPlanets } from "@/server/platform.functions";
 import { ArrayField } from "./fields/array-field";
+import { AwardField } from "./fields/award-field";
 import { ContributionField } from "./fields/credit-field";
 import { Field } from "./fields/field";
 import type { RiskLevel } from "./fields/risk-select";
 import { RiskSelect } from "./fields/risk-select";
 import { InstallmentScoreDesk } from "./installment-score-desk";
 import { RelationshipEditor } from "./relationship";
-
-interface WorkEditorProps {
-  work: Work | null;
-  works: Work[];
-  entities: Entity[];
-  onOpenChange: (open: boolean) => void;
-  onSaved: () => Promise<void>;
-}
-
-export function WorkEditor({ work, works, entities, onOpenChange, onSaved }: WorkEditorProps) {
-  if (!work) return null;
-
-  return (
-    <WorkEditorInner
-      key={work.id}
-      work={work}
-      works={works}
-      entities={entities}
-      open={Boolean(work)}
-      onOpenChange={onOpenChange}
-      onSaved={onSaved}
-      page={false}
-    />
-  );
-}
 
 export function WorkEditorPage({
   work,
@@ -261,7 +240,7 @@ function WorkEditorInner({
           structure={structureQuery.data}
         />
         {formFields}
-        <footer className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 py-4 backdrop-blur">
+        <footer className="sticky bottom-2 flex flex-wrap items-center justify-between gap-3 border bg-background/95 p-2 backdrop-blur rounded-full mb-2">
           <div className="flex items-center gap-3">
             <JsonWorkDialog work={work} />
             <span className="text-xs text-muted-foreground">
@@ -394,7 +373,7 @@ function EditorMasthead({
   structure: WorkStructure | undefined;
 }) {
   return (
-    <header className="flex flex-col gap-5 border-b bg-muted/20 px-6 py-6 sm:px-8">
+    <header className="flex flex-col gap-5 border bg-muted/20 px-6 py-6 sm:px-8 ml-2 rounded-3xl">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-2">
           <p className="font-mono text-[10px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
@@ -408,7 +387,9 @@ function EditorMasthead({
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{kindLabels[work.kind]}</Badge>
           {work.year && <Badge variant="outline">{work.year}</Badge>}
-          {work.isPrivate && <Badge variant="outline">خاص</Badge>}
+          <Badge variant={work.isPrivate ? "destructive" : "outline"}>
+            {work.isPrivate ? "خاص" : "ظاهر للعامة"}
+          </Badge>
         </div>
       </div>
       <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
@@ -475,36 +456,32 @@ function WorkEditorFormFields({
   return (
     <form
       id="admin-editor-form"
-      className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6"
+      className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col gap-8 overflow-y-auto p-4 sm:p-6"
       onSubmit={submit}
     >
-      <Tabs defaultValue="overview" className="gap-6">
-        <div className="flex flex-col gap-4 border-b pb-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <p className="font-mono text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-                مساحة تحرير العنوان
-              </p>
-              <p className="text-sm text-muted-foreground">
-                احفظ بيانات العنوان من الزر السفلي، واحفظ تقييمات الأجزاء من تبويب التحرير.
-              </p>
-            </div>
-            <Badge variant="outline">{draft.isPrivate ? "خاص" : "ظاهر للعامة"}</Badge>
-          </div>
+      <Tabs defaultValue="overview" className="min-w-0 max-w-full gap-6 ">
+        <div className="flex flex-col gap-4">
           <TabsList
             variant="line"
-            className="w-full max-w-full justify-start overflow-x-auto rounded-none p-0"
+            className="w-full max-w-full justify-start overflow-x-auto px-1 rounded-full! overflow-hidden! border"
           >
-            <TabsTrigger value="overview" className="shrink-0">
+            <TabsTrigger value="overview" className="shrink-0 hover:bg-accent!">
               نظرة عامة
             </TabsTrigger>
-            <TabsTrigger value="catalog" className="shrink-0">
+            <TabsTrigger value="catalog" className="shrink-0 hover:bg-accent!">
               الفهرسة
             </TabsTrigger>
-            <TabsTrigger value="editorial" className="shrink-0">
+            <TabsTrigger value="editorial" className="shrink-0 hover:bg-accent!">
               التحرير
             </TabsTrigger>
-            <TabsTrigger value="assets" className="shrink-0">
+            <TabsTrigger value="awards" className="shrink-0 hover:bg-accent!">
+              <TrophyIcon />
+              الجوائز
+              {draft.awards.length > 0 ? (
+                <Badge variant="secondary">{draft.awards.length}</Badge>
+              ) : null}
+            </TabsTrigger>
+            <TabsTrigger value="assets" className="shrink-0 hover:bg-accent!">
               الصور والظهور
             </TabsTrigger>
           </TabsList>
@@ -793,14 +770,23 @@ function WorkEditorFormFields({
           </EditorSection>
         </TabsContent>
 
-        <TabsContent value="editorial" className="flex flex-col gap-6">
+        <TabsContent value="awards" className="flex flex-col gap-6">
           <EditorSection
-            title="التقييم التحريري"
-            description="التقييمات تخص المواسم والأفلام والأعمال الخاصة، لا العنوان المظلي. عدّل كل جزء واحفظه مستقلاً."
-            subClassname="sm:grid-cols-1!"
+            title="الجوائز والترشيحات"
+            description="سجّل التكريم على مستوى العنوان أو اربطه بفيلم أو موسم محدد. يمكن إبراز تكريم واحد في واجهة العنوان."
           >
-            <InstallmentScoreDesk structure={structure} workKind={draft.kind} />
+            <div className="col-span-full">
+              <AwardField
+                value={draft.awards}
+                onChange={(awards) => setDraft({ ...draft, awards })}
+                structure={structure}
+              />
+            </div>
           </EditorSection>
+        </TabsContent>
+
+        <TabsContent value="editorial" className="flex flex-col gap-6">
+          <InstallmentScoreDesk structure={structure} workKind={draft.kind} />
 
           {/* Guidance & Analysis Section */}
           <EditorSection
@@ -856,25 +842,27 @@ function WorkEditorFormFields({
               />
             </Field>
 
-            <Field label="تحذيرات المحتوى" wide>
-              <Textarea
-                dir="rtl"
-                lang="ar"
-                rows={3}
-                value={draft.contentWarnings ?? ""}
-                onChange={(e) => setDraft({ ...draft, contentWarnings: e.target.value || null })}
-              />
-            </Field>
+            <div className="sm:col-span-3 flex gap-4">
+              <Field label="تحذيرات المحتوى" wide>
+                <Textarea
+                  dir="rtl"
+                  lang="ar"
+                  rows={3}
+                  value={draft.contentWarnings ?? ""}
+                  onChange={(e) => setDraft({ ...draft, contentWarnings: e.target.value || null })}
+                />
+              </Field>
 
-            <Field label="ملاحظات التحليل" wide>
-              <Textarea
-                dir="rtl"
-                lang="ar"
-                rows={4}
-                value={draft.analysisNotes ?? ""}
-                onChange={(e) => setDraft({ ...draft, analysisNotes: e.target.value || null })}
-              />
-            </Field>
+              <Field label="ملاحظات التحليل" wide>
+                <Textarea
+                  dir="rtl"
+                  lang="ar"
+                  rows={4}
+                  value={draft.analysisNotes ?? ""}
+                  onChange={(e) => setDraft({ ...draft, analysisNotes: e.target.value || null })}
+                />
+              </Field>
+            </div>
           </EditorSection>
 
           {/* Dates, Source & Links Section */}
@@ -978,26 +966,6 @@ function WorkEditorFormFields({
               />
             </Field>
 
-            <ArrayField
-              label="تسلسل المصدر"
-              value={draft.sourceMaterial?.serialization ?? []}
-              onChange={(serialization: string[]) =>
-                setDraft({
-                  ...draft,
-                  sourceMaterial: {
-                    type: draft.sourceMaterial?.type ?? "",
-                    started: draft.sourceMaterial?.started ?? null,
-                    finished: draft.sourceMaterial?.finished ?? null,
-                    serialization,
-                    publication: draft.sourceMaterial?.publication ?? null,
-                  },
-                })
-              }
-            />
-
-            <p className="col-span-full mt-2 text-xs font-semibold text-muted-foreground">
-              روابط خارجية
-            </p>
             <Field label="الروابط الخارجية" wide>
               <Textarea
                 rows={4}
@@ -1081,7 +1049,7 @@ function WorkEditorFormFields({
           </EditorSection>
         </TabsContent>
 
-        <TabsContent value="assets" className="flex flex-col gap-6">
+        <TabsContent value="assets" className="min-w-0 max-w-full flex-col gap-6">
           <EditorSection
             title="الظهور والصور"
             description="العمل الخاص لا يظهر في المنصة. غيّر صورة واحدة في كل مرة، راجع المعاينة، ثم أكّد استخدامها."
@@ -1101,7 +1069,7 @@ function WorkEditorFormFields({
                 />
               </div>
             </Field>
-            <div className="col-span-full grid gap-4 sm:grid-cols-3">
+            <div className="col-span-full grid min-w-0 gap-4 lg:grid-cols-3">
               <ArtworkField
                 label="الملصق"
                 assetType="poster"
@@ -1220,6 +1188,14 @@ function ArtworkField({
   onChange: (path: string | null) => void;
 }) {
   const [candidate, setCandidate] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [assetSearch, setAssetSearch] = useState("");
+  const assets = useQuery({
+    queryKey: ["media-picker", assetType, assetSearch],
+    queryFn: () =>
+      getMediaAssets(`?role=${assetType}&q=${encodeURIComponent(assetSearch)}&limit=30`),
+    enabled: pickerOpen,
+  });
   const fileInputId = useId();
   const upload = useMutation({ mutationFn: uploadWorkImage });
   const uploadFile = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1247,7 +1223,7 @@ function ArtworkField({
 
   return (
     <Field label={label}>
-      <Card size="sm" className="gap-3 bg-muted/20 py-4 shadow-none">
+      <Card size="sm" className="min-w-0 gap-3 overflow-hidden bg-muted/20 py-4 shadow-none">
         <CardHeader className="px-4">
           <CardTitle className="text-sm">{label}</CardTitle>
           <CardDescription>
@@ -1259,7 +1235,7 @@ function ArtworkField({
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid min-w-0 grid-cols-2 gap-3">
             <ArtworkPreview
               label="الحالي"
               src={value}
@@ -1302,6 +1278,9 @@ function ArtworkField({
               <UploadSimpleIcon data-icon="inline-start" />
               {upload.isPending ? "جارٍ رفع الصورة…" : "اختر صورة"}
             </Label>
+            <Button type="button" size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
+              <ImageSquareIcon data-icon="inline-start" /> اختيار صورة موجودة
+            </Button>
             <Button
               type="button"
               size="sm"
@@ -1319,6 +1298,47 @@ function ArtworkField({
               </Button>
             ) : null}
           </div>
+          <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+            <DialogContent className="min-w-0 overflow-hidden sm:max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>اختيار أصل موجود</DialogTitle>
+                <DialogDescription>
+                  إعادة الاستخدام لا تنسخ الملف؛ تنشئ تعييناً جديداً عند حفظ العمل.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex items-center gap-2">
+                <MagnifyingGlassIcon />
+                <Input
+                  value={assetSearch}
+                  onChange={(event) => setAssetSearch(event.target.value)}
+                  placeholder="ابحث في الصور…"
+                />
+              </div>
+              <div className="grid max-h-[55dvh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-4">
+                {assets.data?.items.map((asset) => (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    className="overflow-hidden rounded-xl border text-start focus-visible:outline-2 focus-visible:outline-ring"
+                    onClick={() => {
+                      setCandidate(asset.path);
+                      setPickerOpen(false);
+                    }}
+                  >
+                    <img
+                      src={asset.path}
+                      alt={asset.originalFilename}
+                      className="aspect-square w-full object-contain bg-muted"
+                    />
+                    <span className="flex items-center justify-between gap-2 p-2 text-xs">
+                      <span className="truncate">{asset.originalFilename}</span>
+                      <Badge variant="outline">{asset.usageCount}</Badge>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
         </CardFooter>
       </Card>
     </Field>
@@ -1789,7 +1809,7 @@ export function EditorSection({
   return (
     <section
       className={cn(
-        "flex flex-col gap-5 rounded-xl border border-border bg-card p-5 shadow-xs sm:p-6",
+        "flex min-w-0 max-w-full flex-col gap-5 overflow-hidden rounded-xl border border-border bg-card p-5 shadow-xs sm:p-6",
         className,
       )}
     >
@@ -1800,7 +1820,12 @@ export function EditorSection({
         )}
       </div>
 
-      <div className={cn(subClassname, "grid grid-cols-1 items-start gap-5 sm:grid-cols-2")}>
+      <div
+        className={cn(
+          subClassname,
+          "grid min-w-0 grid-cols-1 items-start gap-5 sm:grid-cols-2 [&>*]:min-w-0",
+        )}
+      >
         {children}
       </div>
     </section>

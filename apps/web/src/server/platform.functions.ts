@@ -1,3 +1,5 @@
+import type { FamilyActivity } from "@arcadia/contracts";
+import type { Work } from "@/features/library/model";
 import type {
   OrganizationRelationship,
   PlanetWithWorks,
@@ -11,6 +13,7 @@ import {
   allWorks,
   detailToStructure,
   entities,
+  fullAdminDetail,
   fullDetail,
   planetsWithWorks,
   recommendationsFor,
@@ -19,42 +22,81 @@ import {
 
 type Data<T> = { data: T };
 export async function getPlatformHome() {
-  const [works, planets] = await Promise.all([allWorks(), planetsWithWorks()]);
+  const [works, planets, library, familyActivity] = await Promise.all([
+    allWorks(),
+    planetsWithWorks(),
+    apiFetch<Array<{ titleId: string; status: string | null; isFavorite: boolean }>>(
+      "/api/v1/me/library",
+    ).catch(() => []),
+    apiFetch<FamilyActivity[]>("/api/v1/family/activity").catch(() => []),
+  ]);
   const rated = [...works]
     .filter((work) => work.calculatedRating !== null)
     .sort((a, b) => (b.calculatedRating ?? 0) - (a.calculatedRating ?? 0));
-  const worksById = new Map(works.map((work) => [work.id, work]));
   return {
-    watchRadar: watchRadarTitleIds.flatMap((id) => {
-      const work = worksById.get(id);
-      return work ? [work] : [];
-    }),
-    continueExploring: [],
+    watchRadar: selectHeroWorks(works, library),
+    continueExploring: library
+      .filter((item) => item.status === "watching")
+      .flatMap((item) => works.find((work) => work.id === item.titleId) ?? []),
     highlyRated: rated.slice(0, 18),
-    recentlyUpdated: works.slice(-18).reverse(),
+    recentlyUpdated: [...works]
+      .sort((left, right) => right.catalogUpdatedAt - left.catalogUpdatedAt)
+      .slice(0, 18),
     planets,
+    familyActivity,
   };
 }
 
 export async function getAdminWatchRadar() {
   const works = await allAdminWorks();
-  const worksById = new Map(works.map((work) => [work.id, work]));
-  return watchRadarTitleIds.flatMap((id) => {
-    const work = worksById.get(id);
-    return work ? [work] : [];
-  });
+  return selectHeroWorks(works, []);
 }
 
-const watchRadarTitleIds = [
-  "b9bff940-6a81-45e1-b163-db9bf2f83918", // Kagurabachi
-  "e75348fd-43c0-437d-a2c9-ce2d0d9d39ec", // Vivy -Fluorite Eye's Song-
-  "b923f224-5034-4e1e-bcbd-8d93ca0afa4f", // LONA
-  "e8567c80-208c-47e8-8eac-538247d6bb6f", // 86 EIGHTY-SIX
-  "0b53166a-db33-4b94-ba71-85cd5e645cb9", // The Bugle Call: Song of War
-  "ffe31844-fcf1-432e-8b0a-2e30f11a91c3", // PLUTO
-  "54c1da35-b596-4eba-b021-930014990392", // The One Piece
-  "616be2ac-19c7-4b42-ac22-70198b67b5e7", // Gachiakuta (admin-only while private)
-] as const;
+function selectHeroWorks(
+  works: Work[],
+  library: Array<{ titleId: string; status: string | null; isFavorite: boolean }>,
+) {
+  const stateById = new Map(library.map((item) => [item.titleId, item]));
+  const day = Math.floor(Date.now() / 86_400_000);
+  const stableNoise = (id: string) => {
+    let hash = day;
+    for (const character of id) hash = (hash * 31 + character.charCodeAt(0)) | 0;
+    return Math.abs(hash % 19);
+  };
+  const ranked = [...works]
+    .filter((work) => Boolean(work.bannerPath || work.imagePath))
+    .map((work) => {
+      const state = stateById.get(work.id);
+      const releaseBoost =
+        work.releaseStatus === "airing"
+          ? 42
+          : work.releaseStatus === "upcoming" || work.releaseStatus === "returning"
+            ? 34
+            : Math.max(0, (work.year ?? 0) - new Date().getFullYear() + 8) * 2;
+      const personalBoost =
+        state?.status === "watching"
+          ? 55
+          : state?.isFavorite
+            ? 16
+            : state?.status === "completed"
+              ? -20
+              : 0;
+      return {
+        work,
+        score:
+          releaseBoost + personalBoost + (work.calculatedRating ?? 0) * 2 + stableNoise(work.id),
+      };
+    })
+    .sort((left, right) => right.score - left.score)
+    .map(({ work }) => work);
+  const upcoming = ranked.filter(
+    (work) => work.releaseStatus === "upcoming" || work.releaseStatus === "returning",
+  );
+  const available = ranked.filter(
+    (work) => work.releaseStatus !== "upcoming" && work.releaseStatus !== "returning",
+  );
+  return [...upcoming.slice(0, 5), ...available.slice(0, 5)];
+}
 export const getPlanets = () => planetsWithWorks();
 export const getAdminPlanets = () => planetsWithWorks(true);
 export async function getPlatformCatalogWorks({ data }: Data<{ query?: string }> = { data: {} }) {
@@ -75,13 +117,16 @@ export async function getAdminUnassignedPlanetWorks() {
   return (await allWorks()).filter((work) => !work.planetId);
 }
 export async function getPlanetDetail({ data }: Data<{ slug: string }>) {
-  return (await planetsWithWorks(true)).find((planet) => planet.slug === data.slug) ?? null;
+  return (await planetsWithWorks()).find((planet) => planet.slug === data.slug) ?? null;
 }
-export async function getPlatformWorkDetail({ data }: Data<{ workId: string }>) {
+export async function getPlatformWorkDetail({
+  data,
+}: Data<{ workId: string; includePrivate?: boolean }>) {
+  const includePrivate = data.includePrivate ?? false;
   const [detail, works, planets] = await Promise.all([
-    fullDetail(data.workId),
-    allWorks(),
-    planetsWithWorks(true),
+    includePrivate ? fullAdminDetail(data.workId) : fullDetail(data.workId),
+    includePrivate ? allAdminWorks() : allWorks(),
+    planetsWithWorks(includePrivate),
   ]);
   if (!detail) return null;
   const work = titleToWork(detail);
@@ -175,7 +220,7 @@ export async function searchPlatformCatalog({ data }: Data<{ query: string; limi
   ].slice(0, data.limit ?? 24);
 }
 export async function getCatalogValidation(): Promise<ValidationIssue[]> {
-  return [];
+  return apiFetch<ValidationIssue[]>("/api/v1/admin/validation");
 }
 
 type RelationRow = {

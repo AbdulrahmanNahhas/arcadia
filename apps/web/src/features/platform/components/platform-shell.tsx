@@ -1,7 +1,8 @@
-import { DatabaseIcon, HouseIcon, PlanetIcon, UserCircleIcon } from "@phosphor-icons/react";
+import { BooksIcon, DatabaseIcon, HouseIcon, PlanetIcon } from "@phosphor-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useState } from "react";
-import { currentProfile } from "@/features/profiles/model";
+import type { ReactNode } from "react";
+import { AccountAvatar } from "@/features/accounts/account-avatar";
+import { useCurrentAccount } from "@/features/accounts/api";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "./global-search";
 
@@ -13,8 +14,9 @@ export function PlatformShell({
   immersive?: boolean;
 }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const [isAdmin, setIsAdmin] = useState(false);
-  useEffect(() => setIsAdmin(currentProfile().accountKind === "admin"), []);
+  const { data } = useCurrentAccount();
+  const account = data?.account;
+  const isAdmin = account?.role === "owner" || account?.role === "editor";
   return (
     <div className="platform-surface min-h-svh">
       <a
@@ -49,15 +51,26 @@ export function PlatformShell({
             <NavLink to="/browse" active={pathname === "/browse"} icon={<DatabaseIcon />}>
               قاعدة البيانات
             </NavLink>
+            <NavLink to="/archive" active={pathname.startsWith("/archive")} icon={<BooksIcon />}>
+              مساحتي
+            </NavLink>
           </nav>
           <div className="ms-auto flex items-center gap-2">
             <GlobalSearch />
 
             <Link
-              to={isAdmin ? "/admin" : "/profiles"}
-              className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+              to={isAdmin ? "/admin" : "/accounts"}
+              className="rounded-full outline-none transition hover:scale-105 focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              <UserCircleIcon size={21} />
+              {account ? (
+                <AccountAvatar
+                  avatarKey={account.avatarKey}
+                  label={`حساب ${account.displayName}`}
+                  className="size-9"
+                />
+              ) : (
+                <span className="block size-9 rounded-full bg-muted" />
+              )}
               <span className="sr-only">{isAdmin ? "لوحة الإدارة" : "اختيار الملف"}</span>
             </Link>
           </div>
@@ -80,6 +93,12 @@ export function PlatformShell({
           active={pathname.startsWith("/browse")}
           icon={<DatabaseIcon />}
           label="قاعدة البيانات"
+        />
+        <MobileLink
+          to="/archive"
+          active={pathname.startsWith("/archive")}
+          icon={<BooksIcon />}
+          label="مساحتي"
         />
       </nav>
     </div>

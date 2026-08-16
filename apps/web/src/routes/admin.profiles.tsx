@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { AdminProfilesPage } from "@/features/admin/pages/profiles-page";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/admin/profiles")({ component: AdminProfilesPage });
+export const Route = createFileRoute("/admin/profiles")({
+  component: () => <Navigate to="/admin/accounts" />,
+});

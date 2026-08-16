@@ -28,6 +28,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { LibraryHeader } from "@/features/library/components/library-header";
 import type { Entity, WorkContribution } from "@/features/library/model";
+import { contributorRoleEntityType } from "@/features/library/model";
 import { getEntities } from "@/server/library.functions";
 import { contributionRoleLabels, entityMonogram } from "./entity-labels";
 
@@ -61,7 +62,7 @@ export function EntitiesPage({
   const directoryPreset =
     type === "person"
       ? "person"
-      : type === "organization" && role === "animation-studio"
+      : type === "organization" && role === "animation_studio"
         ? "studio"
         : type === "organization" && role === "publisher"
           ? "publisher"
@@ -70,11 +71,12 @@ export function EntitiesPage({
             : "all";
   const availableRoles = useMemo(
     () =>
-      [...new Set(entities.flatMap((entity) => entity.roles.map(({ role }) => role)))].sort(
-        (left, right) =>
+      [...new Set(entities.flatMap((entity) => entity.roles.map(({ role }) => role)))]
+        .sort((left, right) =>
           contributionRoleLabels[left].localeCompare(contributionRoleLabels[right], "ar"),
-      ),
-    [entities],
+        )
+        .filter((item) => type === "all" || contributorRoleEntityType(item) === type),
+    [entities, type],
   );
   const filtered = useMemo(() => {
     const query = search.q?.trim().toLocaleLowerCase() ?? "";
@@ -124,8 +126,8 @@ export function EntitiesPage({
               الأشخاص والشركات خلف كل عمل.
             </h1>
             <p className="mt-4 max-w-2xl leading-7 text-muted-foreground">
-              تصفح الاستوديوهات والناشرين والمنتجين، أو انتقل إلى مؤلف ورسّام ومخرج لترى أعماله
-              وأدواره في مكان واحد. الأسماء محفوظة بالإنجليزية.
+              تصفح الاستوديوهات وشركات الإنتاج والناشرين، أو انتقل إلى مؤلف ومصمم شخصيات ومخرج لترى
+              أعماله وأدواره في مكان واحد. الأسماء محفوظة بالإنجليزية.
             </p>
           </div>
           <dl className="grid grid-cols-3 gap-6 border-t pt-5 lg:border-t-0 lg:border-s lg:pt-0 lg:ps-8">
@@ -160,12 +162,14 @@ export function EntitiesPage({
                 })),
               ]}
               value={role}
-              onValueChange={(value) =>
+              onValueChange={(value) => {
+                const nextRole = (value ?? "all") as NonNullable<EntityDirectorySearch["role"]>;
                 onSearchChange({
                   ...search,
-                  role: (value ?? "all") as EntityDirectorySearch["role"],
-                })
-              }
+                  role: nextRole,
+                  type: nextRole === "all" ? type : contributorRoleEntityType(nextRole),
+                });
+              }}
             >
               <SelectTrigger className="h-11 min-w-44">
                 <SelectValue>
@@ -216,7 +220,7 @@ export function EntitiesPage({
                 const next = values.at(-1);
                 if (!next) return;
                 if (next === "studio") {
-                  onSearchChange({ ...search, type: "organization", role: "animation-studio" });
+                  onSearchChange({ ...search, type: "organization", role: "animation_studio" });
                 } else if (next === "publisher") {
                   onSearchChange({ ...search, type: "organization", role: "publisher" });
                 } else {
@@ -235,7 +239,7 @@ export function EntitiesPage({
               <ToggleGroupItem value="person">أشخاص</ToggleGroupItem>
               <ToggleGroupItem value="studio">استوديوهات</ToggleGroupItem>
               <ToggleGroupItem value="publisher">ناشرون</ToggleGroupItem>
-              <ToggleGroupItem value="organization">منتجون</ToggleGroupItem>
+              <ToggleGroupItem value="organization">منظمات</ToggleGroupItem>
             </ToggleGroup>
           </div>
         </section>

@@ -1,19 +1,18 @@
+import type { AwardRecognition } from "@arcadia/contracts";
 import {
-  ArrowRightIcon,
+  ArrowSquareOutIcon,
   CheckCircleIcon,
-  CheckIcon,
   ClockIcon,
   FilmStripIcon,
   InfoIcon,
   PlayIcon,
-  PlusIcon,
   StarIcon,
   TelevisionIcon,
-  ThumbsUpIcon,
+  TrophyIcon,
 } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -31,11 +30,14 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
+import { useCurrentAccount } from "@/features/accounts/api";
+import { recordHistory } from "@/features/archive/api";
+import { WorkFamilyActions } from "@/features/archive/work-family-actions";
 import type { Entity, Work, WorkStructure } from "@/features/library/model";
 import { scoreCriteria, scoreLabel, scoreWeights } from "@/features/library/scoring";
 import { useArabicTranslations } from "@/features/library/translations";
 import type { Recommendation, RiskAssessment } from "@/features/platform/model";
+import { TitleSocialSection } from "@/features/social/title-social-section";
 import { cn } from "@/lib/utils";
 import { getEntities } from "@/server/library.functions";
 import { getPlatformWorkDetail } from "@/server/platform.functions";
@@ -52,9 +54,11 @@ export function WorkDetailPage({
   workId: string;
   initialInstallmentId?: string;
 }) {
+  const { data: accountData } = useCurrentAccount();
+  const isAdmin = accountData?.account.role === "owner" || accountData?.account.role === "editor";
   const { data } = useSuspenseQuery({
-    queryKey: ["platform-work", workId],
-    queryFn: () => getPlatformWorkDetail({ data: { workId } }),
+    queryKey: ["platform-work", workId, isAdmin],
+    queryFn: () => getPlatformWorkDetail({ data: { workId, includePrivate: isAdmin } }),
   });
   const { data: entities } = useSuspenseQuery({
     queryKey: ["entities"],
@@ -62,6 +66,9 @@ export function WorkDetailPage({
   });
   const { taxonomyLabel } = useArabicTranslations();
   const [selectedInstallmentId, setSelectedInstallmentId] = useState(initialInstallmentId ?? "");
+  useEffect(() => {
+    recordHistory(workId).catch(() => undefined);
+  }, [workId]);
   if (!data)
     return (
       <PlatformShell>
@@ -86,6 +93,7 @@ export function WorkDetailPage({
     hasMedia && { id: "episodes", label: "الأجزاء والحلقات" },
     hasCast && { id: "cast", label: "صنّاع العمل" },
     { id: "scores", label: "التقييم" },
+    { id: "reviews", label: "مراجعات العائلة" },
     { id: "details", label: "التفاصيل" },
   ].filter(Boolean) as Array<{ id: string; label: string }>;
 
@@ -111,6 +119,13 @@ export function WorkDetailPage({
           </TabsList>
         </div>
 
+        <div id="family-progress" className="border-b border-border/40 py-6">
+          <TitleSocialSection titleId={work.id} mode="quick" />
+          <div className="mt-3">
+            <WorkFamilyActions titleId={work.id} title={work.arabicTitle || work.title} />
+          </div>
+        </div>
+
         <div className="grid gap-10 md:py-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-14">
           <main className="min-w-0">
             <TabsContent value="overview" className="mt-0 focus-visible:outline-none">
@@ -120,6 +135,9 @@ export function WorkDetailPage({
                 risks={risks}
                 taxonomyLabel={taxonomyLabel}
               />
+              <div className="mt-10 border-t pt-10">
+                <TitleSocialSection titleId={work.id} mode="discussion" />
+              </div>
             </TabsContent>
 
             {hasMedia && (
@@ -141,6 +159,10 @@ export function WorkDetailPage({
 
             <TabsContent value="scores" className="mt-0 focus-visible:outline-none">
               <ScoreSection work={work} />
+            </TabsContent>
+
+            <TabsContent value="reviews" className="mt-0 focus-visible:outline-none">
+              <TitleSocialSection titleId={work.id} mode="reviews" />
             </TabsContent>
 
             <TabsContent value="details" className="mt-0 focus-visible:outline-none">
@@ -189,9 +211,11 @@ function WorkHero({
   planet: PlanetInfo;
   audienceLabel: string | null;
 }) {
-  const [inList, setInList] = useState(false);
-  const [liked, setLiked] = useState(false);
   const glow = planet?.primaryColor ?? "#7c8cf8";
+  const heroAward =
+    work.awards.find((recognition) => recognition.isFeatured) ??
+    work.awards.find((recognition) => recognition.result === "winner") ??
+    work.awards[0];
 
   return (
     <section className="relative isolate min-h-[80svh] overflow-hidden border-b border-border/40">
@@ -278,6 +302,8 @@ function WorkHero({
             </span>
           </div>
 
+          {heroAward ? <AwardLaurel recognition={heroAward} /> : null}
+
           {work.summary && (
             <p className="mt-5 line-clamp-2 max-w-xl text-sm leading-7 text-foreground/70 sm:text-base">
               {work.summary}
@@ -285,30 +311,13 @@ function WorkHero({
           )}
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button size="lg" className="px-7">
-              <PlayIcon weight="fill" data-icon="inline-start" />
-              {work.status === "in-progress" ? "متابعة المشاهدة" : "ابدأ المشاهدة"}
-            </Button>
-            <Button variant="secondary" size="lg">
-              <FilmStripIcon data-icon="inline-start" /> شاهد الإعلان
-            </Button>
             <Button
-              variant="outline"
-              size="icon-lg"
-              aria-pressed={inList}
-              aria-label={inList ? "إزالة من قائمتي" : "أضف إلى قائمتي"}
-              onClick={() => setInList((value) => !value)}
+              size="lg"
+              className="px-7"
+              nativeButton={false}
+              render={<a href="#family-progress" />}
             >
-              {inList ? <CheckIcon /> : <PlusIcon />}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-lg"
-              aria-pressed={liked}
-              aria-label={liked ? "إلغاء الإعجاب" : "أعجبني"}
-              onClick={() => setLiked((value) => !value)}
-            >
-              <ThumbsUpIcon weight={liked ? "fill" : "regular"} />
+              <FilmStripIcon data-icon="inline-start" /> حدّث حالة المشاهدة
             </Button>
           </div>
         </div>
@@ -414,6 +423,8 @@ function OverviewSection({
           )}
         </div>
       </section>
+
+      {work.awards.length > 0 ? <AwardsSection awards={work.awards} /> : null}
 
       {(work.contentWarnings || work.analysisNotes) && (
         <section className="grid gap-4 md:grid-cols-2">
@@ -533,6 +544,79 @@ function OverviewSection({
         </section>
       )}
     </div>
+  );
+}
+
+function AwardLaurel({ recognition }: { recognition: AwardRecognition }) {
+  return (
+    <div className="mt-5 inline-flex max-w-full items-center gap-3 rounded-full border bg-background/55 py-2 pe-4 ps-2.5 shadow-sm backdrop-blur-md">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <TrophyIcon weight={recognition.result === "winner" ? "fill" : "duotone"} />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-xs font-semibold">
+          {recognition.organizationName} · {recognition.result === "winner" ? "فائز" : "مرشّح"}
+        </span>
+        <span className="block truncate text-[11px] text-muted-foreground">
+          {recognition.category}
+          {recognition.year ? ` · ${recognition.year}` : ""}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function AwardsSection({ awards }: { awards: AwardRecognition[] }) {
+  const winners = awards.filter((recognition) => recognition.result === "winner").length;
+  return (
+    <section>
+      <Subsection
+        title="الجوائز والترشيحات"
+        description={`${winners} فوز · ${awards.length - winners} ترشيح محفوظ في سجل العمل`}
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        {awards.map((recognition) => (
+          <Card key={recognition.id} size="sm" className="overflow-hidden">
+            <CardHeader className="flex-row items-start justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
+                  <TrophyIcon weight={recognition.result === "winner" ? "fill" : "duotone"} />
+                </span>
+                <div className="min-w-0">
+                  <CardTitle className="text-sm leading-6">
+                    {recognition.organizationName}
+                  </CardTitle>
+                  <CardDescription className="mt-0.5 leading-5">
+                    {recognition.category}
+                  </CardDescription>
+                </div>
+              </div>
+              <Badge variant={recognition.result === "winner" ? "default" : "secondary"}>
+                {recognition.result === "winner" ? "فائز" : "مرشّح"}
+              </Badge>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {recognition.year ? <span>{recognition.year}</span> : null}
+              {recognition.installmentTitle ? (
+                <Badge variant="outline">{recognition.installmentTitle}</Badge>
+              ) : (
+                <Badge variant="outline">العنوان كاملًا</Badge>
+              )}
+              {recognition.sourceUrl ? (
+                <a
+                  href={recognition.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+                >
+                  المصدر <ArrowSquareOutIcon />
+                </a>
+              ) : null}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1294,20 +1378,19 @@ const relationLabels: Record<string, string> = {
   related: "مرتبط",
 };
 const roleLabels: Record<string, string> = {
-  author: "مؤلف",
-  "original-author": "المؤلف الأصلي",
-  writer: "كاتب",
-  screenwriter: "سيناريو",
-  director: "مخرج",
-  illustrator: "رسام",
-  artist: "فنان",
-  "animation-studio": "استوديو التحريك",
-  "production-company": "شركة إنتاج",
-  producer: "منتج",
-  developer: "مطوّر",
-  publisher: "ناشر",
-  composer: "مؤلف موسيقي",
-  editor: "محرر",
-  translator: "مترجم",
   creator: "مبتكر",
+  original_author: "المؤلف الأصلي",
+  director: "مخرج",
+  writer: "كاتب",
+  producer: "منتج",
+  executive_producer: "منتج تنفيذي",
+  creative_producer: "منتج إبداعي",
+  character_designer: "مصمم شخصيات",
+  art_director: "مدير فني",
+  scene_design: "تصميم المشاهد",
+  composer: "مؤلف موسيقي",
+  animation_studio: "استوديو التحريك",
+  production_company: "شركة إنتاج",
+  distributor: "موزع",
+  publisher: "ناشر",
 };

@@ -85,179 +85,182 @@ export function PlanetsPage() {
 
       <main className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {planets.map((planet, index) => {
-            const primaryColor = planet.primaryColor || "#6366f1";
-            const secondaryColor = planet.secondaryColor || "#f59e0b";
-            const worksList = planet.works || [];
-            const featuredBanner = worksList[0]?.bannerPath || worksList[0]?.imagePath;
+          {[...planets]
+            .sort((a, b) => b.workCount - a.workCount)
+            .map((planet, index) => {
+              const primaryColor = planet.primaryColor || "#6366f1";
+              const secondaryColor = planet.secondaryColor || "#f59e0b";
+              const worksList = planet.works || [];
+              const featuredBanner = worksList[0]?.bannerPath || worksList[0]?.imagePath;
 
-            return (
-              <Link
-                key={planet.id}
-                to="/planets/$planetSlug"
-                params={{ planetSlug: planet.slug }}
-                style={
-                  {
-                    "--planet-color": primaryColor,
-                    "--planet-secondary": secondaryColor,
-                  } as React.CSSProperties
-                }
-                className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-card/50 p-6 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-white/20 hover:shadow-2xl hover:shadow-black/60"
-              >
-                {/* Ambient Background Radial Light */}
-                <div
-                  className="pointer-events-none absolute -left-20 -top-20 size-72 rounded-full blur-[100px] opacity-20 transition-opacity duration-700 group-hover:opacity-40"
-                  style={{ background: primaryColor }}
-                  aria-hidden="true"
-                />
+              return (
+                <Link
+                  key={planet.id}
+                  to="/planets/$planetSlug"
+                  params={{ planetSlug: planet.slug }}
+                  style={
+                    {
+                      "--planet-color": primaryColor,
+                      "--planet-secondary": secondaryColor,
+                    } as React.CSSProperties
+                  }
+                  className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-card/50 p-6 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-white/20 hover:shadow-2xl hover:shadow-black/60"
+                >
+                  {/* Ambient Background Radial Light */}
+                  <div
+                    className="pointer-events-none absolute -left-20 -top-20 size-72 rounded-full blur-[100px] opacity-20 transition-opacity duration-700 group-hover:opacity-40"
+                    style={{ background: primaryColor }}
+                    aria-hidden="true"
+                  />
 
-                <div>
-                  {/* Card Header: Orbit Badge */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3.5 py-1 font-mono text-xs font-semibold backdrop-blur-md transition-colors"
-                      style={{
-                        backgroundColor: `${primaryColor}12`,
-                        borderColor: `${primaryColor}30`,
-                        color: primaryColor,
-                      }}
-                    >
+                  <div>
+                    {/* Card Header: Orbit Badge */}
+                    <div className="flex items-center justify-between gap-2">
                       <span
-                        className="size-1.5 rounded-full shadow-[0_0_8px_currentColor] animate-pulse"
-                        style={{ background: primaryColor }}
-                      />
-                      كوكب {String(index + 1).padStart(2, "0")}
-                    </span>
-                  </div>
-
-                  {/* Centerpiece: Celestial Planet Portal */}
-                  <div className="my-7 flex items-center justify-center">
-                    <div className="relative flex items-center justify-center">
-                      {/* Animated Dashed Orbit Ring */}
-                      <div
-                        className="absolute -inset-5 rounded-full border border-dashed opacity-25 transition-all duration-1000 ease-out group-hover:scale-110 group-hover:rotate-90 group-hover:opacity-60"
-                        style={{ borderColor: primaryColor }}
-                        aria-hidden="true"
-                      />
-
-                      {/* Orbiting Satellite Dot */}
-                      <div
-                        className="absolute -top-3 left-3 size-3 rounded-full shadow-[0_0_12px_currentColor] transition-transform duration-700 group-hover:-translate-x-3 group-hover:-translate-y-1"
-                        style={{ color: secondaryColor, background: secondaryColor }}
-                        aria-hidden="true"
-                      />
-
-                      {/* Planet Core Sphere */}
-                      <div
-                        className="relative flex size-28 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-background shadow-2xl transition-all duration-500 group-hover:scale-105"
-                        style={{ boxShadow: `0 16px 50px ${primaryColor}30` }}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3.5 py-1 font-mono text-xs font-semibold backdrop-blur-md transition-colors"
+                        style={{
+                          backgroundColor: `${primaryColor}12`,
+                          borderColor: `${primaryColor}30`,
+                          color: primaryColor,
+                        }}
                       >
-                        {featuredBanner && (
-                          <img
-                            src={featuredBanner}
-                            alt=""
-                            loading="lazy"
-                            className="absolute inset-0 size-full object-cover blur-[2px] opacity-40 transition-all duration-700 group-hover:scale-125 group-hover:opacity-60"
-                          />
-                        )}
-
-                        <div
-                          className="absolute inset-0 mix-blend-color opacity-60"
+                        <span
+                          className="size-1.5 rounded-full shadow-[0_0_8px_currentColor] animate-pulse"
                           style={{ background: primaryColor }}
                         />
-                        <div className="absolute inset-0 bg-linear-to-t from-background/90 via-background/20 to-transparent" />
-
-                        {/* Planet Icon */}
-                        <span className="relative text-4xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] transition-transform duration-500 group-hover:scale-110">
-                          {planet.icon || (
-                            <PlanetIcon weight="duotone" className="size-10 text-white" />
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Title & Description */}
-                  <div className="text-center sm:text-right pt-4!">
-                    {/* Title colored dynamically using primaryColor */}
-                    <h2
-                      className="font-heading text-2xl font-bold tracking-tight transition-all duration-300 group-hover:drop-shadow-[0_2px_10px_currentColor]"
-                      style={{ color: primaryColor }}
-                    >
-                      {planet.nameAr}
-                    </h2>
-                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground/80">
-                      {planet.description || "استكشف الأعمال والأفلام والمسلسلات داخل هذا الكوكب."}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Card Footer */}
-                <div className="mt-8 border-t border-white/10 pt-4">
-                  <div className="flex items-center justify-between">
-                    {/* Poster Stack Preview */}
-                    <div className="flex items-center gap-2.5">
-                      {worksList.length > 0 ? (
-                        <div className="flex items-center">
-                          {worksList.slice(0, 3).map((preview, pIdx) => {
-                            const poster = preview.imagePath || preview.bannerPath;
-                            return (
-                              <div
-                                key={preview.id || pIdx}
-                                className={cn(
-                                  "relative h-9 w-6 overflow-hidden rounded-md border border-white/20 bg-muted shadow-lg transition-transform duration-300 group-hover:-translate-y-1",
-                                  pIdx > 0 && "-ms-2.5",
-                                )}
-                              >
-                                {poster ? (
-                                  <img
-                                    src={poster}
-                                    alt=""
-                                    loading="lazy"
-                                    className="size-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex size-full items-center justify-center bg-muted/80">
-                                    <FilmStripIcon
-                                      weight="thin"
-                                      className="size-3 text-muted-foreground"
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="flex size-7 items-center justify-center rounded-lg bg-white/5 border border-white/10">
-                          <PopcornIcon
-                            weight="duotone"
-                            className="size-3.5 text-muted-foreground"
-                          />
-                        </div>
-                      )}
-
-                      <span className="font-mono text-xs font-semibold text-muted-foreground/80">
-                        {planet.workCount || 0} عمل
+                        كوكب {String(index + 1).padStart(2, "0")}
                       </span>
                     </div>
 
-                    {/* CTA Button colored with primaryColor */}
-                    <span
-                      className="inline-flex items-center gap-1.5 text-xs font-bold transition-transform duration-300 group-hover:translate-x-0.5"
-                      style={{ color: primaryColor }}
-                    >
-                      اعبر البوابة
-                      <ArrowLeftIcon
-                        weight="bold"
-                        className="size-3.5 transition-transform duration-300 group-hover:-translate-x-1"
-                      />
-                    </span>
+                    {/* Centerpiece: Celestial Planet Portal */}
+                    <div className="my-7 flex items-center justify-center">
+                      <div className="relative flex items-center justify-center">
+                        {/* Animated Dashed Orbit Ring */}
+                        <div
+                          className="absolute -inset-5 rounded-full border border-dashed opacity-25 transition-all duration-1000 ease-out group-hover:scale-110 group-hover:rotate-90 group-hover:opacity-60"
+                          style={{ borderColor: primaryColor }}
+                          aria-hidden="true"
+                        />
+
+                        {/* Orbiting Satellite Dot */}
+                        <div
+                          className="absolute -top-3 left-3 size-3 rounded-full shadow-[0_0_12px_currentColor] transition-transform duration-700 group-hover:-translate-x-3 group-hover:-translate-y-1"
+                          style={{ color: secondaryColor, background: secondaryColor }}
+                          aria-hidden="true"
+                        />
+
+                        {/* Planet Core Sphere */}
+                        <div
+                          className="relative flex size-28 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-background shadow-2xl transition-all duration-500 group-hover:scale-105"
+                          style={{ boxShadow: `0 16px 50px ${primaryColor}30` }}
+                        >
+                          {featuredBanner && (
+                            <img
+                              src={featuredBanner}
+                              alt=""
+                              loading="lazy"
+                              className="absolute inset-0 size-full object-cover blur-[2px] opacity-40 transition-all duration-700 group-hover:scale-125 group-hover:opacity-60"
+                            />
+                          )}
+
+                          <div
+                            className="absolute inset-0 mix-blend-color opacity-60"
+                            style={{ background: primaryColor }}
+                          />
+                          <div className="absolute inset-0 bg-linear-to-t from-background/90 via-background/20 to-transparent" />
+
+                          {/* Planet Icon */}
+                          <span className="relative text-4xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] transition-transform duration-500 group-hover:scale-110">
+                            {planet.icon || (
+                              <PlanetIcon weight="duotone" className="size-10 text-white" />
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Title & Description */}
+                    <div className="text-center sm:text-right pt-4!">
+                      {/* Title colored dynamically using primaryColor */}
+                      <h2
+                        className="font-heading text-2xl font-bold tracking-tight transition-all duration-300 group-hover:drop-shadow-[0_2px_10px_currentColor]"
+                        style={{ color: primaryColor }}
+                      >
+                        {planet.nameAr}
+                      </h2>
+                      <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground/80">
+                        {planet.description ||
+                          "استكشف الأعمال والأفلام والمسلسلات داخل هذا الكوكب."}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            );
-          })}
+
+                  {/* Card Footer */}
+                  <div className="mt-8 border-t border-white/10 pt-4">
+                    <div className="flex items-center justify-between">
+                      {/* Poster Stack Preview */}
+                      <div className="flex items-center gap-2.5">
+                        {worksList.length > 0 ? (
+                          <div className="flex items-center">
+                            {worksList.slice(0, 3).map((preview, pIdx) => {
+                              const poster = preview.imagePath || preview.bannerPath;
+                              return (
+                                <div
+                                  key={preview.id || pIdx}
+                                  className={cn(
+                                    "relative h-9 w-6 overflow-hidden rounded-md border border-white/20 bg-muted shadow-lg transition-transform duration-300 group-hover:-translate-y-1",
+                                    pIdx > 0 && "-ms-2.5",
+                                  )}
+                                >
+                                  {poster ? (
+                                    <img
+                                      src={poster}
+                                      alt=""
+                                      loading="lazy"
+                                      className="size-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex size-full items-center justify-center bg-muted/80">
+                                      <FilmStripIcon
+                                        weight="thin"
+                                        className="size-3 text-muted-foreground"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex size-7 items-center justify-center rounded-lg bg-white/5 border border-white/10">
+                            <PopcornIcon
+                              weight="duotone"
+                              className="size-3.5 text-muted-foreground"
+                            />
+                          </div>
+                        )}
+
+                        <span className="font-mono text-xs font-semibold text-muted-foreground/80">
+                          {planet.workCount || 0} عمل
+                        </span>
+                      </div>
+
+                      {/* CTA Button colored with primaryColor */}
+                      <span
+                        className="inline-flex items-center gap-1.5 text-xs font-bold transition-transform duration-300 group-hover:translate-x-0.5"
+                        style={{ color: primaryColor }}
+                      >
+                        اعبر البوابة
+                        <ArrowLeftIcon
+                          weight="bold"
+                          className="size-3.5 transition-transform duration-300 group-hover:-translate-x-1"
+                        />
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
         </div>
       </main>
     </PlatformShell>

@@ -13,7 +13,7 @@ apps/web            React 19 and TanStack Start client
 packages/contracts  shared Zod schemas and generated API types
 packages/database   PostgreSQL schema, migrations, seed, and v1 importer
 packages/domain     taxonomy, classification, policy, and scoring rules
-packages/i18n       Arabic and English interface vocabulary
+packages/i18n       shared Arabic interface vocabulary and taxonomy labels
 scripts             repository command-line tools
 ```
 
@@ -26,8 +26,9 @@ API on port 3001, and the web app on port 3000:
 devenv up
 ```
 
-`DATABASE_URL`, `VITE_API_URL`, and development-only mock identity are supplied by
-`devenv.nix`. The API refuses mock administrator access in production.
+`DATABASE_URL`, `VITE_API_URL`, the local Better Auth secret, and demo-seed flag are supplied
+by `devenv.nix`. Browser routes use real cookie-backed sessions; the test-only identity bypass
+is accepted only when both `NODE_ENV=test` and `ARCADIA_MOCK_AUTH=true`.
 
 Database changes are explicit; startup never runs migrations automatically:
 
@@ -36,6 +37,18 @@ devenv shell -- pnpm db:generate
 devenv shell -- pnpm db:migrate
 devenv shell -- pnpm db:seed
 ```
+
+In the development environment the seed creates three local accounts. They are fixtures for
+manual testing and are never created unless `ARCADIA_SEED_DEMO_ACCOUNTS=true`:
+
+| نوع الحساب | اسم المستخدم | كلمة المرور |
+| --- | --- | --- |
+| مالك العائلة | `admin` | `ArcadiaAdmin!2026` |
+| عائلي | `family` | `ArcadiaFamily!2026` |
+| شخصي | `personal` | `ArcadiaPersonal!2026` |
+
+Set a unique `BETTER_AUTH_SECRET` and trusted `WEB_ORIGIN` outside development. Public account
+registration is disabled: an owner creates an account directly or issues an expiring invitation.
 
 The active database is PostgreSQL and its migration history lives only in
 `packages/database/drizzle/`. The single retained `data/arcadia.db` file is a read-only v1
@@ -67,6 +80,10 @@ after changing the OpenAPI contract:
 ```bash
 devenv shell -- pnpm client:generate
 ```
+
+Catalog, account, award, and social payloads are validated by the shared Zod schemas in
+`packages/contracts`. Interface wording and common option labels live in `packages/i18n`; feature
+components should not duplicate either set locally.
 
 ## Verification
 

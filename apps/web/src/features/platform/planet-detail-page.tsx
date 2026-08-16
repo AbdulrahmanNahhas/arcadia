@@ -97,7 +97,7 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
               {planet.icon}
             </span>
 
-            <div className="space-y-1">
+            <div className="space-y-2">
               {/* Eyebrow Badge */}
               <div className="flex items-center gap-2">
                 <span
@@ -108,11 +108,11 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
                     color: planet.primaryColor,
                   }}
                 >
+                  {planet.nameEn && planet.nameEn}
                   <span
                     className="size-1.5 rounded-full animate-pulse"
                     style={{ background: planet.primaryColor }}
                   />
-                  كوكب نحّاسينما
                 </span>
               </div>
 
@@ -120,15 +120,6 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
               <h1 className="font-heading text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
                 {planet.nameAr}
               </h1>
-
-              {planet.nameEn && (
-                <p
-                  className="font-mono text-xs tracking-wider text-muted-foreground/80 sm:text-sm"
-                  dir="ltr"
-                >
-                  {planet.nameEn}
-                </p>
-              )}
             </div>
           </div>
 

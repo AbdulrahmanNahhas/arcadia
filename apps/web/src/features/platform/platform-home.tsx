@@ -1,22 +1,22 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCurrentAccount } from "@/features/accounts/api";
 import type { PlanetWithWorks } from "@/features/platform/model";
-import { currentProfile } from "@/features/profiles/model";
 import { cn } from "@/lib/utils";
 import { getAdminWatchRadar, getPlatformHome } from "@/server/platform.functions";
+import { FamilyActivityRail } from "./components/family-activity-rail";
 import { PlatformShell } from "./components/platform-shell";
 import { WatchRadarHero } from "./components/watch-radar-hero";
 import { WorkRail } from "./components/work-rail";
 
 export function PlatformHome() {
+  const { data: accountData } = useCurrentAccount();
   const { data } = useSuspenseQuery({
     queryKey: ["platform-home"],
     queryFn: () => getPlatformHome(),
   });
-  const [isAdmin, setIsAdmin] = useState(false);
-  useEffect(() => setIsAdmin(currentProfile().accountKind === "admin"), []);
+  const isAdmin = accountData?.account.role === "owner" || accountData?.account.role === "editor";
   const { data: adminWatchRadar } = useQuery({
     queryKey: ["platform-home", "admin", "watch-radar"],
     queryFn: getAdminWatchRadar,
@@ -29,16 +29,18 @@ export function PlatformHome() {
     <PlatformShell immersive>
       <WatchRadarHero works={watchRadar} />
       <div className="relative z-10 mx-auto -mt-8 flex flex-col gap-18 pb-28 lg:-mt-12 lg:gap-24 px-0">
-        {/*{data.continueExploring.length > 0 && (
+        {data.continueExploring.length > 0 && (
           <WorkRail
             title="واصل الاستكشاف"
             description="الأعمال التي تركتها مفتوحة تنتظرك هنا."
             works={data.continueExploring}
             variant="banner"
           />
-        )}*/}
+        )}
 
-        <PlanetIndex planets={data.planets} />
+        <FamilyActivityRail items={data.familyActivity} />
+
+        <PlanetIndex planets={populatedPlanets} />
 
         <WorkRail
           title="الأعلى تقييماً"

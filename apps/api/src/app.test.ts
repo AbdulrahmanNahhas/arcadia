@@ -119,6 +119,44 @@ describe("Arcadia API contract", () => {
     expect(metrics.episodes).toBeGreaterThan(0);
     expect(metrics.scored_installments).toBeGreaterThan(0);
   });
+
+  it("returns real validation, statistics, vocabularies, and media health", async () => {
+    const [validation, statistics, vocabularies, media] = await Promise.all([
+      app.request("/api/v1/admin/validation"),
+      app.request("/api/v1/admin/statistics?visibility=all"),
+      app.request("/api/v1/admin/vocabularies"),
+      app.request("/api/v1/admin/media-assets?limit=5"),
+    ]);
+    expect(validation.status).toBe(200);
+    expect(Array.isArray(await validation.json())).toBe(true);
+    expect(statistics.status).toBe(200);
+    expect((await statistics.json()).scoreCoverage).toBeDefined();
+    expect(vocabularies.status).toBe(200);
+    expect((await vocabularies.json()).length).toBeGreaterThan(0);
+    expect(media.status).toBe(200);
+    expect((await media.json()).items).toBeDefined();
+  });
+
+  it("deletes an unused media record when its physical file is already missing", async () => {
+    const sql = database().client;
+    const [asset] = await sql`insert into media_assets
+      (path, sha256, mime_type, byte_size, width, height, original_filename)
+      values ('/media/uploads/posters/missing-delete-test.png', ${`${"f".repeat(63)}e`},
+        'image/png', 1, 1, 1, 'missing-delete-test.png') returning id`;
+    expect(asset).toBeDefined();
+
+    try {
+      const response = await app.request(`/api/v1/admin/media-assets/${asset?.id}`, {
+        method: "DELETE",
+      });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ deleted: true });
+      const [remaining] = await sql`select id from media_assets where id=${asset?.id}`;
+      expect(remaining).toBeUndefined();
+    } finally {
+      await sql`delete from media_assets where id=${asset?.id}`;
+    }
+  });
 });
 
 afterAll(async () => database().client.end());

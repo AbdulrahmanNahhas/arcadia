@@ -2,16 +2,35 @@ import type { BrowseResponse, TitleDetail } from "@arcadia/contracts";
 import type { paths } from "@arcadia/contracts/openapi";
 import createClient from "openapi-fetch";
 
-const client = createClient<paths>({
-  baseUrl: import.meta.env.VITE_API_URL ?? "http://127.0.0.1:3001",
-});
+function resolveApiBaseUrl() {
+  const configured = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:3001";
+  if (typeof window === "undefined") return configured;
 
-export const apiBaseUrl = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:3001";
+  const url = new URL(configured);
+  const loopbackHosts = new Set(["127.0.0.1", "localhost", "::1"]);
+  if (loopbackHosts.has(url.hostname) && loopbackHosts.has(window.location.hostname)) {
+    url.hostname = window.location.hostname;
+  }
+  return url.origin;
+}
+
+export const apiBaseUrl = resolveApiBaseUrl();
+
+async function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit) {
+  return fetch(input, {
+    ...init,
+    credentials: "include",
+    headers: new Headers(init?.headers),
+  });
+}
+
+const client = createClient<paths>({ baseUrl: apiBaseUrl, fetch: authenticatedFetch });
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    credentials: "include",
+    headers: new Headers({ "Content-Type": "application/json", ...init?.headers }),
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { message?: string } | null;

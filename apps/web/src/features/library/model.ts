@@ -1,3 +1,4 @@
+import { awardRecognitionSchema } from "@arcadia/contracts";
 import { z } from "zod";
 
 export const workKinds = [
@@ -281,24 +282,44 @@ export const tagLabelsAr: Readonly<Record<string, string>> = {
   Writing: "الكتابة",
 };
 
-export const contributorRoles = [
-  "author",
-  "original-author",
-  "writer",
-  "screenwriter",
-  "director",
-  "illustrator",
-  "artist",
-  "animation-studio",
-  "production-company",
-  "producer",
-  "developer",
-  "publisher",
-  "composer",
-  "editor",
-  "translator",
+export const personContributorRoles = [
   "creator",
+  "original_author",
+  "director",
+  "writer",
+  "producer",
+  "executive_producer",
+  "creative_producer",
+  "character_designer",
+  "art_director",
+  "scene_design",
+  "composer",
 ] as const;
+
+export const organizationContributorRoles = [
+  "animation_studio",
+  "production_company",
+  "distributor",
+  "publisher",
+] as const;
+
+export const contributorRoles = [
+  ...personContributorRoles,
+  ...organizationContributorRoles,
+] as const;
+
+export const contributorRolesByEntityType = {
+  person: personContributorRoles,
+  organization: organizationContributorRoles,
+} as const;
+
+export function contributorRoleEntityType(
+  role: (typeof contributorRoles)[number],
+): "person" | "organization" {
+  return (organizationContributorRoles as readonly string[]).includes(role)
+    ? "organization"
+    : "person";
+}
 
 export const personalStatuses = [
   "saved",
@@ -540,6 +561,7 @@ export const workSchema = z.object({
       url: z.url(),
     }),
   ),
+  awards: z.array(awardRecognitionSchema),
   releaseStart: z.string().nullable(),
   releaseEnd: z.string().nullable(),
   watchDates: z

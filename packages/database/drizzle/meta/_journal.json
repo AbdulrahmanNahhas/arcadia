@@ -43,6 +43,83 @@
       "when": 1786530540000,
       "tag": "0005_release_status_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786530541000,
+      "tag": "0006_archive_control_room",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786530542000,
+      "tag": "0007_controlled_vocabulary_labels",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786530543000,
+      "tag": "0008_split_contribution_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786530544000,
+      "tag": "0009_lock_contribution_role_vocabulary",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786530545000,
+      "tag": "0010_add_scene_design_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786530546000,
+      "tag": "0011_curated_people_credits",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786530547000,
+      "tag": "0012_curate_remaining_people",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786530548000,
+      "tag": "0013_complete_catalog_credits",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786530549000,
+      "tag": "0014_award_recognitions",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786810800000,
+      "tag": "0015_family_platform",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786827600000,
+      "tag": "0016_archive_expansion",
+      "breakpoints": true
     }
   ]
 }

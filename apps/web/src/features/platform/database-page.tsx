@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useCurrentAccount } from "@/features/accounts/api";
 import {
   buildCatalogFacetOptions,
   countCatalogFilters,
@@ -42,7 +43,6 @@ import {
 import { CatalogFilterSheet, CatalogFilterSidebar } from "@/features/catalog/catalog-filters";
 import type { Work } from "@/features/library/model";
 import { scoreCriterionLabels } from "@/features/library/scoring";
-import { currentProfile } from "@/features/profiles/model";
 import { cn } from "@/lib/utils";
 import {
   getAdminPlatformCatalogInstallments,
@@ -148,10 +148,10 @@ export function DatabasePage() {
     queryKey: ["platform-catalog", "installments"],
     queryFn: () => getPlatformCatalogInstallments(),
   });
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { data: accountData } = useCurrentAccount();
+  const isAdmin = accountData?.account.role === "owner" || accountData?.account.role === "editor";
   const [interactive, setInteractive] = useState(false);
   useEffect(() => {
-    setIsAdmin(currentProfile().accountKind === "admin");
     setInteractive(true);
   }, []);
   const { data: adminWorks } = useQuery({

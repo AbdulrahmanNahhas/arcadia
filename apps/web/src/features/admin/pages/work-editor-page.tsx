@@ -17,7 +17,7 @@ export function AdminWorkEditorPage({ workId }: { workId: string }) {
   const work = works.find((item) => item.id === workId);
   if (!work) return <p>تعذر العثور على العمل.</p>;
   return (
-    <div className="mx-auto w-full max-w-7xl px-5 pb-20 pt-4 sm:px-8">
+    <div className="mx-auto w-full max-w-7xl">
       <WorkEditorPage
         work={work}
         works={works}

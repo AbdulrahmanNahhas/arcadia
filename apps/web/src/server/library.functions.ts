@@ -1,13 +1,15 @@
-import {
-  type AdminEntityInput,
-  type AdminWorkUpdate,
-  audiences,
-  type EditableWorkStructure,
-  genres,
-  tagLabelsAr,
-  taxonomyLabels,
-  tones,
-  type WorkStructure,
+import type {
+  AccountPolicyPreview,
+  AdminStatistics,
+  AwardOrganizationOption,
+  MediaAsset,
+  VocabularyTerm,
+} from "@arcadia/contracts";
+import type {
+  AdminEntityInput,
+  AdminWorkUpdate,
+  EditableWorkStructure,
+  WorkStructure,
 } from "@/features/library/model";
 import { apiFetch } from "@/lib/api";
 import {
@@ -66,40 +68,62 @@ export async function deleteEntities({ data }: Data<{ ids: string[] }>) {
   });
 }
 
-const terms = [
-  ...genres.map((key) => ({
-    vocabulary: "genre",
-    key,
-    labelEn: key,
-    labelAr: taxonomyLabels.genres[key],
-  })),
-  ...tones.map((key) => ({
-    vocabulary: "tone",
-    key,
-    labelEn: key,
-    labelAr: taxonomyLabels.tones[key],
-  })),
-  ...audiences.map((key) => ({
-    vocabulary: "audience",
-    key,
-    labelEn: key,
-    labelAr: taxonomyLabels.audiences[key],
-  })),
-  ...Object.entries(tagLabelsAr).map(([key, labelAr]) => ({
-    vocabulary: "tag",
-    key,
-    labelEn: key,
-    labelAr,
-  })),
-].map((term) => ({
-  ...term,
-  id: `${term.vocabulary}:${term.key}`,
-  description: "",
-  descriptionAr: "",
-  usageCount: 0,
-}));
 export async function getTaxonomyTerms() {
-  return terms;
+  return apiFetch<VocabularyTerm[]>("/api/v1/vocabularies");
+}
+export async function getAdminVocabularyTerms() {
+  return apiFetch<VocabularyTerm[]>("/api/v1/admin/vocabularies");
+}
+export async function getAdminStatistics(visibility: "all" | "public" | "private" = "all") {
+  return apiFetch<AdminStatistics>(`/api/v1/admin/statistics?visibility=${visibility}`);
+}
+export async function getMediaAssets(query = "") {
+  return apiFetch<{ items: MediaAsset[]; total: number }>(`/api/v1/admin/media-assets${query}`);
+}
+export async function assignMediaAsset({
+  data,
+}: Data<{
+  assetId: string;
+  role: "poster" | "banner" | "logo" | "profile";
+  owner: Record<string, string>;
+  isPrimary: boolean;
+}>) {
+  return apiFetch("/api/v1/admin/media-assignments", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export async function removeMediaAssignment({ data }: Data<{ assignmentId: string }>) {
+  return apiFetch<{ deleted: true }>(`/api/v1/admin/media-assignments/${data.assignmentId}`, {
+    method: "DELETE",
+  });
+}
+export async function deleteMediaAsset({ data }: Data<{ assetId: string }>) {
+  return apiFetch<{ deleted: true }>(`/api/v1/admin/media-assets/${data.assetId}`, {
+    method: "DELETE",
+  });
+}
+export async function getAccountPolicyPreviews() {
+  return apiFetch<AccountPolicyPreview[]>("/api/v1/admin/accounts");
+}
+export function getAwardOptions() {
+  return apiFetch<AwardOrganizationOption[]>("/api/v1/admin/awards/options");
+}
+export function createAwardOrganization({
+  data,
+}: Data<{ slug: string; nameAr: string; nameEn: string | null; websiteUrl: string | null }>) {
+  return apiFetch<{ id: string; slug: string; nameAr: string; nameEn: string | null }>(
+    "/api/v1/admin/awards/organizations",
+    { method: "POST", body: JSON.stringify(data) },
+  );
+}
+export function createAwardCategory({
+  data,
+}: Data<{ organizationId: string; slug: string; nameAr: string; nameEn: string | null }>) {
+  return apiFetch<{ id: string; slug: string; nameAr: string; nameEn: string | null }>(
+    "/api/v1/admin/awards/categories",
+    { method: "POST", body: JSON.stringify(data) },
+  );
 }
 export async function getAdminOverview() {
   return apiFetch<{
@@ -107,6 +131,11 @@ export async function getAdminOverview() {
     private_titles: number;
     missing_arabic: number;
     missing_posters: number;
+    media_assets: number;
+    media_failures: number;
+    unreferenced_assets: number;
+    reused_assets: number;
+    inactive_term_usage: number;
     missing_guidance: number;
     installments: number;
     seasons: number;
@@ -126,7 +155,17 @@ export async function getAdminOverview() {
 export async function saveTaxonomyTranslation({
   data,
 }: Data<{ id: string; labelAr: string | null; description: string; descriptionAr: string }>) {
-  return data;
+  const current = (await getAdminVocabularyTerms()).find((term) => term.id === data.id);
+  if (!current) throw new Error("تعذّر العثور على المصطلح.");
+  return apiFetch<{ id: string }>("/api/v1/admin/vocabularies", {
+    method: "POST",
+    body: JSON.stringify({
+      ...current,
+      labelAr: data.labelAr ?? current.labelAr,
+      descriptionEn: data.description,
+      descriptionAr: data.descriptionAr,
+    }),
+  });
 }
 export async function saveTaxonomyTranslations({
   data,
@@ -138,7 +177,9 @@ export async function saveTaxonomyTranslations({
     descriptionAr: string;
   }>;
 }>) {
-  return data.translations;
+  return Promise.all(
+    data.translations.map((translation) => saveTaxonomyTranslation({ data: translation })),
+  );
 }
 
 export async function addWork({ data }: Data<Record<string, unknown>>) {
@@ -215,6 +256,14 @@ export async function uploadEntityImage({ data }: Data<{ dataUrl: string; fileNa
   return apiFetch<{ relativePath: string; mimeType: string }>("/api/v1/admin/media", {
     method: "POST",
     body: JSON.stringify({ ...data, assetType: "profile", ownerName: data.fileName }),
+  });
+}
+export async function updateMediaFocal({
+  data,
+}: Data<{ assetId: string; focalX: number; focalY: number }>) {
+  return apiFetch<{ updated: true }>(`/api/v1/admin/media-assets/${data.assetId}/focal`, {
+    method: "PATCH",
+    body: JSON.stringify({ focalX: data.focalX, focalY: data.focalY }),
   });
 }
 

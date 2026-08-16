@@ -21,16 +21,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import type { Entity, WorkContribution } from "@/features/library/model";
-import { contributorRoles } from "@/features/library/model";
+import { contributorRoleEntityType, contributorRolesByEntityType } from "@/features/library/model";
 import { useArabicTranslations } from "@/features/library/translations";
 import { Field } from "./field";
-
-const organizationOnlyRoles = new Set<WorkContribution["role"]>([
-  "animation-studio",
-  "production-company",
-  "developer",
-  "publisher",
-]);
 
 export function ContributionField({
   value = [],
@@ -50,7 +43,11 @@ export function ContributionField({
         if (patch.name !== undefined && !patch.entityId) {
           next.entityId = `new:${next.entityType}:${patch.name.trim().toLocaleLowerCase()}`;
         }
-        if (organizationOnlyRoles.has(next.role)) next.entityType = "organization";
+        if (patch.role) next.entityType = contributorRoleEntityType(patch.role);
+        if (patch.entityType && patch.entityType !== contributor.entityType) {
+          next.entityId = `new:${patch.entityType}:${next.name.trim().toLocaleLowerCase()}`;
+          next.role = contributorRolesByEntityType[patch.entityType][0];
+        }
         return next;
       }),
     );
@@ -90,25 +87,27 @@ export function ContributionField({
                     <CommandList>
                       <CommandEmpty>لا توجد نتيجة. اكتب الاسم لإنشاء سجل جديد.</CommandEmpty>
                       <CommandGroup heading="السجلات الموجودة">
-                        {entities.map((entity) => (
-                          <CommandItem
-                            key={entity.id}
-                            value={`${entity.name} ${entity.entityType}`}
-                            data-checked={entity.id === contributor.entityId}
-                            onSelect={() =>
-                              update(index, {
-                                entityId: entity.id,
-                                name: entity.name,
-                                entityType: entity.entityType,
-                              })
-                            }
-                          >
-                            <span className="truncate">{entity.name}</span>
-                            <Badge variant="outline">
-                              {entity.entityType === "person" ? "شخص" : "منظمة"}
-                            </Badge>
-                          </CommandItem>
-                        ))}
+                        {entities
+                          .filter((entity) => entity.entityType === contributor.entityType)
+                          .map((entity) => (
+                            <CommandItem
+                              key={entity.id}
+                              value={`${entity.name} ${entity.entityType}`}
+                              data-checked={entity.id === contributor.entityId}
+                              onSelect={() =>
+                                update(index, {
+                                  entityId: entity.id,
+                                  name: entity.name,
+                                  entityType: entity.entityType,
+                                })
+                              }
+                            >
+                              <span className="truncate">{entity.name}</span>
+                              <Badge variant="outline">
+                                {entity.entityType === "person" ? "شخص" : "منظمة"}
+                              </Badge>
+                            </CommandItem>
+                          ))}
                       </CommandGroup>
                     </CommandList>
                   </Command>
@@ -117,7 +116,7 @@ export function ContributionField({
             </div>
 
             <Select
-              items={contributorRoles.map((role) => ({
+              items={contributorRolesByEntityType[contributor.entityType].map((role) => ({
                 value: role,
                 label: facetValueLabel("creatorRoles", role),
               }))}
@@ -131,7 +130,7 @@ export function ContributionField({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {contributorRoles.map((role) => (
+                  {contributorRolesByEntityType[contributor.entityType].map((role) => (
                     <SelectItem key={role} value={role}>
                       {facetValueLabel("creatorRoles", role)}
                     </SelectItem>
@@ -146,7 +145,6 @@ export function ContributionField({
                 { value: "organization", label: "منظمة" },
               ]}
               value={contributor.entityType}
-              disabled={organizationOnlyRoles.has(contributor.role)}
               onValueChange={(entityType) =>
                 update(index, {
                   entityType: (entityType ?? "person") as WorkContribution["entityType"],

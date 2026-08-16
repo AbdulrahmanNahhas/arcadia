@@ -115,7 +115,7 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
           className="max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-500"
         >
           <p className="mb-5 flex items-center gap-2 text-xs font-semibold tracking-[0.18em] text-primary">
-            <SparkleIcon weight="fill" /> اختيارات مثبتة · على الرادار
+            <SparkleIcon weight="fill" /> وصل حديثاً · وقادم إلى المدار
           </p>
 
           {work.logoPath ? (
@@ -155,7 +155,7 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
           ) : null}
 
           <p className="mt-5 max-w-lg text-xs leading-6 text-foreground/48">
-            أعمال واعدة لم أشاهدها بعد؛ بعضها وصل بالفعل، وبعضها ما زال في الطريق.
+            واجهة إصدار واعية بالوقت: أعمال وصلت للعائلة وأخرى لها عودة أو إصدار قادم.
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3">

@@ -1,5 +1,9 @@
-import type { Age, Audience, Classification, RiskLevel } from "@arcadia/domain";
-import { useState } from "react";
+import type { AccountPreferences, AvatarKey } from "@arcadia/contracts";
+import type { Classification } from "@arcadia/domain";
+import { ageOptions, ar, audienceOptions, avatarLabels, riskOptions } from "@arcadia/i18n";
+import { CheckCircleIcon, FloppyDiskIcon } from "@phosphor-icons/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { PlatformShell } from "@/components/platform-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,168 +26,239 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { currentProfile, readSettings, settingsKey } from "./model";
+import { AccountAvatar } from "@/features/accounts/account-avatar";
+import { accountKeys, updateCurrentAccount, useCurrentAccount } from "@/features/accounts/api";
+import { cn } from "@/lib/utils";
 
-const audiences: Array<[Audience, string]> = [
-  ["general", "عام"],
-  ["teen", "يافعون"],
-  ["young-adult", "شباب"],
-  ["adult", "بالغون"],
-];
-const ages: Array<[Age, string]> = [
-  ["all", "للجميع"],
-  ["7+", "7+"],
-  ["10+", "10+"],
-  ["13+", "13+"],
-  ["16+", "16+"],
-  ["18+", "18+"],
-];
-const risks: Array<[RiskLevel, string]> = [
-  ["none", "لا يوجد"],
-  ["low", "منخفض"],
-  ["medium", "متوسط"],
-  ["high", "مرتفع"],
-];
+type SettingsDraft = {
+  avatarKey: AvatarKey;
+  preferences: AccountPreferences;
+  contentPolicy: Classification;
+};
+
+const avatarKeys = Object.keys(avatarLabels) as AvatarKey[];
 
 export function SettingsPage() {
-  const profile = currentProfile();
-  const initial = readSettings(profile.id);
-  const [settings, setSettings] = useState({
-    ...initial,
-    policy: initial.policy ?? profile.policy,
+  const queryClient = useQueryClient();
+  const { data } = useCurrentAccount();
+  const account = data?.account;
+  const [draft, setDraft] = useState<SettingsDraft | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (account) {
+      setDraft({
+        avatarKey: account.avatarKey,
+        preferences: account.preferences,
+        contentPolicy: account.contentPolicy,
+      });
+    }
+  }, [account]);
+
+  const mutation = useMutation({
+    mutationFn: updateCurrentAccount,
+    onSuccess: async (updated) => {
+      window.localStorage.setItem("arcadia:theme", updated.preferences.theme);
+      document.documentElement.classList.toggle("dark", updated.preferences.theme === "dark");
+      await queryClient.invalidateQueries({ queryKey: accountKeys.current });
+      await queryClient.invalidateQueries({ queryKey: accountKeys.family });
+      setSaved(true);
+    },
   });
-  const save = () => {
-    window.localStorage.setItem(settingsKey(profile.id), JSON.stringify(settings));
-    document.documentElement.classList.toggle("dark", settings.theme === "dark");
-  };
+
+  if (!account || !draft) {
+    return (
+      <PlatformShell>
+        <div className="mx-auto max-w-4xl px-5 py-32 text-muted-foreground">
+          جارٍ تحميل إعداداتك…
+        </div>
+      </PlatformShell>
+    );
+  }
+
   const setPolicy = <K extends keyof Classification>(key: K, value: Classification[K]) =>
-    setSettings((current) => ({ ...current, policy: { ...current.policy, [key]: value } }));
+    setDraft((current) =>
+      current ? { ...current, contentPolicy: { ...current.contentPolicy, [key]: value } } : current,
+    );
+  const setPreference = <K extends keyof AccountPreferences>(
+    key: K,
+    value: AccountPreferences[K],
+  ) =>
+    setDraft((current) =>
+      current ? { ...current, preferences: { ...current.preferences, [key]: value } } : current,
+    );
+
   return (
     <PlatformShell>
       <section className="mx-auto max-w-4xl px-5 pb-28 pt-20">
-        <p className="text-xs font-semibold tracking-[0.18em] text-primary">ملف {profile.name}</p>
+        <p className="text-xs font-semibold tracking-[0.18em] text-primary">
+          حساب {account.displayName}
+        </p>
         <h1 className="mt-3 font-heading text-4xl font-semibold">إعدادات المدار</h1>
         <p className="mt-3 text-muted-foreground">
-          هذه التفضيلات محلية في مرحلة العرض ولا تُرسل كهوية إلى API.
+          تُحفظ تفضيلاتك في حسابك وتنتقل معك بين الأجهزة. تطبّق أركاديا دائماً الحد الأكثر أماناً.
         </p>
-        <Tabs defaultValue="content" className="mt-10">
+        <Tabs defaultValue="profile" className="mt-10">
           <TabsList>
-            <TabsTrigger value="profile">الملف</TabsTrigger>
+            <TabsTrigger value="profile">الحساب</TabsTrigger>
             <TabsTrigger value="content">المحتوى</TabsTrigger>
-            <TabsTrigger value="language">اللغة</TabsTrigger>
+            <TabsTrigger value="playback">المشاهدة</TabsTrigger>
+            <TabsTrigger value="notifications">التنبيهات</TabsTrigger>
             <TabsTrigger value="appearance">المظهر</TabsTrigger>
           </TabsList>
           <TabsContent value="profile" className="pt-5">
-            <SettingsCard title="الملف الحالي" description={profile.description}>
-              <p className="text-base font-medium">{profile.name}</p>
-              <p className="mt-1 text-muted-foreground">نوع الحساب: {profile.accountKind}</p>
+            <SettingsCard title="صورتك في العائلة" description="اختر واحدة من هويات أركاديا الخمس.">
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+                {avatarKeys.map((avatarKey) => (
+                  <button
+                    key={avatarKey}
+                    type="button"
+                    onClick={() => setDraft((current) => current && { ...current, avatarKey })}
+                    className={cn(
+                      "rounded-2xl border p-3 outline-none transition hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50",
+                      draft.avatarKey === avatarKey && "border-primary bg-primary/8",
+                    )}
+                  >
+                    <AccountAvatar
+                      avatarKey={avatarKey}
+                      label={avatarLabels[avatarKey]}
+                      className="mx-auto size-16"
+                    />
+                    <span className="mt-2 block text-xs">{avatarLabels[avatarKey]}</span>
+                  </button>
+                ))}
+              </div>
             </SettingsCard>
           </TabsContent>
           <TabsContent value="content" className="pt-5">
             <SettingsCard
-              title="حدود المحتوى الظاهرة"
-              description="يُطبّق الأشد بين هذه الحدود وقيود المدير المخفية. القيود المخفية لا تظهر هنا."
+              title="حدود المحتوى التي تختارها"
+              description="يمكنك جعل تجربتك أكثر تحفظاً. قواعد العائلة الوقائية تعمل تلقائياً ولا تكشف تفاصيلها."
             >
               <FieldGroup>
                 <PolicySelect
                   label="الجمهور الأقصى"
-                  value={settings.policy.audience}
-                  options={audiences}
-                  onChange={(value) => setPolicy("audience", value as Audience)}
+                  value={draft.contentPolicy.audience}
+                  options={audienceOptions}
+                  onChange={(value) => setPolicy("audience", value as Classification["audience"])}
                 />
                 <PolicySelect
                   label="العمر الأقصى"
-                  value={settings.policy.age}
-                  options={ages}
-                  onChange={(value) => setPolicy("age", value as Age)}
+                  value={draft.contentPolicy.age}
+                  options={ageOptions}
+                  onChange={(value) => setPolicy("age", value as Classification["age"])}
                 />
                 <FieldSet>
                   <FieldLegend>مستويات المخاطر القصوى</FieldLegend>
                   <FieldGroup>
-                    <PolicySelect
-                      label="المحتوى الجنسي"
-                      value={settings.policy.sexuality}
-                      options={risks}
-                      onChange={(value) => setPolicy("sexuality", value as RiskLevel)}
-                    />
-                    <PolicySelect
-                      label="السلوك والعنف"
-                      value={settings.policy.behavioral}
-                      options={risks}
-                      onChange={(value) => setPolicy("behavioral", value as RiskLevel)}
-                    />
-                    <PolicySelect
-                      label="الدين والغيبيات"
-                      value={settings.policy.theology}
-                      options={risks}
-                      onChange={(value) => setPolicy("theology", value as RiskLevel)}
-                    />
+                    {(
+                      [
+                        ["sexuality", "المحتوى الجنسي"],
+                        ["behavioral", "السلوك والعنف"],
+                        ["theology", "الدين والغيبيات"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <PolicySelect
+                        key={key}
+                        label={label}
+                        value={draft.contentPolicy[key]}
+                        options={riskOptions}
+                        onChange={(value) => setPolicy(key, value as Classification[typeof key])}
+                      />
+                    ))}
                   </FieldGroup>
                 </FieldSet>
               </FieldGroup>
             </SettingsCard>
           </TabsContent>
-          <TabsContent value="language" className="pt-5">
-            <SettingsCard
-              title="الصوت والترجمة"
-              description="قواعد عربية أولاً جاهزة لملفات الوسائط المستقبلية."
-            >
+          <TabsContent value="playback" className="pt-5">
+            <SettingsCard title="الصوت والمشاهدة" description="تفضيلات جاهزة لملفات الوسائط لاحقاً.">
               <FieldGroup>
                 <SwitchField
-                  label="اشترط الصوت العربي"
-                  description="يخفي لاحقاً الملفات التي لا تحمل مساراً عربياً."
-                  checked={settings.arabicOnly}
-                  onChange={(checked) =>
-                    setSettings((current) => ({
-                      ...current,
-                      arabicOnly: checked,
-                      subtitles: checked ? false : current.subtitles,
-                      canSwitchTracks: checked ? false : current.canSwitchTracks,
-                    }))
-                  }
-                />
-                <SwitchField
-                  label="السماح بالترجمة"
-                  description="يمكن إيقافها بالكامل للملفات العربية فقط."
-                  checked={settings.subtitles}
-                  disabled={settings.arabicOnly}
-                  onChange={(checked) =>
-                    setSettings((current) => ({ ...current, subtitles: checked }))
-                  }
+                  label="التشغيل التلقائي"
+                  description="انتقل إلى الحلقة التالية تلقائياً عند توفر تشغيل الوسائط."
+                  checked={draft.preferences.autoplay}
+                  onChange={(value) => setPreference("autoplay", value)}
                 />
                 <SwitchField
                   label="السماح بتبديل المسارات"
-                  description="يتعطل تلقائياً عند فرض الصوت العربي."
-                  checked={settings.canSwitchTracks}
-                  disabled={settings.arabicOnly}
-                  onChange={(checked) =>
-                    setSettings((current) => ({ ...current, canSwitchTracks: checked }))
+                  description="اختيار الصوت والترجمة من المشغّل مستقبلاً."
+                  checked={draft.preferences.canSwitchTracks}
+                  onChange={(value) => setPreference("canSwitchTracks", value)}
+                />
+                <SwitchField
+                  label="إخفاء الحرق"
+                  description="تغطية نصوص المراجعات والتعليقات الموسومة بالحرق."
+                  checked={draft.preferences.hideSpoilers}
+                  onChange={(value) => setPreference("hideSpoilers", value)}
+                />
+                <PolicySelect
+                  label="طريقة عرض الحرق"
+                  value={draft.preferences.spoilerMode}
+                  options={[
+                    ["cover", "تغطية مع إمكانية الكشف"],
+                    ["hide", "إخفاء كامل"],
+                    ["show", "عرض مباشر"],
+                  ]}
+                  onChange={(value) =>
+                    setPreference("spoilerMode", value as AccountPreferences["spoilerMode"])
                   }
                 />
               </FieldGroup>
             </SettingsCard>
           </TabsContent>
+          <TabsContent value="notifications" className="pt-5">
+            <SettingsCard title="تنبيهات العائلة" description="اختر ما يستحق الوصول إلى صندوقك.">
+              <FieldGroup>
+                <SwitchField
+                  label="نشاط العائلة"
+                  description="المراجعات والإضافات الجديدة المهمة."
+                  checked={draft.preferences.notifyFamilyActivity}
+                  onChange={(value) => setPreference("notifyFamilyActivity", value)}
+                />
+                <SwitchField
+                  label="الردود والتفاعلات"
+                  description="عندما يرد أحد على نقاشك أو يتفاعل معه."
+                  checked={draft.preferences.notifyReplies}
+                  onChange={(value) => setPreference("notifyReplies", value)}
+                />
+              </FieldGroup>
+            </SettingsCard>
+          </TabsContent>
           <TabsContent value="appearance" className="pt-5">
-            <SettingsCard
-              title="المظهر"
-              description="Arcadia مصمم للظلام السينمائي، مع خيار نهاري هادئ."
-            >
+            <SettingsCard title="المظهر" description="ظلام سينمائي أو ضوء هادئ.">
               <PolicySelect
                 label="السمة"
-                value={settings.theme}
+                value={draft.preferences.theme}
                 options={[
                   ["dark", "داكن"],
                   ["light", "فاتح"],
                 ]}
-                onChange={(value) =>
-                  setSettings((current) => ({ ...current, theme: value as "dark" | "light" }))
-                }
+                onChange={(value) => setPreference("theme", value as "dark" | "light")}
               />
             </SettingsCard>
           </TabsContent>
         </Tabs>
-        <div className="mt-6 flex justify-end">
-          <Button onClick={save}>حفظ التغييرات</Button>
+        <div className="mt-6 flex items-center justify-end gap-3">
+          {saved ? (
+            <span className="flex items-center gap-2 text-sm text-emerald-500">
+              <CheckCircleIcon /> حُفظت الإعدادات
+            </span>
+          ) : null}
+          <Button
+            onClick={() => {
+              setSaved(false);
+              mutation.mutate({
+                avatarKey: draft.avatarKey,
+                preferences: draft.preferences,
+                contentPolicy: draft.contentPolicy,
+              });
+            }}
+            disabled={mutation.isPending}
+          >
+            <FloppyDiskIcon data-icon="inline-start" />
+            {mutation.isPending ? ar.common.loading : ar.common.save}
+          </Button>
         </div>
       </section>
     </PlatformShell>
@@ -209,6 +284,7 @@ function SettingsCard({
     </Card>
   );
 }
+
 function PolicySelect({
   label,
   value,
@@ -240,26 +316,25 @@ function PolicySelect({
     </Field>
   );
 }
+
 function SwitchField({
   label,
   description,
   checked,
-  disabled,
   onChange,
 }: {
   label: string;
   description: string;
   checked: boolean;
-  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <Field orientation="horizontal" data-disabled={disabled}>
+    <Field orientation="horizontal">
       <FieldContent>
         <FieldLabel>{label}</FieldLabel>
         <FieldDescription>{description}</FieldDescription>
       </FieldContent>
-      <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} />
+      <Switch checked={checked} onCheckedChange={onChange} />
     </Field>
   );
 }

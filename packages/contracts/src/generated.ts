@@ -253,6 +253,7 @@ export interface paths {
                       | "virtual-world"
                       | "writing"
                     )[];
+                    countries: string[];
                     planet: {
                       /** Format: uuid */
                       id: string;
@@ -293,6 +294,23 @@ export interface paths {
                       kind: "person" | "organization";
                       role: string;
                     }[];
+                    awards: {
+                      /** Format: uuid */
+                      id: string;
+                      organizationSlug: string;
+                      organizationName: string;
+                      category: string;
+                      year: number | null;
+                      /** @enum {string} */
+                      result: "winner" | "nominee";
+                      isFeatured: boolean;
+                      /** Format: uuid */
+                      installmentId: string | null;
+                      installmentTitle: string | null;
+                      /** Format: uri */
+                      sourceUrl: string | null;
+                      notes: string | null;
+                    }[];
                   }
                 | {
                     /** Format: uuid */
@@ -332,6 +350,23 @@ export interface paths {
                       craft: number | null;
                     };
                     rating: number | null;
+                    awards: {
+                      /** Format: uuid */
+                      id: string;
+                      organizationSlug: string;
+                      organizationName: string;
+                      category: string;
+                      year: number | null;
+                      /** @enum {string} */
+                      result: "winner" | "nominee";
+                      isFeatured: boolean;
+                      /** Format: uuid */
+                      installmentId: string | null;
+                      installmentTitle: string | null;
+                      /** Format: uri */
+                      sourceUrl: string | null;
+                      notes: string | null;
+                    }[];
                     episodes?: {
                       /** Format: uuid */
                       id: string;
@@ -556,6 +591,7 @@ export interface paths {
                 | "virtual-world"
                 | "writing"
               )[];
+              countries: string[];
               planet: {
                 /** Format: uuid */
                 id: string;
@@ -596,6 +632,23 @@ export interface paths {
                 kind: "person" | "organization";
                 role: string;
               }[];
+              awards: {
+                /** Format: uuid */
+                id: string;
+                organizationSlug: string;
+                organizationName: string;
+                category: string;
+                year: number | null;
+                /** @enum {string} */
+                result: "winner" | "nominee";
+                isFeatured: boolean;
+                /** Format: uuid */
+                installmentId: string | null;
+                installmentTitle: string | null;
+                /** Format: uri */
+                sourceUrl: string | null;
+                notes: string | null;
+              }[];
               analysisNotes: string | null;
               installments: {
                 /** Format: uuid */
@@ -635,6 +688,23 @@ export interface paths {
                   craft: number | null;
                 };
                 rating: number | null;
+                awards: {
+                  /** Format: uuid */
+                  id: string;
+                  organizationSlug: string;
+                  organizationName: string;
+                  category: string;
+                  year: number | null;
+                  /** @enum {string} */
+                  result: "winner" | "nominee";
+                  isFeatured: boolean;
+                  /** Format: uuid */
+                  installmentId: string | null;
+                  installmentTitle: string | null;
+                  /** Format: uri */
+                  sourceUrl: string | null;
+                  notes: string | null;
+                }[];
                 episodes?: {
                   /** Format: uuid */
                   id: string;
