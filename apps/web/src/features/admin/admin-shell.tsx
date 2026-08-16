@@ -14,6 +14,7 @@ import {
 } from "@phosphor-icons/react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import type { ComponentType } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -23,6 +24,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import {
   Sidebar,
   SidebarContent,
@@ -40,6 +42,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentAccount } from "@/features/accounts/api";
 
 const sections = [
@@ -85,30 +88,43 @@ export function AdminShell() {
       path === "/admin" ? pathname === path : pathname.startsWith(path),
     )?.[1] ?? "لوحة الإدارة";
 
-  if (isPending) return <div className="min-h-svh bg-background" />;
+  if (isPending)
+    return (
+      <div className="grid min-h-svh grid-cols-[18rem_1fr] gap-6 bg-background p-6" dir="rtl">
+        <Skeleton className="h-full rounded-3xl" />
+        <div className="flex flex-col gap-6">
+          <Skeleton className="h-14 rounded-2xl" />
+          <Skeleton className="h-48 rounded-3xl" />
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Skeleton className="h-64 rounded-3xl" />
+            <Skeleton className="h-64 rounded-3xl" />
+          </div>
+        </div>
+      </div>
+    );
   if (!account || (account.role !== "owner" && account.role !== "editor"))
     return (
       <main className="flex min-h-svh items-center justify-center px-5" dir="rtl">
-        <div className="max-w-lg rounded-3xl border bg-card p-8 text-center">
-          <ShieldWarningIcon className="mx-auto size-10 text-primary" />
-          <h1 className="mt-5 font-heading text-2xl font-semibold">
-            لوحة الإدارة مقفلة لهذا الحساب
-          </h1>
-          <p className="mt-3 leading-7 text-muted-foreground">
-            هذا الحساب عضو في العائلة ولا يملك صلاحيات تحرير. يستطيع المالك تفويض صلاحيات دقيقة من
-            صفحة الحسابات.
-          </p>
-          <Button className="mt-6" nativeButton={false} render={<Link to="/accounts" />}>
+        <Empty className="max-w-lg rounded-3xl border bg-card p-8">
+          <EmptyHeader>
+            <ShieldWarningIcon />
+            <EmptyTitle>لوحة الإدارة مقفلة لهذا الحساب</EmptyTitle>
+            <EmptyDescription>
+              هذا الحساب عضو في العائلة ولا يملك صلاحيات تحرير. يستطيع المالك تفويض صلاحيات دقيقة من
+              صفحة الحسابات.
+            </EmptyDescription>
+          </EmptyHeader>
+          <Button nativeButton={false} render={<Link to="/accounts" />}>
             العودة إلى الحسابات
           </Button>
-        </div>
+        </Empty>
       </main>
     );
   return (
-    <SidebarProvider dir="rtl" defaultOpen={false}>
-      <AdminSidebar pathname={pathname} />
+    <SidebarProvider dir="rtl" defaultOpen>
+      <AdminSidebar pathname={pathname} displayName={account.displayName} role={account.role} />
       <SidebarInset className="min-w-0 overflow-x-clip">
-        <header className="sticky top-0 flex h-14 shrink-0 items-center gap-4 bg-background z-10 rounded-full px-3">
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80">
           <SidebarTrigger className="-me-1 rotate-180" variant={"outline"} size={"icon-lg"} />
           <Breadcrumb>
             <BreadcrumbList>
@@ -138,7 +154,15 @@ export function AdminShell() {
   );
 }
 
-function AdminSidebar({ pathname }: { pathname: string }) {
+function AdminSidebar({
+  pathname,
+  displayName,
+  role,
+}: {
+  pathname: string;
+  displayName: string;
+  role: string;
+}) {
   return (
     <Sidebar side="right" dir="rtl" collapsible="icon" variant="floating">
       <SidebarHeader>
@@ -187,9 +211,21 @@ function AdminSidebar({ pathname }: { pathname: string }) {
       </SidebarContent>
 
       <SidebarFooter>
-        <p className="px-3 py-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-          PostgreSQL v2 · إدارة تجريبية بلا مصادقة
-        </p>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" render={<Link to="/accounts" />} tooltip={displayName}>
+              <Avatar>
+                <AvatarFallback>{displayName.slice(0, 2)}</AvatarFallback>
+              </Avatar>
+              <span className="grid min-w-0 flex-1 text-start text-sm leading-tight">
+                <span className="truncate font-medium">{displayName}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {role === "owner" ? "مالك · PostgreSQL v2" : "محرر · PostgreSQL v2"}
+                </span>
+              </span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

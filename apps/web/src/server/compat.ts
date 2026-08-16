@@ -1,4 +1,11 @@
-import type { Installment, TitleDetail, TitleSummary } from "@arcadia/contracts";
+import type {
+  AdminEntity,
+  AdminPlanet,
+  AdminTitleDetail,
+  Installment,
+  TitleDetail,
+  TitleSummary,
+} from "@arcadia/contracts";
 import { taxonomy } from "@arcadia/domain";
 import type {
   Entity,
@@ -71,11 +78,11 @@ function contribution(credit: TitleDetail["credits"][number]): WorkContribution 
     name: credit.name,
     entityType: credit.kind,
     role: (roleValues.has(credit.role) ? credit.role : "creator") as WorkContribution["role"],
-    isPrimary: false,
+    isPrimary: credit.isPrimary,
   };
 }
 
-export function titleToWork(title: TitleSummary | TitleDetail): Work {
+export function titleToWork(title: TitleSummary | TitleDetail | AdminTitleDetail): Work {
   const installments = "installments" in title ? title.installments : [];
   const first = installments[0];
   const episodic = installments.some((item) => item.kind === "season");
@@ -97,8 +104,8 @@ export function titleToWork(title: TitleSummary | TitleDetail): Work {
           ].includes(relation.type)
             ? relation.type
             : "related") as WorkRelation["relationType"],
-          direction: "outgoing",
-          notes: "",
+          direction: relation.direction,
+          notes: relation.notes,
           provenance: "v2",
           externalKey: null,
           work: {
@@ -156,7 +163,14 @@ export function titleToWork(title: TitleSummary | TitleDetail): Work {
         }
       : null,
     scoreComponents: Object.fromEntries(Object.entries(score).filter((entry) => entry[1] !== null)),
-    externalLinks: [],
+    externalLinks:
+      "externalIdentities" in title
+        ? title.externalIdentities.flatMap((identity) =>
+            identity.url
+              ? [{ provider: identity.provider, label: identity.externalId, url: identity.url }]
+              : [],
+          )
+        : [],
     awards: title.awards,
     releaseStart: first?.releaseDate ?? null,
     releaseEnd: null,
@@ -164,7 +178,17 @@ export function titleToWork(title: TitleSummary | TitleDetail): Work {
     country: title.countries.map(labelFromSlug) as Work["country"],
     sourceMaterial: null,
     publication: null,
-    curation: null,
+    curation:
+      "workflowStatus" in title
+        ? {
+            reviewedAt: title.verifiedAt?.slice(0, 10) ?? "",
+            status:
+              title.workflowStatus === "approved" || title.workflowStatus === "published"
+                ? ("verified" as const)
+                : ("provisional" as const),
+            notes: title.curatorNotes || null,
+          }
+        : null,
     contributors: credits,
     animationStudios: credits.filter((item) => item.role === "animation_studio"),
     productionCompanies: credits.filter((item) => item.role === "production_company"),
@@ -398,7 +422,25 @@ export async function allAdminInstallmentWorks() {
 }
 
 export async function fullAdminDetail(id: string) {
-  return apiFetch<TitleDetail>(`/api/v1/admin/titles/${id}`);
+  return apiFetch<AdminTitleDetail>(`/api/v1/admin/titles/${id}`);
+}
+
+export async function adminPlanetsWithWorks(): Promise<PlanetWithWorks[]> {
+  const [rows, works] = await Promise.all([
+    apiFetch<AdminPlanet[]>("/api/v1/admin/planets"),
+    allAdminWorks(),
+  ]);
+  return rows.map((row) => ({
+    ...row,
+    reviewCount: 0,
+    works: works
+      .filter((work) => work.planetId === row.id)
+      .sort(
+        (left, right) =>
+          (right.year ?? 0) - (left.year ?? 0) ||
+          (left.arabicTitle || left.title).localeCompare(right.arabicTitle || right.title, "ar"),
+      ),
+  }));
 }
 
 export async function planetsWithWorks(includePrivate = false): Promise<PlanetWithWorks[]> {
@@ -438,6 +480,48 @@ export async function planetsWithWorks(includePrivate = false): Promise<PlanetWi
     })
     .filter((planet) => planet.isActive);
 }
+function adminEntityToEntity(item: AdminEntity): Entity {
+  const works = item.works.map((work) => ({
+    ...work,
+    status: "saved" as const,
+    calculatedRating: null,
+    isSequelMovie: false,
+    roles: work.contributions.map(({ role }) => role as WorkContribution["role"]),
+    contributions: work.contributions.map((contribution) => ({
+      ...contribution,
+      role: contribution.role as WorkContribution["role"],
+    })),
+  }));
+  return {
+    ...item,
+    primaryUrl: null,
+    malId: null,
+    anilistId: null,
+    imdbId: null,
+    wikipediaUrl: null,
+    establishedAt: null,
+    birthDate: null,
+    deathDate: null,
+    favorites: null,
+    roles: Object.entries(frequencies(works.flatMap((work) => work.roles))).map(
+      ([role, count]) => ({
+        role: role as WorkContribution["role"],
+        count,
+      }),
+    ),
+    kinds: Object.entries(frequencies(works.map((work) => work.kind))).map(([kind, count]) => ({
+      kind: kind as Work["kind"],
+      count,
+    })),
+    works,
+  };
+}
+
+export async function adminEntities(kind?: "person" | "organization"): Promise<Entity[]> {
+  const query = kind ? `?kind=${kind}` : "";
+  return (await apiFetch<AdminEntity[]>(`/api/v1/admin/entities${query}`)).map(adminEntityToEntity);
+}
+
 export async function entities(): Promise<Entity[]> {
   type EntityRow = {
     id: string;
@@ -479,6 +563,7 @@ export async function entities(): Promise<Entity[]> {
     birthDate: null,
     deathDate: null,
     favorites: null,
+    aliases: [],
     workCount: item.works?.length ?? 0,
     roles: Object.entries(frequencies((item.works ?? []).flatMap((work) => work.roles))).map(
       ([role, count]) => ({ role: role as WorkContribution["role"], count }),
@@ -491,6 +576,13 @@ export async function entities(): Promise<Entity[]> {
       status: "saved" as const,
       calculatedRating: null,
       isSequelMovie: false,
+      isPrivate: false,
+      contributions: work.roles.map((role, position) => ({
+        role,
+        roleLabelAr: role,
+        position,
+        isPrimary: false,
+      })),
     })),
   }));
 }

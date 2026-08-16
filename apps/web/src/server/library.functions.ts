@@ -1,5 +1,6 @@
 import type {
   AccountPolicyPreview,
+  AdminEntityContributionInput,
   AdminStatistics,
   AwardOrganizationOption,
   MediaAsset,
@@ -13,10 +14,10 @@ import type {
 } from "@/features/library/model";
 import { apiFetch } from "@/lib/api";
 import {
+  adminEntities,
   allAdminWorks,
   allWorks,
   detailToStructure,
-  entities,
   fullAdminDetail,
   fullDetail,
 } from "./compat";
@@ -32,31 +33,17 @@ const emptyStructure = (workId: string): WorkStructure => ({
 
 export const getWorks = allWorks;
 export const getAdminWorks = allAdminWorks;
-export const getEntities = entities;
+export const getEntities = adminEntities;
 
 export async function saveEntity({ data }: Data<AdminEntityInput>) {
   const saved = await apiFetch<{ id: string }>("/api/v1/admin/entities", {
     method: "POST",
     body: JSON.stringify(data),
   });
-  return {
-    ...data,
-    id: saved.id,
-    imagePath: data.imagePath ?? null,
-    primaryUrl: data.primaryUrl ?? null,
-    malId: data.malId ?? null,
-    anilistId: data.anilistId ?? null,
-    imdbId: data.imdbId ?? null,
-    wikipediaUrl: data.wikipediaUrl ?? null,
-    establishedAt: data.establishedAt ?? null,
-    birthDate: data.birthDate ?? null,
-    deathDate: data.deathDate ?? null,
-    favorites: data.favorites ?? null,
-    workCount: 0,
-    roles: [],
-    kinds: [],
-    works: [],
-  };
+  const refreshed = await adminEntities(data.entityType);
+  const entity = refreshed.find((item) => item.id === saved.id);
+  if (!entity) throw new Error("حُفظ السجل لكن تعذّر تحميله من جديد.");
+  return entity;
 }
 export async function saveEntities({ data }: Data<{ entities: AdminEntityInput[] }>) {
   return Promise.all(data.entities.map((entity) => saveEntity({ data: entity })));
@@ -65,6 +52,24 @@ export async function deleteEntities({ data }: Data<{ ids: string[] }>) {
   return apiFetch<{ deleted: number }>("/api/v1/admin/entities", {
     method: "DELETE",
     body: JSON.stringify(data),
+  });
+}
+export async function saveEntityContribution({
+  data,
+}: Data<AdminEntityContributionInput & { entityId: string }>) {
+  const { entityId, ...input } = data;
+  return apiFetch<{ updated: true }>(`/api/v1/admin/entities/${entityId}/contributions`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+export async function deleteEntityContribution({
+  data,
+}: Data<{ entityId: string; titleId: string; role: string }>) {
+  const { entityId, ...input } = data;
+  return apiFetch<{ deleted: number }>(`/api/v1/admin/entities/${entityId}/contributions`, {
+    method: "DELETE",
+    body: JSON.stringify(input),
   });
 }
 
@@ -206,7 +211,7 @@ export async function deleteWorks({ data }: Data<{ ids: string[] }>) {
 export async function editWorksBulk({
   data,
 }: Data<{ workIds: string[] } & Record<string, unknown>>) {
-  const works = await allWorks();
+  const works = await allAdminWorks();
   return Promise.all(
     data.workIds.map((id) => {
       const work = works.find((item) => item.id === id);

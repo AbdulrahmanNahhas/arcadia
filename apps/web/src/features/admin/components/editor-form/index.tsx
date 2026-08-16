@@ -3,10 +3,13 @@
 import {
   CheckIcon,
   CodeIcon,
+  DatabaseIcon,
   ImageSquareIcon,
   InfoIcon,
   LockKeyIcon,
   MagnifyingGlassIcon,
+  NotePencilIcon,
+  StackIcon,
   TrashIcon,
   TrophyIcon,
   UploadSimpleIcon,
@@ -463,71 +466,35 @@ function WorkEditorFormFields({
         <div className="flex flex-col gap-4">
           <TabsList
             variant="line"
-            className="w-full max-w-full justify-start overflow-x-auto px-1 rounded-full! overflow-hidden! border"
+            className="w-full max-w-full justify-start overflow-x-auto border-b px-1"
           >
-            <TabsTrigger value="overview" className="shrink-0 hover:bg-accent!">
-              نظرة عامة
+            <TabsTrigger value="overview" className="shrink-0">
+              <InfoIcon data-icon="inline-start" /> نظرة عامة
             </TabsTrigger>
-            <TabsTrigger value="catalog" className="shrink-0 hover:bg-accent!">
-              الفهرسة
+            <TabsTrigger value="structure" className="shrink-0">
+              <StackIcon data-icon="inline-start" /> البنية
+              {structure ? <Badge variant="secondary">{structure.seasons.length}</Badge> : null}
             </TabsTrigger>
-            <TabsTrigger value="editorial" className="shrink-0 hover:bg-accent!">
-              التحرير
+            <TabsTrigger value="catalog" className="shrink-0">
+              <DatabaseIcon data-icon="inline-start" /> الفهرسة
             </TabsTrigger>
-            <TabsTrigger value="awards" className="shrink-0 hover:bg-accent!">
-              <TrophyIcon />
+            <TabsTrigger value="editorial" className="shrink-0">
+              <NotePencilIcon data-icon="inline-start" /> التحرير
+            </TabsTrigger>
+            <TabsTrigger value="awards" className="shrink-0">
+              <TrophyIcon data-icon="inline-start" />
               الجوائز
               {draft.awards.length > 0 ? (
                 <Badge variant="secondary">{draft.awards.length}</Badge>
               ) : null}
             </TabsTrigger>
-            <TabsTrigger value="assets" className="shrink-0 hover:bg-accent!">
-              الصور والظهور
+            <TabsTrigger value="assets" className="shrink-0">
+              <ImageSquareIcon data-icon="inline-start" /> الصور والظهور
             </TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="overview" className="flex flex-col gap-6">
-          <EditorSection
-            title="بنية العرض"
-            description="مدة العرض وعدد الحلقات المشتق من مواسم وأفلام PostgreSQL v2. تُدار التفاصيل الدقيقة من تبويب الأجزاء والحلقات."
-            subClassname="sm:grid-cols-2! lg:grid-cols-4!"
-          >
-            {showRuntime && (
-              <Field label="مدة العرض (بالدقائق)">
-                <Input
-                  type="number"
-                  min="0"
-                  value={draft.runtimeMinutes ?? ""}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      runtimeMinutes: e.target.value ? Number(e.target.value) : null,
-                    })
-                  }
-                />
-              </Field>
-            )}
-            {showEpisodes && (
-              <Field label="عدد الحلقات">
-                <Input
-                  type="number"
-                  min="0"
-                  value={draft.episodeCount ?? ""}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      episodeCount: e.target.value ? Number(e.target.value) : null,
-                    })
-                  }
-                />
-              </Field>
-            )}
-            <div className="col-span-full">
-              <StructureSummary structure={structure} />
-            </div>
-          </EditorSection>
-
           {/* Identity Section */}
           <EditorSection
             title="الهوية"
@@ -638,6 +605,42 @@ function WorkEditorFormFields({
               />
             </Field>
           </EditorSection>
+        </TabsContent>
+
+        <TabsContent value="structure" className="flex flex-col gap-6">
+          <EditorSection
+            title="الأجزاء والحلقات"
+            description="البنية الفعلية للعنوان في PostgreSQL v2: المواسم والأفلام والمواد الخاصة والحلقات المرتبطة بها."
+            subClassname="sm:grid-cols-2! lg:grid-cols-4!"
+          >
+            {showRuntime && (
+              <Field label="مدة العرض الافتراضية (بالدقائق)">
+                <Input
+                  type="number"
+                  min="0"
+                  value={draft.runtimeMinutes ?? ""}
+                  onChange={(event) =>
+                    setDraft({
+                      ...draft,
+                      runtimeMinutes: event.target.value ? Number(event.target.value) : null,
+                    })
+                  }
+                />
+              </Field>
+            )}
+            {showEpisodes && (
+              <div className="flex flex-col gap-2 rounded-xl border p-3">
+                <span className="text-xs text-muted-foreground">الحلقات المشتقة</span>
+                <strong className="font-mono text-2xl tabular-nums">
+                  {structure?.totalUnits ?? draft.episodeCount ?? 0}
+                </strong>
+              </div>
+            )}
+            <div className="col-span-full">
+              <StructureSummary structure={structure} />
+            </div>
+          </EditorSection>
+          <InstallmentScoreDesk structure={structure} workKind={draft.kind} />
         </TabsContent>
 
         <TabsContent value="catalog" className="flex flex-col gap-6">
@@ -786,8 +789,6 @@ function WorkEditorFormFields({
         </TabsContent>
 
         <TabsContent value="editorial" className="flex flex-col gap-6">
-          <InstallmentScoreDesk structure={structure} workKind={draft.kind} />
-
           {/* Guidance & Analysis Section */}
           <EditorSection
             title="إرشادات المحتوى والتحليل"
@@ -1823,7 +1824,7 @@ export function EditorSection({
       <div
         className={cn(
           subClassname,
-          "grid min-w-0 grid-cols-1 items-start gap-5 sm:grid-cols-2 [&>*]:min-w-0",
+          "grid min-w-0 grid-cols-1 items-start gap-5 *:min-w-0 sm:grid-cols-2",
         )}
       >
         {children}

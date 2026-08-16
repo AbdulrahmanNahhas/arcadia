@@ -101,6 +101,8 @@ export const titleSummarySchema = z.object({
       name: z.string(),
       kind: z.enum(["person", "organization"]),
       role: z.string(),
+      position: z.number().int().min(0).default(0),
+      isPrimary: z.boolean().default(false),
     }),
   ),
   awards: z.array(awardRecognitionSchema),
@@ -114,8 +116,25 @@ export const titleDetailSchema = titleSummarySchema.extend({
       type: z.string(),
       titleId: z.string().uuid(),
       title: z.string(),
+      direction: z.enum(["outgoing", "incoming"]),
+      notes: z.string(),
     }),
   ),
+  externalIdentities: z.array(
+    z.object({
+      id: z.string().uuid(),
+      provider: z.string(),
+      externalId: z.string(),
+      url: z.string().nullable(),
+    }),
+  ),
+});
+export const adminTitleDetailSchema = titleDetailSchema.extend({
+  workflowStatus: z.enum(["draft", "in_review", "approved", "published", "archived"]),
+  qualityScore: z.number().int().min(0),
+  curatorNotes: z.string(),
+  provenance: z.record(z.string(), z.unknown()),
+  verifiedAt: z.string().nullable(),
 });
 export const browseQuerySchema = z.object({
   q: z.string().trim().max(160).optional(),
@@ -143,6 +162,65 @@ export const adminErrorSchema = z.object({
   message: z.string(),
   issues: z.array(z.unknown()).optional(),
 });
+
+export const adminEntityKindSchema = z.enum(["person", "organization"]);
+export const adminEntityInputSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().trim().min(1),
+  sortName: z.string().trim().min(1),
+  entityType: adminEntityKindSchema,
+  description: z.string(),
+  imagePath: z.string().trim().nullable(),
+  aliases: z.array(z.string().trim().min(1)).default([]),
+});
+export const adminEntityContributionSchema = z.object({
+  role: z.string().min(1),
+  roleLabelAr: z.string(),
+  position: z.number().int().min(0),
+  isPrimary: z.boolean(),
+});
+export const adminEntityWorkSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  arabicTitle: z.string().nullable(),
+  year: z.number().int().nullable(),
+  kind: z.enum(["movie", "anime"]),
+  releaseStatus: titleReleaseStatusSchema,
+  imagePath: z.string().nullable(),
+  isPrivate: z.boolean(),
+  contributions: z.array(adminEntityContributionSchema),
+});
+export const adminEntitySchema = adminEntityInputSchema.extend({
+  id: z.string().uuid(),
+  aliases: z.array(z.string()),
+  workCount: z.number().int().min(0),
+  works: z.array(adminEntityWorkSchema),
+});
+export const adminEntityContributionInputSchema = z.object({
+  titleId: z.string().uuid(),
+  role: z.string().min(1),
+  position: z.number().int().min(0).default(0),
+  isPrimary: z.boolean().default(false),
+});
+export const adminEntityContributionDeleteSchema = adminEntityContributionInputSchema.pick({
+  titleId: true,
+  role: true,
+});
+
+export const adminPlanetSchema = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  nameAr: z.string(),
+  nameEn: z.string().nullable(),
+  icon: z.string(),
+  description: z.string(),
+  primaryColor: z.string(),
+  secondaryColor: z.string(),
+  displayOrder: z.number().int(),
+  isActive: z.boolean(),
+  workCount: z.number().int().min(0),
+});
+
 export const mediaAssetRoleSchema = z.enum(["poster", "banner", "logo", "profile"]);
 export const mediaOwnerSchema = z
   .object({
@@ -796,6 +874,20 @@ export const adminSchemaFieldGuide = {
     nullable: false,
     shape: `{ sexuality | behavioral | theology: ${riskLevelSchema.options.join(" | ")} }`,
   },
+  "title.curation": {
+    purpose: "Editorial verification state, review date, and curator notes",
+    required: false,
+    nullable: true,
+    shape:
+      "{ reviewedAt: YYYY-MM-DD; status: verified | provisional; notes: string | null } | null",
+  },
+  "title.awards": {
+    purpose: "Title or installment award recognitions",
+    required: true,
+    nullable: false,
+    shape:
+      "Array<{ id; organizationSlug; organizationName; category; year; result; isFeatured; installmentId; sourceUrl; notes }>",
+  },
   "structure.installments.kind": {
     purpose: "Installment form",
     required: true,
@@ -853,7 +945,12 @@ export type TitleReleaseStatus = z.infer<typeof titleReleaseStatusSchema>;
 export type AwardRecognition = z.infer<typeof awardRecognitionSchema>;
 export type AwardResult = z.infer<typeof awardResultSchema>;
 export type BrowseResponse = z.infer<typeof browseResponseSchema>;
+export type AdminTitleDetail = z.infer<typeof adminTitleDetailSchema>;
 export type MediaAsset = z.infer<typeof mediaAssetSchema>;
+export type AdminEntity = z.infer<typeof adminEntitySchema>;
+export type AdminEntityInput = z.infer<typeof adminEntityInputSchema>;
+export type AdminEntityContributionInput = z.infer<typeof adminEntityContributionInputSchema>;
+export type AdminPlanet = z.infer<typeof adminPlanetSchema>;
 export type VocabularyTerm = z.infer<typeof vocabularyTermSchema>;
 export type ValidationIssue = z.infer<typeof validationIssueSchema>;
 export type AdminStatistics = z.infer<typeof adminStatisticsSchema>;

@@ -1,4 +1,8 @@
-import { awardRecognitionSchema } from "@arcadia/contracts";
+import {
+  type AdminEntityInput,
+  awardRecognitionSchema,
+  adminEntityInputSchema as contractAdminEntityInputSchema,
+} from "@arcadia/contracts";
 import { z } from "zod";
 
 export const workKinds = [
@@ -419,6 +423,7 @@ export const entitySchema = z.object({
   birthDate: z.string().nullable(),
   deathDate: z.string().nullable(),
   favorites: z.number().int().min(0).nullable(),
+  aliases: z.array(z.string()).default([]),
   workCount: z.number().int().min(0),
   roles: z.array(z.object({ role: contributorRoleSchema, count: z.number().int().min(1) })),
   kinds: z.array(z.object({ kind: workKindSchema, count: z.number().int().min(1) })),
@@ -434,30 +439,25 @@ export const entitySchema = z.object({
       calculatedRating: z.number().min(0).max(10).nullable(),
       isSequelMovie: z.boolean(),
       imagePath: z.string().nullable(),
+      isPrivate: z.boolean().default(false),
       roles: z.array(contributorRoleSchema),
+      contributions: z
+        .array(
+          z.object({
+            role: contributorRoleSchema,
+            roleLabelAr: z.string(),
+            position: z.number().int().min(0),
+            isPrimary: z.boolean(),
+          }),
+        )
+        .default([]),
     }),
   ),
 });
 export type Entity = z.infer<typeof entitySchema>;
 
-export const adminEntityInputSchema = z.object({
-  id: z.string().min(1).optional(),
-  name: z.string().trim().min(1),
-  sortName: z.string().trim().min(1),
-  entityType: z.enum(["person", "organization"]),
-  description: z.string(),
-  imagePath: z.string().trim().nullable(),
-  primaryUrl: z.url().nullable(),
-  malId: z.number().int().positive().nullable(),
-  anilistId: z.number().int().positive().nullable(),
-  imdbId: z.string().trim().nullable(),
-  wikipediaUrl: z.url().nullable(),
-  establishedAt: z.string().trim().nullable(),
-  birthDate: z.string().trim().nullable(),
-  deathDate: z.string().trim().nullable(),
-  favorites: z.number().int().min(0).nullable(),
-});
-export type AdminEntityInput = z.infer<typeof adminEntityInputSchema>;
+export const adminEntityInputSchema = contractAdminEntityInputSchema;
+export type { AdminEntityInput };
 
 export const publicationSchema = z.object({
   format: z.string().nullable(),

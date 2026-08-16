@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
 import {
+  adminEntityContributionDeleteSchema,
+  adminEntityContributionInputSchema,
+  adminEntityInputSchema,
+  adminEntitySchema,
   adminMediaAssignmentSchema,
   adminMediaSearchSchema,
   adminMediaUploadSchema,
+  adminPlanetSchema,
   adminStatisticsSchema,
   adminVocabularyInputSchema,
   browseQuerySchema,
@@ -128,6 +133,11 @@ type AdminTitleInput = Partial<{
     notes?: string;
   }>;
   externalLinks: Array<{ provider: string; label: string; url: string }>;
+  curation: {
+    reviewedAt: string;
+    status: "verified" | "provisional";
+    notes: string | null;
+  } | null;
   awards: Array<{
     id?: string;
     organizationSlug: string;
@@ -1243,14 +1253,31 @@ app.post("/api/v1/admin/titles", async (context) => {
       ? "young-adult"
       : String(input.audience ?? "general").toLowerCase();
   const risk = input.riskProfile ?? {};
+  const normalizeRisk = (value: string | undefined) =>
+    value && value !== "unknown" ? value : "none";
+  const workflowStatus = input.curation
+    ? input.curation.status === "verified"
+      ? "approved"
+      : "in_review"
+    : null;
+  const verifiedAt =
+    input.curation?.status === "verified" && input.curation.reviewedAt
+      ? new Date(`${input.curation.reviewedAt}T00:00:00Z`)
+      : null;
+  const current = input.curation ? await currentFamilyAccount(context.req.raw.headers) : null;
   if (input.id) {
     const [row] = await sql`
       update titles set
         canonical_title=${title}, sort_title=${title.toLocaleLowerCase()}, title_ar=${input.arabicTitle ?? null},
         summary=${String(input.summary ?? "")}, content_warnings=${input.contentWarnings ?? null}, analysis_notes=${input.analysisNotes ?? null}, release_year=${input.year ?? null},
         is_private=${input.isPrivate ?? false},
-        audience=${audience}, sexuality_risk=${risk.sexuality ?? "none"},
-        behavioral_risk=${risk.behavioral ?? "none"}, theology_risk=${risk.theology ?? "none"}, updated_at=now()
+        audience=${audience}, sexuality_risk=${normalizeRisk(risk.sexuality)},
+        behavioral_risk=${normalizeRisk(risk.behavioral)}, theology_risk=${normalizeRisk(risk.theology)},
+        workflow_status=coalesce(${workflowStatus}::workflow_status, workflow_status),
+        curator_notes=case when ${input.curation !== undefined && input.curation !== null} then ${input.curation?.notes ?? ""} else curator_notes end,
+        verified_at=case when ${input.curation !== undefined && input.curation !== null} then ${verifiedAt} else verified_at end,
+        verified_by_account_id=case when ${input.curation !== undefined && input.curation !== null} then ${current?.account.id ?? null} else verified_by_account_id end,
+        updated_at=now()
       where id=${String(input.id)} returning id`;
     if (!row) return context.json({ message: "Title not found" }, 404);
     await sql`update installments set title=${title}, summary=${String(input.summary ?? "")}, runtime_minutes=${input.runtimeMinutes ?? null}, status=${initialInstallmentStatus(input.releaseStatus)}, updated_at=now() where title_id=${String(input.id)} and (select count(*) from installments where title_id=${String(input.id)})=1`;
@@ -1262,8 +1289,15 @@ app.post("/api/v1/admin/titles", async (context) => {
     return context.json({ id: String(input.id) });
   }
   const [row] = await sql`
-    insert into titles (canonical_title, sort_title, title_ar, summary, content_warnings, analysis_notes, release_year, is_private, audience)
-    values (${title}, ${title.toLocaleLowerCase()}, ${input.arabicTitle ?? null}, ${String(input.summary ?? "")}, ${input.contentWarnings ?? null}, ${input.analysisNotes ?? null}, ${input.year ?? null}, ${input.isPrivate ?? false}, ${audience}) returning id`;
+    insert into titles (canonical_title, sort_title, title_ar, summary, content_warnings,
+      analysis_notes, release_year, is_private, audience, sexuality_risk, behavioral_risk,
+      theology_risk, workflow_status, curator_notes, verified_at, verified_by_account_id)
+    values (${title}, ${title.toLocaleLowerCase()}, ${input.arabicTitle ?? null},
+      ${String(input.summary ?? "")}, ${input.contentWarnings ?? null},
+      ${input.analysisNotes ?? null}, ${input.year ?? null}, ${input.isPrivate ?? false},
+      ${audience}, ${normalizeRisk(risk.sexuality)}, ${normalizeRisk(risk.behavioral)},
+      ${normalizeRisk(risk.theology)}, ${workflowStatus ?? "draft"},
+      ${input.curation?.notes ?? ""}, ${verifiedAt}, ${current?.account.id ?? null}) returning id`;
   if (!row) return context.json({ message: "Could not create title" }, 500);
   const kind = ["series", "anime"].includes(String(input.kind)) ? "season" : "movie";
   await sql`insert into installments (title_id, kind, position, title, summary, status, runtime_minutes) values (${row.id}, ${kind}, 1, ${title}, ${String(input.summary ?? "")}, ${initialInstallmentStatus(input.releaseStatus)}, ${input.runtimeMinutes ?? null})`;
@@ -1352,38 +1386,135 @@ app.put("/api/v1/admin/titles/:titleId/structure", async (context) => {
   return context.json({ titleId });
 });
 
-app.post("/api/v1/admin/entities", async (context) => {
-  const input = (await context.req.json()) as Partial<{
-    id: string;
-    name: string;
-    sortName: string;
-    entityType: "person" | "organization";
-    description: string;
-    imagePath: string | null;
-  }>;
+app.get("/api/v1/admin/entities", async (context) => {
+  const kind = context.req.query("kind");
+  if (kind && kind !== "person" && kind !== "organization")
+    return context.json({ message: "Invalid entity kind" }, 400);
   const sql = database().client;
-  const name = String(input.name ?? "").trim();
-  if (!name) return context.json({ message: "Name is required" }, 400);
-  if (input.id) {
-    const imagePath = await materializeEmbeddedMedia(input.imagePath, name, "profile");
-    await sql`update entities set name=${name}, sort_name=${String(input.sortName ?? name)}, kind=${input.entityType ?? "person"}, description=${String(input.description ?? "")}, updated_at=now() where id=${String(input.id)}`;
-    await assignMediaPath(sql, imagePath, "profile", { entityId: String(input.id) });
-    return context.json({ id: String(input.id) });
-  }
-  const imagePath = await materializeEmbeddedMedia(input.imagePath, name, "profile");
-  const [row] =
-    await sql`insert into entities (name, sort_name, kind, description) values (${name}, ${String(input.sortName ?? name)}, ${input.entityType ?? "person"}, ${String(input.description ?? "")}) returning id`;
-  if (!row) return context.json({ message: "Could not create entity" }, 500);
-  await assignMediaPath(sql, imagePath, "profile", { entityId: String(row.id) });
-  return context.json({ id: String(row.id) }, 201);
+  const rows = await sql`select e.id, e.name, e.sort_name as "sortName", e.kind as "entityType",
+    e.description,
+    (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+      where x.entity_id=e.id and x.role='profile' and x.is_primary limit 1) as "imagePath",
+    coalesce((select json_agg(a.alias order by a.alias) from entity_aliases a where a.entity_id=e.id), '[]'::json) as aliases,
+    coalesce((select json_agg(work order by work.title) from (
+      select t.id, t.canonical_title as title, t.title_ar as "arabicTitle",
+        t.release_year as year, t.is_private as "isPrivate",
+        case when exists(select 1 from installments i where i.title_id=t.id and i.kind='season') then 'anime' else 'movie' end as kind,
+        case
+          when not exists(select 1 from installments i where i.title_id=t.id) or exists(select 1 from installments i where i.title_id=t.id and i.status='unknown') then 'unknown'
+          when exists(select 1 from installments i where i.title_id=t.id and i.status='airing') then 'airing'
+          when not exists(select 1 from installments i where i.title_id=t.id and i.status<>'announced') then 'upcoming'
+          when exists(select 1 from installments i where i.title_id=t.id and i.status='announced') and exists(select 1 from installments i where i.title_id=t.id and i.status='completed') then 'returning'
+          when not exists(select 1 from installments i where i.title_id=t.id and i.status<>'completed') then 'completed'
+          else 'unknown'
+        end as "releaseStatus",
+        (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+          where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "imagePath",
+        coalesce((select json_agg(json_build_object(
+          'role', r.slug, 'roleLabelAr', r.label_ar, 'position', c.position,
+          'isPrimary', c.is_primary) order by c.position, r.position)
+          from contributions c join roles r on r.id=c.role_id
+          where c.entity_id=e.id and c.title_id=t.id), '[]'::json) as contributions
+      from titles t where exists(
+        select 1 from contributions c where c.entity_id=e.id and c.title_id=t.id)
+    ) work), '[]'::json) as works
+    from entities e where (${kind ?? null}::entity_kind is null or e.kind=${kind ?? null})
+    order by e.sort_name`;
+  return context.json(
+    z.array(adminEntitySchema).parse(
+      rows.map((row) => ({
+        ...row,
+        workCount: Array.isArray(row.works) ? row.works.length : 0,
+      })),
+    ),
+  );
+});
+
+app.post("/api/v1/admin/entities", async (context) => {
+  const parsed = adminEntityInputSchema.safeParse(await context.req.json());
+  if (!parsed.success)
+    return context.json({ message: "Invalid entity document", issues: parsed.error.issues }, 400);
+  const input = parsed.data;
+  const sql = database().client;
+  const imagePath = await materializeEmbeddedMedia(input.imagePath, input.name, "profile");
+  const savedId = await sql.begin(async (transaction) => {
+    const entityId = input.id
+      ? String(input.id)
+      : String(
+          (
+            await transaction`insert into entities (name, sort_name, kind, description)
+              values (${input.name}, ${input.sortName}, ${input.entityType}, ${input.description})
+              returning id`
+          )[0]?.id ?? "",
+        );
+    if (!entityId) throw new Error("Could not create entity");
+    if (input.id) {
+      const [updated] = await transaction`update entities set name=${input.name},
+        sort_name=${input.sortName}, kind=${input.entityType}, description=${input.description},
+        updated_at=now() where id=${entityId} returning id`;
+      if (!updated) throw new Error("Entity not found");
+    }
+    await transaction`delete from entity_aliases where entity_id=${entityId}`;
+    const aliases = [...new Set(input.aliases.map((alias) => alias.trim()).filter(Boolean))];
+    for (const alias of aliases)
+      await transaction`insert into entity_aliases (entity_id, alias) values (${entityId}, ${alias})`;
+    await assignMediaPath(transaction as unknown as typeof sql, imagePath, "profile", {
+      entityId,
+    });
+    return entityId;
+  });
+  return context.json({ id: savedId }, input.id ? 200 : 201);
+});
+
+app.put("/api/v1/admin/entities/:entityId/contributions", async (context) => {
+  const parsed = adminEntityContributionInputSchema.safeParse(await context.req.json());
+  if (!parsed.success)
+    return context.json({ message: "Invalid contribution", issues: parsed.error.issues }, 400);
+  const entityId = context.req.param("entityId");
+  const input = parsed.data;
+  const sql = database().client;
+  const [compatible] = await sql`select r.id from roles r join entities e on e.kind=r.entity_kind
+    where e.id=${entityId} and r.slug=${input.role} and r.is_active`;
+  if (!compatible) return context.json({ message: "Role is not available for this entity" }, 400);
+  const [title] = await sql`select id from titles where id=${input.titleId}`;
+  if (!title) return context.json({ message: "Title not found" }, 404);
+  await sql`insert into contributions (title_id, entity_id, role_id, position, is_primary)
+    values (${input.titleId}, ${entityId}, ${compatible.id}, ${input.position}, ${input.isPrimary})
+    on conflict (title_id, entity_id, role_id) do update set
+      position=excluded.position, is_primary=excluded.is_primary`;
+  return context.json({ updated: true });
+});
+
+app.delete("/api/v1/admin/entities/:entityId/contributions", async (context) => {
+  const parsed = adminEntityContributionDeleteSchema.safeParse(await context.req.json());
+  if (!parsed.success)
+    return context.json({ message: "Invalid contribution", issues: parsed.error.issues }, 400);
+  const result = await database().client`delete from contributions c using roles r
+    where c.role_id=r.id and c.entity_id=${context.req.param("entityId")}
+      and c.title_id=${parsed.data.titleId} and r.slug=${parsed.data.role}`;
+  return context.json({ deleted: result.count });
 });
 
 app.delete("/api/v1/admin/entities", async (context) => {
   const { ids = [] } = (await context.req.json()) as { ids?: string[] };
   if (!ids.length) return context.json({ deleted: 0 });
-  const result = await database()
-    .client`delete from entities where id in ${database().client(ids)}`;
+  const sql = database().client;
+  const previousMedia = await sql`select distinct ma.path
+    from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+    where x.entity_id in ${sql(ids)}`;
+  const result = await sql`delete from entities where id in ${sql(ids)}`;
+  await purgeUnreferencedMedia(previousMedia.map((row) => row.path as string | null));
   return context.json({ deleted: result.count });
+});
+
+app.get("/api/v1/admin/planets", async (context) => {
+  const rows = await database().client`select p.id, p.slug, p.name_ar as "nameAr",
+    p.name_en as "nameEn", p.icon, p.description, p.primary_color as "primaryColor",
+    p.secondary_color as "secondaryColor", p.display_order as "displayOrder",
+    p.is_active as "isActive",
+    (select count(*)::int from title_planets x where x.planet_id=p.id) as "workCount"
+    from planets p order by p.display_order, p.name_ar`;
+  return context.json(z.array(adminPlanetSchema).parse(rows));
 });
 
 app.post("/api/v1/admin/planets", async (context) => {
@@ -1420,14 +1551,15 @@ app.post("/api/v1/admin/planets", async (context) => {
 app.put("/api/v1/admin/planet-assignments", async (context) => {
   const { workIds = [], planetId } = (await context.req.json()) as {
     workIds?: string[];
-    planetId?: string;
+    planetId?: string | null;
   };
-  if (!planetId || !workIds.length) return context.json({ updated: 0 });
+  if (planetId === undefined || !workIds.length) return context.json({ updated: 0 });
   const sql = database().client;
   await sql.begin(async (transaction) => {
     await transaction`delete from title_planets where title_id in ${transaction(workIds)}`;
-    for (const workId of workIds)
-      await transaction`insert into title_planets (title_id, planet_id) values (${workId}, ${planetId})`;
+    if (planetId)
+      for (const workId of workIds)
+        await transaction`insert into title_planets (title_id, planet_id) values (${workId}, ${planetId})`;
   });
   return context.json({ updated: workIds.length });
 });

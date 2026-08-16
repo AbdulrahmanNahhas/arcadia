@@ -66,6 +66,8 @@ const TITLE_FIELD_MAP = {
   risks: "riskProfile",
   contentWarnings: "contentWarnings",
   analysisNotes: "analysisNotes",
+  curation: "curation",
+  awards: "awards",
   externalIdentities: "externalLinks",
   credits: "contributors",
   relationships: "relations",
@@ -99,7 +101,7 @@ type ProjectionField = ProjectionFieldMetadata & { key: ProjectionKey };
 const TITLE_PROJECTION_FIELDS = {
   canonicalTitle: { label: "العنوان الأصلي", group: "هوية العنوان" },
   titleAr: { label: "العنوان العربي", group: "هوية العنوان" },
-  aliases: { label: "العناوين البديلة", group: "الهوية" },
+  aliases: { label: "العناوين البديلة", group: "هوية العنوان" },
   summary: { label: "الملخص", group: "هوية العنوان" },
   releaseYear: { label: "سنة الإصدار", group: "إعدادات العنوان" },
   isPrivate: { label: "مخفي عن المنصة", group: "إعدادات العنوان" },
@@ -112,11 +114,13 @@ const TITLE_PROJECTION_FIELDS = {
   risks: { label: "المخاطر الافتراضية", group: "التصنيف والإرشادات" },
   contentWarnings: { label: "تحذيرات المحتوى", group: "الملاحظات" },
   analysisNotes: { label: "ملاحظات التحليل", group: "الملاحظات" },
+  curation: { label: "حالة المراجعة وملاحظات القيّم", group: "الملاحظات" },
+  awards: { label: "الجوائز والترشيحات", group: "الجوائز" },
   externalIdentities: { label: "المعرّفات والروابط الخارجية", group: "المعرفة المرتبطة" },
   credits: { label: "المساهمون والاستوديوهات", group: "المعرفة المرتبطة" },
   relationships: { label: "علاقات العناوين", group: "المعرفة المرتبطة" },
   posterPath: { label: "الملصق", group: "الصور" },
-  bannerPath: { label: "الغلاف", group: "العلاقات والوسائط" },
+  bannerPath: { label: "الغلاف", group: "الصور" },
   logoPath: { label: "الشعار", group: "الصور" },
 } satisfies Record<TitleJsonField, ProjectionFieldMetadata>;
 
@@ -177,6 +181,7 @@ const PROJECTION_PRESETS = {
       "title.risks",
       "title.contentWarnings",
       "title.analysisNotes",
+      "title.curation",
       "structure.installments.score",
     ],
   },
@@ -198,6 +203,10 @@ const PROJECTION_PRESETS = {
   relations: {
     label: "صنّاع العمل والعلاقات",
     fields: ["title.credits", "title.relationships", "title.externalIdentities"],
+  },
+  awards: {
+    label: "الجوائز والترشيحات",
+    fields: ["title.awards"],
   },
   artwork: {
     label: "مسارات الصور",
@@ -1129,10 +1138,15 @@ export function JsonEditorDialog({
     const nextFields = checked
       ? [...new Set([...selectedFields, field])]
       : selectedFields.filter((candidate) => candidate !== field);
-    if (!nextFields.length) {
-      setError("اختر حقلاً واحداً قابلاً للتعديل على الأقل.");
-      return;
-    }
+    applyProjection(nextFields, "custom");
+  };
+
+  const toggleFieldGroup = (fields: readonly ProjectionField[]) => {
+    const keys = fields.map((field) => field.key);
+    const allSelected = keys.every((key) => selectedFields.includes(key));
+    const nextFields = allSelected
+      ? selectedFields.filter((field) => !keys.includes(field))
+      : [...new Set([...selectedFields, ...keys])];
     applyProjection(nextFields, "custom");
   };
 
@@ -1250,18 +1264,13 @@ export function JsonEditorDialog({
             </div>
             <div>
               <DialogTitle>مساحة تحرير JSON لقاعدة البيانات</DialogTitle>
-              <DialogDescription>
-                عدّل الحقول التي تحتاجها فقط. تبقى القيم المخفية محفوظة، وتظهر التواريخ بصيغة
-                YYYY-MM-DD، وتبقى المعرّفات مقفلة أثناء الدمج الآمن.
-              </DialogDescription>
             </div>
           </div>
           <div className="flex gap-1 font-mono text-[10px]">
-            <Badge variant={reviewed ? "outline" : "default"}>١ · تعديل</Badge>
-            <Badge variant={reviewed ? "default" : "outline"}>٢ · مراجعة</Badge>
+            <Badge variant={reviewed ? "outline" : "default"}>1 · تعديل</Badge>
+            <Badge variant={reviewed ? "default" : "outline"}>2 · مراجعة</Badge>
           </div>
         </DialogHeader>
-
         {reviewed ? (
           <div className="min-h-0 flex-1 overflow-y-auto p-5">
             <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border bg-muted/20 p-4">
@@ -1420,6 +1429,33 @@ export function JsonEditorDialog({
                         onChange={(event) => setFieldSearch(event.target.value)}
                         placeholder="ابحث عن الحقول…"
                       />
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          onClick={() =>
+                            applyProjection(
+                              PROJECTION_FIELDS.map((field) => field.key),
+                              "complete",
+                            )
+                          }
+                        >
+                          تحديد الكل
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          disabled={!selectedFields.length}
+                          onClick={() => applyProjection([], "custom")}
+                        >
+                          إلغاء تحديد الكل
+                        </Button>
+                        <Badge variant="secondary">
+                          {selectedFields.length} / {PROJECTION_FIELDS.length}
+                        </Badge>
+                      </div>
                     </PopoverHeader>
                     <div className="flex max-h-96 flex-col gap-4 overflow-y-auto p-4">
                       {Object.entries(groupedFields).map(([group, fields]) => {
@@ -1433,24 +1469,20 @@ export function JsonEditorDialog({
                           <section key={group} className="flex flex-col gap-2">
                             <div className="flex items-center justify-between gap-2">
                               <strong className="text-xs">{group}</strong>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="xs"
-                                onClick={() =>
-                                  applyProjection(
-                                    [
-                                      ...new Set([
-                                        ...selectedFields,
-                                        ...fields.map((field) => field.key),
-                                      ]),
-                                    ],
-                                    "custom",
+                              {matchingFields.length > 1 ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="xs"
+                                  onClick={() => toggleFieldGroup(matchingFields)}
+                                >
+                                  {matchingFields.every((field) =>
+                                    selectedFields.includes(field.key),
                                   )
-                                }
-                              >
-                                تحديد المجموعة
-                              </Button>
+                                    ? "إلغاء تحديد المجموعة"
+                                    : "تحديد المجموعة"}
+                                </Button>
+                              ) : null}
                             </div>
                             {matchingFields.map((field) => (
                               <label

@@ -7,6 +7,7 @@ import type {
 } from "@/features/platform/model";
 import { apiFetch } from "@/lib/api";
 import {
+  adminPlanetsWithWorks,
   allAdminInstallmentWorks,
   allAdminWorks,
   allInstallmentWorks,
@@ -98,7 +99,7 @@ function selectHeroWorks(
   return [...upcoming.slice(0, 5), ...available.slice(0, 5)];
 }
 export const getPlanets = () => planetsWithWorks();
-export const getAdminPlanets = () => planetsWithWorks(true);
+export const getAdminPlanets = adminPlanetsWithWorks;
 export async function getPlatformCatalogWorks({ data }: Data<{ query?: string }> = { data: {} }) {
   return allWorks(data.query);
 }
@@ -114,7 +115,7 @@ export async function getAdminPlatformCatalogInstallments() {
   return allAdminInstallmentWorks();
 }
 export async function getAdminUnassignedPlanetWorks() {
-  return (await allWorks()).filter((work) => !work.planetId);
+  return (await allAdminWorks()).filter((work) => !work.planetId);
 }
 export async function getPlanetDetail({ data }: Data<{ slug: string }>) {
   return (await planetsWithWorks()).find((planet) => planet.slug === data.slug) ?? null;
@@ -305,7 +306,7 @@ export async function saveAdminPlanet({
 }
 export async function moveAdminWorksToPlanet({
   data,
-}: Data<{ workIds: string[]; planetId: string }>) {
+}: Data<{ workIds: string[]; planetId: string | null }>) {
   return apiFetch("/api/v1/admin/planet-assignments", {
     method: "PUT",
     body: JSON.stringify(data),

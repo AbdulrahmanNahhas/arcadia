@@ -293,6 +293,10 @@ export interface paths {
                       /** @enum {string} */
                       kind: "person" | "organization";
                       role: string;
+                      /** @default 0 */
+                      position: number;
+                      /** @default false */
+                      isPrimary: boolean;
                     }[];
                     awards: {
                       /** Format: uuid */
@@ -631,6 +635,10 @@ export interface paths {
                 /** @enum {string} */
                 kind: "person" | "organization";
                 role: string;
+                /** @default 0 */
+                position: number;
+                /** @default false */
+                isPrimary: boolean;
               }[];
               awards: {
                 /** Format: uuid */
@@ -722,6 +730,16 @@ export interface paths {
                 /** Format: uuid */
                 titleId: string;
                 title: string;
+                /** @enum {string} */
+                direction: "outgoing" | "incoming";
+                notes: string;
+              }[];
+              externalIdentities: {
+                /** Format: uuid */
+                id: string;
+                provider: string;
+                externalId: string;
+                url: string | null;
               }[];
             };
           };

@@ -1,4 +1,11 @@
-import { ArrowLeftIcon, FloppyDiskIcon, PlusIcon, SwapIcon } from "@phosphor-icons/react";
+import {
+  ArrowLeftIcon,
+  EyeSlashIcon,
+  FloppyDiskIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  SwapIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { type FormEvent, useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -16,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -35,6 +43,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import type { PlanetWithWorks } from "@/features/platform/model";
+import { cn } from "@/lib/utils";
 import {
   getAdminPlanets,
   getAdminUnassignedPlanetWorks,
@@ -48,6 +57,7 @@ type PlanetDraft = Omit<PlanetWithWorks, "id" | "works" | "workCount" | "reviewC
 };
 
 const unassignedSourceId = "__unassigned__";
+const unassignedTargetId = "__remove_assignment__";
 
 function draftFromPlanet(planet?: PlanetWithWorks): PlanetDraft {
   return {
@@ -78,8 +88,20 @@ export function PlanetsManagementPage() {
   const [sourceId, setSourceId] = useState(unassignedSourceId);
   const [targetId, setTargetId] = useState(planets.find((planet) => planet.isActive)?.id ?? "");
   const [selectedWorks, setSelectedWorks] = useState<Set<string>>(new Set());
+  const [workSearch, setWorkSearch] = useState("");
   const source = planets.find((planet) => planet.id === sourceId);
   const sourceWorks = sourceId === unassignedSourceId ? unassignedWorks : (source?.works ?? []);
+  const displayedWorks = useMemo(() => {
+    const query = workSearch.trim().toLocaleLowerCase();
+    return sourceWorks.filter(
+      (work) =>
+        !query ||
+        [work.title, work.arabicTitle ?? "", String(work.year ?? "")]
+          .join(" ")
+          .toLocaleLowerCase()
+          .includes(query),
+    );
+  }, [sourceWorks, workSearch]);
   const planetItems = useMemo(
     () => planets.map((planet) => ({ value: planet.id, label: planet.nameAr })),
     [planets],
@@ -123,7 +145,7 @@ export function PlanetsManagementPage() {
           </Button>
         }
       />
-      <div className="grid min-w-0 gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] p-6 pt-0 pr-4">
+      <div className="grid min-w-0 gap-6 px-5 sm:px-6 xl:grid-cols-[20rem_minmax(0,1fr)]">
         <Card>
           <CardHeader>
             <CardTitle>الكواكب</CardTitle>
@@ -135,8 +157,10 @@ export function PlanetsManagementPage() {
                 key={planet.id}
                 type="button"
                 onClick={() => setDraft(draftFromPlanet(planet))}
-                className="flex items-center gap-3 rounded-lg p-2 text-start transition-colors hover:bg-muted"
-                data-active={draft.id === planet.id}
+                className={cn(
+                  "flex items-center gap-3 rounded-2xl border p-2 text-start transition-colors",
+                  draft.id === planet.id ? "bg-muted" : "border-transparent hover:bg-muted/60",
+                )}
               >
                 <span
                   className="flex size-9 items-center justify-center rounded-full border"
@@ -299,7 +323,7 @@ export function PlanetsManagementPage() {
           </form>
         </Card>
       </div>
-      <Card className="m-6 -mt-6 mr-4">
+      <Card className="mx-5 sm:mx-6">
         <CardHeader>
           <CardTitle>نقل الأعمال بين الكواكب</CardTitle>
           <CardDescription>النقل يحدّث الإسناد الأساسي نفسه؛ لا ينشئ علاقة ثانية.</CardDescription>
@@ -335,9 +359,12 @@ export function PlanetsManagementPage() {
             <Field>
               <FieldLabel htmlFor="planet-target">إلى</FieldLabel>
               <Select
-                items={planetItems.filter(
-                  (item) => planets.find((planet) => planet.id === item.value)?.isActive,
-                )}
+                items={[
+                  { value: unassignedTargetId, label: "إزالة الإسناد" },
+                  ...planetItems.filter(
+                    (item) => planets.find((planet) => planet.id === item.value)?.isActive,
+                  ),
+                ]}
                 value={targetId}
                 onValueChange={(value) => setTargetId(value ?? "")}
               >
@@ -346,6 +373,7 @@ export function PlanetsManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
+                    <SelectItem value={unassignedTargetId}>إزالة الإسناد</SelectItem>
                     {planetItems
                       .filter(
                         (item) =>
@@ -367,27 +395,42 @@ export function PlanetsManagementPage() {
                 !selectedWorks.size || !targetId || targetId === sourceId || moveMutation.isPending
               }
               onClick={() =>
-                moveMutation.mutate({ data: { workIds: [...selectedWorks], planetId: targetId } })
+                moveMutation.mutate({
+                  data: {
+                    workIds: [...selectedWorks],
+                    planetId: targetId === unassignedTargetId ? null : targetId,
+                  },
+                })
               }
             >
               <SwapIcon data-icon="inline-start" /> نقل {selectedWorks.size || ""}
             </Button>
           </div>
+          <InputGroup>
+            <InputGroupInput
+              value={workSearch}
+              onChange={(event) => setWorkSearch(event.target.value)}
+              placeholder="ابحث في أعمال المصدر بالعنوان أو السنة…"
+            />
+            <InputGroupAddon align="inline-end">
+              <MagnifyingGlassIcon />
+            </InputGroupAddon>
+          </InputGroup>
           {moveMutation.error && (
             <Alert variant="destructive">
               <AlertDescription>{moveMutation.error.message}</AlertDescription>
             </Alert>
           )}
-          {sourceWorks.length ? (
+          {displayedWorks.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>
                     <Checkbox
-                      checked={selectedWorks.size === sourceWorks.length}
+                      checked={displayedWorks.every((work) => selectedWorks.has(work.id))}
                       onCheckedChange={(checked) =>
                         setSelectedWorks(
-                          checked ? new Set(sourceWorks.map((work) => work.id)) : new Set(),
+                          checked ? new Set(displayedWorks.map((work) => work.id)) : new Set(),
                         )
                       }
                       aria-label="تحديد كل الأعمال"
@@ -400,7 +443,7 @@ export function PlanetsManagementPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sourceWorks.map((work) => (
+                {displayedWorks.map((work) => (
                   <TableRow key={work.id}>
                     <TableCell>
                       <Checkbox
@@ -417,19 +460,22 @@ export function PlanetsManagementPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <strong className="text-sm">{work.arabicTitle || work.title}</strong>
+                      <div className="flex items-center gap-2">
+                        <strong className="text-sm">{work.arabicTitle || work.title}</strong>
+                        {work.isPrivate ? (
+                          <Badge variant="secondary">
+                            <EyeSlashIcon data-icon="inline-start" /> خاص
+                          </Badge>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{work.kind}</Badge>
                     </TableCell>
                     <TableCell>{work.year ?? "—"}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        {sourceId === unassignedSourceId
-                          ? "غير مسند"
-                          : source?.reviewCount
-                            ? "قد يحتاج مراجعة"
-                            : "مراجع"}
+                      <Badge variant={sourceId === unassignedSourceId ? "outline" : "secondary"}>
+                        {sourceId === unassignedSourceId ? "غير مسند" : source?.nameAr}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -440,9 +486,11 @@ export function PlanetsManagementPage() {
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>
-                  {sourceId === unassignedSourceId
-                    ? "لا توجد أعمال بلا كوكب"
-                    : "لا توجد أعمال في هذا الكوكب"}
+                  {workSearch
+                    ? "لا توجد أعمال مطابقة للبحث"
+                    : sourceId === unassignedSourceId
+                      ? "لا توجد أعمال بلا كوكب"
+                      : "لا توجد أعمال في هذا الكوكب"}
                 </EmptyTitle>
                 <EmptyDescription>
                   {sourceId === unassignedSourceId

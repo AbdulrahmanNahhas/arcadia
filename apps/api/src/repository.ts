@@ -64,7 +64,7 @@ async function relatedData(titleIds: string[]) {
       sql`select x.title_id, v.slug from title_countries x join countries v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
       sql`select x.title_id, p.id, p.slug, p.name_ar, p.icon from title_planets x join planets p on p.id=x.planet_id where x.title_id in ${sql(titleIds)} order by p.display_order`,
       sql`select title_id, title from title_aliases where title_id in ${sql(titleIds)} order by title`,
-      sql`select c.title_id, e.id, e.name, e.kind, r.slug as role from contributions c join entities e on e.id=c.entity_id join roles r on r.id=c.role_id where c.title_id in ${sql(titleIds)} order by c.position, e.sort_name`,
+      sql`select c.title_id, e.id, e.name, e.kind, r.slug as role, c.position, c.is_primary from contributions c join entities e on e.id=c.entity_id join roles r on r.id=c.role_id where c.title_id in ${sql(titleIds)} order by c.position, e.sort_name`,
       sql`select a.*, i.title as installment_title from award_recognitions a left join installments i on i.id=a.installment_id where a.title_id in ${sql(titleIds)} order by a.is_featured desc, a.year desc nulls last, a.position, a.organization_name, a.category`,
     ]);
   return {
@@ -304,6 +304,8 @@ function summary(
         name: String(item.name),
         kind: item.kind as "person" | "organization",
         role: String(item.role),
+        position: Number(item.position),
+        isPrimary: Boolean(item.is_primary),
       })),
     awards: data.awards.filter((item) => item.title_id === row.id).map(award),
   };
@@ -516,10 +518,19 @@ export async function titleDetail(
       };
     }),
   );
-  const relationships =
-    await sql`select r.id, r.kind as type, other.id as title_id, other.canonical_title as title from title_relations r join titles other on other.id=case when r.source_title_id=${id} then r.target_title_id else r.source_title_id end where (r.source_title_id=${id} or r.target_title_id=${id}) and (${includePrivate} or not other.is_private)`;
-  const credits =
-    await sql`select e.id, e.name, e.kind, r.slug as role from contributions c join entities e on e.id=c.entity_id join roles r on r.id=c.role_id where c.title_id=${id} order by c.position`;
+  const [relationships, credits, externalIdentities] = await Promise.all([
+    sql`select r.id, r.kind as type, r.notes, r.source_title_id,
+      other.id as title_id, other.canonical_title as title
+      from title_relations r
+      join titles other on other.id=case when r.source_title_id=${id} then r.target_title_id else r.source_title_id end
+      where (r.source_title_id=${id} or r.target_title_id=${id})
+        and (${includePrivate} or not other.is_private)`,
+    sql`select e.id, e.name, e.kind, r.slug as role, c.position, c.is_primary
+      from contributions c join entities e on e.id=c.entity_id join roles r on r.id=c.role_id
+      where c.title_id=${id} order by c.position`,
+    sql`select id, provider, external_id, url from external_identities
+      where title_id=${id} order by provider, external_id`,
+  ]);
   const visibleRelationshipIds = accountId
     ? await visibleTitleIdsForAccount(
         accountId,
@@ -540,12 +551,39 @@ export async function titleDetail(
         type: String(item.type),
         titleId: String(item.title_id),
         title: String(item.title),
+        direction: item.source_title_id === id ? ("outgoing" as const) : ("incoming" as const),
+        notes: String(item.notes ?? ""),
       })),
     credits: credits.map((credit) => ({
       id: String(credit.id),
       name: String(credit.name),
       kind: credit.kind as "person" | "organization",
       role: String(credit.role),
+      position: Number(credit.position),
+      isPrimary: Boolean(credit.is_primary),
     })),
+    externalIdentities: externalIdentities.map((identity) => ({
+      id: String(identity.id),
+      provider: String(identity.provider),
+      externalId: String(identity.external_id),
+      url: identity.url ? String(identity.url) : null,
+    })),
+    ...(includePrivate
+      ? {
+          workflowStatus: String(row.workflow_status) as
+            | "draft"
+            | "in_review"
+            | "approved"
+            | "published"
+            | "archived",
+          qualityScore: Number(row.quality_score),
+          curatorNotes: String(row.curator_notes ?? ""),
+          provenance:
+            row.provenance && typeof row.provenance === "object"
+              ? (row.provenance as Record<string, unknown>)
+              : {},
+          verifiedAt: row.verified_at ? new Date(String(row.verified_at)).toISOString() : null,
+        }
+      : {}),
   };
 }
