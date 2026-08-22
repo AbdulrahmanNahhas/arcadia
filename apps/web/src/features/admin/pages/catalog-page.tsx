@@ -229,7 +229,7 @@ export function AdminCatalogPage() {
         <CardContent className="px-0">
           <div
             className={cn(
-              "grid items-start gap-6 px-6 pb-6",
+              "grid items-start gap-6 px-6 pb-6 relative",
               showFilters && "lg:grid-cols-[19rem_minmax(0,1fr)]",
             )}
           >
@@ -350,13 +350,9 @@ function CatalogCard({
         params={{ workId: work.id }}
         className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted ring-1 ring-white/10 transition duration-500 group-hover:-translate-y-1 group-hover:ring-primary/40">
+        <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted ring-1 ring-white/10 group-hover:ring-primary/40">
           {work.imagePath ? (
-            <img
-              src={work.imagePath}
-              alt=""
-              className="size-full object-cover transition duration-700 group-hover:scale-105"
-            />
+            <img src={work.imagePath} alt="" className="size-full object-cover transition" />
           ) : null}
           <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black via-black/70 to-transparent p-3 pt-12 text-white">
             <div className="flex flex-wrap gap-1">

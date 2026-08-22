@@ -80,7 +80,7 @@ const facetVocabulary: Partial<Record<CatalogFacetKey, string>> = {
 
 export function CatalogFilterSidebar(props: CatalogFiltersProps) {
   return (
-    <aside className="hidden min-w-0 lg:block sticky top-20" aria-label="مرشحات الكتالوج">
+    <aside className="hidden min-w-0 lg:block sticky! top-20" aria-label="مرشحات الكتالوج">
       <div className="max-h-[calc(100svh-6rem)] overflow-y-auto rounded-3xl border bg-card/45 shadow-sm backdrop-blur-xl">
         <FilterHeader {...props} />
         <CatalogFilterContent {...props} />
