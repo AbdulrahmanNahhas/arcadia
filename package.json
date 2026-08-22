@@ -10,7 +10,9 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "check": "biome check . && pnpm typecheck",
+    "lint:oxlint": "oxlint .",
+    "lint:oxlint:fix": "oxlint . --fix",
+    "check": "pnpm lint:oxlint && biome check . && pnpm typecheck",
     "format": "biome format --write .",
     "db:generate": "pnpm --filter @arcadia/database db:generate",
     "db:migrate": "pnpm --filter @arcadia/database db:migrate",
@@ -26,6 +28,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.11",
+    "@oxlint/plugins": "1.79.0",
+    "oxlint": "^1.79.0",
     "typescript": "^6",
     "vitest": "^4.0.18"
   }
