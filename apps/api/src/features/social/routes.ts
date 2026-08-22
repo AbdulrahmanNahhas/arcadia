@@ -221,6 +221,16 @@ socialRoutes.put("/api/v1/titles/:titleId/review", async (context) => {
   return context.json({ id: String(row?.id) });
 });
 
+socialRoutes.delete("/api/v1/titles/:titleId/review", async (context) => {
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
+  const titleId = context.req.param("titleId");
+  const result = await database().client`delete from title_reviews
+    where account_id=${current.account.id} and title_id=${titleId}`;
+  if (!result.count) return context.json({ message: "لا توجد مراجعة لهذا الحساب." }, 404);
+  return context.json({ deleted: true });
+});
+
 socialRoutes.post("/api/v1/titles/:titleId/comments", async (context) => {
   const current = await currentFamilyAccount(context.req.raw.headers);
   if (!current) return context.json({ message: "الحساب غير متاح." }, 401);

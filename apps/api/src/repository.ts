@@ -264,6 +264,7 @@ function summary(
       ).values(),
     ],
     contentWarnings: row.content_warnings ? String(row.content_warnings) : null,
+    analysisNotes: row.analysis_notes ? String(row.analysis_notes) : null,
     genres: data.genres
       .filter((item) => item.title_id === row.id)
       .map((item) => item.slug) as TitleSummary["genres"],
@@ -485,13 +486,22 @@ export async function titleDetail(
   accountId?: string,
 ): Promise<TitleDetail | null> {
   const sql = database().client;
+  const [resolved] = await sql`
+    select id as title_id from titles where id=${id}
+    union all
+    select title_id from installments where id=${id}
+    union all
+    select i.title_id from episodes e join installments i on i.id=e.installment_id where e.id=${id}
+    limit 1`;
+  if (!resolved) return null;
+  const titleId = String(resolved.title_id);
   const [row] = await sql`select t.*,
       (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='poster' and maa.is_primary limit 1) as poster_path,
       (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='banner' and maa.is_primary limit 1) as banner_path,
       (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='logo' and maa.is_primary limit 1) as logo_path
-      from titles t where id=${id} and (${includePrivate} or not is_private)`;
+      from titles t where id=${titleId} and (${includePrivate} or not is_private)`;
   if (!row) return null;
-  const data = await relatedData([id]);
+  const data = await relatedData([titleId]);
   if (accountId) {
     const policy = await visibilityPolicyForAccount(accountId);
     if (!policy || !isTitleVisible(row, data, policy)) return null;
@@ -522,14 +532,14 @@ export async function titleDetail(
     sql`select r.id, r.kind as type, r.notes, r.source_title_id,
       other.id as title_id, other.canonical_title as title
       from title_relations r
-      join titles other on other.id=case when r.source_title_id=${id} then r.target_title_id else r.source_title_id end
-      where (r.source_title_id=${id} or r.target_title_id=${id})
+      join titles other on other.id=case when r.source_title_id=${titleId} then r.target_title_id else r.source_title_id end
+      where (r.source_title_id=${titleId} or r.target_title_id=${titleId})
         and (${includePrivate} or not other.is_private)`,
     sql`select e.id, e.name, e.kind, r.slug as role, c.position, c.is_primary
       from contributions c join entities e on e.id=c.entity_id join roles r on r.id=c.role_id
-      where c.title_id=${id} order by c.position`,
+      where c.title_id=${titleId} order by c.position`,
     sql`select id, provider, external_id, url from external_identities
-      where title_id=${id} order by provider, external_id`,
+      where title_id=${titleId} order by provider, external_id`,
   ]);
   const visibleRelationshipIds = accountId
     ? await visibleTitleIdsForAccount(
@@ -539,8 +549,6 @@ export async function titleDetail(
     : null;
   return {
     ...summary(row, data, includePrivate),
-    contentWarnings: row.content_warnings ? String(row.content_warnings) : null,
-    analysisNotes: row.analysis_notes ? String(row.analysis_notes) : null,
     installments: installmentRows,
     relationships: relationships
       .filter(
@@ -551,7 +559,8 @@ export async function titleDetail(
         type: String(item.type),
         titleId: String(item.title_id),
         title: String(item.title),
-        direction: item.source_title_id === id ? ("outgoing" as const) : ("incoming" as const),
+        direction:
+          item.source_title_id === titleId ? ("outgoing" as const) : ("incoming" as const),
         notes: String(item.notes ?? ""),
       })),
     credits: credits.map((credit) => ({

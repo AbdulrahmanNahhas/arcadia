@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   adminEntityContributionDeleteSchema,
   adminEntityContributionInputSchema,
@@ -27,6 +26,13 @@ import { accountRoutes, currentFamilyAccount } from "./features/accounts/routes"
 import { archiveRoutes } from "./features/archive/routes";
 import { awardRoutes } from "./features/awards/routes";
 import { socialRoutes } from "./features/social/routes";
+import {
+  applyTitleWrite,
+  defaultPreservedTitleFields,
+  type LegacyTitleWritePayload,
+  parseLegacyTitleInput,
+  TitleWriteError,
+} from "./features/titles/write";
 import { type mediaKinds, removeStoredMedia, storedMediaExists, storeMedia } from "./media-storage";
 import {
   browse,
@@ -96,61 +102,21 @@ type AdminScoreInput = Partial<{
   originality: number | null;
   craft: number | null;
 }>;
-type AdminTitleInput = Partial<{
-  id: string;
-  title: string;
-  canonicalTitle: string;
-  arabicTitle: string | null;
-  summary: string;
-  contentWarnings: string | null;
-  analysisNotes: string | null;
-  year: number | null;
-  imagePath: string | null;
-  bannerPath: string | null;
-  logoPath: string | null;
-  isPrivate: boolean;
-  audience: string | null;
-  kind: string;
-  releaseStatus: string;
-  runtimeMinutes: number | null;
-  riskProfile: Partial<Record<"sexuality" | "behavioral" | "theology", string>> | null;
-
-  aliases: string[];
-  genres: string[];
-  tone: string[];
-  tags: string[];
-  country: string[];
-  planetId: string | null;
-  contributors: Array<{
-    entityId: string;
-    role: string;
-    isPrimary?: boolean;
+/**
+ * `LegacyTitleWritePayload` (from `./features/titles/write`) plus the installment-level
+ * shortcuts `legacyTitleInputToCanonical` deliberately doesn't map (`kind`/`releaseStatus`/
+ * `runtimeMinutes` — still handled ad hoc below, since the legacy client still conflates a
+ * movie title with its single installment). No longer carries `awards` — the title editor's
+ * Awards tab now saves each recognition immediately through
+ * `/api/v1/admin/awards/recognitions` (Stage 2), so a title's own save payload never includes
+ * them anymore.
+ */
+type LegacyTitleRoutePayload = LegacyTitleWritePayload &
+  Partial<{
+    kind: string;
+    releaseStatus: string;
+    runtimeMinutes: number | null;
   }>;
-  relations: Array<{
-    workId: string;
-    relationType: string;
-    direction: "outgoing" | "incoming";
-    notes?: string;
-  }>;
-  externalLinks: Array<{ provider: string; label: string; url: string }>;
-  curation: {
-    reviewedAt: string;
-    status: "verified" | "provisional";
-    notes: string | null;
-  } | null;
-  awards: Array<{
-    id?: string;
-    organizationSlug: string;
-    organizationName: string;
-    category: string;
-    year: number | null;
-    result: "winner" | "nominee";
-    isFeatured: boolean;
-    installmentId: string | null;
-    sourceUrl: string | null;
-    notes: string | null;
-  }>;
-}>;
 
 const contributionRoleSlugs = new Set([
   "creator",
@@ -318,130 +284,9 @@ async function assignMediaPath(
   await purgeUnreferencedMedia(previous.map((row) => String(row.path)));
 }
 
-async function replaceTitleKnowledge(
-  sql: ReturnType<typeof database>["client"],
-  titleId: string,
-  input: AdminTitleInput,
-) {
-  if (input.aliases) {
-    await sql`delete from title_aliases where title_id=${titleId}`;
-    const aliases = new Map<string, string>();
-    for (const value of input.aliases) {
-      const alias = value.trim();
-      if (alias) aliases.set(alias.toLocaleLowerCase(), alias);
-    }
-    for (const alias of aliases.values())
-      await sql`insert into title_aliases (title_id, title) values (${titleId}, ${alias}) on conflict do nothing`;
-  }
-  const taxonomies = [
-    ["genres", "title_genres", input.genres],
-    ["tones", "title_tones", input.tone],
-    ["tags", "title_tags", input.tags],
-    ["countries", "title_countries", input.country],
-  ] as const;
-  for (const [lookupTable, linkTable, values] of taxonomies) {
-    if (!values) continue;
-    await sql`delete from ${sql(linkTable)} where title_id=${titleId}`;
-    for (const value of values) {
-      const slug = value
-        .trim()
-        .toLocaleLowerCase()
-        .replaceAll(/[^a-z0-9]+/g, "-");
-      const [lookup] =
-        await sql`select id from ${sql(lookupTable)} where slug=${slug} or lower(label_en)=lower(${value.trim()}) limit 1`;
-      if (lookup)
-        await sql`insert into ${sql(linkTable)} (title_id, value_id) values (${titleId}, ${lookup.id}) on conflict do nothing`;
-    }
-  }
-  if (input.planetId !== undefined) {
-    await sql`delete from title_planets where title_id=${titleId}`;
-    if (input.planetId)
-      await sql`insert into title_planets (title_id, planet_id) values (${titleId}, ${input.planetId})`;
-  }
-  if (input.contributors) {
-    await sql`delete from contributions where title_id=${titleId}`;
-    for (const [position, credit] of input.contributors.entries()) {
-      const [role] = await sql`select id from roles where slug=${credit.role}`;
-      if (role)
-        await sql`insert into contributions (title_id, entity_id, role_id, position, is_primary) values (${titleId}, ${credit.entityId}, ${role.id}, ${position}, ${credit.isPrimary ?? false}) on conflict do nothing`;
-    }
-  }
-  if (input.relations) {
-    await sql`delete from title_relations where source_title_id=${titleId} or target_title_id=${titleId}`;
-    for (const relation of input.relations) {
-      const sourceId = relation.direction === "incoming" ? relation.workId : titleId;
-      const targetId = relation.direction === "incoming" ? titleId : relation.workId;
-      await sql`insert into title_relations (source_title_id, target_title_id, kind, notes) values (${sourceId}, ${targetId}, ${relation.relationType}, ${relation.notes ?? ""}) on conflict do nothing`;
-    }
-  }
-  if (input.externalLinks) {
-    await sql`delete from external_identities where title_id=${titleId}`;
-    for (const link of input.externalLinks)
-      await sql`insert into external_identities (title_id, provider, external_id, url) values (${titleId}, ${link.provider}, ${link.label || link.url}, ${link.url}) on conflict do nothing`;
-  }
-  if (input.awards) {
-    const existingRows = await sql`select id from award_recognitions where title_id=${titleId}`;
-    const existingIds = new Set(existingRows.map((row) => String(row.id)));
-    const retainedIds: string[] = [];
-    for (const [position, recognition] of input.awards.entries()) {
-      const organizationName = recognition.organizationName.trim();
-      const category = recognition.category.trim();
-      if (!organizationName || !category) continue;
-      const organizationSlug =
-        recognition.organizationSlug.trim() ||
-        organizationName
-          .toLocaleLowerCase()
-          .replaceAll(/[^\p{Letter}\p{Number}]+/gu, "-")
-          .replaceAll(/(^-|-$)/g, "");
-      const categorySlug = category
-        .toLocaleLowerCase()
-        .replaceAll(/[^\p{Letter}\p{Number}]+/gu, "-")
-        .replaceAll(/(^-|-$)/g, "");
-      const [organization] = await sql`insert into award_organizations (slug, name_ar, name_en)
-        values (${organizationSlug}, ${organizationName}, ${organizationName})
-        on conflict (slug) do update set name_ar=excluded.name_ar, updated_at=now()
-        returning id`;
-      if (!organization) throw new Error("Could not resolve the award organization");
-      const [awardCategory] = await sql`insert into award_categories
-        (organization_id, slug, name_ar, name_en)
-        values (${organization.id}, ${categorySlug}, ${category}, ${category})
-        on conflict (organization_id, slug) do update set name_ar=excluded.name_ar,
-          updated_at=now() returning id`;
-      if (!awardCategory) throw new Error("Could not resolve the award category");
-      const [ceremony] = recognition.year
-        ? await sql`insert into award_ceremonies (organization_id, year, label)
-          values (${organization.id}, ${recognition.year}, ${String(recognition.year)})
-          on conflict (organization_id, year) do update set updated_at=now() returning id`
-        : [undefined];
-      const recognitionId =
-        recognition.id && existingIds.has(recognition.id) ? recognition.id : randomUUID();
-      retainedIds.push(recognitionId);
-      await sql`insert into award_recognitions
-        (id, title_id, installment_id, organization_id, category_id, ceremony_id,
-          organization_slug, organization_name, category, year, result, is_featured,
-          source_url, notes, position)
-        values (${recognitionId}, ${titleId}, ${recognition.installmentId || null},
-          ${organization.id}, ${awardCategory.id}, ${ceremony?.id ?? null},
-          ${organizationSlug}, ${organizationName}, ${category}, ${recognition.year},
-          ${recognition.result}, ${recognition.isFeatured}, ${recognition.sourceUrl || null},
-          ${recognition.notes || null}, ${position}) on conflict (id) do update set
-          installment_id=excluded.installment_id, organization_id=excluded.organization_id,
-          category_id=excluded.category_id, ceremony_id=excluded.ceremony_id,
-          organization_slug=excluded.organization_slug,
-          organization_name=excluded.organization_name, category=excluded.category,
-          year=excluded.year, result=excluded.result, is_featured=excluded.is_featured,
-          source_url=excluded.source_url, notes=excluded.notes, position=excluded.position,
-          updated_at=now()`;
-    }
-    if (retainedIds.length)
-      await sql`delete from award_recognitions where title_id=${titleId} and id not in ${sql(retainedIds)}`;
-    else await sql`delete from award_recognitions where title_id=${titleId}`;
-  }
-}
-
 async function contributionValidationError(
   sql: ReturnType<typeof database>["client"],
-  contributors: AdminTitleInput["contributors"],
+  contributors: LegacyTitleRoutePayload["contributors"],
 ) {
   if (!contributors?.length) return null;
   const entityIds = [...new Set(contributors.map((credit) => credit.entityId))];
@@ -515,7 +360,13 @@ const detailRoute = createRoute({
 });
 app.openapi(detailRoute, async (context) => {
   const current = await currentFamilyAccount(context.req.raw.headers);
-  const detail = await titleDetail(context.req.valid("param").titleId, false, current?.account.id);
+  const session = await getAuthSession(context.req.raw.headers);
+  const includePrivate = session?.user.role === "owner" || session?.user.role === "editor";
+  const detail = await titleDetail(
+    context.req.valid("param").titleId,
+    includePrivate,
+    current?.account.id,
+  );
   return detail ? context.json(detail, 200) : context.json({ message: "Title not found" }, 404);
 });
 
@@ -1227,7 +1078,11 @@ app.get("/api/v1/admin/titles/:titleId", async (context) => {
   return detail ? context.json(detail) : context.json({ message: "Title not found" }, 404);
 });
 
-async function recordTitleRevision(headers: Headers, titleId: string, input: AdminTitleInput) {
+async function recordTitleRevision(
+  headers: Headers,
+  titleId: string,
+  input: LegacyTitleRoutePayload,
+) {
   const current = await currentFamilyAccount(headers);
   const [next] = await database().client`select coalesce(max(revision),0)+1 as revision
     from editorial_revisions where entity_type='title' and entity_id=${titleId}`;
@@ -1239,74 +1094,79 @@ async function recordTitleRevision(headers: Headers, titleId: string, input: Adm
 }
 
 app.post("/api/v1/admin/titles", async (context) => {
-  const input = (await context.req.json()) as AdminTitleInput;
+  const raw = (await context.req.json()) as LegacyTitleRoutePayload;
   const sql = database().client;
-  const title = String(input.title ?? input.canonicalTitle ?? "").trim();
-  if (!title) return context.json({ message: "Title is required" }, 400);
-  const contributorError = await contributionValidationError(sql, input.contributors);
+  const titleText = String(raw.title ?? raw.canonicalTitle ?? "").trim();
+  if (!titleText) return context.json({ message: "Title is required" }, 400);
+  const contributorError = await contributionValidationError(sql, raw.contributors);
   if (contributorError) return context.json({ message: contributorError }, 400);
-  input.imagePath = await materializeEmbeddedMedia(input.imagePath, title, "poster");
-  input.bannerPath = await materializeEmbeddedMedia(input.bannerPath, title, "banner");
-  input.logoPath = await materializeEmbeddedMedia(input.logoPath, title, "logo");
-  const audience =
-    input.audience === "Young Adult"
-      ? "young-adult"
-      : String(input.audience ?? "general").toLowerCase();
-  const risk = input.riskProfile ?? {};
-  const normalizeRisk = (value: string | undefined) =>
-    value && value !== "unknown" ? value : "none";
-  const workflowStatus = input.curation
-    ? input.curation.status === "verified"
-      ? "approved"
-      : "in_review"
-    : null;
-  const verifiedAt =
-    input.curation?.status === "verified" && input.curation.reviewedAt
-      ? new Date(`${input.curation.reviewedAt}T00:00:00Z`)
-      : null;
-  const current = input.curation ? await currentFamilyAccount(context.req.raw.headers) : null;
-  if (input.id) {
-    const [row] = await sql`
-      update titles set
-        canonical_title=${title}, sort_title=${title.toLocaleLowerCase()}, title_ar=${input.arabicTitle ?? null},
-        summary=${String(input.summary ?? "")}, content_warnings=${input.contentWarnings ?? null}, analysis_notes=${input.analysisNotes ?? null}, release_year=${input.year ?? null},
-        is_private=${input.isPrivate ?? false},
-        audience=${audience}, sexuality_risk=${normalizeRisk(risk.sexuality)},
-        behavioral_risk=${normalizeRisk(risk.behavioral)}, theology_risk=${normalizeRisk(risk.theology)},
-        workflow_status=coalesce(${workflowStatus}::workflow_status, workflow_status),
-        curator_notes=case when ${input.curation !== undefined && input.curation !== null} then ${input.curation?.notes ?? ""} else curator_notes end,
-        verified_at=case when ${input.curation !== undefined && input.curation !== null} then ${verifiedAt} else verified_at end,
-        verified_by_account_id=case when ${input.curation !== undefined && input.curation !== null} then ${current?.account.id ?? null} else verified_by_account_id end,
-        updated_at=now()
-      where id=${String(input.id)} returning id`;
+
+  const imagePath = await materializeEmbeddedMedia(raw.imagePath, titleText, "poster");
+  const bannerPath = await materializeEmbeddedMedia(raw.bannerPath, titleText, "banner");
+  const logoPath = await materializeEmbeddedMedia(raw.logoPath, titleText, "logo");
+
+  let preserved = defaultPreservedTitleFields;
+  if (raw.id) {
+    const [row] = await sql`select age, quality_score, curator_notes, provenance,
+      workflow_status, verified_at, verified_by_account_id from titles where id=${raw.id}`;
     if (!row) return context.json({ message: "Title not found" }, 404);
-    await sql`update installments set title=${title}, summary=${String(input.summary ?? "")}, runtime_minutes=${input.runtimeMinutes ?? null}, status=${initialInstallmentStatus(input.releaseStatus)}, updated_at=now() where title_id=${String(input.id)} and (select count(*) from installments where title_id=${String(input.id)})=1`;
-    await assignMediaPath(sql, input.imagePath, "poster", { titleId: String(input.id) });
-    await assignMediaPath(sql, input.bannerPath, "banner", { titleId: String(input.id) });
-    await assignMediaPath(sql, input.logoPath, "logo", { titleId: String(input.id) });
-    await replaceTitleKnowledge(sql, String(input.id), input);
-    await recordTitleRevision(context.req.raw.headers, String(input.id), input);
-    return context.json({ id: String(input.id) });
+    preserved = {
+      age: row.age,
+      qualityScore: Number(row.quality_score),
+      curatorNotes: String(row.curator_notes),
+      provenance: row.provenance as Record<string, unknown>,
+      workflowStatus: row.workflow_status,
+      verifiedAt: row.verified_at ? new Date(row.verified_at).toISOString() : null,
+      verifiedByAccountId: row.verified_by_account_id ? String(row.verified_by_account_id) : null,
+    };
   }
-  const [row] = await sql`
-    insert into titles (canonical_title, sort_title, title_ar, summary, content_warnings,
-      analysis_notes, release_year, is_private, audience, sexuality_risk, behavioral_risk,
-      theology_risk, workflow_status, curator_notes, verified_at, verified_by_account_id)
-    values (${title}, ${title.toLocaleLowerCase()}, ${input.arabicTitle ?? null},
-      ${String(input.summary ?? "")}, ${input.contentWarnings ?? null},
-      ${input.analysisNotes ?? null}, ${input.year ?? null}, ${input.isPrivate ?? false},
-      ${audience}, ${normalizeRisk(risk.sexuality)}, ${normalizeRisk(risk.behavioral)},
-      ${normalizeRisk(risk.theology)}, ${workflowStatus ?? "draft"},
-      ${input.curation?.notes ?? ""}, ${verifiedAt}, ${current?.account.id ?? null}) returning id`;
-  if (!row) return context.json({ message: "Could not create title" }, 500);
-  const kind = ["series", "anime"].includes(String(input.kind)) ? "season" : "movie";
-  await sql`insert into installments (title_id, kind, position, title, summary, status, runtime_minutes) values (${row.id}, ${kind}, 1, ${title}, ${String(input.summary ?? "")}, ${initialInstallmentStatus(input.releaseStatus)}, ${input.runtimeMinutes ?? null})`;
-  await assignMediaPath(sql, input.imagePath, "poster", { titleId: String(row.id) });
-  await assignMediaPath(sql, input.bannerPath, "banner", { titleId: String(row.id) });
-  await assignMediaPath(sql, input.logoPath, "logo", { titleId: String(row.id) });
-  await replaceTitleKnowledge(sql, String(row.id), input);
-  await recordTitleRevision(context.req.raw.headers, String(row.id), input);
-  return context.json({ id: String(row.id) }, 201);
+
+  const parsed = parseLegacyTitleInput(
+    { ...raw, title: titleText, imagePath, bannerPath, logoPath },
+    preserved,
+  );
+  if (!parsed.success)
+    return context.json({ message: "بيانات العمل غير صالحة.", issues: parsed.error.issues }, 400);
+
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  let result: { id: string };
+  try {
+    result = await applyTitleWrite(sql, raw.id ? String(raw.id) : null, parsed.data, {
+      actorAccountId: current?.account.id ?? null,
+      previous: {
+        verifiedAt: preserved.verifiedAt,
+        verifiedByAccountId: preserved.verifiedByAccountId,
+      },
+    });
+  } catch (error) {
+    if (error instanceof TitleWriteError)
+      return context.json({ message: error.message }, raw.id ? 404 : 500);
+    throw error;
+  }
+
+  if (raw.id) {
+    await sql`update installments set title=${titleText}, summary=${String(raw.summary ?? "")},
+      runtime_minutes=${raw.runtimeMinutes ?? null},
+      status=${initialInstallmentStatus(raw.releaseStatus)}, updated_at=now()
+      where title_id=${result.id}
+        and (select count(*) from installments where title_id=${result.id})=1`;
+  } else {
+    const kind = ["series", "anime"].includes(String(raw.kind)) ? "season" : "movie";
+    await sql`insert into installments
+      (title_id, kind, position, title, summary, status, runtime_minutes)
+      values (${result.id}, ${kind}, 1, ${titleText}, ${String(raw.summary ?? "")},
+        ${initialInstallmentStatus(raw.releaseStatus)}, ${raw.runtimeMinutes ?? null})`;
+  }
+  await assignMediaPath(sql, imagePath, "poster", { titleId: result.id });
+  await assignMediaPath(sql, bannerPath, "banner", { titleId: result.id });
+  await assignMediaPath(sql, logoPath, "logo", { titleId: result.id });
+
+  // Award recognitions are no longer part of a title's own save payload (Stage 2) — they're
+  // written exclusively through /api/v1/admin/awards/recognitions now, immediately, one at a
+  // time, by the title editor's Awards tab and the standalone awards page alike.
+
+  await recordTitleRevision(context.req.raw.headers, result.id, raw);
+  return context.json({ id: result.id }, raw.id ? 200 : 201);
 });
 
 app.delete("/api/v1/admin/titles", async (context) => {
