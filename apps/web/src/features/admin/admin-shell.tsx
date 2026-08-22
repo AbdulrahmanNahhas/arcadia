@@ -9,6 +9,7 @@ import {
   SquaresFourIcon,
   TranslateIcon,
   TreeStructureIcon,
+  TrophyIcon,
   UserGearIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
@@ -47,12 +48,19 @@ import { useCurrentAccount } from "@/features/accounts/api";
 
 const sections = [
   {
-    label: "المكتبة",
+    label: "المتابعة",
     items: [
       { title: "نظرة عامة", to: "/admin", icon: HouseIcon, exact: true },
-      { title: "عمليات الأرشيف", to: "/admin/archive", icon: PulseIcon },
       { title: "الإحصاءات", to: "/admin/statistics", icon: ChartBarIcon },
+      { title: "عمليات الأرشيف", to: "/admin/archive", icon: PulseIcon },
+      { title: "التحقق", to: "/admin/validation", icon: ShieldWarningIcon },
+    ],
+  },
+  {
+    label: "المحتوى",
+    items: [
       { title: "الأعمال", to: "/admin/catalog", icon: SquaresFourIcon },
+      { title: "الجوائز", to: "/admin/awards", icon: TrophyIcon },
       { title: "مكتبة الوسائط", to: "/admin/media", icon: ImagesIcon },
       { title: "المفردات والترجمات", to: "/admin/vocabularies", icon: TranslateIcon },
     ],
@@ -68,10 +76,7 @@ const sections = [
   },
   {
     label: "الحسابات والنظام",
-    items: [
-      { title: "الحسابات والسياسات", to: "/admin/accounts", icon: UserGearIcon },
-      { title: "التحقق", to: "/admin/validation", icon: ShieldWarningIcon },
-    ],
+    items: [{ title: "الحسابات والسياسات", to: "/admin/accounts", icon: UserGearIcon }],
   },
 ] as const;
 
