@@ -52,7 +52,11 @@ export function StatisticsPage() {
         actions={
           <ToggleGroup
             value={[visibility]}
-            onValueChange={(value) => setVisibility((value[0] as typeof visibility) ?? "all")}
+            onValueChange={(value) => {
+              // SAFETY: the `ToggleGroupItem`s below only offer "all"/"public"/"private" — the
+              // same union as `visibility`.
+              setVisibility((value[0] as typeof visibility) ?? "all");
+            }}
             variant="outline"
             aria-label="نطاق الإحصاءات"
           >

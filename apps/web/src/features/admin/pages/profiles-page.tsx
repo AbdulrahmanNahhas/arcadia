@@ -64,7 +64,11 @@ import {
 import { cn } from "@/lib/utils";
 import { AdminPageHeader } from "../components/admin-page-header";
 
+// SAFETY: `accountCapabilityLabels` is keyed by every `AccountCapability`, so `Object.keys`
+// always returns exactly that set.
 const allCapabilities = Object.keys(accountCapabilityLabels) as AccountCapability[];
+// SAFETY: `avatarLabels` is keyed by every `AvatarKey`, so `Object.keys` always returns exactly
+// that set.
 const avatarKeys = Object.keys(avatarLabels) as AvatarKey[];
 const createDefaults: CreateAccountInput = {
   username: "",
@@ -301,13 +305,21 @@ function CreateAccountDialog({
               label="نوع الحساب"
               value={draft.kind}
               options={Object.entries(accountKindLabels)}
-              onChange={(kind) => setDraft({ ...draft, kind: kind as AccountKind })}
+              onChange={(kind) => {
+                // SAFETY: `options` above is built from `accountKindLabels`, keyed by every
+                // `AccountKind` — `EnumSelect` only ever calls back with one of those keys.
+                setDraft({ ...draft, kind: kind as AccountKind });
+              }}
             />
             <EnumSelect
               label="الدور"
               value={draft.role}
               options={Object.entries(accountRoleLabels)}
-              onChange={(role) => setDraft({ ...draft, role: role as AccountRole })}
+              onChange={(role) => {
+                // SAFETY: `options` above is built from `accountRoleLabels`, keyed by every
+                // `AccountRole` — `EnumSelect` only ever calls back with one of those keys.
+                setDraft({ ...draft, role: role as AccountRole });
+              }}
             />
           </div>
           <AvatarPicker
@@ -422,19 +434,31 @@ function EditAccountDialog({
                 label="الحالة"
                 value={draft.status}
                 options={Object.entries(accountStatusLabels)}
-                onChange={(status) => setDraft({ ...draft, status: status as AccountStatus })}
+                onChange={(status) => {
+                  // SAFETY: `options` above is built from `accountStatusLabels`, keyed by every
+                  // `AccountStatus` — `EnumSelect` only ever calls back with one of those keys.
+                  setDraft({ ...draft, status: status as AccountStatus });
+                }}
               />
               <EnumSelect
                 label="نوع الحساب"
                 value={draft.kind}
                 options={Object.entries(accountKindLabels)}
-                onChange={(kind) => setDraft({ ...draft, kind: kind as AccountKind })}
+                onChange={(kind) => {
+                  // SAFETY: `options` above is built from `accountKindLabels`, keyed by every
+                  // `AccountKind` — `EnumSelect` only ever calls back with one of those keys.
+                  setDraft({ ...draft, kind: kind as AccountKind });
+                }}
               />
               <EnumSelect
                 label="الدور"
                 value={draft.role}
                 options={Object.entries(accountRoleLabels)}
-                onChange={(role) => setDraft({ ...draft, role: role as AccountRole })}
+                onChange={(role) => {
+                  // SAFETY: `options` above is built from `accountRoleLabels`, keyed by every
+                  // `AccountRole` — `EnumSelect` only ever calls back with one of those keys.
+                  setDraft({ ...draft, role: role as AccountRole });
+                }}
               />
             </div>
             <AvatarPicker
@@ -734,7 +758,7 @@ function EnumSelect({
   return (
     <Field>
       <FieldLabel>{label}</FieldLabel>
-      <Select value={value} onValueChange={(next) => onChange(next as string)}>
+      <Select value={value} onValueChange={(next) => next && onChange(next)}>
         <SelectTrigger className="w-full">
           <SelectValue />
         </SelectTrigger>

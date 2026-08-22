@@ -306,11 +306,17 @@ export function RelationshipsPage() {
                   <Select
                     value={draft.datePrecision}
                     onValueChange={(value) =>
-                      setDraft((current) => ({
-                        ...current,
-                        datePrecision: (value ?? "unknown") as RelationshipDraft["datePrecision"],
-                        occurredOn: value === "unknown" ? "" : current.occurredOn,
-                      }))
+                      setDraft((current) => {
+                        // SAFETY: the `SelectItem`s below only offer "unknown"/"year"/"month"/
+                        // "day" — the same union as `RelationshipDraft["datePrecision"]`.
+                        const datePrecision = (value ??
+                          "unknown") as RelationshipDraft["datePrecision"];
+                        return {
+                          ...current,
+                          datePrecision,
+                          occurredOn: value === "unknown" ? "" : current.occurredOn,
+                        };
+                      })
                     }
                   >
                     <SelectTrigger className="w-full">

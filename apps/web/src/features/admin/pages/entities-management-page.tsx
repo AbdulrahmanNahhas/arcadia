@@ -66,9 +66,9 @@ import { cn } from "@/lib/utils";
 import {
   deleteEntities,
   deleteEntityContribution,
+  getAdminEntities,
   getAdminVocabularyTerms,
   getAdminWorks,
-  getEntities,
   saveEntities,
   saveEntity,
   saveEntityContribution,
@@ -81,6 +81,12 @@ type Draft = AdminEntityInput;
 type EntityDocument = { schemaVersion: 2; entities: AdminEntityInput[] };
 
 const number = new Intl.NumberFormat("ar");
+
+/** `FileReader#result` is `string | ArrayBuffer | null` in general — narrows it down for the
+ *  `readAsDataURL` case, where it's always a `string` (a data: URL) or `null` on failure. */
+function isFileReaderStringResult(value: FileReader["result"]): value is string {
+  return typeof value === "string";
+}
 
 function createDraft(kind: EntityKind, entity?: Entity): Draft {
   return {
@@ -102,7 +108,7 @@ export function EntitiesManagementPage({ kind }: { kind: EntityKind }) {
   const queryClient = useQueryClient();
   const { data: allEntities } = useSuspenseQuery({
     queryKey: ["admin-entities"],
-    queryFn: () => getEntities(),
+    queryFn: () => getAdminEntities(),
   });
   const { data: works } = useSuspenseQuery({
     queryKey: ["admin-works"],
@@ -116,7 +122,7 @@ export function EntitiesManagementPage({ kind }: { kind: EntityKind }) {
     () =>
       allEntities
         .filter((entity) => entity.entityType === kind)
-        .sort(
+        .toSorted(
           (left, right) =>
             right.workCount - left.workCount || left.sortName.localeCompare(right.sortName),
         ),
@@ -277,7 +283,8 @@ export function EntitiesManagementPage({ kind }: { kind: EntityKind }) {
                   onCheckedChange={(checked) =>
                     setSelectedIds((current) => {
                       const next = new Set(current);
-                      checked ? next.add(entity.id) : next.delete(entity.id);
+                      if (checked) next.add(entity.id);
+                      else next.delete(entity.id);
                       return next;
                     })
                   }
@@ -431,11 +438,11 @@ function EntityIdentityCard({
                   id="entity-name"
                   value={draft.name}
                   onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      name: event.target.value,
-                      ...(!current.id ? { sortName: event.target.value.toLocaleLowerCase() } : {}),
-                    }))
+                    setDraft((current) => {
+                      const next = { ...current, name: event.target.value };
+                      if (!current.id) next.sortName = event.target.value.toLocaleLowerCase();
+                      return next;
+                    })
                   }
                   required
                   dir="auto"
@@ -728,13 +735,13 @@ function EntityArtworkField({
     const file = event.target.files?.[0];
     if (!file?.type?.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") return;
+    reader.addEventListener("load", () => {
+      if (!isFileReaderStringResult(reader.result)) return;
       upload.mutate(
         { data: { dataUrl: reader.result, fileName: file.name } },
         { onSuccess: ({ relativePath }) => setCandidate(relativePath) },
       );
-    };
+    });
     reader.readAsDataURL(file);
   };
   return (
@@ -896,6 +903,9 @@ function EntityJsonEditor({
   });
   const prepareReview = () => {
     try {
+      // SAFETY: this only widens `JSON.parse`'s `any` to a shape whose fields are still
+      // `unknown` — the checks immediately below validate `schemaVersion` and `entities` before
+      // anything here is trusted further.
       const parsed = JSON.parse(json) as { schemaVersion?: unknown; entities?: unknown };
       if (parsed.schemaVersion !== 2 || !Array.isArray(parsed.entities))
         throw new Error("يجب أن يحتوي المستند على schemaVersion: 2 ومصفوفة entities.");

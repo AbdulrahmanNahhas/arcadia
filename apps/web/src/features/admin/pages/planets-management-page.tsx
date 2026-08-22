@@ -90,7 +90,10 @@ export function PlanetsManagementPage() {
   const [selectedWorks, setSelectedWorks] = useState<Set<string>>(new Set());
   const [workSearch, setWorkSearch] = useState("");
   const source = planets.find((planet) => planet.id === sourceId);
-  const sourceWorks = sourceId === unassignedSourceId ? unassignedWorks : (source?.works ?? []);
+  const sourceWorks = useMemo(
+    () => (sourceId === unassignedSourceId ? unassignedWorks : (source?.works ?? [])),
+    [sourceId, unassignedWorks, source],
+  );
   const displayedWorks = useMemo(() => {
     const query = workSearch.trim().toLocaleLowerCase();
     return sourceWorks.filter(

@@ -89,7 +89,10 @@ function parsePastedWorks(value: string): ParseResult {
     ] = line.split("|").map((part) => part.trim());
     const lineErrors: string[] = [];
     if (!title) lineErrors.push("العنوان مطلوب");
+    // SAFETY: `Array#includes` does a plain equality check regardless of the argument's static
+    // type, so a `rawKind` that isn't really a `WorkKind` correctly reports as absent.
     if (!mediaKinds.includes(rawKind as WorkKind)) lineErrors.push(`النوع «${rawKind}» غير معروف`);
+    // SAFETY: same as above — `personalStatuses.includes` is a plain equality check.
     if (!personalStatuses.includes(rawStatus as Work["status"])) {
       lineErrors.push(`الحالة «${rawStatus}» غير معروفة`);
     }
@@ -110,6 +113,8 @@ function parsePastedWorks(value: string): ParseResult {
       errors.push(`السطر ${index + 1}: ${lineErrors.join("، ")}`);
       return;
     }
+    // SAFETY: the checks above already returned early unless `rawKind` is in `mediaKinds` and
+    // `rawStatus` is in `personalStatuses`, so both casts here are already validated.
     works.push({
       title,
       kind: rawKind as WorkKind,

@@ -69,6 +69,12 @@ type PendingAction =
   | { kind: "delete-asset"; asset: MediaAsset }
   | { kind: "unlink"; asset: MediaAsset; assignment: Assignment };
 
+/** `Slider`'s `onValueChange` reports `number | number[]` depending on whether it's a
+ *  single-thumb or range slider — narrows down to the single-thumb case used below. */
+function isSingleSliderValue(value: number | readonly number[]): value is number {
+  return typeof value === "number";
+}
+
 function formatBytes(value: number) {
   const units = ["B", "KiB", "MiB", "GiB"];
   let amount = value;
@@ -541,7 +547,7 @@ function FocalPointEditor({
             min={0}
             max={100}
             step={1}
-            onValueChange={(value) => setX(typeof value === "number" ? value : (value[0] ?? 50))}
+            onValueChange={(value) => setX(isSingleSliderValue(value) ? value : (value[0] ?? 50))}
           />
         </div>
         <div className="space-y-2 text-xs">
@@ -552,7 +558,7 @@ function FocalPointEditor({
             min={0}
             max={100}
             step={1}
-            onValueChange={(value) => setY(typeof value === "number" ? value : (value[0] ?? 50))}
+            onValueChange={(value) => setY(isSingleSliderValue(value) ? value : (value[0] ?? 50))}
           />
         </div>
         <Button size="sm" variant="outline" onClick={() => onSave(x, y)}>
