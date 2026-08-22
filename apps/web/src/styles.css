@@ -9,6 +9,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --breakpoint-xs: 29.6875rem; /* 475px */
   --font-heading: "Alexandria Variable", sans-serif;
   --font-sans: "IBM Plex Sans Arabic", sans-serif;
   --font-mono: "JetBrains Mono Variable", monospace;

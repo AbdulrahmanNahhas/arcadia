@@ -26,6 +26,7 @@ import { Route as StudiosRouteImport } from './routes/studios'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAccountsRouteImport } from './routes/admin.accounts'
 import { Route as AdminArchiveRouteImport } from './routes/admin.archive'
+import { Route as AdminAwardsRouteImport } from './routes/admin.awards'
 import { Route as AdminCatalogRouteImport } from './routes/admin.catalog'
 import { Route as AdminMediaRouteImport } from './routes/admin.media'
 import { Route as AdminPeopleRouteImport } from './routes/admin.people'
@@ -48,6 +49,7 @@ import { Route as StudiosStudioIdRouteImport } from './routes/studios.$studioId'
 import { Route as TitlesTitleIdRouteImport } from './routes/titles.$titleId'
 import { Route as AdminCatalogIndexRouteImport } from './routes/admin.catalog.index'
 import { Route as AdminCatalogWorkIdRouteImport } from './routes/admin.catalog.$workId'
+import { Route as AdminCatalogJsonRouteImport } from './routes/admin.catalog.json'
 import { Route as AdminCatalogNewRouteImport } from './routes/admin.catalog_.new'
 import { Route as TitlesTitleIdInstallmentsInstallmentIdRouteImport } from './routes/titles_.$titleId.installments.$installmentId'
 
@@ -134,6 +136,11 @@ const AdminAccountsRoute = AdminAccountsRouteImport.update({
 const AdminArchiveRoute = AdminArchiveRouteImport.update({
   id: '/archive',
   path: '/archive',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAwardsRoute = AdminAwardsRouteImport.update({
+  id: '/awards',
+  path: '/awards',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminCatalogRoute = AdminCatalogRouteImport.update({
@@ -246,6 +253,11 @@ const AdminCatalogWorkIdRoute = AdminCatalogWorkIdRouteImport.update({
   path: '/$workId',
   getParentRoute: () => AdminCatalogRoute,
 } as any)
+const AdminCatalogJsonRoute = AdminCatalogJsonRouteImport.update({
+  id: '/json',
+  path: '/json',
+  getParentRoute: () => AdminCatalogRoute,
+} as any)
 const AdminCatalogNewRoute = AdminCatalogNewRouteImport.update({
   id: '/catalog_/new',
   path: '/catalog/new',
@@ -275,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/studios': typeof StudiosRouteWithChildren
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/archive': typeof AdminArchiveRoute
+  '/admin/awards': typeof AdminAwardsRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/media': typeof AdminMediaRoute
   '/admin/people': typeof AdminPeopleRoute
@@ -297,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/planets/': typeof PlanetsIndexRoute
   '/studios/': typeof StudiosIndexRoute
   '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
+  '/admin/catalog/json': typeof AdminCatalogJsonRoute
   '/admin/catalog/new': typeof AdminCatalogNewRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
   '/titles/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
@@ -313,6 +327,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/archive': typeof AdminArchiveRoute
+  '/admin/awards': typeof AdminAwardsRoute
   '/admin/media': typeof AdminMediaRoute
   '/admin/people': typeof AdminPeopleRoute
   '/admin/planets': typeof AdminPlanetsRoute
@@ -334,6 +349,7 @@ export interface FileRoutesByTo {
   '/planets': typeof PlanetsIndexRoute
   '/studios': typeof StudiosIndexRoute
   '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
+  '/admin/catalog/json': typeof AdminCatalogJsonRoute
   '/admin/catalog/new': typeof AdminCatalogNewRoute
   '/admin/catalog': typeof AdminCatalogIndexRoute
   '/titles/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
@@ -356,6 +372,7 @@ export interface FileRoutesById {
   '/studios': typeof StudiosRouteWithChildren
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/archive': typeof AdminArchiveRoute
+  '/admin/awards': typeof AdminAwardsRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/media': typeof AdminMediaRoute
   '/admin/people': typeof AdminPeopleRoute
@@ -378,6 +395,7 @@ export interface FileRoutesById {
   '/planets/': typeof PlanetsIndexRoute
   '/studios/': typeof StudiosIndexRoute
   '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
+  '/admin/catalog/json': typeof AdminCatalogJsonRoute
   '/admin/catalog_/new': typeof AdminCatalogNewRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
   '/titles_/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
@@ -401,6 +419,7 @@ export interface FileRouteTypes {
     | '/studios'
     | '/admin/accounts'
     | '/admin/archive'
+    | '/admin/awards'
     | '/admin/catalog'
     | '/admin/media'
     | '/admin/people'
@@ -423,6 +442,7 @@ export interface FileRouteTypes {
     | '/planets/'
     | '/studios/'
     | '/admin/catalog/$workId'
+    | '/admin/catalog/json'
     | '/admin/catalog/new'
     | '/admin/catalog/'
     | '/titles/$titleId/installments/$installmentId'
@@ -439,6 +459,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/accounts'
     | '/admin/archive'
+    | '/admin/awards'
     | '/admin/media'
     | '/admin/people'
     | '/admin/planets'
@@ -460,6 +481,7 @@ export interface FileRouteTypes {
     | '/planets'
     | '/studios'
     | '/admin/catalog/$workId'
+    | '/admin/catalog/json'
     | '/admin/catalog/new'
     | '/admin/catalog'
     | '/titles/$titleId/installments/$installmentId'
@@ -481,6 +503,7 @@ export interface FileRouteTypes {
     | '/studios'
     | '/admin/accounts'
     | '/admin/archive'
+    | '/admin/awards'
     | '/admin/catalog'
     | '/admin/media'
     | '/admin/people'
@@ -503,6 +526,7 @@ export interface FileRouteTypes {
     | '/planets/'
     | '/studios/'
     | '/admin/catalog/$workId'
+    | '/admin/catalog/json'
     | '/admin/catalog_/new'
     | '/admin/catalog/'
     | '/titles_/$titleId/installments/$installmentId'
@@ -647,6 +671,13 @@ declare module '@tanstack/react-router' {
       path: '/archive'
       fullPath: '/admin/archive'
       preLoaderRoute: typeof AdminArchiveRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/awards': {
+      id: '/admin/awards'
+      path: '/awards'
+      fullPath: '/admin/awards'
+      preLoaderRoute: typeof AdminAwardsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/catalog': {
@@ -803,6 +834,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCatalogWorkIdRouteImport
       parentRoute: typeof AdminCatalogRoute
     }
+    '/admin/catalog/json': {
+      id: '/admin/catalog/json'
+      path: '/json'
+      fullPath: '/admin/catalog/json'
+      preLoaderRoute: typeof AdminCatalogJsonRouteImport
+      parentRoute: typeof AdminCatalogRoute
+    }
     '/admin/catalog_/new': {
       id: '/admin/catalog_/new'
       path: '/catalog/new'
@@ -822,11 +860,13 @@ declare module '@tanstack/react-router' {
 
 interface AdminCatalogRouteChildren {
   AdminCatalogWorkIdRoute: typeof AdminCatalogWorkIdRoute
+  AdminCatalogJsonRoute: typeof AdminCatalogJsonRoute
   AdminCatalogIndexRoute: typeof AdminCatalogIndexRoute
 }
 
 const AdminCatalogRouteChildren: AdminCatalogRouteChildren = {
   AdminCatalogWorkIdRoute: AdminCatalogWorkIdRoute,
+  AdminCatalogJsonRoute: AdminCatalogJsonRoute,
   AdminCatalogIndexRoute: AdminCatalogIndexRoute,
 }
 
@@ -837,6 +877,7 @@ const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
 interface AdminRouteChildren {
   AdminAccountsRoute: typeof AdminAccountsRoute
   AdminArchiveRoute: typeof AdminArchiveRoute
+  AdminAwardsRoute: typeof AdminAwardsRoute
   AdminCatalogRoute: typeof AdminCatalogRouteWithChildren
   AdminMediaRoute: typeof AdminMediaRoute
   AdminPeopleRoute: typeof AdminPeopleRoute
@@ -854,6 +895,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAccountsRoute: AdminAccountsRoute,
   AdminArchiveRoute: AdminArchiveRoute,
+  AdminAwardsRoute: AdminAwardsRoute,
   AdminCatalogRoute: AdminCatalogRouteWithChildren,
   AdminMediaRoute: AdminMediaRoute,
   AdminPeopleRoute: AdminPeopleRoute,

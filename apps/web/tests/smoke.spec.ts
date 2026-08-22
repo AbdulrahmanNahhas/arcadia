@@ -47,6 +47,13 @@ test("family account browses an accessible title in RTL", async ({ page }) => {
   await expect(page.getByRole("tab", { name: "التقييم" })).toBeVisible();
 });
 
+test("family account opens a title without requesting admin data", async ({ page }) => {
+  await signIn(page, "family");
+  await page.goto("/titles/d933a2b3-4116-4798-9666-3a4232007a8e");
+  await expect(page.getByText("لا يملك هذا الحساب صلاحية الإدارة.")).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "التقييم" })).toBeVisible();
+});
+
 test("family archive hub exposes personal and shared tools", async ({ page }) => {
   await signIn(page, "family");
   await page.goto("/archive");
@@ -84,6 +91,64 @@ test("title detail exposes Arabic editorial data, scores, family, and installmen
   await installment.click();
   await expect(page).toHaveURL(/\/titles\/[0-9a-f-]+\/installments\/[0-9a-f-]+$/);
   await expect(page.getByRole("tab", { name: "الأجزاء والحلقات" })).toHaveAttribute("data-active");
+});
+
+test("title review can be deleted from its review card", async ({ page }) => {
+  const response = await page.request.get(
+    "http://127.0.0.1:3001/api/v1/titles?mode=titles&limit=1",
+  );
+  const catalog = (await response.json()) as { items: Array<{ id: string }> };
+  const title = catalog.items[0];
+  expect(title).toBeDefined();
+  if (!title) return;
+
+  const me = (await (await page.request.get("http://127.0.0.1:3001/api/v1/me")).json()) as {
+    account: { id: string };
+  };
+  const originalSocial = (await (
+    await page.request.get(`http://127.0.0.1:3001/api/v1/titles/${title.id}/social`)
+  ).json()) as {
+    reviews: Array<{
+      author: { id: string };
+      rating: number;
+      body: string;
+      containsSpoilers: boolean;
+    }>;
+  };
+  const originalReview = originalSocial.reviews.find((item) => item.author.id === me.account.id);
+  const temporaryBody = "مراجعة مؤقتة لاختبار الحذف من البطاقة.";
+
+  await page.request.put(`http://127.0.0.1:3001/api/v1/titles/${title.id}/review`, {
+    data: { rating: 4, body: temporaryBody, containsSpoilers: false },
+  });
+
+  try {
+    await page.goto(`/titles/${title.id}`);
+    await page.getByRole("tab", { name: "مراجعات العائلة" }).click();
+    const familyPanel = page.getByRole("tabpanel", { name: "العائلة" });
+    const reviewCard = familyPanel
+      .locator('[data-slot="card"]:has(button[aria-label="حذف المراجعة"])')
+      .filter({ hasText: temporaryBody });
+    await expect(reviewCard).toBeVisible();
+
+    await reviewCard.locator('button[aria-label="حذف المراجعة"]').click();
+    const confirmation = page.getByRole("dialog");
+    await expect(confirmation.getByRole("heading", { name: "حذف مراجعتك؟" })).toBeVisible();
+    await confirmation.getByRole("button", { name: "حذف المراجعة" }).click();
+    await expect(reviewCard).toHaveCount(0);
+  } finally {
+    if (originalReview) {
+      await page.request.put(`http://127.0.0.1:3001/api/v1/titles/${title.id}/review`, {
+        data: {
+          rating: originalReview.rating,
+          body: originalReview.body,
+          containsSpoilers: originalReview.containsSpoilers,
+        },
+      });
+    } else {
+      await page.request.delete(`http://127.0.0.1:3001/api/v1/titles/${title.id}/review`);
+    }
+  }
 });
 
 test("browse switches to flattened installments", async ({ page }) => {

@@ -49,7 +49,7 @@ export function EntityDialog({
           {children}
         </DialogTrigger>
       )}
-      <DialogContent className="platform-surface max-h-[90svh] overflow-y-auto p-0 sm:max-w-174">
+      <DialogContent className="platform-surface max-h-[90svh] overflow-y-auto p-0 sm:max-w-175">
         <div className="p-6 sm:p-8">
           {/* Header */}
           <DialogHeader>

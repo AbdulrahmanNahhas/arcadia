@@ -31,6 +31,12 @@ export function saveReview(
   });
 }
 
+export function deleteReview(titleId: string) {
+  return apiFetch<{ deleted: boolean }>(`/api/v1/titles/${titleId}/review`, {
+    method: "DELETE",
+  });
+}
+
 export function saveComment(
   titleId: string,
   input: { parentId: string | null; body: string; containsSpoilers: boolean },

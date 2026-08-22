@@ -65,8 +65,8 @@ export function WorkFamilyActions({ titleId, title }: { titleId: string; title: 
   return (
     <div className="flex flex-wrap gap-2">
       <Dialog>
-        <DialogTrigger render={<Button variant="outline" size="sm" />}>
-          <PaperPlaneTiltIcon /> رشّحه لشخص
+        <DialogTrigger render={<Button variant="outline" size="sm" aria-label="رشّحه لشخص" />}>
+          <PaperPlaneTiltIcon /> <span className="sr-only sm:not-sr-only">رشّحه لشخص</span>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
@@ -106,8 +106,8 @@ export function WorkFamilyActions({ titleId, title }: { titleId: string; title: 
         </DialogContent>
       </Dialog>
       <Dialog>
-        <DialogTrigger render={<Button variant="outline" size="sm" />}>
-          <FolderPlusIcon /> أضف لمجموعة
+        <DialogTrigger render={<Button variant="outline" size="sm" aria-label="أضف لمجموعة" />}>
+          <FolderPlusIcon /> <span className="sr-only sm:not-sr-only">أضف لمجموعة</span>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
@@ -140,8 +140,8 @@ export function WorkFamilyActions({ titleId, title }: { titleId: string; title: 
         </DialogContent>
       </Dialog>
       <Dialog>
-        <DialogTrigger render={<Button variant="outline" size="sm" />}>
-          <CalendarPlusIcon /> اقترح ليلة
+        <DialogTrigger render={<Button variant="outline" size="sm" aria-label="اقترح ليلة" />}>
+          <CalendarPlusIcon /> <span className="sr-only sm:not-sr-only">اقترح ليلة</span>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>

@@ -1,14 +1,19 @@
 import type { AwardRecognition } from "@arcadia/contracts";
 import {
   ArrowSquareOutIcon,
+  ChartBarIcon,
   CheckCircleIcon,
   ClockIcon,
+  DatabaseIcon,
   FilmStripIcon,
+  HeartIcon,
   InfoIcon,
   PlayIcon,
+  RowsIcon,
   StarIcon,
   TelevisionIcon,
   TrophyIcon,
+  UsersThreeIcon,
 } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -30,7 +35,6 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCurrentAccount } from "@/features/accounts/api";
 import { recordHistory } from "@/features/archive/api";
 import { WorkFamilyActions } from "@/features/archive/work-family-actions";
 import type { Entity, Work, WorkStructure } from "@/features/library/model";
@@ -46,6 +50,15 @@ import { PlatformShell } from "./components/platform-shell";
 import { WorkCard } from "./components/work-card";
 
 type PlanetInfo = { slug: string; icon: string; nameAr: string; primaryColor: string } | null;
+type TitleTabId = "overview" | "episodes" | "cast" | "scores" | "reviews" | "details";
+type TitleTab = {
+  id: TitleTabId;
+  label: string;
+  title: string;
+  description: string;
+  summary: string;
+  icon: typeof RowsIcon;
+};
 
 export function WorkDetailPage({
   workId,
@@ -54,11 +67,9 @@ export function WorkDetailPage({
   workId: string;
   initialInstallmentId?: string;
 }) {
-  const { data: accountData } = useCurrentAccount();
-  const isAdmin = accountData?.account.role === "owner" || accountData?.account.role === "editor";
   const { data } = useSuspenseQuery({
-    queryKey: ["platform-work", workId, isAdmin],
-    queryFn: () => getPlatformWorkDetail({ data: { workId, includePrivate: isAdmin } }),
+    queryKey: ["platform-work", workId],
+    queryFn: () => getPlatformWorkDetail({ data: { workId } }),
   });
   const { data: entities } = useSuspenseQuery({
     queryKey: ["entities"],
@@ -66,12 +77,20 @@ export function WorkDetailPage({
   });
   const { taxonomyLabel } = useArabicTranslations();
   const [selectedInstallmentId, setSelectedInstallmentId] = useState(initialInstallmentId ?? "");
+  const [activeTab, setActiveTab] = useState<TitleTabId>(
+    initialInstallmentId ? "episodes" : "overview",
+  );
   useEffect(() => {
     recordHistory(workId).catch(() => undefined);
   }, [workId]);
+  useEffect(() => {
+    if (!initialInstallmentId) return;
+    setSelectedInstallmentId(initialInstallmentId);
+    setActiveTab("episodes");
+  }, [initialInstallmentId]);
   if (!data)
     return (
-      <PlatformShell>
+      <PlatformShell immersive>
         <div className="mx-auto max-w-3xl px-5 py-32">هذا العمل غير متاح في المنصة الرئيسية.</div>
       </PlatformShell>
     );
@@ -89,44 +108,108 @@ export function WorkDetailPage({
   const hasCast = people.length > 0 || studios.length > 0;
 
   const tabs = [
-    { id: "overview", label: "نظرة عامة" },
-    hasMedia && { id: "episodes", label: "الأجزاء والحلقات" },
-    hasCast && { id: "cast", label: "صنّاع العمل" },
-    { id: "scores", label: "التقييم" },
-    { id: "reviews", label: "مراجعات العائلة" },
-    { id: "details", label: "التفاصيل" },
-  ].filter(Boolean) as Array<{ id: string; label: string }>;
+    {
+      id: "overview",
+      label: "الملف",
+      title: "ملف العمل",
+      description: "الملخص التحريري وموقع العنوان داخل سلسلته، مع مساحة للنقاش.",
+      summary: `${structure.seasons.length} أجزاء · ${work.relations.length} روابط`,
+      icon: RowsIcon,
+    },
+    hasMedia && {
+      id: "episodes",
+      label: "الأجزاء",
+      title: "الأجزاء والحلقات",
+      description: "تنقّل بين المواسم والأفلام، ثم افتح محتوى كل جزء من سجل واحد.",
+      summary: `${structure.seasons.length} أجزاء · ${structure.totalUnits} حلقات`,
+      icon: FilmStripIcon,
+    },
+    hasCast && {
+      id: "cast",
+      label: "الصنّاع",
+      title: "صنّاع العمل",
+      description: "الأشخاص والاستوديوهات المثبتة أدوارهم في سجل هذا العنوان.",
+      summary: `${people.length} أشخاص · ${studios.length} جهات`,
+      icon: UsersThreeIcon,
+    },
+    {
+      id: "scores",
+      label: "التقييم",
+      title: "بصمة التقييم",
+      description: "الدرجات التحريرية وأوزانها، مع شرح واضح لكيفية تكوين النتيجة.",
+      summary: work.scoreCoverage
+        ? `${work.scoreCoverage.scored} من ${work.scoreCoverage.total} أجزاء مقيّمة`
+        : "لم يكتمل التقييم بعد",
+      icon: ChartBarIcon,
+    },
+    {
+      id: "reviews",
+      label: "العائلة",
+      title: "مراجعات العائلة",
+      description: "انطباعات شخصية ونقاشات منفصلة عن التقييم التحريري لأركاديا.",
+      summary: "مساحة العائلة",
+      icon: UsersThreeIcon,
+    },
+    {
+      id: "details",
+      label: "البيانات",
+      title: "بيانات الكتالوج",
+      description: "العناوين الموسّعة، بنية العمل، مصدره، تصنيفاته، وسجل الجوائز.",
+      summary: `${work.aliases.length} عناوين بديلة · ${work.awards.length} تكريمات`,
+      icon: DatabaseIcon,
+    },
+  ].filter(Boolean) as TitleTab[];
+  const activeTabDetails = tabs.find((tab) => tab.id === activeTab) ?? tabs.at(0);
+  if (!activeTabDetails) return null;
 
   return (
-    <PlatformShell immersive>
+    <PlatformShell>
       <WorkHero work={work} planet={planet?.planet ?? null} audienceLabel={audienceLabel} />
 
       <Tabs
-        defaultValue={initialInstallmentId ? "episodes" : "overview"}
-        className="mx-auto max-w-400 gap-0 px-5 sm:px-8"
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as TitleTabId)}
+        className="mx-auto max-w-400 gap-0 px-5 pt-10 sm:px-8"
       >
-        <div className="sticky top-14 z-30 -mx-5 overflow-x-auto border-y border-border/40 bg-background/80 px-5 backdrop-blur-xl sm:-mx-8 sm:px-8">
-          <TabsList variant="line" className="h-10! min-w-max justify-start gap-3 p-0">
+        <div
+          id="title-sections"
+          className="scroll-fade-x sticky top-14 z-30 -mx-5 overflow-x-auto border-y bg-background/90 px-5 overflow-y-clip! backdrop-blur-xl sm:-mx-8 sm:px-8"
+        >
+          <TabsList variant="line" className="h-12! min-w-max justify-start gap-0 p-0">
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className="h-8 hover:bg-accent! flex-none rounded-full px-3 text-sm"
+                aria-label={tab.title}
+                className="h-9 flex-none rounded-full! px-4! text-sm hover:bg-accent!"
               >
+                <tab.icon data-icon="inline-start" />
                 {tab.label}
               </TabsTrigger>
             ))}
           </TabsList>
         </div>
 
-        <div id="family-progress" className="border-b border-border/40 py-6">
-          <TitleSocialSection titleId={work.id} mode="quick" />
-          <div className="mt-3">
-            <WorkFamilyActions titleId={work.id} title={work.arabicTitle || work.title} />
+        <header className="grid gap-5 border-b py-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <div className="flex min-w-0 items gap-4 items-center">
+            <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+              <activeTabDetails.icon weight="duotone" className="size-8" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="font-heading text-xl font-bold sm:text-2xl">
+                {activeTabDetails.title}
+              </h2>
+              <p className="mt-1 max-w-2xl leading-6 text-muted-foreground">
+                {activeTabDetails.description}
+              </p>
+            </div>
           </div>
-        </div>
+          <Badge variant="outline" className="h-8 w-fit px-3 flex gap-4">
+            {activeTabDetails.summary}
+          </Badge>
+        </header>
 
-        <div className="grid gap-10 md:py-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-14">
+        <div className="grid gap-10 py-8 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12">
           <main className="min-w-0">
             <TabsContent value="overview" className="mt-0 focus-visible:outline-none">
               <OverviewSection
@@ -135,16 +218,12 @@ export function WorkDetailPage({
                 risks={risks}
                 taxonomyLabel={taxonomyLabel}
               />
-              <div className="mt-10 border-t pt-10">
-                <TitleSocialSection titleId={work.id} mode="discussion" />
-              </div>
             </TabsContent>
 
             {hasMedia && (
               <TabsContent value="episodes" className="mt-0 focus-visible:outline-none">
                 <EpisodesSection
                   structure={structure}
-                  work={work}
                   selectedId={selectedInstallmentId}
                   onSelectedIdChange={setSelectedInstallmentId}
                 />
@@ -161,16 +240,18 @@ export function WorkDetailPage({
               <ScoreSection work={work} />
             </TabsContent>
 
-            <TabsContent value="reviews" className="mt-0 focus-visible:outline-none">
-              <TitleSocialSection titleId={work.id} mode="reviews" />
-            </TabsContent>
+            {!work.isPrivate && (
+              <TabsContent value="reviews" className="mt-0 focus-visible:outline-none">
+                <TitleSocialSection titleId={work.id} mode="reviews" />
+              </TabsContent>
+            )}
 
             <TabsContent value="details" className="mt-0 focus-visible:outline-none">
               <WorkDetails work={work} structure={structure} taxonomyLabel={taxonomyLabel} />
             </TabsContent>
           </main>
 
-          <aside className="flex flex-col gap-5 lg:sticky lg:top-32 lg:max-h-[calc(100svh-9rem)] lg:self-start lg:overflow-y-auto lg:pe-2 p-1">
+          <aside className="flex flex-col gap-5 p-1 lg:sticky lg:top-32 lg:max-h-[calc(100svh-9rem)] lg:pe-2">
             <MetadataPanel
               work={work}
               planetName={planet?.planet.nameAr ?? "غير معيّن"}
@@ -182,9 +263,17 @@ export function WorkDetailPage({
       </Tabs>
 
       {recommendations.length > 0 && (
-        <div className="mx-auto max-w-400 px-5 pb-28 sm:px-8">
+        <div className="mx-auto max-w-400 pb-12">
           <SimilarSection recommendations={recommendations} />
         </div>
+      )}
+
+      {!work.isPrivate && (
+        <section id="family-discussion" className="border-t bg-muted/15">
+          <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-18">
+            <TitleSocialSection titleId={work.id} mode="discussion" />
+          </div>
+        </section>
       )}
     </PlatformShell>
   );
@@ -218,111 +307,152 @@ function WorkHero({
     work.awards[0];
 
   return (
-    <section className="relative isolate min-h-[80svh] overflow-hidden border-b border-border/40">
-      {work.bannerPath || work.imagePath ? (
-        <img
-          src={work.bannerPath || work.imagePath || undefined}
-          alt=""
-          className="absolute inset-0 -z-20 size-full object-cover"
+    <>
+      <section className="relative isolate min-h-[92svh] overflow-hidden border-b bg-background">
+        {work.bannerPath || work.imagePath ? (
+          <img
+            src={work.bannerPath || work.imagePath || undefined}
+            alt=""
+            width={1600}
+            height={900}
+            className="absolute inset-0 -z-30 size-full object-cover"
+          />
+        ) : null}
+
+        {/* ambient color wash from the planet's identity — kept faint, it should read as light, not decoration */}
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-20"
+          style={{
+            background: `radial-gradient(65% 60% at 82% 8%, ${glow}2e, transparent 65%)`,
+          }}
         />
-      ) : null}
-      {/* signature: an ambient glow keyed to the work's planet color, echoed
-          in the eyebrow chip and the accent bars used across the page */}
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10"
-        style={{ background: `radial-gradient(60% 55% at 78% 15%, ${glow}33, transparent 70%)` }}
-      />
-      <div className="absolute inset-0 -z-10 bg-linear-to-tl from-background via-25% via-background to-background/0" />
-      {/*<div className="absolute inset-0 -z-10 bg-linear-to-t from-background via-background/10 to-bacgronund/20" />*/}
 
-      <div className="mx-auto flex min-h-[80svh] max-w-400 items-end px-5 pb-14 pt-32 sm:px-8 lg:items-center lg:pb-0">
-        <div className="max-w-2xl">
-          {planet && (
-            <Link
-              to="/planets/$planetSlug"
-              params={{ planetSlug: planet.slug }}
-              className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold backdrop-blur-sm transition hover:brightness-110"
-              style={{
-                borderColor: `${glow}55`,
-                color: glow,
-                backgroundColor: `${glow}14`,
-              }}
-            >
-              <span>{planet.icon}</span>
-              {planet.nameAr}
-            </Link>
-          )}
+        {/* layered scrim: this is the actual Netflix/Prime/Apple TV trick — three gradients doing
+            three different jobs, instead of one flat wash trying to do all of them */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-background/70 via-45% to-transparent" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-l from-background/90 via-background/10 to-transparent lg:from-background/80" />
+        <div className="absolute inset-x-0 top-0 -z-10 h-40 bg-gradient-to-b from-background/60 to-transparent" />
 
-          <h1 className="text-balance font-heading text-4xl leading-normal font-semibold sm:text-6xl lg:text-7xl">
-            {work.arabicTitle || work.title}
-          </h1>
-          {work.arabicTitle && (
-            <p className="mt-3 font-mono text-base text-muted-foreground sm:text-lg" dir="ltr">
-              {work.title}
-            </p>
-          )}
-
-          <div className="mt-6 flex flex-wrap items-center gap-2.5 text-sm text-foreground/75 sm:text-base">
-            {work.year && <span>{work.year}</span>}
-            {work.year && <Dot />}
-            <span>{kindLabels[work.kind]}</span>
-            {work.runtimeMinutes && (
-              <>
-                <Dot />
-                <span className="flex items-center gap-1">
-                  <ClockIcon /> {work.runtimeMinutes} د
-                </span>
-              </>
+        <div className="mx-auto grid min-h-[88svh] max-w-400 items-end gap-10 px-5 pb-10 pt-32 sm:px-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:pb-14">
+          <div className="max-w-3xl">
+            {planet && (
+              <Link
+                to="/planets/$planetSlug"
+                params={{ planetSlug: planet.slug }}
+                className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold backdrop-blur-md transition hover:brightness-110"
+                style={{
+                  borderColor: `${glow}55`,
+                  color: glow,
+                  backgroundColor: `${glow}14`,
+                }}
+              >
+                <span>{planet.icon}</span>
+                {planet.nameAr}
+              </Link>
             )}
-            {audienceLabel && (
-              <>
-                <Dot />
-                <span className="rounded border border-foreground/30 px-1.5 py-0.5 text-[11px] font-semibold tracking-wide">
-                  {audienceLabel}
-                </span>
-              </>
+
+            <h1 className="text-balance font-heading text-4xl leading-[1.15] font-semibold drop-shadow-[0_2px_24px_rgb(0_0_0_/_0.35)] sm:text-6xl lg:text-7xl">
+              {work.logoPath ? (
+                <img
+                  src={work.logoPath}
+                  alt={work.arabicTitle || work.title}
+                  className="h-24! max-w-full object-contain drop-shadow-[0_4px_30px_rgb(0_0_0_/_0.4)] sm:h-32! md:h-36! xl:h-48!"
+                />
+              ) : (
+                work.arabicTitle || work.title
+              )}
+            </h1>
+            {work.arabicTitle && (
+              <p className="mt-3 font-mono text-base text-muted-foreground sm:text-lg" dir="ltr">
+                {work.title}
+              </p>
             )}
-            {work.calculatedRating !== null && (
-              <>
-                <Dot />
-                <span className="flex items-center gap-1 font-medium">
-                  <StarIcon weight="fill" /> {work.calculatedRating.toFixed(1)}
+
+            <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-foreground/80 sm:text-base">
+              {work.calculatedRating !== null && (
+                <span
+                  className="flex items-center gap-1.5 rounded-md border px-2 py-1 font-semibold text-foreground"
+                  style={{ borderColor: `${glow}55`, backgroundColor: `${glow}12` }}
+                >
+                  <StarIcon weight="fill" style={{ color: glow }} />
+                  {work.calculatedRating.toFixed(1)}
                   {work.scoreCoverage && (
                     <span className="text-xs font-normal text-muted-foreground">
                       ({work.scoreCoverage.scored} من {work.scoreCoverage.total})
                     </span>
                   )}
                 </span>
-              </>
+              )}
+              {work.year && <span>{work.year}</span>}
+              <span>{kindLabels[work.kind]}</span>
+              {work.runtimeMinutes && (
+                <span className="flex items-center gap-1">
+                  <ClockIcon /> {work.runtimeMinutes} د
+                </span>
+              )}
+              {audienceLabel && <Badge variant="outline">{audienceLabel}</Badge>}
+              <span className="flex items-center gap-1 text-foreground/70">
+                <CheckCircleIcon /> {releaseLabels[work.releaseStatus]}
+              </span>
+            </div>
+
+            {work.summary && (
+              <p className="mt-6 line-clamp-3 max-w-2xl text-sm leading-8 text-foreground/80 sm:text-base">
+                {work.summary}
+              </p>
             )}
-            <Dot />
-            <span className="flex items-center gap-1">
-              <CheckCircleIcon /> {releaseLabels[work.releaseStatus]}
-            </span>
+
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Button
+                size="lg"
+                className="px-8 font-semibold"
+                nativeButton={false}
+                render={<a href="#family-progress" />}
+              >
+                <PlayIcon weight="fill" data-icon="inline-start rotate-90" /> ابدأ بالمشاهدة
+              </Button>
+              <Button
+                size="icon-lg"
+                variant="outline"
+                className="border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20"
+              >
+                <HeartIcon />
+              </Button>
+            </div>
           </div>
 
           {heroAward ? <AwardLaurel recognition={heroAward} /> : null}
-
-          {work.summary && (
-            <p className="mt-5 line-clamp-2 max-w-xl text-sm leading-7 text-foreground/70 sm:text-base">
-              {work.summary}
-            </p>
-          )}
-
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button
-              size="lg"
-              className="px-7"
-              nativeButton={false}
-              render={<a href="#family-progress" />}
-            >
-              <FilmStripIcon data-icon="inline-start" /> حدّث حالة المشاهدة
-            </Button>
-          </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      {/* floating glass action row, overlapping the hero like Apple TV+'s "My List" bar —
+          replaces the settings-card look with something that reads as part of the same scene */}
+      <section
+        id="family-progress"
+        className={cn(
+          "relative z-10 mx-auto -mt-14 max-w-400 px-5 sm:px-8",
+          work.isPrivate && "max-w-200",
+        )}
+      >
+        <div className="overflow-hidden rounded-2xl border bg-background/80 shadow-2xl shadow-black/20 backdrop-blur-xl">
+          <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div>
+              <p className="text-sm font-semibold sm:text-base">مساحتك مع العمل</p>
+              <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">
+                قيّم، احفظ، أو شارك العنوان مع العائلة.
+              </p>
+            </div>
+            <WorkFamilyActions titleId={work.id} title={work.arabicTitle || work.title} />
+          </div>
+          {!work.isPrivate && (
+            <div className="p-4 sm:p-5">
+              <TitleSocialSection titleId={work.id} mode="quick" />
+            </div>
+          )}
+        </div>
+      </section>
+    </>
   );
 }
 
@@ -362,7 +492,7 @@ const riskRank: Record<RiskAssessment["level"], number> = {
 const riskSurfaceClasses: Record<RiskAssessment["level"], string> = {
   none: "border-border/40 bg-muted/20",
   low: "border-primary/20 bg-primary/5",
-  medium: "border-amber-500/30 bg-amber-500/10",
+  medium: "border-classification-caution/30 bg-classification-caution/10",
   high: "border-destructive/30 bg-destructive/10",
 };
 
@@ -424,8 +554,6 @@ function OverviewSection({
         </div>
       </section>
 
-      {work.awards.length > 0 ? <AwardsSection awards={work.awards} /> : null}
-
       {(work.contentWarnings || work.analysisNotes) && (
         <section className="grid gap-4 md:grid-cols-2">
           {work.contentWarnings && (
@@ -459,46 +587,55 @@ function OverviewSection({
             title="الأجزاء والمواسم"
             description="كل فيلم أو موسم داخل هذا العنوان، بملصقه وترتيبه في السلسلة."
           />
-          <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-3 sm:-mx-8 sm:px-8">
-            {structure.seasons.map((installment, index) => (
-              <Link
-                key={installment.id}
-                to="/titles/$titleId/installments/$installmentId"
-                params={{ titleId: work.id, installmentId: installment.id }}
-                className="group w-36 shrink-0 snap-start text-start outline-none sm:w-44"
-              >
-                <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted ring-1 ring-white/10">
-                  {installment.posterPath ? (
-                    <img
-                      src={installment.posterPath}
-                      alt={installment.title}
-                      className="size-full object-cover transition duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex size-full flex-col items-center justify-center gap-3 p-4 text-center text-muted-foreground">
-                      <FilmStripIcon className="size-8" weight="duotone" />
-                      <span className="text-xs">لا يوجد ملصق</span>
-                    </div>
-                  )}
-                  <Badge className="absolute top-2 inset-s-2" variant="secondary">
-                    {installment.seasonNumber === null
-                      ? "فيلم"
-                      : `موسم ${installment.seasonNumber}`}
-                  </Badge>
-                </div>
-                <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-6">
-                  {installment.title || `الجزء ${index + 1}`}
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {installment.units.length > 0
-                    ? `${installment.units.length} حلقة`
-                    : installment.runtimeMinutes
-                      ? `${installment.runtimeMinutes} دقيقة`
-                      : `الجزء ${index + 1}`}
-                </p>
-              </Link>
-            ))}
+          <div className="scroll-fade-x -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-3 sm:-mx-8 sm:px-8">
+            {structure.seasons.map((installment, index) => {
+              const isSeason =
+                (installment.installmentKind ?? installment.installmentKind) === "season";
+              const seasonNumber = isSeason
+                ? structure.seasons
+                    .slice(0, index + 1)
+                    .filter((item) => (item.installmentKind ?? item.installmentKind) === "season")
+                    .length
+                : null;
+
+              return (
+                <Link
+                  key={installment.id}
+                  to="/titles/$titleId/installments/$installmentId"
+                  params={{ titleId: work.id, installmentId: installment.id }}
+                  className="group w-36 shrink-0 snap-start text-start outline-none sm:w-44"
+                >
+                  <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted ring-1 ring-white/10">
+                    {installment.posterPath ? (
+                      <img
+                        src={installment.posterPath}
+                        alt={installment.title}
+                        className="size-full object-cover transition duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex size-full flex-col items-center justify-center gap-3 p-4 text-center text-muted-foreground">
+                        <FilmStripIcon className="size-8" weight="duotone" />
+                        <span className="text-xs">لا يوجد ملصق</span>
+                      </div>
+                    )}
+                    <Badge className="absolute top-2 inset-s-2" variant="secondary">
+                      {seasonNumber === null ? "فيلم" : `موسم ${seasonNumber}`}
+                    </Badge>
+                  </div>
+                  <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-6">
+                    {installment.title || `الجزء ${index + 1}`}
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {installment.units.length > 0
+                      ? `${installment.units.length} حلقة`
+                      : installment.runtimeMinutes
+                        ? `${installment.runtimeMinutes} دقيقة`
+                        : `الجزء ${index + 1}`}
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}
@@ -509,7 +646,7 @@ function OverviewSection({
             title="مكانه في السلسلة"
             description="العلاقات التالية تأتي من السجل الفعلي، وبنوعها واتجاهها المحفوظين."
           />
-          <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:-mx-8 sm:px-8">
+          <div className="scroll-fade-x -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:-mx-8 sm:px-8">
             {work.relations.map((relation) => (
               <Link
                 key={relation.id}
@@ -549,74 +686,109 @@ function OverviewSection({
 
 function AwardLaurel({ recognition }: { recognition: AwardRecognition }) {
   return (
-    <div className="mt-5 inline-flex max-w-full items-center gap-3 rounded-full border bg-background/55 py-2 pe-4 ps-2.5 shadow-sm backdrop-blur-md">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-        <TrophyIcon weight={recognition.result === "winner" ? "fill" : "duotone"} />
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-xs font-semibold">
-          {recognition.organizationName} · {recognition.result === "winner" ? "فائز" : "مرشّح"}
+    <Card
+      size="sm"
+      className="w-full max-w-72 justify-self-end bg-background/55 shadow-2xl shadow-background/25 ring-foreground/15 backdrop-blur-xl lg:justify-self-end"
+    >
+      <CardContent className="flex items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+          <TrophyIcon size={19} weight={recognition.result === "winner" ? "fill" : "duotone"} />
         </span>
-        <span className="block truncate text-[11px] text-muted-foreground">
-          {recognition.category}
-          {recognition.year ? ` · ${recognition.year}` : ""}
-        </span>
-      </span>
-    </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span>{recognition.result === "winner" ? "فوز بارز" : "ترشيح بارز"}</span>
+            {recognition.year ? (
+              <>
+                <span aria-hidden>·</span>
+                <span className="font-mono">{recognition.year}</span>
+              </>
+            ) : null}
+          </div>
+          <p className="mt-1 truncate font-heading text-sm font-semibold">{recognition.category}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {recognition.organizationName}
+          </p>
+        </div>
+        {recognition.sourceUrl ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            nativeButton={false}
+            render={<a href={recognition.sourceUrl} target="_blank" rel="noreferrer" />}
+            aria-label="المصدر الرسمي للتكريم"
+          >
+            <ArrowSquareOutIcon />
+          </Button>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
-function AwardsSection({ awards }: { awards: AwardRecognition[] }) {
+function AwardsSection({ awards, className }: { awards: AwardRecognition[]; className?: string }) {
   const winners = awards.filter((recognition) => recognition.result === "winner").length;
   return (
-    <section>
-      <Subsection
-        title="الجوائز والترشيحات"
-        description={`${winners} فوز · ${awards.length - winners} ترشيح محفوظ في سجل العمل`}
-      />
-      <div className="grid gap-3 sm:grid-cols-2">
+    <Card className={className}>
+      <CardHeader className="border-b sm:flex sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <CardTitle>سجل الجوائز</CardTitle>
+          <CardDescription className="mt-1">
+            التكريمات الموثقة للعنوان أو لأحد أجزائه.
+          </CardDescription>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge>{winners} فوز</Badge>
+          <Badge variant="outline">{awards.length - winners} ترشيح</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col px-0">
         {awards.map((recognition) => (
-          <Card key={recognition.id} size="sm" className="overflow-hidden">
-            <CardHeader className="flex-row items-start justify-between gap-4">
-              <div className="flex min-w-0 items-start gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
-                  <TrophyIcon weight={recognition.result === "winner" ? "fill" : "duotone"} />
-                </span>
-                <div className="min-w-0">
-                  <CardTitle className="text-sm leading-6">
-                    {recognition.organizationName}
-                  </CardTitle>
-                  <CardDescription className="mt-0.5 leading-5">
+          <article
+            key={recognition.id}
+            className="grid gap-3 border-b border-border/40 px-(--card-spacing) py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+          >
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
+                <TrophyIcon
+                  size={19}
+                  weight={recognition.result === "winner" ? "fill" : "duotone"}
+                />
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-heading text-sm font-semibold leading-6">
                     {recognition.category}
-                  </CardDescription>
+                  </h3>
+                  <Badge variant={recognition.result === "winner" ? "default" : "secondary"}>
+                    {recognition.result === "winner" ? "فائز" : "مرشّح"}
+                  </Badge>
+                  {recognition.isFeatured ? <Badge variant="outline">بارز</Badge> : null}
                 </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {recognition.organizationName}
+                  {recognition.year ? ` · ${recognition.year}` : ""}
+                  {recognition.installmentTitle ? ` · ${recognition.installmentTitle}` : ""}
+                </p>
               </div>
-              <Badge variant={recognition.result === "winner" ? "default" : "secondary"}>
-                {recognition.result === "winner" ? "فائز" : "مرشّح"}
-              </Badge>
-            </CardHeader>
-            <CardContent className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              {recognition.year ? <span>{recognition.year}</span> : null}
-              {recognition.installmentTitle ? (
-                <Badge variant="outline">{recognition.installmentTitle}</Badge>
-              ) : (
-                <Badge variant="outline">العنوان كاملًا</Badge>
-              )}
-              {recognition.sourceUrl ? (
-                <a
-                  href={recognition.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                >
-                  المصدر <ArrowSquareOutIcon />
-                </a>
-              ) : null}
-            </CardContent>
-          </Card>
+            </div>
+            {recognition.sourceUrl ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                nativeButton={false}
+                render={<a href={recognition.sourceUrl} target="_blank" rel="noreferrer" />}
+                className="w-fit"
+              >
+                المصدر
+                <ArrowSquareOutIcon data-icon="inline-end" />
+              </Button>
+            ) : (
+              <span className="text-xs text-muted-foreground">مسجّل للعنوان</span>
+            )}
+          </article>
         ))}
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -635,12 +807,10 @@ type EpisodePreview = {
 
 function EpisodesSection({
   structure,
-  work,
   selectedId,
   onSelectedIdChange,
 }: {
   structure: WorkStructure;
-  work: Work;
   selectedId: string;
   onSelectedIdChange: (id: string) => void;
 }) {
@@ -662,14 +832,9 @@ function EpisodesSection({
   const requiresDialog = episodes.length > 15;
 
   return (
-    <div className="space-y-8">
-      <div className="border-b border-border/40 pb-6">
-        <Subsection
-          title="الأجزاء والحلقات"
-          className="mb-0"
-          description={`اختر موسماً أو فيلماً من ${work.arabicTitle || work.title} لعرض محتواه.`}
-        />
-        <div className="mt-5 flex snap-x gap-3 overflow-x-auto pb-2">
+    <div className="flex flex-col gap-4">
+      <section aria-label="اختيار الجزء" className="pb-0!">
+        <div className="scroll-fade-x flex  gap-3 overflow-x-auto px-2  pb-2">
           {seasons.map((installment) => (
             <button
               key={installment.id}
@@ -682,7 +847,7 @@ function EpisodesSection({
                 "flex w-64 shrink-0 snap-start items-center gap-3 rounded-2xl border p-2 text-start transition",
                 selected?.id === installment.id
                   ? "border-primary bg-primary/10 ring-1 ring-primary/30"
-                  : "border-white/8 bg-card/45 hover:border-white/20",
+                  : "border-border bg-card/45 hover:border-primary/30 hover:bg-card",
               )}
             >
               <span className="aspect-2/3 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
@@ -701,10 +866,10 @@ function EpisodesSection({
             </button>
           ))}
         </div>
-      </div>
+      </section>
 
       {selected && (
-        <section className="overflow-hidden rounded-3xl border border-white/8 bg-card/35">
+        <section className="overflow-hidden rounded-3xl border bg-card/35">
           <div className="grid gap-6 p-5 sm:grid-cols-[8rem_1fr] sm:p-7">
             <div className="aspect-2/3 overflow-hidden rounded-2xl bg-muted">
               {selected.posterPath ? (
@@ -722,8 +887,7 @@ function EpisodesSection({
                 </Badge>
                 {selected.rating != null && (
                   <Badge variant="outline">
-                    <StarIcon weight="fill" className="text-amber-300" />{" "}
-                    {selected.rating.toFixed(1)}
+                    <StarIcon weight="fill" /> {selected.rating.toFixed(1)}
                   </Badge>
                 )}
               </div>
@@ -760,7 +924,7 @@ function EpisodesSection({
       )}
 
       {!isMovie && episodes.length === 0 && (
-        <Empty className="min-h-64 border border-dashed border-white/10">
+        <Empty className="min-h-64 border border-dashed">
           <EmptyHeader>
             <EmptyTitle>لا توجد حلقات في هذا الموسم</EmptyTitle>
             <EmptyDescription>الموسم محفوظ، لكن لم تُضف إليه حلقات بعد.</EmptyDescription>
@@ -790,7 +954,7 @@ function EpisodesSection({
                     {episodes.length} حلقة — تصفح الحلقات دون مغادرة صفحة العمل.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="overflow-y-auto pe-1">
+                <div className="scroll-fade-y overflow-y-auto pe-1">
                   <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                     {episodes.map((episode) => (
                       <EpisodeCard key={episode.id} episode={episode} />
@@ -820,15 +984,15 @@ function EpisodeCard({ episode, className }: { episode: EpisodePreview; classNam
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40">
           <TelevisionIcon className="size-8" />
         </div>
-        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
-          <span className="flex size-11 items-center justify-center rounded-full bg-white text-black">
+        <div className="absolute inset-0 flex items-center justify-center bg-background/0 opacity-0 transition group-hover:bg-background/65 group-hover:opacity-100">
+          <span className="flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <PlayIcon weight="fill" />
           </span>
         </div>
-        <span className="absolute top-2 inset-s-2 rounded-md bg-black/65 px-2 py-0.5 text-[11px] font-medium text-white">
+        <span className="absolute top-2 inset-s-2 rounded-md bg-background/85 px-2 py-0.5 text-[11px] font-medium text-foreground">
           {episode.number}
         </span>
-        <span className="absolute bottom-2 inset-e-2 rounded bg-black/65 px-1.5 py-0.5 text-[10px] text-white">
+        <span className="absolute bottom-2 inset-e-2 rounded bg-background/85 px-1.5 py-0.5 text-[10px] text-foreground">
           {episode.runtimeMinutes ?? 24} د
         </span>
       </div>
@@ -855,18 +1019,11 @@ function CastSection({ people, studios }: { people: Credited[]; studios: Credite
   return (
     <div className="flex flex-col gap-12">
       {people.length > 0 && (
-        <section>
-          <Subsection
-            title="الممثلون وصنّاع العمل"
-            description="قائمة منتقاة من الأشخاص المرتبطين بأدوار واضحة في هذا العمل."
-          />
+        <section aria-label="الأشخاص المرتبطون بالعمل">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {people.map(({ entity, credit }) => (
               <EntityDialog key={`${entity.id}:${credit.role}`} entity={entity}>
-                <button
-                  type="button"
-                  className="group flex min-w-0 w-full items-center gap-4 rounded-2xl border border-border/40 bg-card/45 p-4 text-start transition hover:border-primary/30 hover:bg-card focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                >
+                <span className="group flex min-w-0 w-full items-center gap-4 rounded-2xl border border-border/40 bg-card/45 p-4 text-start transition hover:border-primary/30 hover:bg-card">
                   <Avatar className="size-20 ring-1 ring-border/40 transition group-hover:ring-primary/60">
                     {entity.imagePath && <AvatarImage src={entity.imagePath} alt="" />}
                     <AvatarFallback>{entity.name.slice(0, 1)}</AvatarFallback>
@@ -879,7 +1036,7 @@ function CastSection({ people, studios }: { people: Credited[]; studios: Credite
                       {roleLabels[credit.role] ?? credit.role}
                     </span>
                   </span>
-                </button>
+                </span>
               </EntityDialog>
             ))}
           </div>
@@ -931,15 +1088,13 @@ function SimilarSection({ recommendations }: { recommendations: Recommendation[]
   return (
     <section className="border-t border-border/40 pt-12">
       <Subsection
+        className="px-5 md:px-8"
         title="قد يعجبك أيضًا"
         description="أعمال قريبة في النبرة والموضوع والطاقم، رتبت لتسهيل الاستكشاف التالي."
       />
-      <div className="flex gap-4 overflow-x-auto overflow-y-visible px-5 py-4 pb-5 sm:px-8 -mx-6">
+      <div className="scroll-fade-x flex gap-4 overflow-x-auto overflow-y-visible px-5 md:px-8 py-4 pb-5">
         {recommendations.map((recommendation) => (
-          <div
-            key={recommendation.work.id}
-            className="relative w-36 shrink-0 snap-start sm:w-44 lg:w-48"
-          >
+          <div key={recommendation.work.id} className="relative w-36 shrink-0 sm:w-44 lg:w-48">
             <WorkCard work={recommendation.work} />
             <Popover>
               <PopoverTrigger
@@ -983,15 +1138,9 @@ function ScoreSection({ work }: { work: Work }) {
   const availableCriteria = scoreCriteria.filter(
     (criterion) => work.scoreComponents[criterion] !== undefined,
   );
-  const isComplete = availableCriteria.length === scoreCriteria.length;
 
   return (
     <div>
-      <Subsection
-        title="بصمة التقييم"
-        description="تفصيل الدرجات والأوزان التي تكوّن النتيجة النهائية على مقياس من عشرة."
-      />
-
       {availableCriteria.length === 0 ? (
         <Empty className="border border-border/40 bg-card/30">
           <EmptyHeader>
@@ -1003,8 +1152,8 @@ function ScoreSection({ work }: { work: Work }) {
         </Empty>
       ) : (
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <Card className="border-border/40 bg-card/35">
-            <CardHeader className="border-b border-border/40">
+          <Card>
+            <CardHeader className="border-b">
               <CardTitle>مكوّنات التقييم</CardTitle>
               <CardDescription>يمثّل طول كل شريط الدرجة قبل تطبيق وزنها.</CardDescription>
             </CardHeader>
@@ -1032,8 +1181,8 @@ function ScoreSection({ work }: { work: Work }) {
             </CardContent>
           </Card>
 
-          <Card className="border-border/40 bg-card/45">
-            <CardHeader className="border-b border-border/40">
+          <Card>
+            <CardHeader className="border-b">
               <CardTitle>النتيجة المحسوبة</CardTitle>
               <CardDescription>مجموع مساهمة كل معيار بعد تطبيق وزنه.</CardDescription>
             </CardHeader>
@@ -1069,15 +1218,6 @@ function ScoreSection({ work }: { work: Work }) {
               </dl>
             </CardContent>
           </Card>
-
-          <Alert className="border-primary/20 bg-primary/5 xl:col-span-2">
-            <AlertTitle>كيف تُحسب النتيجة؟</AlertTitle>
-            <AlertDescription className="mt-2 leading-7">
-              تُضرب كل درجة في وزنها، ثم تُجمع المساهمات وتُقرّب النتيجة إلى منزلة عشرية واحدة. لا يظهر
-              تقييم نهائي حتى تُسجّل المعايير الستة كلها
-              {isComplete ? " — وجميعها متاحة لهذا العمل." : "."}
-            </AlertDescription>
-          </Alert>
         </div>
       )}
     </div>
@@ -1103,7 +1243,6 @@ function WorkDetails({
     ["العنوان الأصلي", work.title],
     ...(work.aliases.length ? [["العناوين البديلة", formatList(work.aliases)] as const] : []),
     ...(work.country.length ? [["الدول", formatList(work.country, "country")] as const] : []),
-    ...(work.audience ? [["الجمهور", taxonomyLabel("audience", work.audience)] as const] : []),
   ];
   const formatDetails: Array<readonly [string, string]> = [
     ...(work.runtimeMinutes ? [["المدة", `${work.runtimeMinutes} دقيقة`] as const] : []),
@@ -1130,8 +1269,6 @@ function WorkDetails({
       : []),
   ];
   const releaseDetails: Array<readonly [string, string]> = [
-    ["حالة الإصدار", releaseLabels[work.releaseStatus]],
-    ...(work.releaseStart ? [["بداية العرض", work.releaseStart] as const] : []),
     ...(work.releaseEnd ? [["نهاية العرض", work.releaseEnd] as const] : []),
     ...(work.sourceMaterial
       ? [
@@ -1151,59 +1288,75 @@ function WorkDetails({
   const hasTaxonomy = work.genres.length > 0 || work.tone.length > 0 || work.tags.length > 0;
 
   return (
-    <Card className="border-border/40 bg-card/35">
-      <CardHeader className="border-b border-border/40">
-        <CardTitle className="text-xl">تفاصيل العمل</CardTitle>
-        <CardDescription>
-          بيانات الكتالوج المتاحة، مرتبة من دون حقول فارغة أو معلومات شخصية.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid items-start gap-x-8 gap-y-10 md:grid-cols-2 xl:grid-cols-3">
-        <DetailGroup title="الهوية والتصنيف" items={primaryDetails} />
-        {formatDetails.length > 0 && <DetailGroup title="الأرقام والصيغة" items={formatDetails} />}
-        <DetailGroup title="الإصدار والمصدر" items={releaseDetails} />
-        {hasTaxonomy && (
-          <section className="border-t border-border/40 pt-8 md:col-span-2 xl:col-span-3">
-            <h3 className="font-heading text-sm font-semibold">التصنيف والموضوعات</h3>
-            <div className="mt-5 gap-8 grid  md:grid-cols-2">
-              {work.tone.length > 0 && (
-                <TaxonomyBadges
-                  title="الطابع"
-                  values={work.tone.map((value) => taxonomyLabel("tone", value))}
-                />
-              )}
-              {work.genres.length > 0 && (
-                <TaxonomyBadges
-                  title="الأنواع"
-                  values={work.genres.map((value) => taxonomyLabel("genre", value))}
-                />
-              )}
-              {work.tags.length > 0 && (
-                <TaxonomyBadges
-                  className="col-span-2"
-                  title="الوسوم"
-                  values={work.tags.map((value) => taxonomyLabel("tag", value))}
-                />
-              )}
-            </div>
-          </section>
+    <div className="grid items-start gap-4 md:grid-cols-2">
+      <DetailGroup
+        title="الهوية والعناوين"
+        description="العنوان الأصلي، البدائل، وبلدان الإنتاج."
+        items={primaryDetails}
+      />
+      <div className="flex flex-col gap-4">
+        {formatDetails.length > 0 && (
+          <DetailGroup
+            title="الحجم والصيغة"
+            description="مدة العمل وحجمه وفق نوعه."
+            items={formatDetails}
+          />
         )}
-      </CardContent>
-    </Card>
+        {releaseDetails.length > 0 && (
+          <DetailGroup
+            title="المصدر والنشر"
+            description="أصل المادة وبيانات النشر الممتدة."
+            items={releaseDetails}
+          />
+        )}
+      </div>
+      {hasTaxonomy && (
+        <Card className="md:col-span-2">
+          <CardHeader className="border-b">
+            <CardTitle>التصنيف والموضوعات</CardTitle>
+            <CardDescription>المفردات التي تصف النوع والنبرة والموضوع.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-8 md:grid-cols-2">
+            {work.tone.length > 0 && (
+              <TaxonomyBadges
+                title="الطابع"
+                values={work.tone.map((value) => taxonomyLabel("tone", value))}
+              />
+            )}
+            {work.genres.length > 0 && (
+              <TaxonomyBadges
+                title="الأنواع"
+                values={work.genres.map((value) => taxonomyLabel("genre", value))}
+              />
+            )}
+            {work.tags.length > 0 && (
+              <TaxonomyBadges
+                className="md:col-span-2"
+                title="الوسوم"
+                values={work.tags.map((value) => taxonomyLabel("tag", value))}
+              />
+            )}
+          </CardContent>
+        </Card>
+      )}
+      {work.awards.length > 0 ? (
+        <AwardsSection awards={work.awards} className="md:col-span-2" />
+      ) : null}
+    </div>
   );
 }
 
 function TaxonomyBadges({
   title,
   values,
-  className = "",
+  className,
 }: {
   title: string;
   values: string[];
   className?: string;
 }) {
   return (
-    <div className={cn("md:px-5", className)}>
+    <div className={className}>
       <h4 className="text-xs font-medium text-muted-foreground">{title}</h4>
       <div className="mt-3 flex flex-wrap gap-2">
         {values.map((value) => (
@@ -1218,28 +1371,35 @@ function TaxonomyBadges({
 
 function DetailGroup({
   title,
+  description,
   items,
   className,
 }: {
   title: string;
+  description: string;
   items: Array<readonly [string, string]>;
   className?: string;
 }) {
   return (
-    <section className={className}>
-      <h3 className="font-heading text-sm font-semibold">{title}</h3>
-      <dl className="mt-3 flex flex-col border-t border-border/40">
-        {items.map(([label, value]) => (
-          <div
-            key={label}
-            className="grid grid-cols-[7rem_1fr] gap-3 border-b border-border/30 py-3"
-          >
-            <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="min-w-0 text-sm leading-6">{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
+    <Card className={className}>
+      <CardHeader className="border-b">
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <dl className="flex flex-col">
+          {items.map(([label, value]) => (
+            <div
+              key={label}
+              className="grid grid-cols-[7rem_1fr] gap-3 border-b py-3 first:pt-0 last:border-0 last:pb-0"
+            >
+              <dt className="text-xs text-muted-foreground">{label}</dt>
+              <dd className="min-w-0 text-sm leading-6">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1262,25 +1422,44 @@ function MetadataPanel({
     ["الحالة", releaseLabels[work.releaseStatus]],
     ["الكوكب", planetName],
     ["الجمهور", audienceLabel],
+    ...(work.curation?.reviewedAt ? [["آخر تحقق", work.curation.reviewedAt] as const] : []),
   ] as const;
   return (
-    <Card size="sm" className="border-border/40 bg-card/45">
-      <CardHeader className="border-b border-border/40">
+    <Card size="sm" className="border-border/40 bg-card/45 py-0! gap-2!">
+      <CardHeader className="border-b border-border/40 bg-card pt-4!">
         <CardTitle>بطاقة السجل</CardTitle>
         <CardDescription className="text-xs">أهم بيانات الكتالوج في لمحة واحدة.</CardDescription>
       </CardHeader>
-      <CardContent>
-        <dl className="flex flex-col">
-          {rows.map(([label, value]) => (
-            <div
-              key={label}
-              className="grid grid-cols-[5rem_1fr] gap-3 border-b border-border/30 py-3 last:border-0 last:pb-0"
-            >
-              <dt className="text-xs text-muted-foreground">{label}</dt>
-              <dd className="min-w-0 truncate text-sm">{value}</dd>
+      <CardContent className="flex flex-col overflow-y-scroll! pb-4! pt-0!">
+        {rows.map(([label, value]) => (
+          <div
+            key={label}
+            className="grid grid-cols-[5rem_1fr] gap-3 border-b border-border/30 py-3 last:border-0 last:pb-0"
+          >
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="min-w-0 truncate text-sm">{value}</dd>
+          </div>
+        ))}
+        {work.externalLinks.length > 0 ? (
+          <div className="pt-2">
+            <p className="text-xs font-medium text-muted-foreground pb-2">روابط مرجعية</p>
+            <div className="flex flex-wrap gap-1">
+              {work.externalLinks.map((link) => (
+                <Button
+                  key={`${link.provider}:${link.url}`}
+                  variant="outline"
+                  size="sm"
+                  nativeButton={false}
+                  render={<a href={link.url} target="_blank" rel="noreferrer" />}
+                  className="justify-between"
+                >
+                  <span className="truncate">{link.provider}</span>
+                  <ArrowSquareOutIcon data-icon="inline-end" />
+                </Button>
+              ))}
             </div>
-          ))}
-        </dl>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -1289,7 +1468,8 @@ function MetadataPanel({
 function RiskBadge({ level }: { level: RiskAssessment["level"] }) {
   return (
     <Badge
-      variant={level === "high" ? "destructive" : level === "medium" ? "outline" : "secondary"}
+      variant={level === "high" ? "destructive" : level === "medium" ? "destructive" : "secondary"}
+      className={level === "medium" ? "bg-yellow-600/40! text-yellow-500!" : ""}
     >
       {riskLabels[level]}
     </Badge>
@@ -1300,26 +1480,35 @@ function ParentGuideCard({ risks }: { risks: RiskAssessment[] }) {
   const highRiskCount = risks.filter((risk) => risk.level === "high").length;
 
   return (
-    <Card size="sm" className="border-border/40 bg-card/45">
-      <CardHeader className="border-b border-border/40">
+    <Card size="sm" className="border-border/40 bg-card/45 py-0! gap-2! relative">
+      <CardHeader className="border-b border-border/40 bg-card pt-4!">
         <CardTitle>دليل الوالدين</CardTitle>
         <CardDescription className="text-xs">
           نظرة سريعة على الموضوعات الحساسة قبل المشاهدة.
         </CardDescription>
-        <div className="mt-2 flex items-center gap-2">
-          <Badge variant={highRiskCount ? "destructive" : "secondary"}>
+        <div className="mt-2 flex items-center gap-2 absolute left-2 top-1">
+          <Badge
+            className="text-xs px-1! rounded-sm!"
+            variant={highRiskCount ? "destructive" : "secondary"}
+          >
             {highRiskCount ? `${highRiskCount} تنبيه مرتفع` : "لا توجد تنبيهات مرتفعة"}
           </Badge>
-          <span className="text-xs text-muted-foreground">{risks.length} محاور</span>
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
+      <CardContent className="flex flex-col overflow-y-scroll! pb-2! pt-0! px-2!">
         {risks.length ? (
           risks.map((risk) => {
             return (
               <div
                 key={risk.dimensionId}
-                className="flex w-full items-center justify-between gap-3 pe-2 ps-3 py-2 text-start hover:bg-accent/75 rounded-2xl"
+                className={cn(
+                  "flex w-full items-center justify-between gap-3 pe-2 ps-3 py-2 text-start rounded-2xl",
+                  risk.level === "high"
+                    ? "hover:bg-destructive/15"
+                    : risk.level === "medium"
+                      ? "hover:bg-yellow-500/25"
+                      : " hover:bg-accent/75",
+                )}
               >
                 <h3 className="text-sm font-medium">{risk.nameAr}</h3>
                 <div className="flex items-center gap-2">

@@ -2,7 +2,6 @@ import { ArrowRightIcon, BriefcaseIcon, GitBranchIcon, UserIcon } from "@phospho
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { contributionRoleLabels } from "@/features/entities/entity-labels";
 import { getEntities } from "@/server/library.functions";
 import { getStudioLineage } from "@/server/platform.functions";
@@ -98,12 +97,12 @@ export function PersonPage({ personId }: { personId: string }) {
               ))}
             </div>
           </section>
-          <section>
-            <h2 className="font-heading text-2xl font-semibold">التاريخ والسلالة</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              العلاقات التي سُجِّل هذا الشخص مشاركاً فيها.
-            </p>
-            {related.length ? (
+          {related.length > 0 && (
+            <section>
+              <h2 className="font-heading text-2xl font-semibold">التاريخ والسلالة</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                العلاقات التي سُجِّل هذا الشخص مشاركاً فيها.
+              </p>
               <div className="mt-6 space-y-3">
                 {related.map((relationship) => {
                   const participation = relationship.people.find(
@@ -146,15 +145,8 @@ export function PersonPage({ personId }: { personId: string }) {
                   );
                 })}
               </div>
-            ) : (
-              <Empty className="mt-6 min-h-56 border border-dashed border-white/10">
-                <EmptyHeader>
-                  <EmptyTitle>لا توجد علاقات سلالة مسجلة</EmptyTitle>
-                  <EmptyDescription>لا توجد مشاركات تاريخية موثقة لهذا الشخص بعد.</EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
-          </section>
+            </section>
+          )}
         </div>
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-xl border border-white/8 bg-card/45 p-5">

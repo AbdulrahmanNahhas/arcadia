@@ -18,7 +18,7 @@ export function PlatformShell({
   const account = data?.account;
   const isAdmin = account?.role === "owner" || account?.role === "editor";
   return (
-    <div className="platform-surface min-h-svh">
+    <div className="platform-surface min-h-svh ">
       <a
         href="#main-content"
         className="fixed inset-s-4 top-2 z-100 -translate-y-20 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:translate-y-0"
@@ -28,9 +28,9 @@ export function PlatformShell({
       <header
         className={cn(
           "sticky top-0 z-40 backdrop-blur-0",
-          !immersive && " bg-background/72 mx-2 backdrop-blur-xl rounded-b-3xl border-t-0",
+          !immersive && " bg-background/72 mx-0 backdrop-blur-lg border-t-0",
           immersive &&
-            "fixed inset-x-0 bg-linear-to-b  from-background via-50% via-background/60 pb-10 to-background/0 border-transparent",
+            "fixed inset-x-0 bg-linear-to-b  from-background/70 via-50% via-background/75 pb-0 to-background/40 backdrop-blur-lg border border-border/50 rounded-full m-1 container mx-auto",
         )}
       >
         <div className="mx-auto flex container! h-14 max-w-400 items-center gap-4 p-3!">

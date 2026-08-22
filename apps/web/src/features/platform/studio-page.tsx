@@ -95,12 +95,13 @@ export function StudioPage({ studioId }: { studioId: string }) {
                 ))}
             </div>
           </section>
-          <section>
-            <h2 className="font-heading text-2xl font-semibold">التاريخ والسلالة</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              علاقات مطبّعة، وليست استنتاجات من نصوص الوصف.
-            </p>
-            {related.length ? (
+          {related.length > 0 && (
+            <section>
+              <h2 className="font-heading text-2xl font-semibold">التاريخ والسلالة</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                علاقات مطبّعة، وليست استنتاجات من نصوص الوصف.
+              </p>
+
               <div className="mt-6 space-y-3">
                 {related.map((relationship) => {
                   const other =
@@ -151,17 +152,8 @@ export function StudioPage({ studioId }: { studioId: string }) {
                   );
                 })}
               </div>
-            ) : (
-              <Empty className="mt-6 min-h-56 border border-dashed border-white/10">
-                <EmptyHeader>
-                  <EmptyTitle>لا توجد علاقات سلالة مسجلة</EmptyTitle>
-                  <EmptyDescription>
-                    الواجهة جاهزة؛ لن نختلق روابط غير موجودة في قاعدة البيانات.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
-          </section>
+            </section>
+          )}
         </div>
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-xl border border-white/8 bg-card/45 p-5">

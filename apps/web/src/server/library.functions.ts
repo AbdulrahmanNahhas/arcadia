@@ -1,5 +1,10 @@
 import type {
   AccountPolicyPreview,
+  AdminAwardCategoryInput,
+  AdminAwardCeremonyInput,
+  AdminAwardOrganizationInput,
+  AdminAwardRecognitionInput,
+  AdminAwardsDocument,
   AdminEntityContributionInput,
   AdminStatistics,
   AwardOrganizationOption,
@@ -18,8 +23,10 @@ import {
   allAdminWorks,
   allWorks,
   detailToStructure,
+  entities,
   fullAdminDetail,
   fullDetail,
+  searchAdminWorks as searchAdminWorksQuery,
 } from "./compat";
 
 type Data<T> = { data: T };
@@ -33,7 +40,12 @@ const emptyStructure = (workId: string): WorkStructure => ({
 
 export const getWorks = allWorks;
 export const getAdminWorks = allAdminWorks;
-export const getEntities = adminEntities;
+export const getEntities = entities;
+export const getAdminEntities = adminEntities;
+
+export async function searchAdminWorks({ data }: Data<{ q: string; limit?: number }>) {
+  return searchAdminWorksQuery(data.q, data.limit);
+}
 
 export async function saveEntity({ data }: Data<AdminEntityInput>) {
   const saved = await apiFetch<{ id: string }>("/api/v1/admin/entities", {
@@ -114,6 +126,49 @@ export async function getAccountPolicyPreviews() {
 export function getAwardOptions() {
   return apiFetch<AwardOrganizationOption[]>("/api/v1/admin/awards/options");
 }
+export function getAdminAwards() {
+  return apiFetch<AdminAwardsDocument>("/api/v1/admin/awards");
+}
+export function getTitleAwardRecognitions({ data }: Data<{ titleId: string }>) {
+  return apiFetch<AdminAwardsDocument["recognitions"]>(
+    `/api/v1/admin/awards/recognitions?titleId=${encodeURIComponent(data.titleId)}`,
+  );
+}
+export function saveAwardOrganization({ data }: Data<AdminAwardOrganizationInput>) {
+  return apiFetch<{ id: string }>(`/api/v1/admin/awards/organizations/${data.id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+export function deleteAwardOrganization({ data }: Data<{ id: string }>) {
+  return apiFetch<{ deleted: number; deletedRecognitions: number }>(
+    `/api/v1/admin/awards/organizations/${data.id}`,
+    { method: "DELETE" },
+  );
+}
+export function saveAwardCategory({ data }: Data<AdminAwardCategoryInput>) {
+  return apiFetch<{ id: string }>(`/api/v1/admin/awards/categories/${data.id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+export function deleteAwardCategory({ data }: Data<{ id: string }>) {
+  return apiFetch<{ deleted: number; deletedRecognitions: number }>(
+    `/api/v1/admin/awards/categories/${data.id}`,
+    { method: "DELETE" },
+  );
+}
+export function saveAwardRecognition({ data }: Data<AdminAwardRecognitionInput>) {
+  return apiFetch<{ id: string }>("/api/v1/admin/awards/recognitions", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function deleteAwardRecognition({ data }: Data<{ id: string }>) {
+  return apiFetch<{ deleted: number }>(`/api/v1/admin/awards/recognitions/${data.id}`, {
+    method: "DELETE",
+  });
+}
 export function createAwardOrganization({
   data,
 }: Data<{ slug: string; nameAr: string; nameEn: string | null; websiteUrl: string | null }>) {
@@ -129,6 +184,22 @@ export function createAwardCategory({
     "/api/v1/admin/awards/categories",
     { method: "POST", body: JSON.stringify(data) },
   );
+}
+export function saveAwardCeremony({ data }: Data<AdminAwardCeremonyInput>) {
+  return data.id
+    ? apiFetch<{ id: string }>(`/api/v1/admin/awards/ceremonies/${data.id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      })
+    : apiFetch<{ id: string }>("/api/v1/admin/awards/ceremonies", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+}
+export function deleteAwardCeremony({ data }: Data<{ id: string }>) {
+  return apiFetch<{ deleted: number }>(`/api/v1/admin/awards/ceremonies/${data.id}`, {
+    method: "DELETE",
+  });
 }
 export async function getAdminOverview() {
   return apiFetch<{
@@ -279,7 +350,10 @@ export async function getAdminRecordBundles({ data }: Data<{ workIds: string[] }
       const work = works.find((item) => item.id === workId);
       return work
         ? [
-            getAdminWorkStructure({ data: { workId } }).then((structure) => ({
+            Promise.all([
+              getAdminWorkStructure({ data: { workId } }),
+              getTitleAwardRecognitions({ data: { titleId: workId } }),
+            ]).then(([structure, recognitions]) => ({
               work,
               structure: {
                 workId: structure.workId,
@@ -308,6 +382,18 @@ export async function getAdminRecordBundles({ data }: Data<{ workIds: string[] }
                 })),
                 ungroupedUnits: [],
               } satisfies EditableWorkStructure,
+              awards: recognitions.map((recognition) => ({
+                id: recognition.id,
+                organizationId: recognition.organizationId ?? "",
+                categoryId: recognition.categoryId ?? "",
+                titleId: recognition.titleId,
+                installmentId: recognition.installmentId,
+                year: recognition.year,
+                result: recognition.result,
+                isFeatured: recognition.isFeatured,
+                sourceUrl: recognition.sourceUrl,
+                notes: recognition.notes,
+              })),
             })),
           ]
         : [];
@@ -318,7 +404,16 @@ export async function getAdminRecordBundles({ data }: Data<{ workIds: string[] }
 export async function saveAdminRecordChanges({
   data,
 }: Data<{
-  changes: Array<{ workId: string; work?: AdminWorkUpdate; structure?: EditableWorkStructure }>;
+  changes: Array<{
+    workId: string;
+    work?: AdminWorkUpdate;
+    structure?: EditableWorkStructure;
+    awards?: {
+      toCreate: AdminAwardRecognitionInput[];
+      toUpdate: AdminAwardRecognitionInput[];
+      toDeleteIds: string[];
+    };
+  }>;
 }>) {
   const errors: Array<{ workId: string; message: string }> = [];
   let updated = 0;
@@ -326,6 +421,11 @@ export async function saveAdminRecordChanges({
     try {
       if (change.work) await saveWork({ data: change.work });
       if (change.structure) await saveWorkStructure({ data: change.structure });
+      if (change.awards) {
+        for (const award of [...change.awards.toCreate, ...change.awards.toUpdate])
+          await saveAwardRecognition({ data: award });
+        for (const id of change.awards.toDeleteIds) await deleteAwardRecognition({ data: { id } });
+      }
       updated++;
     } catch (error) {
       errors.push({

@@ -14,7 +14,6 @@ import {
   allWorks,
   detailToStructure,
   entities,
-  fullAdminDetail,
   fullDetail,
   planetsWithWorks,
   recommendationsFor,
@@ -122,12 +121,11 @@ export async function getPlanetDetail({ data }: Data<{ slug: string }>) {
 }
 export async function getPlatformWorkDetail({
   data,
-}: Data<{ workId: string; includePrivate?: boolean }>) {
-  const includePrivate = data.includePrivate ?? false;
+}: Data<{ workId: string }>) {
   const [detail, works, planets] = await Promise.all([
-    includePrivate ? fullAdminDetail(data.workId) : fullDetail(data.workId),
-    includePrivate ? allAdminWorks() : allWorks(),
-    planetsWithWorks(includePrivate),
+    fullDetail(data.workId),
+    allWorks(),
+    planetsWithWorks(),
   ]);
   if (!detail) return null;
   const work = titleToWork(detail);

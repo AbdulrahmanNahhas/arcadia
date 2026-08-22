@@ -26,6 +26,31 @@ async function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit) 
 
 const client = createClient<paths>({ baseUrl: apiBaseUrl, fetch: authenticatedFetch });
 
+/** A single Zod validation issue, as the API returns it (see `adminErrorSchema` in contracts). */
+export interface ApiErrorIssue {
+  path: Array<string | number>;
+  message: string;
+}
+
+/**
+ * Thrown by `apiFetch` on any non-OK response. Carries the HTTP status and, when the API
+ * returned structured Zod issues (most 400s from admin write routes), the per-field breakdown —
+ * previously discarded here, leaving callers with only one flat message no matter how many
+ * fields actually failed validation. `error instanceof Error` still holds for existing callers
+ * that only check that.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly issues: ApiErrorIssue[] | undefined;
+
+  constructor(message: string, status: number, issues?: ApiErrorIssue[]) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.issues = issues;
+  }
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
@@ -33,8 +58,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     headers: new Headers({ "Content-Type": "application/json", ...init?.headers }),
   });
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { message?: string } | null;
-    throw new Error(body?.message ?? `Arcadia API request failed (${response.status})`);
+    const body = (await response.json().catch(() => null)) as {
+      message?: string;
+      issues?: ApiErrorIssue[];
+    } | null;
+    throw new ApiError(
+      body?.message ?? `Arcadia API request failed (${response.status})`,
+      response.status,
+      Array.isArray(body?.issues) ? body.issues : undefined,
+    );
   }
   return (await response.json()) as T;
 }

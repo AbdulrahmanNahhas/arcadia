@@ -189,6 +189,11 @@ export function titleToWork(title: TitleSummary | TitleDetail | AdminTitleDetail
             notes: title.curatorNotes || null,
           }
         : null,
+    age: title.classifications[0]?.age ?? null,
+    workflowStatus: "workflowStatus" in title ? title.workflowStatus : null,
+    qualityScore: "qualityScore" in title ? title.qualityScore : null,
+    curatorNotes: "curatorNotes" in title ? title.curatorNotes : null,
+    verifiedAt: "verifiedAt" in title ? title.verifiedAt : null,
     contributors: credits,
     animationStudios: credits.filter((item) => item.role === "animation_studio"),
     productionCompanies: credits.filter((item) => item.role === "production_company"),
@@ -262,16 +267,17 @@ export async function allTitles(query?: string) {
     mode: "titles",
     ...(search ? { q: search } : {}),
   });
-  const remaining =
-    first.total > 100
-      ? await browseTitles({
-          limit: 100,
-          offset: 100,
-          mode: "titles",
-          ...(search ? { q: search } : {}),
-        })
-      : null;
-  return [...first.items, ...(remaining?.items ?? [])].filter(
+  const remaining = await Promise.all(
+    Array.from({ length: Math.max(0, Math.ceil(first.total / 100) - 1) }, (_, index) =>
+      browseTitles({
+        limit: 100,
+        offset: (index + 1) * 100,
+        mode: "titles",
+        ...(search ? { q: search } : {}),
+      }),
+    ),
+  );
+  return [...first.items, ...remaining.flatMap((page) => page.items)].filter(
     (item): item is TitleSummary => "canonicalTitle" in item,
   );
 }
@@ -322,7 +328,7 @@ function installmentWorks(items: Installment[], titles: TitleSummary[]) {
       country: title?.country ?? [],
       audience: audience(item.classification.audience),
       contentWarnings: title?.contentWarnings ?? null,
-      analysisNotes: null,
+      analysisNotes: title?.analysisNotes ?? null,
       riskProfile: item.classification,
       scoreComponents: Object.fromEntries(
         Object.entries(item.score).filter(([, value]) => value !== null),
@@ -338,6 +344,11 @@ function installmentWorks(items: Installment[], titles: TitleSummary[]) {
       sourceMaterial: null,
       publication: null,
       curation: null,
+      age: title?.age ?? null,
+      workflowStatus: title?.workflowStatus ?? null,
+      qualityScore: title?.qualityScore ?? null,
+      curatorNotes: title?.curatorNotes ?? null,
+      verifiedAt: title?.verifiedAt ?? null,
       contributors: title?.contributors ?? [],
       animationStudios: title?.animationStudios ?? [],
       productionCompanies: title?.productionCompanies ?? [],
@@ -401,6 +412,19 @@ export async function allAdminTitles() {
 
 export async function allAdminWorks() {
   return (await allAdminTitles()).map(titleToWork);
+}
+
+/**
+ * A single searched, small page of admin works — unlike `allAdminWorks()`, which paginates
+ * through the entire catalog to build a complete in-memory list. Use this for pickers (e.g. the
+ * awards recognition editor's work search) instead of loading every title client-side.
+ */
+export async function searchAdminWorks(query: string, limit = 20) {
+  const trimmed = query.trim();
+  const page = await apiFetch<{ items: TitleSummary[] }>(
+    `/api/v1/admin/titles?limit=${limit}${trimmed ? `&q=${encodeURIComponent(trimmed)}` : ""}`,
+  );
+  return page.items.map(titleToWork);
 }
 
 export async function allAdminInstallmentWorks() {

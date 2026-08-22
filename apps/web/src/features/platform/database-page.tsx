@@ -374,15 +374,15 @@ export function DatabasePage() {
                   "grid",
                   view === "banner"
                     ? density === "compact"
-                      ? "grid-cols-1 gap-x-4 gap-y-9 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5"
+                      ? "grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
                       : density === "large"
-                        ? "grid-cols-1 gap-x-7 gap-y-12 xl:grid-cols-2 2xl:grid-cols-3"
-                        : "grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+                        ? "grid-cols-1 gap-x-6 gap-y-10 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+                        : "grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
                     : density === "compact"
-                      ? "grid-cols-3 gap-x-3 gap-y-7 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
+                      ? "grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8"
                       : density === "large"
-                        ? "grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5"
-                        : "grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6",
+                        ? "grid-cols-2 gap-x-5 gap-y-9 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+                        : "grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7",
                 )}
               >
                 {visibleWorks.map((work) => (

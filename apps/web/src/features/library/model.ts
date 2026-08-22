@@ -2,7 +2,9 @@ import {
   type AdminEntityInput,
   awardRecognitionSchema,
   adminEntityInputSchema as contractAdminEntityInputSchema,
+  workflowStatusSchema,
 } from "@arcadia/contracts";
+import { ageSchema } from "@arcadia/domain";
 import { z } from "zod";
 
 export const workKinds = [
@@ -18,6 +20,9 @@ export const workKinds = [
 
 export const workKindSchema = z.enum(workKinds);
 export type WorkKind = z.infer<typeof workKindSchema>;
+
+export const ageValues = ageSchema.options;
+export const workflowStatusValues = workflowStatusSchema.options;
 
 export const genres = [
   "Action",
@@ -122,6 +127,21 @@ export const taxonomyLabels = {
     "South Korea": "كوريا الجنوبية",
     "United Kingdom": "المملكة المتحدة",
     "United States": "الولايات المتحدة",
+  },
+  ages: {
+    all: "للجميع",
+    "7+": "٧+",
+    "10+": "١٠+",
+    "13+": "١٣+",
+    "16+": "١٦+",
+    "18+": "١٨+",
+  },
+  workflowStatuses: {
+    draft: "مسودة",
+    in_review: "قيد المراجعة",
+    approved: "معتمد",
+    published: "منشور",
+    archived: "مؤرشف",
   },
 } as const;
 
@@ -582,6 +602,11 @@ export const workSchema = z.object({
     })
     .nullable(),
   publication: publicationSchema.nullable(),
+  /**
+   * @deprecated Superseded by the direct `workflowStatus`/`curatorNotes`/`verifiedAt` fields
+   * below — those can reach every workflow state and write `qualityScore`, which this
+   * two-state proxy never could. Kept only for the API's legacy-payload fallback path.
+   */
   curation: z
     .object({
       reviewedAt: z.string(),
@@ -589,6 +614,11 @@ export const workSchema = z.object({
       notes: z.string().nullable(),
     })
     .nullable(),
+  age: ageSchema.nullable(),
+  workflowStatus: workflowStatusSchema.nullable(),
+  qualityScore: z.number().int().nullable(),
+  curatorNotes: z.string().nullable(),
+  verifiedAt: z.string().nullable(),
   contributors: z.array(workContributionSchema),
   animationStudios: z.array(workContributionSchema),
   productionCompanies: z.array(workContributionSchema),
@@ -735,6 +765,10 @@ export const adminWorkTransportSchema = workSchema
     productionCompanies: true,
     publishers: true,
     isSequelMovie: true,
+    // Awards are no longer part of a title's own save payload — they're written immediately,
+    // one recognition at a time, through the admin awards endpoints (see TitleAwardsPanel /
+    // AwardRecognitionForm). Omitting it here matches what the editor form actually sends.
+    awards: true,
   })
   .extend({
     genres: z.array(genreSchema),
@@ -753,7 +787,8 @@ export const adminWorkUpdateSchema = adminWorkTransportSchema.superRefine((work,
       message: "اختر 12 وسماً قابلاً لإعادة الاستخدام كحد أقصى.",
     });
   }
-  if (work.curation?.status !== "verified") return;
+  const isVerified = work.workflowStatus === "approved" || work.workflowStatus === "published";
+  if (!isVerified) return;
   if (work.genres.length === 0) {
     context.addIssue({
       code: "custom",
