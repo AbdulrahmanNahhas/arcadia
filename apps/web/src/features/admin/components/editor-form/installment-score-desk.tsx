@@ -33,7 +33,14 @@ import {
 } from "@/features/library/scoring";
 import { saveWorkStructure } from "@/server/library.functions";
 
-type InstallmentScore = Record<ScoreCriterion, number | null>;
+type InstallmentScore = {
+  story: number | null;
+  characters: number | null;
+  depth: number | null;
+  worldBuilding: number | null;
+  originality: number | null;
+  craft: number | null;
+};
 
 const emptyScore = (): InstallmentScore => ({
   story: null,

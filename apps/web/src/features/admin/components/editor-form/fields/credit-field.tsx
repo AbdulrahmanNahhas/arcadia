@@ -121,9 +121,11 @@ export function ContributionField({
                 label: facetValueLabel("creatorRoles", role),
               }))}
               value={contributor.role}
-              onValueChange={(role) =>
-                update(index, { role: (role ?? "creator") as WorkContribution["role"] })
-              }
+              onValueChange={(role) => {
+                // SAFETY: `items` above is built from `contributorRolesByEntityType`, which only
+                // contains real `WorkContribution["role"]` values.
+                update(index, { role: (role ?? "creator") as WorkContribution["role"] });
+              }}
             >
               <SelectTrigger className="h-8 bg-background text-xs">
                 <SelectValue placeholder="الدور" />
@@ -145,11 +147,13 @@ export function ContributionField({
                 { value: "organization", label: "منظمة" },
               ]}
               value={contributor.entityType}
-              onValueChange={(entityType) =>
+              onValueChange={(entityType) => {
+                // SAFETY: `items` above only offers "person"/"organization" — the same union as
+                // `WorkContribution["entityType"]`.
                 update(index, {
                   entityType: (entityType ?? "person") as WorkContribution["entityType"],
-                })
-              }
+                });
+              }}
             >
               <SelectTrigger className="h-8 bg-background text-xs">
                 <SelectValue />

@@ -27,7 +27,6 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
 import { BulkEditDialog } from "@/features/admin/components/bulk-edit";
-import { JsonEditorDialog } from "@/features/admin/components/json-editor";
 import {
   buildCatalogFacetOptions,
   createCatalogFilters,
@@ -60,7 +59,6 @@ export function AdminCatalogPage() {
   const [filters, setFilters] = useState(createCatalogFilters);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
-  const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const facetOptions = useMemo(() => buildCatalogFacetOptions(works), [works]);
@@ -93,14 +91,18 @@ export function AdminCatalogPage() {
   const toggleVisible = (checked: boolean) => {
     setSelectedIds((current) => {
       const next = new Set(current);
-      for (const id of visibleIds) checked ? next.add(id) : next.delete(id);
+      for (const id of visibleIds) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
       return next;
     });
   };
   const toggleWork = (id: string, checked: boolean) => {
     setSelectedIds((current) => {
       const next = new Set(current);
-      checked ? next.add(id) : next.delete(id);
+      if (checked) next.add(id);
+      else next.delete(id);
       return next;
     });
   };
@@ -169,7 +171,13 @@ export function AdminCatalogPage() {
                       size="sm"
                       variant="outline"
                       className="h-8 gap-1.5 text-xs"
-                      onClick={() => setJsonEditorOpen(true)}
+                      nativeButton={false}
+                      render={
+                        <Link
+                          to="/admin/catalog/json"
+                          search={{ ids: [...selectedIds], scope: "ids" }}
+                        />
+                      }
                     >
                       <NotePencilIcon className="h-3.5 w-3.5" />
                       محرر JSON
@@ -275,20 +283,6 @@ export function AdminCatalogPage() {
         pending={deleteMutation.isPending}
         error={deleteMutation.error?.message}
       />
-      {jsonEditorOpen ? (
-        <JsonEditorDialog
-          open={jsonEditorOpen}
-          onOpenChange={setJsonEditorOpen}
-          works={works}
-          visibleWorks={visible}
-          selectedIds={selectedIds}
-          onSaved={async () => {
-            setSelectedIds(new Set());
-            await refresh();
-          }}
-          initialScope="selected"
-        />
-      ) : null}
     </div>
   );
 }

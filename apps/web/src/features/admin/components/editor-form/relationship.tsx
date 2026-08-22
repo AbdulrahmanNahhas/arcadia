@@ -97,23 +97,18 @@ export function RelationshipEditor({ work, works, onChange }: RelationshipEditor
       if (current !== index) return relation;
 
       const candidate = patch.workId ? works.find((item) => item.id === patch.workId) : undefined;
-
-      return {
-        ...relation,
-        ...patch,
-        ...(candidate
-          ? {
-              work: {
-                id: candidate.id,
-                title: candidate.title,
-                kind: candidate.kind,
-                year: candidate.year,
-                releaseStatus: candidate.releaseStatus,
-                imagePath: candidate.imagePath,
-              },
-            }
-          : {}),
-      };
+      const next = { ...relation, ...patch };
+      if (candidate) {
+        next.work = {
+          id: candidate.id,
+          title: candidate.title,
+          kind: candidate.kind,
+          year: candidate.year,
+          releaseStatus: candidate.releaseStatus,
+          imagePath: candidate.imagePath,
+        };
+      }
+      return next;
     });
 
     onChange(updated);
@@ -204,7 +199,11 @@ export function RelationshipEditor({ work, works, onChange }: RelationshipEditor
                   <Select
                     items={RELATION_TYPES}
                     value={relation.relationType}
-                    onValueChange={(val) => update(index, { relationType: val as RelationType })}
+                    onValueChange={(val) => {
+                      // SAFETY: `items` above is `RELATION_TYPES`, whose values are exactly
+                      // `RelationType`.
+                      update(index, { relationType: val as RelationType });
+                    }}
                   >
                     <SelectTrigger className="h-8 bg-background text-xs capitalize">
                       <SelectValue placeholder="النوع" />
@@ -239,7 +238,11 @@ export function RelationshipEditor({ work, works, onChange }: RelationshipEditor
                       { value: "incoming", label: "الهدف ← هذا العمل" },
                     ]}
                     value={relation.direction}
-                    onValueChange={(val) => update(index, { direction: val as RelationDirection })}
+                    onValueChange={(val) => {
+                      // SAFETY: `items` above only offers "outgoing"/"incoming" — the same union
+                      // as `RelationDirection`.
+                      update(index, { direction: val as RelationDirection });
+                    }}
                   >
                     <SelectTrigger className="h-8 bg-background text-xs">
                       <SelectValue placeholder="الاتجاه" />

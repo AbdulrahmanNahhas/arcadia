@@ -26,6 +26,17 @@ import type { WorkKind } from "@/features/library/model";
 import { audiences, genreSchema, taxonomyLabels, workKinds } from "@/features/library/model";
 import { editWorksBulk } from "@/server/library.functions";
 
+type BulkEditPayload = {
+  workIds: string[];
+  kind?: WorkKind;
+  audience?: (typeof audiences)[number] | null;
+  favorite?: boolean;
+  addGenres: string[];
+  removeGenres: string[];
+  addTags: string[];
+  removeTags: string[];
+};
+
 function parseList(value: string) {
   return [
     ...new Set(
@@ -64,26 +75,32 @@ export function BulkEditDialog({
   });
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    mutation.mutate({
-      data: {
-        workIds,
-        ...(kind && kind !== "unchanged" ? { kind: kind as WorkKind } : {}),
-        ...(audience && audience !== "unchanged"
-          ? { audience: audience === "none" ? null : (audience as (typeof audiences)[number]) }
-          : {}),
-        ...(favorite && favorite !== "unchanged" ? { favorite: favorite === "true" } : {}),
-        addGenres: parseList(addGenres).flatMap((genre) => {
-          const result = genreSchema.safeParse(genre);
-          return result.success ? [result.data] : [];
-        }),
-        removeGenres: parseList(removeGenres).flatMap((genre) => {
-          const result = genreSchema.safeParse(genre);
-          return result.success ? [result.data] : [];
-        }),
-        addTags: parseList(addTags),
-        removeTags: parseList(removeTags),
-      },
-    });
+    const payload: BulkEditPayload = {
+      workIds,
+      addGenres: parseList(addGenres).flatMap((genre) => {
+        const result = genreSchema.safeParse(genre);
+        return result.success ? [result.data] : [];
+      }),
+      removeGenres: parseList(removeGenres).flatMap((genre) => {
+        const result = genreSchema.safeParse(genre);
+        return result.success ? [result.data] : [];
+      }),
+      addTags: parseList(addTags),
+      removeTags: parseList(removeTags),
+    };
+    if (kind && kind !== "unchanged") {
+      // SAFETY: `kind` is only ever set from the "kind" `<Select>` below, whose options are
+      // `workKinds` plus the sentinel "unchanged" — already excluded above.
+      payload.kind = kind as WorkKind;
+    }
+    if (audience && audience !== "unchanged") {
+      // SAFETY: `audience` is only ever set from the "audience" `<Select>` below, whose options
+      // are `audiences` plus the sentinels "none"/"unchanged" — "none" is handled explicitly and
+      // "unchanged" is already excluded above.
+      payload.audience = audience === "none" ? null : (audience as (typeof audiences)[number]);
+    }
+    if (favorite && favorite !== "unchanged") payload.favorite = favorite === "true";
+    mutation.mutate({ data: payload });
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -10,10 +10,7 @@ import {
 
 export type RiskLevel = "none" | "low" | "medium" | "high" | "unknown";
 
-const RISK_CONFIG: Record<
-  RiskLevel,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
-> = {
+const RISK_CONFIG = {
   none: {
     label: "لا يوجد",
     variant: "outline",
@@ -34,7 +31,10 @@ const RISK_CONFIG: Record<
     label: "غير معروف",
     variant: "outline",
   },
-};
+} satisfies Record<
+  RiskLevel,
+  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+>;
 
 export function RiskSelect({
   value = "unknown",
@@ -44,15 +44,19 @@ export function RiskSelect({
   onChange: (value: RiskLevel) => void;
 }) {
   const currentRisk = RISK_CONFIG[value];
+  // SAFETY: RISK_CONFIG's own type is checked against `Record<RiskLevel, ...>` above
+  // (`satisfies`, not a widened annotation), so its key set is exactly RiskLevel's members —
+  // `Object.keys` just can't express that itself, since it always returns `string[]`.
+  const riskKeys = Object.keys(RISK_CONFIG) as RiskLevel[];
 
   return (
     <Select
-      items={(Object.keys(RISK_CONFIG) as RiskLevel[]).map((risk) => ({
+      items={riskKeys.map((risk) => ({
         value: risk,
         label: RISK_CONFIG[risk].label,
       }))}
       value={value}
-      onValueChange={(val) => onChange(val as RiskLevel)}
+      onValueChange={(val) => val && onChange(val)}
     >
       <SelectTrigger className="w-full">
         <SelectValue placeholder="اختر مستوى المخاطر">
@@ -61,7 +65,7 @@ export function RiskSelect({
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
-          {(Object.keys(RISK_CONFIG) as RiskLevel[]).map((riskKey) => (
+          {riskKeys.map((riskKey) => (
             <SelectItem key={riskKey} value={riskKey}>
               {RISK_CONFIG[riskKey].label}
             </SelectItem>

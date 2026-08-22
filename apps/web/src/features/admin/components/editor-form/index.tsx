@@ -15,8 +15,10 @@ import {
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
+import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -45,7 +47,6 @@ import {
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
-  DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +73,7 @@ import type {
   WorkStructure,
 } from "@/features/library/model";
 import {
+  ageValues,
   audiences,
   countries,
   editableWorkStructureSchema,
@@ -79,6 +81,7 @@ import {
   tagLabelsAr,
   taxonomyLabels,
   tones,
+  workflowStatusValues,
   workKinds,
 } from "@/features/library/model";
 
@@ -96,8 +99,8 @@ import {
   uploadWorkImage,
 } from "@/server/library.functions";
 import { getAdminPlanets } from "@/server/platform.functions";
+import { TitleAwardsPanel } from "../../awards/title-awards-panel";
 import { ArrayField } from "./fields/array-field";
-import { AwardField } from "./fields/award-field";
 import { ContributionField } from "./fields/credit-field";
 import { Field } from "./fields/field";
 import type { RiskLevel } from "./fields/risk-select";
@@ -178,6 +181,20 @@ function WorkEditorInner({
       addedAt: _addedAt,
       palette: _palette,
       calculatedRating: _calculatedRating,
+      // Awards are no longer part of the title's own save payload — the Awards tab saves each
+      // recognition immediately via TitleAwardsPanel/AwardRecognitionForm. Sending this array
+      // would resurrect the retired legacy delete-then-reinsert path on the API.
+      awards: _awards,
+      // These are read-only/derived fields on `Work` that `AdminWorkUpdate` (built from
+      // `workSchema.omit(...)`) doesn't accept — drop them from the save payload the same way
+      // the schema does.
+      catalogUpdatedAt: _catalogUpdatedAt,
+      personalUpdatedAt: _personalUpdatedAt,
+      scoreCoverage: _scoreCoverage,
+      animationStudios: _animationStudios,
+      productionCompanies: _productionCompanies,
+      publishers: _publishers,
+      isSequelMovie: _isSequelMovie,
       relations,
       ...editable
     } = draft;
@@ -193,6 +210,11 @@ function WorkEditorInner({
       }));
 
     mutation.mutate({
+      // SAFETY: `editable.genres`/`editable.tone` are typed as plain `string[]` on `Work` (it
+      // covers non-admin contexts too), but every value in them was added through this form's
+      // genre/tone `ArrayField`s, which only accept values from the `genres`/`tones` option
+      // lists (no `allowCustom`) — so at runtime they're always valid `Genre`/`Tone` members,
+      // matching `AdminWorkUpdate`'s narrower `genreSchema`/`toneSchema` array types.
       data: {
         ...editable,
         externalLinks,
@@ -399,7 +421,7 @@ function EditorMasthead({
         <span>الأجزاء: {structure?.seasons.length ?? "—"}</span>
         <span>الحلقات: {structure?.totalUnits ?? "—"}</span>
         <span>العلاقات: {work.relations.length}</span>
-        <span>آخر مراجعة: {work.curation?.reviewedAt ?? "غير مسجّلة"}</span>
+        <span>آخر مراجعة: {work.verifiedAt?.slice(0, 10) ?? "غير مسجّلة"}</span>
       </div>
     </header>
   );
@@ -412,11 +434,15 @@ type StructureField = "runtime" | "episodes";
 // showed all seven fields). Adjust these slugs to match your actual WorkKind
 // union. A kind that isn't listed falls back to showing everything, so
 // nothing silently disappears for a kind you add later and forget to map.
-const STRUCTURE_FIELDS_BY_KIND: Partial<Record<string, StructureField[]>> = {
+const STRUCTURE_FIELDS_BY_KIND = {
   movie: ["runtime"],
   series: ["runtime", "episodes"],
   anime: ["runtime", "episodes"],
-};
+} satisfies Partial<Record<string, StructureField[]>>;
+
+function hasStructureFields(kind: string): kind is keyof typeof STRUCTURE_FIELDS_BY_KIND {
+  return kind in STRUCTURE_FIELDS_BY_KIND;
+}
 const MEDIA_WORK_KINDS = workKinds.filter((kind) => ["movie", "series", "anime"].includes(kind));
 
 // --- component ---
@@ -446,13 +472,16 @@ function WorkEditorFormFields({
 }) {
   const { taxonomyLabel } = useArabicTranslations();
 
-  const structureFields = STRUCTURE_FIELDS_BY_KIND[String(draft.kind)] ?? ["runtime"];
+  const draftKind = String(draft.kind);
+  const structureFields = hasStructureFields(draftKind)
+    ? STRUCTURE_FIELDS_BY_KIND[draftKind]
+    : ["runtime"];
   const showRuntime = structureFields.includes("runtime");
   const showEpisodes = structureFields.includes("episodes");
 
   const changeKind = (kind: WorkKind) => setDraft({ ...draft, kind });
   const tagOptions = useMemo(
-    () => [...new Set(works.flatMap((candidate) => candidate.tags))].sort(),
+    () => [...new Set(works.flatMap((candidate) => candidate.tags))].toSorted(),
     [works],
   );
 
@@ -527,7 +556,7 @@ function WorkEditorFormFields({
               <Select
                 items={MEDIA_WORK_KINDS.map((kind) => ({ value: kind, label: kindLabels[kind] }))}
                 value={draft.kind}
-                onValueChange={(value) => changeKind(value as WorkKind)}
+                onValueChange={(value) => value && changeKind(value)}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="اختر النوع" />
@@ -567,9 +596,10 @@ function WorkEditorFormFields({
                 )}
                 value={draft.releaseStatus}
                 onValueChange={(value) =>
+                  value &&
                   setDraft({
                     ...draft,
-                    releaseStatus: value as Work["releaseStatus"],
+                    releaseStatus: value,
                   })
                 }
               >
@@ -693,6 +723,9 @@ function WorkEditorFormFields({
               label="الدول"
               value={draft.country}
               onChange={(country: string[]) =>
+                // SAFETY: ArrayField only calls onChange with values it accepted through addTag,
+                // which rejects anything not in `options` whenever `allowCustom` is unset (it is,
+                // here) — since `options={countries}` below, every element is a real `Country`.
                 setDraft({ ...draft, country: country as Work["country"] })
               }
               options={countries}
@@ -729,7 +762,7 @@ function WorkEditorFormFields({
                   audience &&
                   setDraft({
                     ...draft,
-                    audience: audience as Work["audience"],
+                    audience,
                   })
                 }
               >
@@ -741,6 +774,26 @@ function WorkEditorFormFields({
                     {audiences.map((audience) => (
                       <SelectItem key={audience} value={audience}>
                         {taxonomyLabels.audiences[audience]}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="تصنيف السن">
+              <Select
+                items={ageValues.map((age) => ({ value: age, label: taxonomyLabels.ages[age] }))}
+                value={draft.age ?? "all"}
+                onValueChange={(age) => age && age !== "all" && setDraft({ ...draft, age })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="اختر تصنيف السن" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {ageValues.map((age) => (
+                      <SelectItem key={age} value={age}>
+                        {taxonomyLabels.ages[age]}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -774,18 +827,7 @@ function WorkEditorFormFields({
         </TabsContent>
 
         <TabsContent value="awards" className="flex flex-col gap-6">
-          <EditorSection
-            title="الجوائز والترشيحات"
-            description="سجّل التكريم على مستوى العنوان أو اربطه بفيلم أو موسم محدد. يمكن إبراز تكريم واحد في واجهة العنوان."
-          >
-            <div className="col-span-full">
-              <AwardField
-                value={draft.awards}
-                onChange={(awards) => setDraft({ ...draft, awards })}
-                structure={structure}
-              />
-            </div>
-          </EditorSection>
+          <TitleAwardsPanel titleId={draft.id} titleLabel={draft.arabicTitle || draft.title} />
         </TabsContent>
 
         <TabsContent value="editorial" className="flex flex-col gap-6">
@@ -981,70 +1023,52 @@ function WorkEditorFormFields({
           </EditorSection>
 
           <EditorSection
-            title="مصدر المراجعة"
-            description="حالة التحقق من بيانات الفهرس الموضوعية."
+            title="النشر"
+            description="حالة سير العمل التحريرية، الدرجة الداخلية، وتاريخ التحقق."
           >
-            <Field label="تاريخ المراجعة">
-              <Input
-                type="date"
-                value={draft.curation?.reviewedAt ?? ""}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    curation: {
-                      reviewedAt: e.target.value,
-                      status: draft.curation?.status ?? "provisional",
-                      notes: draft.curation?.notes ?? null,
-                    },
-                  })
-                }
-              />
-            </Field>
-            <Field label="التحقق">
+            <Field label="حالة سير العمل">
               <Select
-                items={[
-                  { value: "provisional", label: "مبدئي" },
-                  { value: "verified", label: "موثّق" },
-                ]}
-                value={draft.curation?.status ?? "provisional"}
-                onValueChange={(status) =>
-                  setDraft({
-                    ...draft,
-                    curation: {
-                      reviewedAt:
-                        draft.curation?.reviewedAt ?? new Date().toISOString().slice(0, 10),
-                      status: status as "verified" | "provisional",
-                      notes: draft.curation?.notes ?? null,
-                    },
-                  })
-                }
+                items={workflowStatusValues.map((status) => ({
+                  value: status,
+                  label: taxonomyLabels.workflowStatuses[status],
+                }))}
+                value={draft.workflowStatus ?? "draft"}
+                onValueChange={(status) => status && setDraft({ ...draft, workflowStatus: status })}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="provisional">مبدئي</SelectItem>
-                    <SelectItem value="verified">موثّق</SelectItem>
+                    {workflowStatusValues.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {taxonomyLabels.workflowStatuses[status]}
+                      </SelectItem>
+                    ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="ملاحظات المراجعة" wide>
+            <Field label="درجة الجودة">
+              <Input
+                type="number"
+                min="0"
+                value={draft.qualityScore ?? 0}
+                onChange={(e) => setDraft({ ...draft, qualityScore: Number(e.target.value) || 0 })}
+              />
+            </Field>
+            <Field label="تاريخ التحقق">
+              <Input
+                type="date"
+                value={draft.verifiedAt?.slice(0, 10) ?? ""}
+                onChange={(e) => setDraft({ ...draft, verifiedAt: e.target.value || null })}
+              />
+            </Field>
+            <Field label="ملاحظات المحرر" wide>
               <Textarea
                 rows={3}
-                value={draft.curation?.notes ?? ""}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    curation: {
-                      reviewedAt:
-                        draft.curation?.reviewedAt ?? new Date().toISOString().slice(0, 10),
-                      status: draft.curation?.status ?? "provisional",
-                      notes: e.target.value || null,
-                    },
-                  })
-                }
+                value={draft.curatorNotes ?? ""}
+                onChange={(e) => setDraft({ ...draft, curatorNotes: e.target.value || null })}
               />
             </Field>
           </EditorSection>
@@ -1204,14 +1228,14 @@ function ArtworkField({
     if (!file) return;
     if (!file.type.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
+    reader.addEventListener("load", () => {
+      if (reader.result !== null && !(reader.result instanceof ArrayBuffer)) {
         upload.mutate(
           { data: { dataUrl: reader.result, fileName: file.name, assetType, ownerName } },
           { onSuccess: ({ relativePath }) => setCandidate(relativePath) },
         );
       }
-    };
+    });
     reader.readAsDataURL(file);
   };
   const preview = candidate || value;
@@ -1401,7 +1425,7 @@ function StructureSummary({ structure }: { structure: WorkStructure | undefined 
     return (
       <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground sm:col-span-2">
         <span>لم تُعرّف مواسم أو وحدات مستقلة لهذا العمل بعد.</span>
-        <StructureJsonEditor structure={structure} />
+        <EditStructureLink workId={structure.workId} />
       </div>
     );
   }
@@ -1415,7 +1439,7 @@ function StructureSummary({ structure }: { structure: WorkStructure | undefined 
         <span className="text-xs text-muted-foreground">
           اكتمل {structure.completedUnits}/{structure.totalUnits}
         </span>
-        <StructureJsonEditor structure={structure} />
+        <EditStructureLink workId={structure.workId} />
       </div>
       <div className="flex flex-wrap gap-2 p-3">
         {structure.seasons.map((season) => {
@@ -1537,8 +1561,8 @@ function SeasonPosterCard({
     const file = event.target.files?.[0];
     if (!file?.type.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
+    reader.addEventListener("load", () => {
+      if (reader.result !== null && !(reader.result instanceof ArrayBuffer)) {
         upload.mutate(
           {
             data: {
@@ -1551,7 +1575,7 @@ function SeasonPosterCard({
           { onSuccess: ({ relativePath }) => setCandidate(relativePath) },
         );
       }
-    };
+    });
     reader.readAsDataURL(file);
   };
   const preview = candidate || season.posterPath;
@@ -1637,16 +1661,32 @@ function structureDate(timestamp: number | null) {
   return timestamp === null ? null : new Date(timestamp).toISOString().slice(0, 10);
 }
 
-function parseStructureDate(value: unknown, path: string) {
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new Error(`${path} يجب أن يكون بالتنسيق YYYY-MM-DD أو null.`);
-  }
-  const timestamp = Date.parse(`${value}T00:00:00Z`);
-  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== value) {
-    throw new Error(`${path} ليس تاريخاً صحيحاً.`);
-  }
-  return timestamp;
+// Parses a raw (untrusted, pasted-JSON) date-ish value into an epoch timestamp. Built as a Zod
+// transform — rather than a hand-written function taking an `unknown` value and branching on
+// `typeof` — so the actual boundary parsing goes through the schema, and the small helper below
+// only ever receives an already-parsed `ZodSafeParseResult`.
+const structureDateSchema = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((value, ctx) => {
+    if (value === null || value === undefined) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      ctx.addIssue({ code: "custom", message: "يجب أن يكون بالتنسيق YYYY-MM-DD أو null." });
+      return z.NEVER;
+    }
+    const timestamp = Date.parse(`${value}T00:00:00Z`);
+    if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== value) {
+      ctx.addIssue({ code: "custom", message: "ليس تاريخاً صحيحاً." });
+      return z.NEVER;
+    }
+    return timestamp;
+  });
+
+function resolveStructureDate(
+  result: z.ZodSafeParseResult<number | null>,
+  path: string,
+): number | null {
+  if (result.success) return result.data;
+  throw new Error(`${path} ${result.error.issues[0]?.message ?? "غير صالح."}`);
 }
 
 function editableStructure(structure: WorkStructure) {
@@ -1675,11 +1715,39 @@ function editableStructure(structure: WorkStructure) {
   };
 }
 
+// Named field shape for a raw (untrusted, pasted-JSON) installment record — every field is
+// `unknown` because we haven't validated it yet, but the fields themselves are the real,
+// documented contract (unlike an open `Record<string, unknown>` dictionary), and every value
+// coming out of this shape is still independently validated below, ultimately by
+// `editableWorkStructureSchema.parse` itself.
+interface RawStructureInstallment {
+  id?: unknown;
+  title?: unknown;
+  kind?: unknown;
+  summary?: unknown;
+  status?: unknown;
+  posterPath?: unknown;
+  score?: unknown;
+  position?: unknown;
+  releaseDate?: unknown;
+  runtimeMinutes?: unknown;
+  episodes?: unknown;
+}
+
+interface RawStructureDocument {
+  schemaVersion?: unknown;
+  installments?: RawStructureInstallment[];
+}
+
+const rawStructureEpisodeSchema = z.record(z.string(), z.unknown());
+
 function parseEditableStructure(raw: string, workId: string): EditableWorkStructure {
-  const document = JSON.parse(raw) as {
-    schemaVersion?: unknown;
-    installments?: Array<Record<string, unknown>>;
-  };
+  // SAFETY: `document` is only read through optional, individually-`unknown`-typed fields from
+  // here on — nothing below trusts this shape beyond "maybe has these properties" — and the
+  // `schemaVersion`/`installments` presence check right after, the per-episode schema check
+  // further down, and the final `editableWorkStructureSchema.parse` call all independently
+  // validate every value pulled off of it before it's used for anything but re-validation.
+  const document = JSON.parse(raw) as RawStructureDocument;
   if (document.schemaVersion !== 3 || !Array.isArray(document.installments)) {
     throw new Error("يجب أن يحتوي المستند على schemaVersion: 3 ومصفوفة installments.");
   }
@@ -1699,15 +1767,16 @@ function parseEditableStructure(raw: string, workId: string): EditableWorkStruct
         position: installment.position,
         runtimeMinutes: installment.runtimeMinutes ?? null,
         unitCount: episodes.length,
-        releaseAt: parseStructureDate(
-          installment.releaseDate,
+        releaseAt: resolveStructureDate(
+          structureDateSchema.safeParse(installment.releaseDate),
           `installments.${installmentIndex}.releaseDate`,
         ),
         units: episodes.map((episode, episodeIndex) => {
-          if (!episode || typeof episode !== "object" || Array.isArray(episode)) {
+          const parsedEpisode = rawStructureEpisodeSchema.safeParse(episode);
+          if (!parsedEpisode.success) {
             throw new Error(`installments.${installmentIndex}.episodes.${episodeIndex} غير صالح.`);
           }
-          const value = episode as Record<string, unknown>;
+          const value = parsedEpisode.data;
           return {
             id: value.id,
             unitType: "episode",
@@ -1715,8 +1784,8 @@ function parseEditableStructure(raw: string, workId: string): EditableWorkStruct
             unitNumber: value.number ?? null,
             position: value.position,
             runtimeMinutes: value.runtimeMinutes ?? null,
-            releaseAt: parseStructureDate(
-              value.releaseDate,
+            releaseAt: resolveStructureDate(
+              structureDateSchema.safeParse(value.releaseDate),
               `installments.${installmentIndex}.episodes.${episodeIndex}.releaseDate`,
             ),
           };
@@ -1727,69 +1796,28 @@ function parseEditableStructure(raw: string, workId: string): EditableWorkStruct
   });
 }
 
-function StructureJsonEditor({ structure }: { structure: WorkStructure }) {
-  const queryClient = useQueryClient();
-  const [raw, setRaw] = useState(() => JSON.stringify(editableStructure(structure), null, 2));
-  const [parseError, setParseError] = useState<string | null>(null);
-  useEffect(() => {
-    setRaw(JSON.stringify(editableStructure(structure), null, 2));
-    setParseError(null);
-  }, [structure]);
-  const mutation = useMutation({
-    mutationFn: saveWorkStructure,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["work-structure", structure.workId] });
-    },
-  });
-  const save = () => {
-    try {
-      const data = parseEditableStructure(raw, structure.workId);
-      setParseError(null);
-      mutation.mutate({ data });
-    } catch (error) {
-      setParseError(error instanceof Error ? error.message : "JSON غير صالح");
-    }
-  };
+/**
+ * Creating/removing installments and episodes is JSON-only by design (Stage 5) — this links to
+ * the unified JSON editor page pre-scoped to this one title with the "structure" preset, instead
+ * of the old dialog's own separate, subtly different JSON envelope.
+ */
+function EditStructureLink({ workId }: { workId: string }) {
   return (
-    <Drawer>
-      <DrawerTrigger
-        render={
-          <Button type="button" variant="outline" size="sm">
-            <CodeIcon data-icon="inline-start" />
-            تعديل البنية
-          </Button>
-        }
-      />
-      <DrawerContent className="flex h-[90dvh] flex-col" dir="rtl">
-        <DrawerHeader className="text-right">
-          <DrawerTitle>تحرير المواسم والأفلام والحلقات</DrawerTitle>
-          <DrawerDescription>
-            أضف موسماً أو فيلماً أو عملاً خاصاً، ثم حرّر صوره وتاريخه وتقييمه وحلقاته. لا تدعم بنية v2
-            الفصول أو المجلدات.
-          </DrawerDescription>
-        </DrawerHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4">
-          <Textarea
-            value={raw}
-            onChange={(event) => setRaw(event.target.value)}
-            className="min-h-full font-mono text-xs ltr"
-            dir="ltr"
-            aria-invalid={Boolean(parseError || mutation.error)}
-          />
-          {(parseError || mutation.error) && (
-            <Alert variant="destructive" className="mt-3">
-              <AlertDescription>{parseError ?? mutation.error?.message}</AlertDescription>
-            </Alert>
-          )}
-        </div>
-        <DrawerFooter>
-          <Button type="button" onClick={save} disabled={mutation.isPending}>
-            {mutation.isPending ? "جارٍ الحفظ…" : "حفظ البنية"}
-          </Button>
-          <DrawerClose render={<Button type="button" variant="outline" />}>إغلاق</DrawerClose>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      nativeButton={false}
+      render={
+        <Link
+          to="/admin/catalog/json"
+          search={{ ids: [workId], scope: "ids", preset: "structure" }}
+        />
+      }
+    >
+      <CodeIcon data-icon="inline-start" />
+      تعديل البنية
+    </Button>
   );
 }
 
