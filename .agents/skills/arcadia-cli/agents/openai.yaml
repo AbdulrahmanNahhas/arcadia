@@ -1,4 +1,0 @@
-interface:
-  display_name: "Arcadia CLI"
-  short_description: "Inspect the Arcadia v2 catalog through its API"
-  default_prompt: "Use $arcadia-cli to inspect and filter the running Arcadia v2 catalog."

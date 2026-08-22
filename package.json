@@ -23,7 +23,7 @@
     "db:consolidate": "pnpm --filter @arcadia/database db:consolidate",
     "db:restore:legacy": "pnpm db:import:knowledge && pnpm db:consolidate",
     "client:generate": "pnpm --filter @arcadia/contracts generate",
-    "arcadia": "node scripts/arcadia-cli.mjs",
+    "arcadia": "pnpm --filter @arcadia/cli exec tsx src/main.ts",
     "test:e2e": "pnpm --filter @arcadia/web test:e2e"
   },
   "devDependencies": {
