@@ -1,16 +1,25 @@
 import { ageSchema, audienceSchema, riskLevelSchema, taxonomySchema } from "@arcadia/domain";
 import { z } from "zod";
+import { adminAwardCeremonyInputSchema } from "./admin-catalog";
+import {
+  awardResultSchema,
+  installmentKindSchema,
+  installmentStatusSchema,
+  scoreSchema,
+  titleReleaseStatusSchema,
+  workflowStatusSchema,
+} from "./enums";
 
-export const installmentKindSchema = z.enum(["season", "movie", "special"]);
-export const installmentStatusSchema = z.enum(["announced", "airing", "completed", "unknown"]);
-/** A title lifecycle is derived from the factual status of its installments. */
-export const titleReleaseStatusSchema = z.enum([
-  "upcoming",
-  "airing",
-  "returning",
-  "completed",
-  "unknown",
-]);
+export * from "./admin-catalog";
+export * from "./admin-field-registry";
+export {
+  awardResultSchema,
+  installmentKindSchema,
+  installmentStatusSchema,
+  scoreSchema,
+  titleReleaseStatusSchema,
+  workflowStatusSchema,
+};
 export const effectiveClassificationSchema = z.object({
   audience: audienceSchema,
   age: ageSchema,
@@ -18,15 +27,6 @@ export const effectiveClassificationSchema = z.object({
   behavioral: riskLevelSchema,
   theology: riskLevelSchema,
 });
-export const scoreSchema = z.object({
-  story: z.number().min(0).max(10).nullable(),
-  characters: z.number().min(0).max(10).nullable(),
-  depth: z.number().min(0).max(10).nullable(),
-  worldBuilding: z.number().min(0).max(10).nullable(),
-  originality: z.number().min(0).max(10).nullable(),
-  craft: z.number().min(0).max(10).nullable(),
-});
-export const awardResultSchema = z.enum(["winner", "nominee"]);
 export const awardRecognitionSchema = z.object({
   id: z.string().uuid(),
   organizationSlug: z.string().min(1),
@@ -81,6 +81,7 @@ export const titleSummarySchema = z.object({
   isPrivate: z.boolean().optional(),
   aliases: z.array(z.string()),
   contentWarnings: z.string().nullable(),
+  analysisNotes: z.string().nullable(),
   genres: z.array(taxonomySchema("genres")),
   tones: z.array(taxonomySchema("tones")),
   tags: z.array(taxonomySchema("tags")),
@@ -108,7 +109,6 @@ export const titleSummarySchema = z.object({
   awards: z.array(awardRecognitionSchema),
 });
 export const titleDetailSchema = titleSummarySchema.extend({
-  analysisNotes: z.string().nullable(),
   installments: z.array(installmentSchema),
   relationships: z.array(
     z.object({
@@ -130,7 +130,7 @@ export const titleDetailSchema = titleSummarySchema.extend({
   ),
 });
 export const adminTitleDetailSchema = titleDetailSchema.extend({
-  workflowStatus: z.enum(["draft", "in_review", "approved", "published", "archived"]),
+  workflowStatus: workflowStatusSchema,
   qualityScore: z.number().int().min(0),
   curatorNotes: z.string(),
   provenance: z.record(z.string(), z.unknown()),
@@ -601,6 +601,76 @@ export const awardOrganizationOptionSchema = z.object({
   categories: z.array(awardCategoryOptionSchema),
 });
 export const awardOptionsSchema = z.array(awardOrganizationOptionSchema);
+export const adminAwardCategorySchema = awardCategoryOptionSchema.extend({
+  description: z.string(),
+  isActive: z.boolean(),
+  recognitionCount: z.number().int().min(0),
+});
+export const adminAwardOrganizationSchema = awardOrganizationOptionSchema
+  .omit({ categories: true })
+  .extend({
+    description: z.string(),
+    logoPath: z.string().nullable(),
+    isActive: z.boolean(),
+    recognitionCount: z.number().int().min(0),
+    workCount: z.number().int().min(0),
+    winnerCount: z.number().int().min(0),
+    nomineeCount: z.number().int().min(0),
+    categories: z.array(adminAwardCategorySchema),
+  });
+export const adminAwardRecognitionSchema = awardRecognitionSchema.extend({
+  organizationId: z.string().uuid().nullable(),
+  categoryId: z.string().uuid().nullable(),
+  titleId: z.string().uuid(),
+  title: z.string(),
+  titleAr: z.string().nullable(),
+  isPrivate: z.boolean(),
+});
+export const adminAwardCeremonySchema = adminAwardCeremonyInputSchema.extend({
+  id: z.string().uuid(),
+});
+export const adminAwardsDocumentSchema = z.object({
+  organizations: z.array(adminAwardOrganizationSchema),
+  recognitions: z.array(adminAwardRecognitionSchema),
+  ceremonies: z.array(adminAwardCeremonySchema),
+});
+export const adminAwardOrganizationInputSchema = z.object({
+  id: z.string().uuid(),
+  slug: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  nameAr: z.string().trim().min(2).max(160),
+  nameEn: z.string().trim().max(160).nullable(),
+  description: z.string().max(4000),
+  websiteUrl: z.string().url().nullable(),
+  logoPath: z.string().nullable(),
+  isActive: z.boolean(),
+});
+export const adminAwardCategoryInputSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().uuid(),
+  slug: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  nameAr: z.string().trim().min(2).max(160),
+  nameEn: z.string().trim().max(160).nullable(),
+  description: z.string().max(4000),
+  isActive: z.boolean(),
+});
+export const adminAwardRecognitionInputSchema = z.object({
+  id: z.string().uuid().optional(),
+  organizationId: z.string().uuid(),
+  categoryId: z.string().uuid(),
+  titleId: z.string().uuid(),
+  installmentId: z.string().uuid().nullable(),
+  year: z.number().int().min(1900).max(2100).nullable(),
+  result: awardResultSchema,
+  isFeatured: z.boolean(),
+  sourceUrl: z.string().url().nullable(),
+  notes: z.string().max(4000).nullable(),
+});
 export const createAwardOrganizationSchema = z.object({
   slug: z
     .string()
@@ -621,13 +691,6 @@ export const createAwardCategorySchema = z.object({
 });
 
 export const collectionVisibilitySchema = z.enum(["private", "family"]);
-export const workflowStatusSchema = z.enum([
-  "draft",
-  "in_review",
-  "approved",
-  "published",
-  "archived",
-]);
 export const archiveRequestKindSchema = z.enum([
   "missing_work",
   "correction",
@@ -825,118 +888,6 @@ export const permissionExplanationSchema = z.object({
   reasons: z.array(z.string()),
 });
 
-export const adminSchemaFieldGuide = {
-  "title.canonicalTitle": {
-    purpose: "Canonical display and sort title",
-    required: true,
-    nullable: false,
-    shape: "string",
-  },
-  "title.titleAr": {
-    purpose: "Preferred Arabic title",
-    required: false,
-    nullable: true,
-    shape: "string | null",
-  },
-  "title.aliases": {
-    purpose: "Searchable alternative titles",
-    required: true,
-    nullable: false,
-    shape: "string[]",
-  },
-  "title.summary": {
-    purpose: "Editorial title summary",
-    required: true,
-    nullable: false,
-    shape: "string",
-  },
-  "title.releaseYear": {
-    purpose: "Four-digit release year",
-    required: false,
-    nullable: true,
-    shape: "integer | null",
-  },
-  "title.isPrivate": {
-    purpose: "Hide title from public catalog",
-    required: true,
-    nullable: false,
-    shape: "boolean",
-  },
-  "title.audience": {
-    purpose: "Default audience classification",
-    required: true,
-    nullable: false,
-    shape: audienceSchema.options.join(" | "),
-  },
-  "title.risks": {
-    purpose: "Default risk levels by dimension",
-    required: true,
-    nullable: false,
-    shape: `{ sexuality | behavioral | theology: ${riskLevelSchema.options.join(" | ")} }`,
-  },
-  "title.curation": {
-    purpose: "Editorial verification state, review date, and curator notes",
-    required: false,
-    nullable: true,
-    shape:
-      "{ reviewedAt: YYYY-MM-DD; status: verified | provisional; notes: string | null } | null",
-  },
-  "title.awards": {
-    purpose: "Title or installment award recognitions",
-    required: true,
-    nullable: false,
-    shape:
-      "Array<{ id; organizationSlug; organizationName; category; year; result; isFeatured; installmentId; sourceUrl; notes }>",
-  },
-  "structure.installments.kind": {
-    purpose: "Installment form",
-    required: true,
-    nullable: false,
-    shape: installmentKindSchema.options.join(" | "),
-  },
-  "structure.installments.status": {
-    purpose: "Factual release state",
-    required: true,
-    nullable: false,
-    shape: installmentStatusSchema.options.join(" | "),
-  },
-  "structure.installments.position": {
-    purpose: "Stable non-negative order",
-    required: true,
-    nullable: false,
-    shape: "integer >= 0",
-  },
-  "structure.installments.releaseDate": {
-    purpose: "ISO calendar date",
-    required: false,
-    nullable: true,
-    shape: "YYYY-MM-DD | null",
-  },
-  "structure.installments.runtimeMinutes": {
-    purpose: "Non-negative runtime",
-    required: false,
-    nullable: true,
-    shape: "integer >= 0 | null",
-  },
-  "structure.installments.episodes.number": {
-    purpose: "Unique episode number within installment",
-    required: true,
-    nullable: false,
-    shape: "positive number",
-  },
-  "structure.installments.episodes.position": {
-    purpose: "Stable non-negative episode order",
-    required: true,
-    nullable: false,
-    shape: "integer >= 0",
-  },
-  "structure.installments.episodes.releaseDate": {
-    purpose: "ISO episode release date",
-    required: false,
-    nullable: true,
-    shape: "YYYY-MM-DD | null",
-  },
-} as const;
 export type TitleSummary = z.infer<typeof titleSummarySchema>;
 export type TitleDetail = z.infer<typeof titleDetailSchema>;
 export type Installment = z.infer<typeof installmentSchema>;
@@ -975,6 +926,10 @@ export type TitleSocial = z.infer<typeof titleSocialSchema>;
 export type FamilyActivity = z.infer<typeof familyActivitySchema>;
 export type Notification = z.infer<typeof notificationSchema>;
 export type AwardOrganizationOption = z.infer<typeof awardOrganizationOptionSchema>;
+export type AdminAwardsDocument = z.infer<typeof adminAwardsDocumentSchema>;
+export type AdminAwardOrganizationInput = z.infer<typeof adminAwardOrganizationInputSchema>;
+export type AdminAwardCategoryInput = z.infer<typeof adminAwardCategoryInputSchema>;
+export type AdminAwardRecognitionInput = z.infer<typeof adminAwardRecognitionInputSchema>;
 export type Collection = z.infer<typeof collectionSchema>;
 export type CollectionItem = z.infer<typeof collectionItemSchema>;
 export type SavedView = z.infer<typeof savedViewSchema>;

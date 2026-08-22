@@ -97,6 +97,7 @@ export interface paths {
                     isPrivate?: boolean;
                     aliases: string[];
                     contentWarnings: string | null;
+                    analysisNotes: string | null;
                     genres: (
                       | "action"
                       | "adventure"
@@ -439,6 +440,7 @@ export interface paths {
               isPrivate?: boolean;
               aliases: string[];
               contentWarnings: string | null;
+              analysisNotes: string | null;
               genres: (
                 | "action"
                 | "adventure"
@@ -657,7 +659,6 @@ export interface paths {
                 sourceUrl: string | null;
                 notes: string | null;
               }[];
-              analysisNotes: string | null;
               installments: {
                 /** Format: uuid */
                 id: string;
