@@ -7,7 +7,6 @@ import {
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { useCurrentAccount } from "@/features/accounts/api";
 import { getAdminEntities, getEntities } from "@/server/library.functions";
 import { getStudioLineage } from "@/server/platform.functions";
@@ -50,7 +49,11 @@ export function StudioPage({ studioId }: { studioId: string }) {
         <div className="mx-auto grid max-w-400 gap-8 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-[13rem_1fr] lg:items-center">
           <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl">
             {studio.imagePath ? (
-              <img src={studio.imagePath} alt="" className="size-full object-contain p-0" />
+              <img
+                src={studio.imagePath}
+                alt=""
+                className="size-full object-contain p-1 rounded-2xl bg-white"
+              />
             ) : (
               <BuildingsIcon size={64} className="text-muted-foreground" />
             )}
@@ -62,12 +65,12 @@ export function StudioPage({ studioId }: { studioId: string }) {
             >
               <ArrowRightIcon /> الرئيسية
             </Link>
-            <p className="mt-8 text-xs font-semibold tracking-[0.16em] text-primary">سجل منظمة</p>
-            <h1 className="mt-3 font-heading text-4xl leading-tight font-semibold sm:text-6xl">
+            <p className="mt-6 text-xs font-semibold tracking-[0.16em] text-primary">سجل منظمة</p>
+            <h1 className="mt-2 font-heading text-4xl leading-tight font-semibold sm:text-6xl">
               {studio.name}
             </h1>
 
-            <p className="mt-6 max-w-3xl text-lg leading-9 text-foreground/75">
+            <p className="mt-4 max-w-3xl text-lg leading-9 text-foreground/75">
               {studio.description ||
                 "لم يُكتب التاريخ التحريري لهذا الاستوديو بعد. يمكن إثراؤه دون حشر العلاقات التاريخية في الوصف."}
             </p>

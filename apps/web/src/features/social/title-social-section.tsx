@@ -55,6 +55,7 @@ import { AccountAvatar } from "@/features/accounts/account-avatar";
 import { useCurrentAccount } from "@/features/accounts/api";
 import { cn } from "@/lib/utils";
 import {
+  deleteComment,
   deleteReview,
   getTitleSocial,
   saveComment,
@@ -183,7 +184,7 @@ export function TitleSocialSection({
     <div className="flex flex-col gap-8">
       {(mode === "all" || mode === "quick") && (
         <div className="flex flex-wrap items-center justify-between gap-5">
-          <div className="min-w-52 flex-1">
+          <div className="min-w-52 flex-1 rounded-2xl border bg-card/45 px-4 py-3">
             <div className="flex flex-wrap items-center gap-3">
               <StarPicker
                 value={reviewRating}
@@ -194,12 +195,14 @@ export function TitleSocialSection({
               />
               {ownReview ? <Badge variant="secondary">مراجعتك منشورة</Badge> : null}
             </div>
-            <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+            <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground">
               {ownReview?.body || "اختر عدد النجوم، ثم أضف انطباعاً اختيارياً."}
             </p>
           </div>
           <Button
             variant={state?.isFavorite ? "default" : "outline"}
+            className="rounded-full"
+            disabled={stateMutation.isPending}
             onClick={() => stateMutation.mutate({ isFavorite: !state?.isFavorite })}
           >
             <HeartIcon data-icon="inline-start" weight={state?.isFavorite ? "fill" : "regular"} />
@@ -314,10 +317,7 @@ export function TitleSocialSection({
             </div>
             {participants.length > 0 ? (
               <div className="flex items-center gap-3">
-                <ul
-                  aria-label={`${participants.length} مشاركون في النقاش`}
-                  className="flex"
-                >
+                <ul aria-label={`${participants.length} مشاركون في النقاش`} className="flex">
                   {participants.map((participant) => (
                     <li key={participant.id} className="-ms-2 first:ms-0">
                       <AccountAvatar
@@ -439,9 +439,15 @@ export function TitleSocialSection({
               {rootComments.map((comment) => (
                 <DiscussionComment
                   key={comment.id}
+                  titleId={titleId}
                   comment={comment}
                   repliesByParent={repliesByParent}
                   spoilerMode={current.data?.account.preferences.spoilerMode ?? "cover"}
+                  currentAccountId={current.data?.account.id}
+                  canModerate={
+                    current.data?.account.role === "owner" ||
+                    current.data?.account.role === "editor"
+                  }
                   onReply={(item) => {
                     setReplyTo(item);
                     setDiscussionComposerOpen(true);
@@ -670,21 +676,36 @@ function ReviewStars({ value }: { value: number }) {
 }
 
 function DiscussionComment({
+  titleId,
   comment,
   spoilerMode,
+  currentAccountId,
+  canModerate = false,
   onReply,
   onChanged,
   repliesByParent,
   depth = 0,
 }: {
+  titleId: string;
   comment: TitleComment;
   spoilerMode: "cover" | "hide" | "show";
+  currentAccountId?: string;
+  canModerate?: boolean;
   onReply: (comment: TitleComment) => void;
   onChanged: () => Promise<unknown>;
   repliesByParent: Map<string, TitleComment[]>;
   depth?: number;
 }) {
   const replies = repliesByParent.get(comment.id) ?? [];
+  const canDelete = canModerate || comment.author.id === currentAccountId;
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteComment(titleId, comment.id),
+    onSuccess: async () => {
+      setDeleteOpen(false);
+      await onChanged();
+    },
+  });
   return (
     <article className={cn("flex gap-3 sm:gap-4", depth > 0 && "ms-5 sm:ms-10")}>
       <AccountAvatar
@@ -717,15 +738,36 @@ function DiscussionComment({
           <Button variant="ghost" size="xs" onClick={() => onReply(comment)}>
             <ArrowBendUpLeftIcon data-icon="inline-start" /> رد
           </Button>
+          {canDelete ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => setDeleteOpen(true)}
+                    aria-label="حذف التعليق"
+                  />
+                }
+              >
+                <TrashIcon />
+              </TooltipTrigger>
+              <TooltipContent>حذف التعليق</TooltipContent>
+            </Tooltip>
+          ) : null}
         </footer>
         {replies.length > 0 ? (
           <div className="mt-4 flex flex-col gap-5 border-s border-border/60 ps-4 sm:ps-5">
             {replies.map((reply) => (
               <DiscussionComment
                 key={reply.id}
+                titleId={titleId}
                 comment={reply}
                 repliesByParent={repliesByParent}
                 spoilerMode={spoilerMode}
+                currentAccountId={currentAccountId}
+                canModerate={canModerate}
                 onReply={onReply}
                 onChanged={onChanged}
                 depth={depth + 1}
@@ -734,6 +776,29 @@ function DiscussionComment({
           </div>
         ) : null}
       </div>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>حذف هذا التعليق؟</DialogTitle>
+            <DialogDescription>
+              {replies.length > 0
+                ? `سيُحذف التعليق وردوده الـ${replies.length} أيضاً. لا يمكن التراجع عن هذا.`
+                : "لا يمكن التراجع عن هذا."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter showCloseButton>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate()}
+            >
+              <TrashIcon data-icon="inline-start" />
+              {deleteMutation.isPending ? "جارٍ الحذف…" : "حذف التعليق"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </article>
   );
 }

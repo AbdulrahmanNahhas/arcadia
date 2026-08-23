@@ -3,41 +3,61 @@ import {
   CheckIcon,
   ClipboardTextIcon,
   DownloadSimpleIcon,
-  ImageIcon,
-  SparkleIcon,
+  MagnifyingGlassIcon,
+  PlusCircleIcon,
+  ScalesIcon,
+  XIcon,
 } from "@phosphor-icons/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { PlatformShell } from "@/features/platform/components/platform-shell";
 import { cn } from "@/lib/utils";
-import { getWorks } from "@/server/library.functions";
+import { getWorkStructures, getWorks } from "@/server/library.functions";
 import { WorkArtwork } from "./components/work-artwork";
 import { kindLabels } from "./filtering";
-import type { Work } from "./model";
+import type { Work, WorkStructure } from "./model";
 import { scoreCriteria, scoreCriterionLabels } from "./scoring";
 
-type CompareView = "overview" | "scores" | "details";
+const MAX_WORKS = 10;
+
+type CompareView = "overview" | "scores" | "installments" | "details";
 
 const compareViewLabels: Record<CompareView, string> = {
   overview: "نظرة عامة",
   scores: "التقييمات",
+  installments: "الأجزاء",
   details: "التفاصيل",
 };
 
-export function ComparePage({ ids }: { ids: string[] }) {
+export function ComparePage({
+  ids,
+  onIdsChange,
+}: {
+  ids: string[];
+  onIdsChange: (ids: string[]) => void;
+}) {
   const { data: allWorks } = useSuspenseQuery({
     queryKey: ["works"],
     queryFn: () => getWorks(),
@@ -52,6 +72,18 @@ export function ComparePage({ ids }: { ids: string[] }) {
       return work ? [work] : [];
     });
   }, [allWorks, ids]);
+
+  const structuresQuery = useQuery({
+    queryKey: ["compare-structures", works.map((work) => work.id).join(",")],
+    queryFn: () => getWorkStructures({ data: { workIds: works.map((work) => work.id) } }),
+    enabled: works.length >= 2,
+  });
+
+  const addWork = (id: string) => {
+    if (ids.includes(id) || ids.length >= MAX_WORKS) return;
+    onIdsChange([...ids, id]);
+  };
+  const removeWork = (id: string) => onIdsChange(ids.filter((existing) => existing !== id));
 
   const handleExport = async (kind: "download" | "copy") => {
     const blob = await createComparisonPng(works);
@@ -74,112 +106,261 @@ export function ComparePage({ ids }: { ids: string[] }) {
     }
   };
 
-  if (works.length < 2) {
-    return <CompareEmpty />;
-  }
+  const canCompare = works.length >= 2;
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="mx-auto flex max-w-[1560px] flex-col gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
-        <header className="flex flex-col gap-5 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <Link
-              to="/browse"
-              className={cn(buttonVariants({ variant: "outline", size: "icon" }), "shrink-0")}
-              aria-label="العودة إلى المكتبة"
-            >
-              <ArrowRightIcon />
-            </Link>
+    <PlatformShell>
+      <section className="archive-grid border-b border-white/8">
+        <div className="mx-auto max-w-400 px-5 pb-10 pt-28 sm:px-8 sm:pt-36">
+          <Link
+            to="/browse"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowRightIcon /> المكتبة
+          </Link>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <SparkleIcon />
-                لوح المقارنة
+              <p className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.18em] text-primary">
+                <ScalesIcon /> لوح المقارنة
               </p>
-              <h1 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+              <h1 className="mt-3 font-heading text-4xl font-semibold sm:text-5xl">
                 قارن اختياراتك
               </h1>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {works.length} أعمال، بالترتيب الذي اخترته في المكتبة.
+              <p className="mt-3 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
+                أضف حتى {MAX_WORKS} أعمال من المكتبة، وقارن تقييماتها وأجزاءها وتفاصيلها جنباً إلى
+                جنب.
               </p>
             </div>
+            <Badge variant="outline" className="h-9 gap-1.5 px-3 text-sm">
+              {works.length} / {MAX_WORKS} أعمال
+            </Badge>
           </div>
+        </div>
+      </section>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <ToggleGroup
-              value={[view]}
-              onValueChange={(value) => {
-                const next = value.at(-1) as CompareView | undefined;
-                if (next) setView(next);
-              }}
-              variant="outline"
-              spacing={0}
-              aria-label="طريقة عرض المقارنة"
-            >
-              {(Object.keys(compareViewLabels) as CompareView[]).map((mode) => (
-                <ToggleGroupItem key={mode} value={mode} size="sm">
-                  {compareViewLabels[mode]}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-            <Button variant="outline" size="sm" onClick={() => void handleExport("copy")}>
-              {exportState === "copied" ? (
-                <CheckIcon data-icon="inline-start" />
-              ) : (
-                <ClipboardTextIcon data-icon="inline-start" />
-              )}
-              {exportState === "copied" ? "نُسخت الصورة" : "نسخ صورة"}
-            </Button>
-            <Button size="sm" onClick={() => void handleExport("download")}>
-              <DownloadSimpleIcon data-icon="inline-start" />
-              تنزيل PNG
-            </Button>
-          </div>
-        </header>
-
-        <section className="overflow-x-auto pb-4" aria-label="الأعمال المختارة">
-          <div
-            className="grid min-w-max gap-4"
-            style={{ gridTemplateColumns: `repeat(${works.length}, minmax(230px, 1fr))` }}
-          >
+      <main className="mx-auto flex max-w-400 flex-col gap-6 px-5 py-8 sm:px-8">
+        <section
+          aria-label="الأعمال المختارة"
+          className="scroll-fade-x -mx-5 overflow-x-auto px-5 pb-2 sm:-mx-8 sm:px-8"
+        >
+          <div className="flex min-w-max gap-4">
             {works.map((work, index) => (
-              <WorkCompareCard key={work.id} work={work} order={index + 1} />
+              <WorkCompareCard
+                key={work.id}
+                work={work}
+                order={index + 1}
+                onRemove={() => removeWork(work.id)}
+              />
             ))}
+            {works.length < MAX_WORKS ? (
+              <WorkPickerDialog
+                allWorks={allWorks}
+                excludeIds={new Set(ids)}
+                remaining={MAX_WORKS - works.length}
+                onAdd={addWork}
+              />
+            ) : null}
           </div>
         </section>
 
-        {view === "overview" && <Overview works={works} />}
-        {view === "scores" && <ScoreMatrix works={works} />}
-        {view === "details" && <DetailsMatrix works={works} />}
+        {canCompare ? (
+          <>
+            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-5">
+              <ToggleGroup
+                value={[view]}
+                onValueChange={(value) => {
+                  const next = value.at(-1) as CompareView | undefined;
+                  if (next) setView(next);
+                }}
+                variant="outline"
+                spacing={0}
+                aria-label="طريقة عرض المقارنة"
+              >
+                {(Object.keys(compareViewLabels) as CompareView[]).map((mode) => (
+                  <ToggleGroupItem key={mode} value={mode} size="sm">
+                    {compareViewLabels[mode]}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => void handleExport("copy")}>
+                  {exportState === "copied" ? (
+                    <CheckIcon data-icon="inline-start" />
+                  ) : (
+                    <ClipboardTextIcon data-icon="inline-start" />
+                  )}
+                  {exportState === "copied" ? "نُسخت الصورة" : "نسخ صورة"}
+                </Button>
+                <Button size="sm" onClick={() => void handleExport("download")}>
+                  <DownloadSimpleIcon data-icon="inline-start" />
+                  تنزيل PNG
+                </Button>
+              </div>
+            </header>
+
+            {view === "overview" && <Overview works={works} />}
+            {view === "scores" && <ScoreMatrix works={works} />}
+            {view === "installments" && (
+              <InstallmentsMatrix works={works} structures={structuresQuery.data} />
+            )}
+            {view === "details" && <DetailsMatrix works={works} />}
+          </>
+        ) : (
+          <Empty className="min-h-64 border border-dashed border-white/10">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <ScalesIcon />
+              </EmptyMedia>
+              <EmptyTitle>
+                {works.length === 0 ? "أضف عملين على الأقل" : "أضف عملاً واحداً آخر"}
+              </EmptyTitle>
+              <EmptyDescription>
+                استخدم بطاقة «أضف عملاً» أعلاه للبحث في المكتبة، ثم شاهد المقارنة تُبنى تلقائياً.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
       </main>
-    </div>
+    </PlatformShell>
   );
 }
 
-function WorkCompareCard({ work, order }: { work: Work; order: number }) {
+function WorkPickerDialog({
+  allWorks,
+  excludeIds,
+  remaining,
+  onAdd,
+}: {
+  allWorks: Work[];
+  excludeIds: Set<string>;
+  remaining: number;
+  onAdd: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const results = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase();
+    return allWorks
+      .filter((work) => !excludeIds.has(work.id))
+      .filter((work) =>
+        needle
+          ? [work.title, work.arabicTitle ?? ""].join(" ").toLocaleLowerCase().includes(needle)
+          : true,
+      )
+      .slice(0, 40);
+  }, [allWorks, excludeIds, query]);
+
   return (
-    <Card className="gap-4 py-4 shadow-sm">
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setQuery("");
+      }}
+    >
+      <DialogTrigger
+        render={
+          <button
+            type="button"
+            className="flex h-full min-h-64 w-44 shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border/60 text-muted-foreground outline-none transition hover:border-primary/40 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring sm:w-56"
+          />
+        }
+      >
+        <PlusCircleIcon className="size-8" weight="duotone" />
+        <span className="text-sm font-medium">أضف عملاً</span>
+        <span className="text-xs">متبقٍ {remaining}</span>
+      </DialogTrigger>
+      <DialogContent className="max-h-[85svh] max-w-lg gap-0 overflow-hidden p-0">
+        <DialogHeader className="p-5 pb-0 text-start">
+          <DialogTitle>أضف عملاً للمقارنة</DialogTitle>
+          <DialogDescription>حتى {MAX_WORKS} أعمال في اللوح نفسه.</DialogDescription>
+        </DialogHeader>
+        <div className="p-5">
+          <InputGroup>
+            <InputGroupAddon>
+              <MagnifyingGlassIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              autoFocus
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="ابحث عن عمل بالاسم…"
+            />
+          </InputGroup>
+        </div>
+        <div className="flex max-h-96 flex-col gap-1 overflow-y-auto px-5 pb-5">
+          {results.map((work) => (
+            <button
+              key={work.id}
+              type="button"
+              onClick={() => {
+                onAdd(work.id);
+                setOpen(false);
+                setQuery("");
+              }}
+              className="flex items-center gap-3 rounded-xl p-2 text-start outline-none transition hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <WorkArtwork
+                work={work}
+                compact
+                showType={false}
+                showRating={false}
+                className="w-10"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">
+                  {work.arabicTitle || work.title}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {kindLabels[work.kind]} · {work.year ?? "—"}
+                </span>
+              </span>
+              <PlusCircleIcon className="shrink-0 text-muted-foreground" />
+            </button>
+          ))}
+          {!results.length ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">لا نتائج مطابقة.</p>
+          ) : null}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function WorkCompareCard({
+  work,
+  order,
+  onRemove,
+}: {
+  work: Work;
+  order: number;
+  onRemove: () => void;
+}) {
+  return (
+    <Card className="relative w-44 shrink-0 gap-4 py-4 shadow-sm sm:w-56">
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        className="absolute end-2 top-2 z-10 rounded-full bg-background/80 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
+        aria-label={`إزالة ${work.arabicTitle || work.title} من المقارنة`}
+        onClick={onRemove}
+      >
+        <XIcon />
+      </Button>
       <CardHeader className="gap-3 px-4">
         <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
           <span>الاختيار {toArabicNumber(order)}</span>
           <Badge variant="secondary">{kindLabels[work.kind]}</Badge>
         </div>
-        <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3">
-          <WorkArtwork
-            work={work}
-            showType={false}
-            showRating={false}
-            compact
-            className="w-18 shadow-sm"
-          />
-          <div className="min-w-0 py-1">
-            <CardTitle className="line-clamp-2 leading-snug">
-              {work.arabicTitle || work.title}
-            </CardTitle>
-            <CardDescription className="mt-1 truncate">
-              {work.creator || "الصنّاع غير مسجلين"}
-            </CardDescription>
-            <p className="mt-2 text-xs text-muted-foreground">{work.year ?? "سنة غير معروفة"}</p>
-          </div>
+        <WorkArtwork work={work} showType={false} showRating={false} compact className="w-full" />
+        <div className="min-w-0">
+          <CardTitle className="line-clamp-2 leading-snug">
+            {work.arabicTitle || work.title}
+          </CardTitle>
+          <CardDescription className="mt-1 truncate">
+            {work.creator || "الصنّاع غير مسجلين"}
+          </CardDescription>
+          <p className="mt-2 text-xs text-muted-foreground">{work.year ?? "سنة غير معروفة"}</p>
         </div>
       </CardHeader>
       <CardContent className="px-4">
@@ -295,6 +476,81 @@ function ScoreRow({
   );
 }
 
+function InstallmentsMatrix({
+  works,
+  structures,
+}: {
+  works: Work[];
+  structures: WorkStructure[] | undefined;
+}) {
+  const byWorkId = new Map((structures ?? []).map((structure) => [structure.workId, structure]));
+  const rows: Array<{ label: string; value: (work: Work) => string }> = [
+    {
+      label: "عدد الأجزاء",
+      value: (work) => String(byWorkId.get(work.id)?.seasons.length ?? 0),
+    },
+    {
+      label: "إجمالي الحلقات",
+      value: (work) => String(byWorkId.get(work.id)?.totalUnits ?? 0),
+    },
+    {
+      label: "آخر جزء مسجّل",
+      value: (work) => byWorkId.get(work.id)?.seasons.at(-1)?.title || "—",
+    },
+    {
+      label: "تقييم آخر جزء",
+      value: (work) => {
+        const rating = byWorkId.get(work.id)?.seasons.at(-1)?.rating;
+        return rating != null ? rating.toFixed(1) : "—";
+      },
+    },
+  ];
+  return (
+    <Card className="shadow-sm">
+      <CardHeader>
+        <CardTitle>بنية الأجزاء</CardTitle>
+        <CardDescription>عدد الأجزاء والحلقات، وآخر جزء مسجّل لكل عمل.</CardDescription>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        {structures ? (
+          <div className="min-w-170">
+            <div
+              className="grid gap-x-4"
+              style={{ gridTemplateColumns: `150px repeat(${works.length}, minmax(150px, 1fr))` }}
+            >
+              <div />
+              {works.map((work) => (
+                <p key={work.id} className="border-b pb-3 text-sm font-medium">
+                  {work.arabicTitle || work.title}
+                </p>
+              ))}
+              {rows.flatMap((row) => {
+                const cells = [
+                  <p
+                    key={`${row.label}-label`}
+                    className="border-b py-3 text-sm text-muted-foreground"
+                  >
+                    {row.label}
+                  </p>,
+                ];
+                for (const work of works)
+                  cells.push(
+                    <p key={`${row.label}-${work.id}`} className="border-b py-3 text-sm leading-6">
+                      {row.value(work)}
+                    </p>,
+                  );
+                return cells;
+              })}
+            </div>
+          </div>
+        ) : (
+          <p className="py-8 text-center text-sm text-muted-foreground">جارٍ تحميل بنية الأجزاء…</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function DetailsMatrix({ works }: { works: Work[] }) {
   const rows: Array<{ label: string; value: (work: Work) => string }> = [
     { label: "النوع", value: (work) => kindLabels[work.kind] },
@@ -330,44 +586,27 @@ function DetailsMatrix({ works }: { works: Work[] }) {
                 {work.arabicTitle || work.title}
               </p>
             ))}
-            {rows.flatMap((row) => [
-              <p key={`${row.label}-label`} className="border-b py-3 text-sm text-muted-foreground">
-                {row.label}
-              </p>,
-              ...works.map((work) => (
-                <p key={`${row.label}-${work.id}`} className="border-b py-3 text-sm leading-6">
-                  {row.value(work)}
-                </p>
-              )),
-            ])}
+            {rows.flatMap((row) => {
+              const cells = [
+                <p
+                  key={`${row.label}-label`}
+                  className="border-b py-3 text-sm text-muted-foreground"
+                >
+                  {row.label}
+                </p>,
+              ];
+              for (const work of works)
+                cells.push(
+                  <p key={`${row.label}-${work.id}`} className="border-b py-3 text-sm leading-6">
+                    {row.value(work)}
+                  </p>,
+                );
+              return cells;
+            })}
           </div>
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function CompareEmpty() {
-  return (
-    <main className="mx-auto flex min-h-screen max-w-xl items-center px-4">
-      <Empty className="border-border bg-card">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <ImageIcon />
-          </EmptyMedia>
-          <EmptyTitle>اختر عملين للمقارنة</EmptyTitle>
-          <EmptyDescription>
-            افتح تفاصيل أي عمل في المكتبة، ثم استخدم زر «اختيار» في أعلى النافذة.
-          </EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent>
-          <Link to="/browse" className={buttonVariants()}>
-            العودة إلى المكتبة
-            <ArrowRightIcon data-icon="inline-end" />
-          </Link>
-        </EmptyContent>
-      </Empty>
-    </main>
   );
 }
 
@@ -376,7 +615,7 @@ function highestScore(works: Work[], criterion: (typeof scoreCriteria)[number]) 
     const value = work.scoreComponents[criterion];
     return value === undefined ? [] : [{ work, value }];
   });
-  return candidates.sort((left, right) => right.value - left.value)[0];
+  return candidates.toSorted((left, right) => right.value - left.value)[0];
 }
 
 function toArabicNumber(value: number) {
@@ -451,8 +690,8 @@ function loadCanvasImage(path: string | null) {
   if (!path) return Promise.resolve<HTMLImageElement | null>(null);
   return new Promise<HTMLImageElement | null>((resolve) => {
     const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => resolve(null);
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", () => resolve(null));
     image.src = path;
   });
 }

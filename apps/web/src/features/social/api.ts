@@ -47,6 +47,12 @@ export function saveComment(
   });
 }
 
+export function deleteComment(titleId: string, commentId: string) {
+  return apiFetch<{ deleted: boolean }>(`/api/v1/titles/${titleId}/comments/${commentId}`, {
+    method: "DELETE",
+  });
+}
+
 export function toggleReaction(
   kind: "review" | "comment",
   objectId: string,

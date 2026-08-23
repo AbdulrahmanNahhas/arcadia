@@ -171,29 +171,12 @@ function TopBadges({ work, mode = "always" }: { work: Work; mode?: "always" | "h
       {audienceLabel ? <Pill>{audienceLabel}</Pill> : <span />}
 
       <div className="flex items-center gap-1.5">
-        {/*{work.calculatedRating !== null && (
+        {work.calculatedRating !== null && (
           <Pill className="font-semibold">
             <StarIcon weight="fill" className="size-3 text-amber-300" />
             {work.calculatedRating.toFixed(1)}
           </Pill>
-        )}*/}
-
-        {(work?.awards ?? [])
-          .filter((item) => item?.installmentTitle === work?.installmentTitle)
-          .map((item) => (
-            <Pill
-              key={item.id}
-              className={cn("font-semibold", item.result === "winner" && "bg-amber-800/65")}
-            >
-              {item.result === "winner" ? (
-                <StarIcon weight="fill" className="size-3 text-amber-300" />
-              ) : (
-                <StarIcon weight="fill" className="size-3 text-foreground" />
-              )}
-
-              {item.result === "winner" ? "فائز" : "مرشح"}
-            </Pill>
-          ))}
+        )}
       </div>
     </div>
   );

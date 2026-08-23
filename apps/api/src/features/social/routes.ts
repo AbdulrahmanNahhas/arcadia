@@ -261,6 +261,20 @@ socialRoutes.post("/api/v1/titles/:titleId/comments", async (context) => {
   return context.json({ id: String(row?.id) }, 201);
 });
 
+socialRoutes.delete("/api/v1/titles/:titleId/comments/:commentId", async (context) => {
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
+  const { titleId, commentId } = context.req.param();
+  const isModerator = current.account.role === "owner" || current.account.role === "editor";
+  const result = isModerator
+    ? await database().client`delete from title_comments
+        where id=${commentId} and title_id=${titleId}`
+    : await database().client`delete from title_comments
+        where id=${commentId} and title_id=${titleId} and account_id=${current.account.id}`;
+  if (!result.count) return context.json({ message: "لا يمكنك حذف هذا التعليق." }, 404);
+  return context.json({ deleted: true });
+});
+
 async function toggleReaction(
   kind: "review" | "comment",
   objectId: string,

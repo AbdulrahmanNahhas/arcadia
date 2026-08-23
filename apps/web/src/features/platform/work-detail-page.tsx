@@ -5,24 +5,34 @@ import {
   CheckCircleIcon,
   ClockIcon,
   DatabaseIcon,
+  FilmSlateIcon,
   FilmStripIcon,
   HeartIcon,
   InfoIcon,
   PlayIcon,
   RowsIcon,
+  SparkleIcon,
   StarIcon,
   TelevisionIcon,
+  TrendUpIcon,
   TrophyIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +51,7 @@ import type { Entity, Work, WorkStructure } from "@/features/library/model";
 import { scoreCriteria, scoreLabel, scoreWeights } from "@/features/library/scoring";
 import { useArabicTranslations } from "@/features/library/translations";
 import type { Recommendation, RiskAssessment } from "@/features/platform/model";
+import { getTitleSocial, socialKeys, updateTitleState } from "@/features/social/api";
 import { TitleSocialSection } from "@/features/social/title-social-section";
 import { cn } from "@/lib/utils";
 import { getEntities } from "@/server/library.functions";
@@ -237,7 +248,7 @@ export function WorkDetailPage({
             )}
 
             <TabsContent value="scores" className="mt-0 focus-visible:outline-none">
-              <ScoreSection work={work} />
+              <ScoreSection work={work} structure={structure} />
             </TabsContent>
 
             {!work.isPrivate && (
@@ -283,12 +294,18 @@ export function WorkDetailPage({
 // Hero
 // ---------------------------------------------------------------------------
 
-function Dot() {
-  return (
-    <span aria-hidden className="text-foreground/25">
-      •
-    </span>
-  );
+/** Resolves a YouTube URL (watch/short/embed) to an embeddable URL, or null if it isn't one. */
+function youtubeEmbedUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "youtu.be") return `https://www.youtube.com/embed${parsed.pathname}`;
+    if (!parsed.hostname.endsWith("youtube.com")) return null;
+    if (parsed.pathname.startsWith("/embed/")) return url;
+    const id = parsed.searchParams.get("v");
+    return id ? `https://www.youtube.com/embed/${id}` : null;
+  } catch {
+    return null;
+  }
 }
 
 function WorkHero({
@@ -305,6 +322,22 @@ function WorkHero({
     work.awards.find((recognition) => recognition.isFeatured) ??
     work.awards.find((recognition) => recognition.result === "winner") ??
     work.awards[0];
+
+  const queryClient = useQueryClient();
+  const social = useQuery({
+    queryKey: socialKeys.title(work.id),
+    queryFn: () => getTitleSocial(work.id),
+  });
+  const isFavorite = social.data?.state?.isFavorite ?? false;
+  const favoriteMutation = useMutation({
+    mutationFn: (next: boolean) => updateTitleState(work.id, { isFavorite: next }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: socialKeys.title(work.id) }),
+  });
+
+  const trailerLink = work.externalLinks.find((link) =>
+    /trailer|إعلان|يوتيوب|youtube/i.test(`${link.provider} ${link.label}`),
+  );
+  const trailerEmbedUrl = trailerLink ? youtubeEmbedUrl(trailerLink.url) : null;
 
   return (
     <>
@@ -412,12 +445,63 @@ function WorkHero({
               >
                 <PlayIcon weight="fill" data-icon="inline-start rotate-90" /> ابدأ بالمشاهدة
               </Button>
+
+              {trailerLink ? (
+                trailerEmbedUrl ? (
+                  <Dialog>
+                    <DialogTrigger
+                      render={
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className="border-white/25 bg-white/10 font-semibold backdrop-blur-md hover:bg-white/20"
+                        />
+                      }
+                    >
+                      <FilmSlateIcon weight="fill" data-icon="inline-start" /> شاهد الإعلان
+                    </DialogTrigger>
+                    <DialogContent
+                      showCloseButton={false}
+                      className="max-w-3xl! gap-0 overflow-hidden rounded-2xl p-0"
+                    >
+                      <div className="aspect-video bg-black">
+                        <iframe
+                          src={trailerEmbedUrl}
+                          title="الإعلان الرسمي"
+                          allow="autoplay; encrypted-media; picture-in-picture"
+                          allowFullScreen
+                          sandbox="allow-scripts allow-presentation allow-popups"
+                          className="size-full"
+                        />
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                ) : (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-white/25 bg-white/10 font-semibold backdrop-blur-md hover:bg-white/20"
+                    nativeButton={false}
+                    render={<a href={trailerLink.url} target="_blank" rel="noreferrer" />}
+                  >
+                    <FilmSlateIcon weight="fill" data-icon="inline-start" /> شاهد الإعلان
+                  </Button>
+                )
+              ) : null}
+
               <Button
                 size="icon-lg"
                 variant="outline"
-                className="border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20"
+                aria-label={isFavorite ? "إزالة من المفضلة" : "أضف إلى المفضلة"}
+                aria-pressed={isFavorite}
+                disabled={favoriteMutation.isPending}
+                onClick={() => favoriteMutation.mutate(!isFavorite)}
+                className={cn(
+                  "border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20",
+                  isFavorite && "border-primary/60 bg-primary/25 text-primary hover:bg-primary/35",
+                )}
               >
-                <HeartIcon />
+                <HeartIcon weight={isFavorite ? "fill" : "regular"} />
               </Button>
             </div>
           </div>
@@ -435,18 +519,23 @@ function WorkHero({
           work.isPrivate && "max-w-200",
         )}
       >
-        <div className="overflow-hidden rounded-2xl border bg-background/80 shadow-2xl shadow-black/20 backdrop-blur-xl">
-          <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div>
-              <p className="text-sm font-semibold sm:text-base">مساحتك مع العمل</p>
-              <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">
-                قيّم، احفظ، أو شارك العنوان مع العائلة.
-              </p>
+        <div className="overflow-hidden rounded-3xl border bg-background/85 shadow-2xl shadow-black/25 backdrop-blur-xl">
+          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+                <SparkleIcon weight="duotone" className="size-5" />
+              </span>
+              <div>
+                <p className="font-heading text-base font-semibold sm:text-lg">مساحتك مع العمل</p>
+                <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+                  قيّم، احفظ، أو شارك العنوان مع العائلة.
+                </p>
+              </div>
             </div>
             <WorkFamilyActions titleId={work.id} title={work.arabicTitle || work.title} />
           </div>
           {!work.isPrivate && (
-            <div className="p-4 sm:p-5">
+            <div className="border-t bg-muted/10 p-5 sm:p-6">
               <TitleSocialSection titleId={work.id} mode="quick" />
             </div>
           )}
@@ -1136,13 +1225,86 @@ function SimilarSection({ recommendations }: { recommendations: Recommendation[]
 // Scores tab
 // ---------------------------------------------------------------------------
 
-function ScoreSection({ work }: { work: Work }) {
+const scoreTrendChartConfig = {
+  rating: { label: "التقييم", color: "var(--chart-1)" },
+} satisfies ChartConfig;
+
+function ScoreTrendCard({
+  data,
+}: {
+  data: Array<{ label: string; fullLabel: string; rating: number }>;
+}) {
+  const delta = (data.at(-1)?.rating ?? 0) - (data[0]?.rating ?? 0);
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between border-b">
+        <div>
+          <CardTitle>تطوّر التقييم عبر الأجزاء</CardTitle>
+          <CardDescription>تقييم كل جزء، بترتيب صدوره.</CardDescription>
+        </div>
+        {Math.abs(delta) >= 0.05 ? (
+          <Badge variant={delta > 0 ? "default" : "destructive"} className="gap-1 font-mono">
+            <TrendUpIcon weight="bold" className={delta < 0 ? "-scale-y-100" : undefined} />
+            {delta > 0 ? "+" : ""}
+            {delta.toFixed(1)}
+          </Badge>
+        ) : null}
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={scoreTrendChartConfig} className="max-h-64 w-full">
+          <AreaChart data={data} margin={{ right: 8 }}>
+            <defs>
+              <linearGradient id="score-trend-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--color-rating)" stopOpacity={0.45} />
+                <stop offset="95%" stopColor="var(--color-rating)" stopOpacity={0.03} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} />
+            <YAxis domain={[0, 10]} tickLine={false} axisLine={false} width={28} />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(_, payload) => payload?.[0]?.payload?.fullLabel ?? ""}
+                />
+              }
+            />
+            <Area
+              dataKey="rating"
+              type="monotone"
+              fill="url(#score-trend-fill)"
+              stroke="var(--color-rating)"
+              strokeWidth={2}
+              dot={{ r: 3, fill: "var(--color-rating)" }}
+              activeDot={{ r: 5 }}
+            />
+          </AreaChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ScoreSection({ work, structure }: { work: Work; structure: WorkStructure }) {
   const availableCriteria = scoreCriteria.filter(
     (criterion) => work.scoreComponents[criterion] !== undefined,
   );
+  const trendData = structure.seasons
+    .filter((season): season is typeof season & { rating: number } => season.rating != null)
+    .toSorted((a, b) => a.position - b.position)
+    .map((season, index) => ({
+      label:
+        season.installmentKind === "season"
+          ? `م${season.seasonNumber ?? index + 1}`
+          : `#${index + 1}`,
+      fullLabel: season.title,
+      rating: season.rating,
+    }));
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
+      {trendData.length >= 2 ? <ScoreTrendCard data={trendData} /> : null}
+
       {availableCriteria.length === 0 ? (
         <Empty className="border border-border/40 bg-card/30">
           <EmptyHeader>

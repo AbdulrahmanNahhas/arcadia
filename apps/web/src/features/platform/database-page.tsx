@@ -169,7 +169,7 @@ export function DatabasePage() {
   const [sort, setSort] = useState<CatalogSort>("newest");
   const [view, setView] = useState<CatalogView>("poster");
   const [density, setDensity] = useState<CatalogDensity>("balanced");
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(createCatalogFilters);
 
   const catalogWorks = useMemo(() => {
@@ -217,8 +217,8 @@ export function DatabasePage() {
   };
 
   return (
-    <PlatformShell immersive>
-      <section className="relative isolate overflow-hidden border-b border-white/8">
+    <PlatformShell immersive={false}>
+      {/* <section className="relative isolate overflow-hidden border-b border-white/8">
         <div className="archive-grid absolute inset-0 -z-10 opacity-30" />
         <div className="absolute inset-x-0 top-0 -z-20 h-72 bg-linear-to-b from-primary/12 to-transparent" />
         <div className="mx-auto max-w-400 px-5 pb-10 pt-28 sm:px-8 sm:pt-36">
@@ -238,9 +238,9 @@ export function DatabasePage() {
             </div>
           </div>
         </div>
-      </section>
+      </section>*/}
 
-      <section className="mx-auto max-w-400 px-5 pb-28 pt-7 sm:px-8">
+      <section className="mx-auto max-w-400 px-5 pb-12 pt-7 sm:px-8">
         <div className="mb-6 flex flex-col gap-3 rounded-3xl border bg-card/35 p-3 shadow-sm backdrop-blur-xl">
           <div className="flex flex-col gap-3 md:flex-row">
             <InputGroup className="min-w-0 flex-1">
@@ -313,6 +313,7 @@ export function DatabasePage() {
                 <ToggleGroupItem value="titles">العناوين</ToggleGroupItem>
                 <ToggleGroupItem value="installments">المواسم والإصدارات</ToggleGroupItem>
               </ToggleGroup>
+              <Badge variant="outline">{visibleWorks.length} نتيجة الآن</Badge>
               {isAdmin ? <Badge variant="outline">وضع المدير</Badge> : null}
               {activeFilterCount ? (
                 <Button variant="ghost" size="sm" onClick={resetFilters}>

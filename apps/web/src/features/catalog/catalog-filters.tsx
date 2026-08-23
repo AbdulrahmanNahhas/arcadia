@@ -168,7 +168,7 @@ function CatalogFilterContent(props: CatalogFiltersProps) {
     }));
 
   return (
-    <div className="flex flex-col px-5 pb-6">
+    <div className="flex flex-col px-5 pb-0">
       <FilterSection
         title="العمل والإصدار"
         description="النوع وحالة العمل المحسوبة من أجزائه ومستوى العرض"
@@ -416,9 +416,6 @@ function CatalogFilterContent(props: CatalogFiltersProps) {
               الخاصة
             </ToggleGroupItem>
           </ToggleGroup>
-          <p className="text-[11px] leading-5 text-muted-foreground">
-            الافتراضي يستبعد الأعمال الخاصة. اختر «الكل» لتضمينها أو «الخاصة» لحصر النتائج فيها.
-          </p>
         </FilterSection>
       ) : null}
     </div>

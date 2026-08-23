@@ -32,7 +32,6 @@ export function EntityDialog({
   const FallbackIcon = isStudio ? BuildingsIcon : UserIcon;
 
   const categoryLabel = isStudio ? "استوديو / منظمة" : "شخصية منتقاة";
-  const defaultAltName = isStudio ? "سجل مؤسسي من أرشيف نحّاسينما" : "سجل شخص من أرشيف نحّاسينما";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -61,7 +60,12 @@ export function EntityDialog({
                 )}
               >
                 {entity.imagePath ? (
-                  <img src={entity.imagePath} alt="" className="size-full object-cover" />
+                  <img
+                    src={entity.imagePath}
+                    alt=""
+                    decoding="async"
+                    className="size-full object-contain bg-white"
+                  />
                 ) : (
                   <FallbackIcon size={28} className="text-muted-foreground" />
                 )}
@@ -71,15 +75,12 @@ export function EntityDialog({
                   {categoryLabel}
                 </div>
                 <DialogTitle className="text-2xl leading-tight">{entity.name}</DialogTitle>
-                <DialogDescription className="mt-1">{defaultAltName}</DialogDescription>
+                <DialogDescription className="mt-1">
+                  {entity.description || "لم يُضف وصف تحريري لهذا السجل بعد."}
+                </DialogDescription>
               </div>
             </div>
           </DialogHeader>
-
-          {/* Description */}
-          <p className="mt-6 leading-7 text-muted-foreground">
-            {entity.description || "لم يُضف وصف تحريري لهذا السجل بعد."}
-          </p>
 
           {/* Stats */}
           <dl className="mt-6 grid grid-cols-2 gap-3 sm:max-w-xs">
@@ -98,25 +99,34 @@ export function EntityDialog({
           {/* Featured Works */}
           {entity.works.length > 0 && (
             <div className="mt-6">
-              <h3 className="mb-3 font-heading text-sm font-semibold">أعمال بارزة</h3>
+              <h3 className="mb-3 font-heading text-sm font-semibold">آخر الأعمال</h3>
               <div className="flex gap-3 overflow-x-auto pb-2">
-                {entity.works.slice(0, 6).map((work) => (
-                  <Link
-                    key={work.id}
-                    to="/titles/$titleId"
-                    params={{ titleId: work.id }}
-                    className="w-24 shrink-0"
-                  >
-                    <div className="aspect-2/3 overflow-hidden rounded-lg bg-muted">
-                      {work.imagePath && (
-                        <img src={work.imagePath} alt="" className="size-full object-cover" />
-                      )}
-                    </div>
-                    <span className="mt-1.5 block truncate text-xs">
-                      {work.arabicTitle || work.title}
-                    </span>
-                  </Link>
-                ))}
+                {[...entity.works]
+                  .sort((a, b) => (b.year ?? 0) - (a.year ?? 0))
+                  .slice(0, 6)
+                  .map((work) => (
+                    <Link
+                      key={work.id}
+                      to="/titles/$titleId"
+                      params={{ titleId: work.id }}
+                      className="w-24 shrink-0"
+                    >
+                      <div className="aspect-2/3 overflow-hidden rounded-lg bg-muted">
+                        {work.imagePath && (
+                          <img
+                            src={work.imagePath}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="size-full object-cover"
+                          />
+                        )}
+                      </div>
+                      <span className="mt-1.5 block truncate text-xs">
+                        {work.arabicTitle || work.title}
+                      </span>
+                    </Link>
+                  ))}
               </div>
             </div>
           )}

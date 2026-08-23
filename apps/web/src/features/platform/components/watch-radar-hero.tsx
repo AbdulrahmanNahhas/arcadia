@@ -1,4 +1,4 @@
-import { CompassIcon, PlayIcon, SparkleIcon, StarIcon } from "@phosphor-icons/react";
+import { CompassIcon, PlayIcon, StarIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -17,26 +17,19 @@ function radarStatus(work: Work) {
 
 export function WatchRadarHero({ works }: { works: Work[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isPointerInside, setIsPointerInside] = useState(false);
-  const [isFocusInside, setIsFocusInside] = useState(false);
   const work = works[activeIndex] ?? works[0];
-  const isPaused = isPointerInside || isFocusInside;
 
   useEffect(() => {
-    if (
-      works.length < 2 ||
-      isPaused ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
+    if (works.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       return;
     }
 
     const timeout = window.setTimeout(() => {
       setActiveIndex((activeIndex + 1) % works.length);
-    }, 7_000);
+    }, 20_000);
 
     return () => window.clearTimeout(timeout);
-  }, [activeIndex, isPaused, works.length]);
+  }, [activeIndex, works.length]);
 
   if (!work) {
     return (
@@ -52,16 +45,7 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
   }
 
   return (
-    <section
-      className="relative isolate min-h-[92svh] overflow-hidden sm:min-h-[96svh]"
-      aria-label="رادار المشاهدة"
-      onPointerEnter={() => setIsPointerInside(true)}
-      onPointerLeave={() => setIsPointerInside(false)}
-      onFocusCapture={() => setIsFocusInside(true)}
-      onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setIsFocusInside(false);
-      }}
-    >
+    <section className="relative isolate min-h-[92svh] overflow-hidden sm:min-h-[96svh]">
       {works.map((candidate, index) => {
         const artwork = candidate.bannerPath || candidate.imagePath;
         return artwork ? (
@@ -102,15 +86,11 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
         </div>
       ) : null}
 
-      <div className="relative mx-auto flex min-h-[92svh] max-w-400 items-center px-5 pb-44 pt-28 sm:min-h-[96svh] sm:px-8 lg:pb-36">
+      <div className="relative mx-auto flex flex-col min-h-[92svh] max-w-400 items-start justify-end gap-6 px-5 pb-44 pt-28 sm:min-h-[96svh] sm:px-8 lg:pb-36">
         <div
           key={`copy-${work.id}`}
           className="max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-500"
         >
-          <p className="mb-5 flex items-center gap-2 text-xs font-semibold tracking-[0.18em] text-primary">
-            <SparkleIcon weight="fill" /> وصل حديثاً · وقادم إلى المدار
-          </p>
-
           {work.logoPath ? (
             <img
               src={work.logoPath}
@@ -147,14 +127,10 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
             </p>
           ) : null}
 
-          <p className="mt-5 max-w-lg text-xs leading-6 text-foreground/48">
-            واجهة إصدار واعية بالوقت: أعمال وصلت للعائلة وأخرى لها عودة أو إصدار قادم.
-          </p>
-
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Tooltip>
               <TooltipTrigger
-                render={<Button size="lg" className="rounded-full px-7 font-semibold" disabled />}
+                render={<Button size="lg" className="rounded-full font-semibold" disabled />}
               >
                 <PlayIcon weight="fill" data-icon="inline-start" /> تشغيل
               </TooltipTrigger>
@@ -172,7 +148,7 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
 
         {works.length > 1 ? (
           <nav
-            className="absolute inset-x-5 bottom-10 flex items-center gap-2 sm:inset-x-8"
+            className="relative flex items-center gap-2"
             aria-label={`قائمة الرادار · ${works.length} أعمال`}
           >
             {works.map((candidate, index) => {
@@ -185,7 +161,7 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
                   aria-pressed={selected}
                   onClick={() => setActiveIndex(index)}
                   className={cn(
-                    "h-1 rounded-full bg-foreground/25 transition-all duration-300 hover:bg-foreground/50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+                    "h-4 rounded-full bg-foreground/25 transition-all duration-300 hover:bg-foreground/50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
                     selected ? "w-8 bg-primary hover:bg-primary" : "w-4",
                   )}
                 />

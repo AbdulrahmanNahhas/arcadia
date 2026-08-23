@@ -13,6 +13,17 @@ export const Route = createFileRoute("/compare")({
 
 function CompareRoute() {
   const { ids } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const comparisonIds = [...new Set(ids?.split(",").filter(Boolean) ?? [])];
-  return <ComparePage ids={comparisonIds} />;
+  return (
+    <ComparePage
+      ids={comparisonIds}
+      onIdsChange={(nextIds) =>
+        navigate({
+          search: { ids: nextIds.length ? nextIds.join(",") : undefined },
+          replace: true,
+        })
+      }
+    />
+  );
 }

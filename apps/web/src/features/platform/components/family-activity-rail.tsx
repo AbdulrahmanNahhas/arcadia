@@ -18,7 +18,7 @@ export function FamilyActivityRail({ items }: { items: FamilyActivity[] }) {
       <div className="mx-auto max-w-400">
         <div className="mb-5 flex items-end justify-between px-5 sm:px-8 gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-[0.16em] text-primary">معاً في المدار</p>
+            {/*<p className="text-xs font-semibold tracking-[0.16em] text-primary">معاً في المدار</p>*/}
             <h2
               id="family-activity-title"
               className="mt-2 font-heading text-2xl font-semibold sm:text-3xl"
