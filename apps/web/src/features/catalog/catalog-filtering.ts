@@ -90,7 +90,12 @@ export function cycleCatalogSelection(
 }
 
 export function getCatalogFacetValues(work: Work, key: CatalogFacetKey): string[] {
-  if (key === "kinds") return [work.kind];
+  if (key === "kinds") {
+    // Installment kinds (season/movie/special) and title kinds (movie/series/anime/…) only
+    // overlap on "movie" — surface that so a movie installment under e.g. an anime title still
+    // matches a "Movie" filter, without leaking "season"/"special" as bogus title-kind values.
+    return work.installmentKinds?.includes("movie") ? [work.kind, "movie"] : [work.kind];
+  }
   if (key === "releaseStatuses") return [work.releaseStatus];
   if (key === "audiences") return work.audience ? [work.audience] : ["unknown"];
   if (key === "genres") return work.genres;

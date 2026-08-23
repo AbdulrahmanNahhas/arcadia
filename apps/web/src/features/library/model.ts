@@ -527,6 +527,12 @@ export const workSchema = z.object({
   installmentId: z.string().nullable().optional(),
   installmentTitle: z.string().nullable().optional(),
   kind: workKindSchema,
+  /**
+   * Kinds of the title's own installments (`season`/`movie`/`special`), distinct from `kind`
+   * (the umbrella title's own type). Lets catalog filtering find e.g. a movie installment
+   * that lives under an `anime` title, which `kind` alone would hide from a "Movie" filter.
+   */
+  installmentKinds: z.array(z.enum(["season", "movie", "special"])).default([]),
   year: z.number().int().nullable(),
   releaseStatus: z.enum(["upcoming", "airing", "returning", "completed", "unknown"]),
   isPrivate: z.boolean().default(false),
