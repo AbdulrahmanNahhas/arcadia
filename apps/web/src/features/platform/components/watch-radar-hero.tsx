@@ -1,19 +1,12 @@
-import { CompassIcon, SparkleIcon, SquaresFourIcon, StarIcon } from "@phosphor-icons/react";
+import { CompassIcon, PlayIcon, SparkleIcon, StarIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Work } from "@/features/library/model";
 import { cn } from "@/lib/utils";
-import { kindLabel, WorkCard } from "./work-card";
+import { kindLabel } from "./work-card";
 
 function radarStatus(work: Work) {
   if (work.releaseStatus === "upcoming") return "لم يصدر بعد";
@@ -158,89 +151,47 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
             واجهة إصدار واعية بالوقت: أعمال وصلت للعائلة وأخرى لها عودة أو إصدار قادم.
           </p>
 
-          <div className="mt-7 flex flex-wrap gap-3">
+          <div className="mt-7 flex flex-wrap items-center gap-3">
+            <Tooltip>
+              <TooltipTrigger
+                render={<Button size="lg" className="rounded-full px-7 font-semibold" disabled />}
+              >
+                <PlayIcon weight="fill" data-icon="inline-start" /> تشغيل
+              </TooltipTrigger>
+              <TooltipContent>يُفعّل عند ربط هذا العمل بخادم Jellyfin</TooltipContent>
+            </Tooltip>
             <Link
               to="/titles/$titleId"
               params={{ titleId: work.id }}
-              className={cn(buttonVariants({ size: "lg" }), "rounded-full px-7")}
+              className={cn(buttonVariants({ variant: "secondary", size: "lg" }), "rounded-full")}
             >
-              <CompassIcon data-icon="inline-start" weight="fill" /> استكشف العمل
+              <CompassIcon data-icon="inline-start" /> تفاصيل العمل
             </Link>
-
-            <Dialog>
-              <DialogTrigger
-                render={<Button variant="secondary" size="lg" className="rounded-full" />}
-              >
-                <SquaresFourIcon data-icon="inline-start" /> افتح الرادار كاملًا
-              </DialogTrigger>
-              <DialogContent className="max-h-[88svh] overflow-y-auto sm:max-w-6xl">
-                <DialogHeader className="pe-10">
-                  <DialogTitle className="text-2xl sm:text-3xl">على رادار المشاهدة</DialogTitle>
-                  <DialogDescription className="max-w-2xl leading-6">
-                    قائمة قصيرة ومقصودة، لا ترتيب فيها للأفضلية. اختر أي عمل لفتح سجله الكامل.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4">
-                  {works.map((candidate) => (
-                    <WorkCard key={candidate.id} work={candidate} />
-                  ))}
-                </div>
-              </DialogContent>
-            </Dialog>
           </div>
         </div>
 
         {works.length > 1 ? (
-          <div className="absolute inset-x-5 bottom-14 sm:inset-x-8 lg:right-auto lg:left-8 lg:max-w-[58%]">
-            <div className="mb-3 flex items-end justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-semibold tracking-[0.18em] text-foreground/45">
-                  قائمة الرادار · {works.length} أعمال
-                </p>
-                <p className="mt-1 hidden text-xs text-foreground/35 sm:block">
-                  اختر ملصقاً، أو اترك الرادار ينتقل بينها.
-                </p>
-              </div>
-              <p className="hidden text-[10px] text-foreground/35 sm:block" aria-live="polite">
-                {isPaused ? "متوقف مؤقتاً" : "يتنقل تلقائياً"}
-              </p>
-            </div>
-            <div className="flex gap-2 overflow-x-auto px-1 py-2 scrollbar-none">
-              {works.map((candidate, index) => {
-                const selected = candidate.id === work.id;
-                return (
-                  <button
-                    key={candidate.id}
-                    type="button"
-                    aria-label={`اعرض ${candidate.arabicTitle || candidate.title}`}
-                    aria-pressed={selected}
-                    onClick={() => setActiveIndex(index)}
-                    className={cn(
-                      "group/radar relative h-16 w-12 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-foreground/12 transition duration-300 hover:-translate-y-1 hover:ring-foreground/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:h-20 sm:w-14",
-                      selected && "-translate-y-1 ring-2 ring-primary sm:w-16",
-                    )}
-                  >
-                    {candidate.imagePath ? (
-                      <img
-                        src={candidate.imagePath}
-                        alt=""
-                        loading="lazy"
-                        className="size-full object-cover transition duration-500 group-hover/radar:scale-105"
-                      />
-                    ) : (
-                      <span className="flex size-full items-center justify-center p-1 text-center text-[9px] leading-3">
-                        {candidate.arabicTitle || candidate.title}
-                      </span>
-                    )}
-                    <span className="absolute inset-0 bg-linear-to-t from-background/55 to-transparent" />
-                    {selected ? (
-                      <span className="absolute inset-x-1 bottom-1 h-0.5 rounded-full bg-primary" />
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <nav
+            className="absolute inset-x-5 bottom-10 flex items-center gap-2 sm:inset-x-8"
+            aria-label={`قائمة الرادار · ${works.length} أعمال`}
+          >
+            {works.map((candidate, index) => {
+              const selected = candidate.id === work.id;
+              return (
+                <button
+                  key={candidate.id}
+                  type="button"
+                  aria-label={`اعرض ${candidate.arabicTitle || candidate.title}`}
+                  aria-pressed={selected}
+                  onClick={() => setActiveIndex(index)}
+                  className={cn(
+                    "h-1 rounded-full bg-foreground/25 transition-all duration-300 hover:bg-foreground/50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+                    selected ? "w-8 bg-primary hover:bg-primary" : "w-4",
+                  )}
+                />
+              );
+            })}
+          </nav>
         ) : null}
       </div>
     </section>

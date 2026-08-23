@@ -974,18 +974,20 @@ function EpisodeCard({ episode, className }: { episode: EpisodePreview; classNam
   return (
     <button
       type="button"
+      disabled
+      title="يُفعّل عند ربط ملف وسائط بهذه الحلقة"
       className={cn(
-        "group flex min-w-0 flex-col rounded-xl text-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        "group flex min-w-0 flex-col rounded-xl text-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed",
         className,
       )}
-      aria-label={`تشغيل الحلقة ${episode.number}`}
+      aria-label={`تشغيل الحلقة ${episode.number} — يُفعّل عند ربط ملف وسائط بهذه الحلقة`}
     >
       <div className="relative aspect-video overflow-hidden rounded-xl bg-muted ring-1 ring-border/10 transition group-hover:ring-primary/50">
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40">
           <TelevisionIcon className="size-8" />
         </div>
         <div className="absolute inset-0 flex items-center justify-center bg-background/0 opacity-0 transition group-hover:bg-background/65 group-hover:opacity-100">
-          <span className="flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <span className="flex size-11 items-center justify-center rounded-full bg-primary/60 text-primary-foreground">
             <PlayIcon weight="fill" />
           </span>
         </div>
