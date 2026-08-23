@@ -131,7 +131,11 @@ export function RelationshipsPage() {
             >
               <PlusIcon data-icon="inline-start" /> إضافة علاقة
             </Button>
-            <Button variant="outline" nativeButton={false} render={<Link to="/lineage" />}>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link to="/studios/relationships" />}
+            >
               <ArrowUpLeftIcon data-icon="inline-start" /> معاينة الخط الزمني
             </Button>
           </>

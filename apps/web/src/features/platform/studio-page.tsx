@@ -200,7 +200,7 @@ export function StudioPage({ studioId }: { studioId: string }) {
             </dl>
           </div>
           <Link
-            to="/lineage"
+            to="/studios/relationships"
             className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/8 p-5 text-sm font-medium text-primary"
           >
             استكشف خريطة السلالة <ArrowRightIcon className="rotate-180" />

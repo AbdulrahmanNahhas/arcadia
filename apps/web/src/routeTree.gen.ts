@@ -10,19 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as EntitiesRouteImport } from './routes/_entities'
 import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ArchiveRouteImport } from './routes/archive'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as CompareRouteImport } from './routes/compare'
-import { Route as EntitiesRouteImport } from './routes/entities'
-import { Route as LineageRouteImport } from './routes/lineage'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as PeopleRouteImport } from './routes/people'
-import { Route as PlanetsRouteImport } from './routes/planets'
 import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as StudiosRouteImport } from './routes/studios'
+import { Route as EntitiesPlanetsRouteImport } from './routes/_entities/planets'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAccountsRouteImport } from './routes/admin/accounts'
 import { Route as AdminArchiveRouteImport } from './routes/admin/archive'
@@ -37,16 +34,15 @@ import { Route as AdminStatisticsRouteImport } from './routes/admin/statistics'
 import { Route as AdminStudiosRouteImport } from './routes/admin/studios'
 import { Route as AdminValidationRouteImport } from './routes/admin/validation'
 import { Route as AdminVocabulariesRouteImport } from './routes/admin/vocabularies'
-import { Route as EntitiesIndexRouteImport } from './routes/entities.index'
-import { Route as EntitiesEntityIdRouteImport } from './routes/entities.$entityId'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
-import { Route as PeopleIndexRouteImport } from './routes/people.index'
-import { Route as PeoplePersonIdRouteImport } from './routes/people.$personId'
-import { Route as PlanetsIndexRouteImport } from './routes/planets.index'
-import { Route as PlanetsPlanetSlugRouteImport } from './routes/planets.$planetSlug'
-import { Route as StudiosIndexRouteImport } from './routes/studios.index'
-import { Route as StudiosStudioIdRouteImport } from './routes/studios.$studioId'
 import { Route as TitlesTitleIdRouteImport } from './routes/titles.$titleId'
+import { Route as EntitiesPeopleIndexRouteImport } from './routes/_entities/people.index'
+import { Route as EntitiesPeoplePersonIdRouteImport } from './routes/_entities/people.$personId'
+import { Route as EntitiesPlanetsIndexRouteImport } from './routes/_entities/planets.index'
+import { Route as EntitiesPlanetsPlanetSlugRouteImport } from './routes/_entities/planets.$planetSlug'
+import { Route as EntitiesStudiosIndexRouteImport } from './routes/_entities/studios.index'
+import { Route as EntitiesStudiosStudioIdRouteImport } from './routes/_entities/studios.$studioId'
+import { Route as EntitiesStudiosRelationshipsRouteImport } from './routes/_entities/studios.relationships'
 import { Route as AdminCatalogIndexRouteImport } from './routes/admin/catalog.index'
 import { Route as AdminCatalogWorkIdRouteImport } from './routes/admin/catalog.$workId'
 import { Route as AdminCatalogJsonRouteImport } from './routes/admin/catalog.json'
@@ -56,6 +52,10 @@ import { Route as TitlesTitleIdInstallmentsInstallmentIdRouteImport } from './ro
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EntitiesRoute = EntitiesRouteImport.update({
+  id: '/_entities',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountsRoute = AccountsRouteImport.update({
@@ -83,29 +83,9 @@ const CompareRoute = CompareRouteImport.update({
   path: '/compare',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EntitiesRoute = EntitiesRouteImport.update({
-  id: '/entities',
-  path: '/entities',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LineageRoute = LineageRouteImport.update({
-  id: '/lineage',
-  path: '/lineage',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PeopleRoute = PeopleRouteImport.update({
-  id: '/people',
-  path: '/people',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PlanetsRoute = PlanetsRouteImport.update({
-  id: '/planets',
-  path: '/planets',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfilesRoute = ProfilesRouteImport.update({
@@ -118,10 +98,10 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StudiosRoute = StudiosRouteImport.update({
-  id: '/studios',
-  path: '/studios',
-  getParentRoute: () => rootRouteImport,
+const EntitiesPlanetsRoute = EntitiesPlanetsRouteImport.update({
+  id: '/planets',
+  path: '/planets',
+  getParentRoute: () => EntitiesRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
@@ -193,56 +173,53 @@ const AdminVocabulariesRoute = AdminVocabulariesRouteImport.update({
   path: '/vocabularies',
   getParentRoute: () => AdminRoute,
 } as any)
-const EntitiesIndexRoute = EntitiesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => EntitiesRoute,
-} as any)
-const EntitiesEntityIdRoute = EntitiesEntityIdRouteImport.update({
-  id: '/$entityId',
-  path: '/$entityId',
-  getParentRoute: () => EntitiesRoute,
-} as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
   id: '/invite/$token',
   path: '/invite/$token',
   getParentRoute: () => rootRouteImport,
-} as any)
-const PeopleIndexRoute = PeopleIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PeopleRoute,
-} as any)
-const PeoplePersonIdRoute = PeoplePersonIdRouteImport.update({
-  id: '/$personId',
-  path: '/$personId',
-  getParentRoute: () => PeopleRoute,
-} as any)
-const PlanetsIndexRoute = PlanetsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PlanetsRoute,
-} as any)
-const PlanetsPlanetSlugRoute = PlanetsPlanetSlugRouteImport.update({
-  id: '/$planetSlug',
-  path: '/$planetSlug',
-  getParentRoute: () => PlanetsRoute,
-} as any)
-const StudiosIndexRoute = StudiosIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => StudiosRoute,
-} as any)
-const StudiosStudioIdRoute = StudiosStudioIdRouteImport.update({
-  id: '/$studioId',
-  path: '/$studioId',
-  getParentRoute: () => StudiosRoute,
 } as any)
 const TitlesTitleIdRoute = TitlesTitleIdRouteImport.update({
   id: '/titles/$titleId',
   path: '/titles/$titleId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EntitiesPeopleIndexRoute = EntitiesPeopleIndexRouteImport.update({
+  id: '/people/',
+  path: '/people/',
+  getParentRoute: () => EntitiesRoute,
+} as any)
+const EntitiesPeoplePersonIdRoute = EntitiesPeoplePersonIdRouteImport.update({
+  id: '/people/$personId',
+  path: '/people/$personId',
+  getParentRoute: () => EntitiesRoute,
+} as any)
+const EntitiesPlanetsIndexRoute = EntitiesPlanetsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EntitiesPlanetsRoute,
+} as any)
+const EntitiesPlanetsPlanetSlugRoute =
+  EntitiesPlanetsPlanetSlugRouteImport.update({
+    id: '/$planetSlug',
+    path: '/$planetSlug',
+    getParentRoute: () => EntitiesPlanetsRoute,
+  } as any)
+const EntitiesStudiosIndexRoute = EntitiesStudiosIndexRouteImport.update({
+  id: '/studios/',
+  path: '/studios/',
+  getParentRoute: () => EntitiesRoute,
+} as any)
+const EntitiesStudiosStudioIdRoute = EntitiesStudiosStudioIdRouteImport.update({
+  id: '/studios/$studioId',
+  path: '/studios/$studioId',
+  getParentRoute: () => EntitiesRoute,
+} as any)
+const EntitiesStudiosRelationshipsRoute =
+  EntitiesStudiosRelationshipsRouteImport.update({
+    id: '/studios/relationships',
+    path: '/studios/relationships',
+    getParentRoute: () => EntitiesRoute,
+  } as any)
 const AdminCatalogIndexRoute = AdminCatalogIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -277,14 +254,10 @@ export interface FileRoutesByFullPath {
   '/archive': typeof ArchiveRoute
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
-  '/entities': typeof EntitiesRouteWithChildren
-  '/lineage': typeof LineageRoute
   '/login': typeof LoginRoute
-  '/people': typeof PeopleRouteWithChildren
-  '/planets': typeof PlanetsRouteWithChildren
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
-  '/studios': typeof StudiosRouteWithChildren
+  '/planets': typeof EntitiesPlanetsRouteWithChildren
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/archive': typeof AdminArchiveRoute
   '/admin/awards': typeof AdminAwardsRoute
@@ -298,20 +271,19 @@ export interface FileRoutesByFullPath {
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/validation': typeof AdminValidationRoute
   '/admin/vocabularies': typeof AdminVocabulariesRoute
-  '/entities/$entityId': typeof EntitiesEntityIdRoute
   '/invite/$token': typeof InviteTokenRoute
-  '/people/$personId': typeof PeoplePersonIdRoute
-  '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
-  '/studios/$studioId': typeof StudiosStudioIdRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin/': typeof AdminIndexRoute
-  '/entities/': typeof EntitiesIndexRoute
-  '/people/': typeof PeopleIndexRoute
-  '/planets/': typeof PlanetsIndexRoute
-  '/studios/': typeof StudiosIndexRoute
+  '/people/$personId': typeof EntitiesPeoplePersonIdRoute
+  '/planets/$planetSlug': typeof EntitiesPlanetsPlanetSlugRoute
+  '/studios/$studioId': typeof EntitiesStudiosStudioIdRoute
+  '/studios/relationships': typeof EntitiesStudiosRelationshipsRoute
   '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
   '/admin/catalog/json': typeof AdminCatalogJsonRoute
   '/admin/catalog/new': typeof AdminCatalogNewRoute
+  '/people/': typeof EntitiesPeopleIndexRoute
+  '/planets/': typeof EntitiesPlanetsIndexRoute
+  '/studios/': typeof EntitiesStudiosIndexRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
   '/titles/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
 }
@@ -321,7 +293,6 @@ export interface FileRoutesByTo {
   '/archive': typeof ArchiveRoute
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
-  '/lineage': typeof LineageRoute
   '/login': typeof LoginRoute
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
@@ -337,39 +308,35 @@ export interface FileRoutesByTo {
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/validation': typeof AdminValidationRoute
   '/admin/vocabularies': typeof AdminVocabulariesRoute
-  '/entities/$entityId': typeof EntitiesEntityIdRoute
   '/invite/$token': typeof InviteTokenRoute
-  '/people/$personId': typeof PeoplePersonIdRoute
-  '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
-  '/studios/$studioId': typeof StudiosStudioIdRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin': typeof AdminIndexRoute
-  '/entities': typeof EntitiesIndexRoute
-  '/people': typeof PeopleIndexRoute
-  '/planets': typeof PlanetsIndexRoute
-  '/studios': typeof StudiosIndexRoute
+  '/people/$personId': typeof EntitiesPeoplePersonIdRoute
+  '/planets/$planetSlug': typeof EntitiesPlanetsPlanetSlugRoute
+  '/studios/$studioId': typeof EntitiesStudiosStudioIdRoute
+  '/studios/relationships': typeof EntitiesStudiosRelationshipsRoute
   '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
   '/admin/catalog/json': typeof AdminCatalogJsonRoute
   '/admin/catalog/new': typeof AdminCatalogNewRoute
+  '/people': typeof EntitiesPeopleIndexRoute
+  '/planets': typeof EntitiesPlanetsIndexRoute
+  '/studios': typeof EntitiesStudiosIndexRoute
   '/admin/catalog': typeof AdminCatalogIndexRoute
   '/titles/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_entities': typeof EntitiesRouteWithChildren
   '/accounts': typeof AccountsRoute
   '/admin': typeof AdminRouteWithChildren
   '/archive': typeof ArchiveRoute
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
-  '/entities': typeof EntitiesRouteWithChildren
-  '/lineage': typeof LineageRoute
   '/login': typeof LoginRoute
-  '/people': typeof PeopleRouteWithChildren
-  '/planets': typeof PlanetsRouteWithChildren
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
-  '/studios': typeof StudiosRouteWithChildren
+  '/_entities/planets': typeof EntitiesPlanetsRouteWithChildren
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/archive': typeof AdminArchiveRoute
   '/admin/awards': typeof AdminAwardsRoute
@@ -383,20 +350,19 @@ export interface FileRoutesById {
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/validation': typeof AdminValidationRoute
   '/admin/vocabularies': typeof AdminVocabulariesRoute
-  '/entities/$entityId': typeof EntitiesEntityIdRoute
   '/invite/$token': typeof InviteTokenRoute
-  '/people/$personId': typeof PeoplePersonIdRoute
-  '/planets/$planetSlug': typeof PlanetsPlanetSlugRoute
-  '/studios/$studioId': typeof StudiosStudioIdRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin/': typeof AdminIndexRoute
-  '/entities/': typeof EntitiesIndexRoute
-  '/people/': typeof PeopleIndexRoute
-  '/planets/': typeof PlanetsIndexRoute
-  '/studios/': typeof StudiosIndexRoute
+  '/_entities/people/$personId': typeof EntitiesPeoplePersonIdRoute
+  '/_entities/planets/$planetSlug': typeof EntitiesPlanetsPlanetSlugRoute
+  '/_entities/studios/$studioId': typeof EntitiesStudiosStudioIdRoute
+  '/_entities/studios/relationships': typeof EntitiesStudiosRelationshipsRoute
   '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
   '/admin/catalog/json': typeof AdminCatalogJsonRoute
   '/admin/catalog_/new': typeof AdminCatalogNewRoute
+  '/_entities/people/': typeof EntitiesPeopleIndexRoute
+  '/_entities/planets/': typeof EntitiesPlanetsIndexRoute
+  '/_entities/studios/': typeof EntitiesStudiosIndexRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
   '/titles_/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
 }
@@ -409,14 +375,10 @@ export interface FileRouteTypes {
     | '/archive'
     | '/browse'
     | '/compare'
-    | '/entities'
-    | '/lineage'
     | '/login'
-    | '/people'
-    | '/planets'
     | '/profiles'
     | '/settings'
-    | '/studios'
+    | '/planets'
     | '/admin/accounts'
     | '/admin/archive'
     | '/admin/awards'
@@ -430,20 +392,19 @@ export interface FileRouteTypes {
     | '/admin/studios'
     | '/admin/validation'
     | '/admin/vocabularies'
-    | '/entities/$entityId'
     | '/invite/$token'
+    | '/titles/$titleId'
+    | '/admin/'
     | '/people/$personId'
     | '/planets/$planetSlug'
     | '/studios/$studioId'
-    | '/titles/$titleId'
-    | '/admin/'
-    | '/entities/'
-    | '/people/'
-    | '/planets/'
-    | '/studios/'
+    | '/studios/relationships'
     | '/admin/catalog/$workId'
     | '/admin/catalog/json'
     | '/admin/catalog/new'
+    | '/people/'
+    | '/planets/'
+    | '/studios/'
     | '/admin/catalog/'
     | '/titles/$titleId/installments/$installmentId'
   fileRoutesByTo: FileRoutesByTo
@@ -453,7 +414,6 @@ export interface FileRouteTypes {
     | '/archive'
     | '/browse'
     | '/compare'
-    | '/lineage'
     | '/login'
     | '/profiles'
     | '/settings'
@@ -469,38 +429,34 @@ export interface FileRouteTypes {
     | '/admin/studios'
     | '/admin/validation'
     | '/admin/vocabularies'
-    | '/entities/$entityId'
     | '/invite/$token'
+    | '/titles/$titleId'
+    | '/admin'
     | '/people/$personId'
     | '/planets/$planetSlug'
     | '/studios/$studioId'
-    | '/titles/$titleId'
-    | '/admin'
-    | '/entities'
-    | '/people'
-    | '/planets'
-    | '/studios'
+    | '/studios/relationships'
     | '/admin/catalog/$workId'
     | '/admin/catalog/json'
     | '/admin/catalog/new'
+    | '/people'
+    | '/planets'
+    | '/studios'
     | '/admin/catalog'
     | '/titles/$titleId/installments/$installmentId'
   id:
     | '__root__'
     | '/'
+    | '/_entities'
     | '/accounts'
     | '/admin'
     | '/archive'
     | '/browse'
     | '/compare'
-    | '/entities'
-    | '/lineage'
     | '/login'
-    | '/people'
-    | '/planets'
     | '/profiles'
     | '/settings'
-    | '/studios'
+    | '/_entities/planets'
     | '/admin/accounts'
     | '/admin/archive'
     | '/admin/awards'
@@ -514,39 +470,34 @@ export interface FileRouteTypes {
     | '/admin/studios'
     | '/admin/validation'
     | '/admin/vocabularies'
-    | '/entities/$entityId'
     | '/invite/$token'
-    | '/people/$personId'
-    | '/planets/$planetSlug'
-    | '/studios/$studioId'
     | '/titles/$titleId'
     | '/admin/'
-    | '/entities/'
-    | '/people/'
-    | '/planets/'
-    | '/studios/'
+    | '/_entities/people/$personId'
+    | '/_entities/planets/$planetSlug'
+    | '/_entities/studios/$studioId'
+    | '/_entities/studios/relationships'
     | '/admin/catalog/$workId'
     | '/admin/catalog/json'
     | '/admin/catalog_/new'
+    | '/_entities/people/'
+    | '/_entities/planets/'
+    | '/_entities/studios/'
     | '/admin/catalog/'
     | '/titles_/$titleId/installments/$installmentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  EntitiesRoute: typeof EntitiesRouteWithChildren
   AccountsRoute: typeof AccountsRoute
   AdminRoute: typeof AdminRouteWithChildren
   ArchiveRoute: typeof ArchiveRoute
   BrowseRoute: typeof BrowseRoute
   CompareRoute: typeof CompareRoute
-  EntitiesRoute: typeof EntitiesRouteWithChildren
-  LineageRoute: typeof LineageRoute
   LoginRoute: typeof LoginRoute
-  PeopleRoute: typeof PeopleRouteWithChildren
-  PlanetsRoute: typeof PlanetsRouteWithChildren
   ProfilesRoute: typeof ProfilesRoute
   SettingsRoute: typeof SettingsRoute
-  StudiosRoute: typeof StudiosRouteWithChildren
   InviteTokenRoute: typeof InviteTokenRoute
   TitlesTitleIdRoute: typeof TitlesTitleIdRoute
   TitlesTitleIdInstallmentsInstallmentIdRoute: typeof TitlesTitleIdInstallmentsInstallmentIdRoute
@@ -559,6 +510,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_entities': {
+      id: '/_entities'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof EntitiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accounts': {
@@ -596,39 +554,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompareRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/entities': {
-      id: '/entities'
-      path: '/entities'
-      fullPath: '/entities'
-      preLoaderRoute: typeof EntitiesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lineage': {
-      id: '/lineage'
-      path: '/lineage'
-      fullPath: '/lineage'
-      preLoaderRoute: typeof LineageRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/people': {
-      id: '/people'
-      path: '/people'
-      fullPath: '/people'
-      preLoaderRoute: typeof PeopleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/planets': {
-      id: '/planets'
-      path: '/planets'
-      fullPath: '/planets'
-      preLoaderRoute: typeof PlanetsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profiles': {
@@ -645,12 +575,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/studios': {
-      id: '/studios'
-      path: '/studios'
-      fullPath: '/studios'
-      preLoaderRoute: typeof StudiosRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_entities/planets': {
+      id: '/_entities/planets'
+      path: '/planets'
+      fullPath: '/planets'
+      preLoaderRoute: typeof EntitiesPlanetsRouteImport
+      parentRoute: typeof EntitiesRoute
     }
     '/admin/': {
       id: '/admin/'
@@ -750,20 +680,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminVocabulariesRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/entities/': {
-      id: '/entities/'
-      path: '/'
-      fullPath: '/entities/'
-      preLoaderRoute: typeof EntitiesIndexRouteImport
-      parentRoute: typeof EntitiesRoute
-    }
-    '/entities/$entityId': {
-      id: '/entities/$entityId'
-      path: '/$entityId'
-      fullPath: '/entities/$entityId'
-      preLoaderRoute: typeof EntitiesEntityIdRouteImport
-      parentRoute: typeof EntitiesRoute
-    }
     '/invite/$token': {
       id: '/invite/$token'
       path: '/invite/$token'
@@ -771,54 +687,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InviteTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/people/': {
-      id: '/people/'
-      path: '/'
-      fullPath: '/people/'
-      preLoaderRoute: typeof PeopleIndexRouteImport
-      parentRoute: typeof PeopleRoute
-    }
-    '/people/$personId': {
-      id: '/people/$personId'
-      path: '/$personId'
-      fullPath: '/people/$personId'
-      preLoaderRoute: typeof PeoplePersonIdRouteImport
-      parentRoute: typeof PeopleRoute
-    }
-    '/planets/': {
-      id: '/planets/'
-      path: '/'
-      fullPath: '/planets/'
-      preLoaderRoute: typeof PlanetsIndexRouteImport
-      parentRoute: typeof PlanetsRoute
-    }
-    '/planets/$planetSlug': {
-      id: '/planets/$planetSlug'
-      path: '/$planetSlug'
-      fullPath: '/planets/$planetSlug'
-      preLoaderRoute: typeof PlanetsPlanetSlugRouteImport
-      parentRoute: typeof PlanetsRoute
-    }
-    '/studios/': {
-      id: '/studios/'
-      path: '/'
-      fullPath: '/studios/'
-      preLoaderRoute: typeof StudiosIndexRouteImport
-      parentRoute: typeof StudiosRoute
-    }
-    '/studios/$studioId': {
-      id: '/studios/$studioId'
-      path: '/$studioId'
-      fullPath: '/studios/$studioId'
-      preLoaderRoute: typeof StudiosStudioIdRouteImport
-      parentRoute: typeof StudiosRoute
-    }
     '/titles/$titleId': {
       id: '/titles/$titleId'
       path: '/titles/$titleId'
       fullPath: '/titles/$titleId'
       preLoaderRoute: typeof TitlesTitleIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_entities/people/': {
+      id: '/_entities/people/'
+      path: '/people'
+      fullPath: '/people/'
+      preLoaderRoute: typeof EntitiesPeopleIndexRouteImport
+      parentRoute: typeof EntitiesRoute
+    }
+    '/_entities/people/$personId': {
+      id: '/_entities/people/$personId'
+      path: '/people/$personId'
+      fullPath: '/people/$personId'
+      preLoaderRoute: typeof EntitiesPeoplePersonIdRouteImport
+      parentRoute: typeof EntitiesRoute
+    }
+    '/_entities/planets/': {
+      id: '/_entities/planets/'
+      path: '/'
+      fullPath: '/planets/'
+      preLoaderRoute: typeof EntitiesPlanetsIndexRouteImport
+      parentRoute: typeof EntitiesPlanetsRoute
+    }
+    '/_entities/planets/$planetSlug': {
+      id: '/_entities/planets/$planetSlug'
+      path: '/$planetSlug'
+      fullPath: '/planets/$planetSlug'
+      preLoaderRoute: typeof EntitiesPlanetsPlanetSlugRouteImport
+      parentRoute: typeof EntitiesPlanetsRoute
+    }
+    '/_entities/studios/': {
+      id: '/_entities/studios/'
+      path: '/studios'
+      fullPath: '/studios/'
+      preLoaderRoute: typeof EntitiesStudiosIndexRouteImport
+      parentRoute: typeof EntitiesRoute
+    }
+    '/_entities/studios/$studioId': {
+      id: '/_entities/studios/$studioId'
+      path: '/studios/$studioId'
+      fullPath: '/studios/$studioId'
+      preLoaderRoute: typeof EntitiesStudiosStudioIdRouteImport
+      parentRoute: typeof EntitiesRoute
+    }
+    '/_entities/studios/relationships': {
+      id: '/_entities/studios/relationships'
+      path: '/studios/relationships'
+      fullPath: '/studios/relationships'
+      preLoaderRoute: typeof EntitiesStudiosRelationshipsRouteImport
+      parentRoute: typeof EntitiesRoute
     }
     '/admin/catalog/': {
       id: '/admin/catalog/'
@@ -857,6 +780,42 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface EntitiesPlanetsRouteChildren {
+  EntitiesPlanetsPlanetSlugRoute: typeof EntitiesPlanetsPlanetSlugRoute
+  EntitiesPlanetsIndexRoute: typeof EntitiesPlanetsIndexRoute
+}
+
+const EntitiesPlanetsRouteChildren: EntitiesPlanetsRouteChildren = {
+  EntitiesPlanetsPlanetSlugRoute: EntitiesPlanetsPlanetSlugRoute,
+  EntitiesPlanetsIndexRoute: EntitiesPlanetsIndexRoute,
+}
+
+const EntitiesPlanetsRouteWithChildren = EntitiesPlanetsRoute._addFileChildren(
+  EntitiesPlanetsRouteChildren,
+)
+
+interface EntitiesRouteChildren {
+  EntitiesPlanetsRoute: typeof EntitiesPlanetsRouteWithChildren
+  EntitiesPeoplePersonIdRoute: typeof EntitiesPeoplePersonIdRoute
+  EntitiesStudiosStudioIdRoute: typeof EntitiesStudiosStudioIdRoute
+  EntitiesStudiosRelationshipsRoute: typeof EntitiesStudiosRelationshipsRoute
+  EntitiesPeopleIndexRoute: typeof EntitiesPeopleIndexRoute
+  EntitiesStudiosIndexRoute: typeof EntitiesStudiosIndexRoute
+}
+
+const EntitiesRouteChildren: EntitiesRouteChildren = {
+  EntitiesPlanetsRoute: EntitiesPlanetsRouteWithChildren,
+  EntitiesPeoplePersonIdRoute: EntitiesPeoplePersonIdRoute,
+  EntitiesStudiosStudioIdRoute: EntitiesStudiosStudioIdRoute,
+  EntitiesStudiosRelationshipsRoute: EntitiesStudiosRelationshipsRoute,
+  EntitiesPeopleIndexRoute: EntitiesPeopleIndexRoute,
+  EntitiesStudiosIndexRoute: EntitiesStudiosIndexRoute,
+}
+
+const EntitiesRouteWithChildren = EntitiesRoute._addFileChildren(
+  EntitiesRouteChildren,
+)
 
 interface AdminCatalogRouteChildren {
   AdminCatalogWorkIdRoute: typeof AdminCatalogWorkIdRoute
@@ -912,74 +871,17 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
-interface EntitiesRouteChildren {
-  EntitiesEntityIdRoute: typeof EntitiesEntityIdRoute
-  EntitiesIndexRoute: typeof EntitiesIndexRoute
-}
-
-const EntitiesRouteChildren: EntitiesRouteChildren = {
-  EntitiesEntityIdRoute: EntitiesEntityIdRoute,
-  EntitiesIndexRoute: EntitiesIndexRoute,
-}
-
-const EntitiesRouteWithChildren = EntitiesRoute._addFileChildren(
-  EntitiesRouteChildren,
-)
-
-interface PeopleRouteChildren {
-  PeoplePersonIdRoute: typeof PeoplePersonIdRoute
-  PeopleIndexRoute: typeof PeopleIndexRoute
-}
-
-const PeopleRouteChildren: PeopleRouteChildren = {
-  PeoplePersonIdRoute: PeoplePersonIdRoute,
-  PeopleIndexRoute: PeopleIndexRoute,
-}
-
-const PeopleRouteWithChildren =
-  PeopleRoute._addFileChildren(PeopleRouteChildren)
-
-interface PlanetsRouteChildren {
-  PlanetsPlanetSlugRoute: typeof PlanetsPlanetSlugRoute
-  PlanetsIndexRoute: typeof PlanetsIndexRoute
-}
-
-const PlanetsRouteChildren: PlanetsRouteChildren = {
-  PlanetsPlanetSlugRoute: PlanetsPlanetSlugRoute,
-  PlanetsIndexRoute: PlanetsIndexRoute,
-}
-
-const PlanetsRouteWithChildren =
-  PlanetsRoute._addFileChildren(PlanetsRouteChildren)
-
-interface StudiosRouteChildren {
-  StudiosStudioIdRoute: typeof StudiosStudioIdRoute
-  StudiosIndexRoute: typeof StudiosIndexRoute
-}
-
-const StudiosRouteChildren: StudiosRouteChildren = {
-  StudiosStudioIdRoute: StudiosStudioIdRoute,
-  StudiosIndexRoute: StudiosIndexRoute,
-}
-
-const StudiosRouteWithChildren =
-  StudiosRoute._addFileChildren(StudiosRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  EntitiesRoute: EntitiesRouteWithChildren,
   AccountsRoute: AccountsRoute,
   AdminRoute: AdminRouteWithChildren,
   ArchiveRoute: ArchiveRoute,
   BrowseRoute: BrowseRoute,
   CompareRoute: CompareRoute,
-  EntitiesRoute: EntitiesRouteWithChildren,
-  LineageRoute: LineageRoute,
   LoginRoute: LoginRoute,
-  PeopleRoute: PeopleRouteWithChildren,
-  PlanetsRoute: PlanetsRouteWithChildren,
   ProfilesRoute: ProfilesRoute,
   SettingsRoute: SettingsRoute,
-  StudiosRoute: StudiosRouteWithChildren,
   InviteTokenRoute: InviteTokenRoute,
   TitlesTitleIdRoute: TitlesTitleIdRoute,
   TitlesTitleIdInstallmentsInstallmentIdRoute:

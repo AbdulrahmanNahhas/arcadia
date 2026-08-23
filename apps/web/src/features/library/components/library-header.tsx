@@ -63,7 +63,7 @@ export function LibraryHeader({ compact = false }: LibraryHeaderProps) {
           </Link>
 
           <Link
-            to="/lineage"
+            to="/studios/relationships"
             className={cn(
               buttonVariants({
                 variant: "ghost",
