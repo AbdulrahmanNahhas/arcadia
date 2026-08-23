@@ -4,25 +4,35 @@ import {
   CalendarBlankIcon,
   GitBranchIcon,
 } from "@phosphor-icons/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { getEntities } from "@/server/library.functions";
+import { useCurrentAccount } from "@/features/accounts/api";
+import { getAdminEntities, getEntities } from "@/server/library.functions";
 import { getStudioLineage } from "@/server/platform.functions";
 import { EntityDialog } from "./components/entity-dialog";
 import { PlatformShell } from "./components/platform-shell";
 
 export function StudioPage({ studioId }: { studioId: string }) {
+  const { data: accountData } = useCurrentAccount();
+  const isAdmin = accountData?.account.role === "owner" || accountData?.account.role === "editor";
   const { data: entities } = useSuspenseQuery({
     queryKey: ["entities"],
     queryFn: () => getEntities(),
+  });
+  // Admins see private works too — the public /studios feed hard-excludes them, so this page
+  // re-fetches from the admin-only entities endpoint once we know the viewer can see them.
+  const { data: adminEntities } = useQuery({
+    queryKey: ["entities", "admin"],
+    queryFn: () => getAdminEntities(),
+    enabled: isAdmin,
   });
   const { data: relationships } = useSuspenseQuery({
     queryKey: ["studio-lineage"],
     queryFn: () => getStudioLineage(),
   });
-  const studio = entities.find(
+  const studio = (isAdmin && adminEntities ? adminEntities : entities).find(
     (entity) => entity.id === studioId && entity.entityType === "organization",
   );
   if (!studio)
@@ -67,7 +77,12 @@ export function StudioPage({ studioId }: { studioId: string }) {
       <div className="mx-auto grid max-w-400 gap-12 px-5 pb-28 pt-12 sm:px-8 lg:grid-cols-[1fr_20rem]">
         <div className="space-y-14">
           <section>
-            <h2 className="font-heading text-2xl font-semibold">أعمال مرتبطة</h2>
+            <h2 className="font-heading text-2xl font-semibold">
+              أعمال مرتبطة{" "}
+              <span className="text-base font-normal text-muted-foreground">
+                ({studio.works.length})
+              </span>
+            </h2>
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
               {[...studio.works]
                 .sort((a, b) => (b.year ?? 0) - (a.year ?? 0))
@@ -78,13 +93,18 @@ export function StudioPage({ studioId }: { studioId: string }) {
                     params={{ titleId: work.id }}
                     className="group"
                   >
-                    <div className="aspect-2/3 overflow-hidden rounded-xl bg-muted ring-1 ring-white/8">
+                    <div className="relative aspect-2/3 overflow-hidden rounded-xl bg-muted ring-1 ring-white/8">
                       {work.imagePath && (
                         <img
                           src={work.imagePath}
                           alt=""
                           className="size-full object-cover transition group-hover:scale-105"
                         />
+                      )}
+                      {work.isPrivate && (
+                        <Badge variant="destructive" className="absolute top-1.5 inset-s-1.5">
+                          خاص
+                        </Badge>
                       )}
                     </div>
                     <h3 className="mt-2 truncate text-sm font-medium">
