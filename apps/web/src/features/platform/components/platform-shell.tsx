@@ -1,6 +1,23 @@
-import { BooksIcon, DatabaseIcon, HouseIcon, PlanetIcon } from "@phosphor-icons/react";
+import {
+  BookmarkIcon,
+  BooksIcon,
+  BuildingsIcon,
+  DatabaseIcon,
+  HouseIcon,
+  PlanetIcon,
+  ScalesIcon,
+  UsersIcon,
+} from "@phosphor-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
 import { AccountAvatar } from "@/features/accounts/account-avatar";
 import { useCurrentAccount } from "@/features/accounts/api";
 import { cn } from "@/lib/utils";
@@ -28,9 +45,9 @@ export function PlatformShell({
       <header
         className={cn(
           "sticky top-0 z-40 backdrop-blur-0",
-          !immersive && " bg-background/72 mx-0 backdrop-blur-lg border-t-0",
+          !immersive && "bg-background/72 mx-0 backdrop-blur-lg border-t-0",
           immersive &&
-            "fixed inset-x-0 bg-linear-to-b  from-background/70 via-50% via-background/75 pb-0 to-background/40 backdrop-blur-lg border border-border/50 rounded-full m-1 container mx-auto",
+            "fixed inset-x-0 bg-linear-to-b from-background/70 via-50% via-background/75 pb-0 to-background/40 backdrop-blur-lg border border-border/50 rounded-full m-1 container mx-auto",
         )}
       >
         <div className="mx-auto flex container! h-14 max-w-400 items-center gap-4 p-3!">
@@ -41,6 +58,7 @@ export function PlatformShell({
             </span>
             <span className="hidden text-lg sm:block">نحّاسينما</span>
           </Link>
+
           <nav className="hidden items-center gap-1 lg:flex" aria-label="التنقل الرئيسي">
             <NavLink to="/" active={pathname === "/"} icon={<HouseIcon />}>
               الرئيسية
@@ -51,10 +69,97 @@ export function PlatformShell({
             <NavLink to="/browse" active={pathname === "/browse"} icon={<DatabaseIcon />}>
               قاعدة البيانات
             </NavLink>
-            <NavLink to="/archive" active={pathname.startsWith("/archive")} icon={<BooksIcon />}>
-              مساحتي
-            </NavLink>
+
+            {/* Shadcn Navigation Menu Replacement */}
+            <NavigationMenu align="center">
+              <NavigationMenuList>
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="h-9 gap-1.5 rounded-2xl bg-transparent px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent/50 data-[state=open]:text-foreground">
+                    <span>استكشف</span>
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent className={"p-0!"}>
+                    <ul className="grid w-[320px] gap-1 p-2 md:w-110 md:grid-cols-2 dir-rtl">
+                      <li>
+                        <NavigationMenuLink
+                          render={
+                            <Link
+                              to="/studios"
+                              className="flex flex-col gap-1 rounded-md p-2.5 transition-colors hover:bg-accent focus:bg-accent"
+                            >
+                              <div className="flex items-start ml-auto! gap-2 text-sm font-semibold text-foreground">
+                                <BuildingsIcon className="size-4 text-primary" />
+                                <span>الاستوديوهات</span>
+                              </div>
+                              <p className="line-clamp-2 text-xs text-muted-foreground">
+                                شركات الإنتاج واستوديوهات السينما
+                              </p>
+                            </Link>
+                          }
+                        />
+                      </li>
+
+                      <li>
+                        <NavigationMenuLink
+                          render={
+                            <Link
+                              to="/people"
+                              className="flex flex-col gap-1 rounded-md p-2.5 transition-colors hover:bg-accent focus:bg-accent"
+                            >
+                              <div className="flex items-start ml-auto! gap-2 text-sm font-semibold text-foreground">
+                                <UsersIcon className="size-4 text-primary" />
+                                <span>صنّاع السينما</span>
+                              </div>
+                              <p className="line-clamp-2 text-xs text-muted-foreground">
+                                المخرجون، الممثلون، وطواقم العمل
+                              </p>
+                            </Link>
+                          }
+                        />
+                      </li>
+                      <li>
+                        <NavigationMenuLink
+                          render={
+                            <Link
+                              to="/compare"
+                              className="flex flex-col gap-1 rounded-md p-2.5 transition-colors hover:bg-accent focus:bg-accent"
+                            >
+                              <div className="flex items-start ml-auto! gap-2 text-sm font-semibold text-foreground">
+                                <ScalesIcon className="size-4 text-primary" />
+                                <span>المقارنة</span>
+                              </div>
+                              <p className="line-clamp-2 text-xs text-muted-foreground">
+                                قارن بين الأعمال والإحصائيات
+                              </p>
+                            </Link>
+                          }
+                        />
+                      </li>
+
+                      <li>
+                        <NavigationMenuLink
+                          render={
+                            <Link
+                              to="/archive"
+                              className="flex flex-col gap-1 rounded-md p-2.5 transition-colors hover:bg-accent focus:bg-accent"
+                            >
+                              <div className="flex items-start ml-auto! gap-2 text-sm font-semibold text-foreground">
+                                <BookmarkIcon className="size-4 text-primary" />
+                                <span>مساحتي والأرشيف</span>
+                              </div>
+                              <p className="line-clamp-2 text-xs text-muted-foreground">
+                                مجموعاتك القوائم وسجل مشاهداتك
+                              </p>
+                            </Link>
+                          }
+                        />
+                      </li>
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+              </NavigationMenuList>
+            </NavigationMenu>
           </nav>
+
           <div className="ms-auto flex items-center gap-2">
             <GlobalSearch />
 
