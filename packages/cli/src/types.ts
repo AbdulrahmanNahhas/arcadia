@@ -8,6 +8,9 @@
  */
 
 export type SqlValue =
+  // `undefined` is included deliberately: reading a column that a query did not select yields
+  // it, and the driver is configured to transform it to NULL on the way out (see `db.ts`).
+  | undefined
   | string
   | number
   | boolean

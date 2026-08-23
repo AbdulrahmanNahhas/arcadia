@@ -7,18 +7,19 @@
  * the database reachable without a per-table code path.
  */
 
-import { type ParsedArgs, boolFlag, parseArgs } from "./args";
-import { buildContext, createRow, deleteRows, getRow, listRows, updateRows } from "./crud";
-import { closeDatabase, openDatabase } from "./db";
-import { loadSchema } from "./introspect";
-import { type OutputMode, CliError, emit, emitError } from "./output";
-import { resolveResource } from "./registry";
+import { boolFlag, type ParsedArgs, parseArgs } from "./args";
 import { helpDocument, helpText } from "./commands/help";
 import { mediaCommand } from "./commands/media";
 import { schemaCommand } from "./commands/schema";
 import { sqlCommand } from "./commands/sql";
 import { statsCommand } from "./commands/stats";
 import { workApply, workExport, workTemplate } from "./commands/work";
+import { buildContext, createRow, deleteRows, getRow, listRows, updateRows } from "./crud";
+import { closeDatabase, openDatabase } from "./db";
+import { loadSchema } from "./introspect";
+import { CliError, emit, emitError, type OutputMode } from "./output";
+import { resolveResource } from "./registry";
+import type { CommandResult } from "./types";
 
 function outputMode(args: ParsedArgs): OutputMode {
   if (boolFlag(args, "json")) return "json";
@@ -29,12 +30,12 @@ function outputMode(args: ParsedArgs): OutputMode {
 
 const crudVerbs = new Set(["list", "get", "create", "update", "delete", "ls", "show", "new", "rm"]);
 
-const verbAliases: Record<string, string> = {
-  ls: "list",
-  show: "get",
-  new: "create",
-  rm: "delete",
-};
+const verbAliases = new Map([
+  ["ls", "list"],
+  ["show", "get"],
+  ["new", "create"],
+  ["rm", "delete"],
+]);
 
 async function run(args: ParsedArgs, mode: OutputMode): Promise<CommandResult> {
   const [first, second, third] = args.positionals;
@@ -67,7 +68,11 @@ async function run(args: ParsedArgs, mode: OutputMode): Promise<CommandResult> {
     const sql = openDatabase();
     const [row] = await sql<Array<{ titles: number; now: string }>>`
       select (select count(*)::int from titles) as titles, now()::text as now`;
-    return { ok: true, database: process.env.DATABASE_URL ?? "postgresql://127.0.0.1/arcadia", ...row };
+    return {
+      ok: true,
+      database: process.env.DATABASE_URL ?? "postgresql://127.0.0.1/arcadia",
+      ...row,
+    };
   }
 
   // Everything else is a resource.
@@ -81,7 +86,7 @@ async function run(args: ParsedArgs, mode: OutputMode): Promise<CommandResult> {
       "Verbs are list, get, create, update, and delete.",
     );
   }
-  const verb = verbAliases[rawVerb] ?? rawVerb;
+  const verb = verbAliases.get(rawVerb) ?? rawVerb;
   const context = buildContext(sql, schema, resource, args);
 
   if (verb === "list") return listRows(context);

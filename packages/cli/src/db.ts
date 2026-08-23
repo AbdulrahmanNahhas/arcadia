@@ -1,6 +1,6 @@
 import postgres from "postgres";
-import type { Row, SqlValue } from "./types";
 import { CliError } from "./output";
+import type { Row, SqlValue } from "./types";
 
 export type Sql = postgres.Sql<Record<string, never>>;
 export type TransactionSql = postgres.TransactionSql<Record<string, never>>;
@@ -50,6 +50,16 @@ export function camelizeRow<T extends Row>(row: T): Row {
   return Object.fromEntries(Object.entries(row).map(([key, value]) => [toCamelCase(key), value]));
 }
 
+/**
+ * Wrap the audit payload for the jsonb column. `sql.json` is typed against the driver's own
+ * serializable union, which SqlValue satisfies structurally but not nominally.
+ */
+function auditChanges(sql: TransactionSql | Sql, changes: SqlValue) {
+  // SAFETY: SqlValue contains only JSON-serializable members, which is exactly what sql.json
+  // accepts; the nominal mismatch is in the driver's type, not in the value.
+  return sql.json((changes ?? {}) as never);
+}
+
 export type AuditEntry = {
   action: string;
   targetType: string;
@@ -74,7 +84,7 @@ export async function recordAudit(sql: TransactionSql | Sql, entry: AuditEntry):
       ${entry.targetType},
       ${entry.targetId ?? null},
       ${entry.summary ?? ""},
-      ${sql.json((entry.changes ?? {}) as never)}
+      ${auditChanges(sql, entry.changes)}
     )`;
 }
 
@@ -100,9 +110,22 @@ export function resetActorCache(): void {
   actorCache = undefined;
 }
 
-export const uuidPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function isUuid(value: string): boolean {
   return uuidPattern.test(value);
+}
+
+/** Parameter list accepted by `sql.unsafe`, derived from the driver rather than re-declared. */
+export type SqlParameters = Parameters<Sql["unsafe"]>[1];
+
+/**
+ * Hand a `SqlValue[]` to `sql.unsafe`. The driver's parameter type is narrower than `SqlValue`
+ * on paper (it has no `undefined` member), but the client is constructed with
+ * `transform: { undefined: null }`, so an undefined parameter is sent as NULL.
+ */
+export function parameters(values: readonly SqlValue[]): SqlParameters {
+  // SAFETY: every member of SqlValue is a scalar, array, or JSON object the driver serializes,
+  // and undefined is normalized to null by the client's `transform` option.
+  return values as SqlParameters;
 }

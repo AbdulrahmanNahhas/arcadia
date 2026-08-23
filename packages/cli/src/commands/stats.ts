@@ -9,10 +9,10 @@
 import { scoreWeights } from "@arcadia/domain";
 import type { ParsedArgs } from "../args";
 import { intFlag, listFlag, rawListFlag, stringFlag } from "../args";
-import { type Sql, assertIdentifier } from "../db";
+import { assertIdentifier, parameters, type Sql } from "../db";
 import { loadSchema, requireColumn, requireTable } from "../introspect";
 import { CliError } from "../output";
-import { QueryBuilder, buildCondition, combine } from "../query";
+import { buildCondition, combine, QueryBuilder } from "../query";
 import { resolveResource } from "../registry";
 import type { CommandResult, Row } from "../types";
 
@@ -25,7 +25,9 @@ const ratingExpression = `(
 
 const metricPattern = /^(count|count-distinct|avg|sum|min|max)(?::([a-z_][a-z0-9_]*))?$/;
 
-function metricExpression(metric: string, tableName: string): { alias: string; sql: string } {
+type Metric = { alias: string; sql: string };
+
+function metricExpression(metric: string, tableName: string): Metric {
   const match = metricPattern.exec(metric.trim());
   if (!match) {
     throw new CliError(
@@ -41,11 +43,16 @@ function metricExpression(metric: string, tableName: string): { alias: string; s
   if (kind === "count-distinct") {
     return { alias: `distinct_${column}`, sql: `count(distinct ${reference})::int` };
   }
-  if (kind === "avg") return { alias: `avg_${column}`, sql: `round(avg(${reference})::numeric, 2)` };
+  if (kind === "avg")
+    return { alias: `avg_${column}`, sql: `round(avg(${reference})::numeric, 2)` };
   return { alias: `${kind}_${column}`, sql: `${kind}(${reference})` };
 }
 
-async function genericStats(sql: Sql, args: ParsedArgs, resourceName: string): Promise<CommandResult> {
+async function genericStats(
+  sql: Sql,
+  args: ParsedArgs,
+  resourceName: string,
+): Promise<CommandResult> {
   const schema = await loadSchema(sql);
   const resource = resolveResource(resourceName, new Set(schema.tables.keys()));
   const table = requireTable(schema, resource.table);
@@ -86,10 +93,10 @@ async function genericStats(sql: Sql, args: ParsedArgs, resourceName: string): P
   ]
     .filter((part) => part.length > 0)
     .join(" ");
-  return sql.unsafe<Row[]>(text, builder.params);
+  return sql.unsafe<Row[]>(text, parameters(builder.params));
 }
 
-const presets: Record<string, (sql: Sql) => Promise<CommandResult>> = {
+const presets = new Map<string, (sql: Sql) => Promise<CommandResult>>(Object.entries({
   async overview(sql) {
     const [row] = await sql<Row[]>`
       select
@@ -217,9 +224,9 @@ const presets: Record<string, (sql: Sql) => Promise<CommandResult>> = {
       from media_asset_assignments x join media_assets a on a.id = x.asset_id
       group by 1 order by assignments desc`;
   },
-};
+}));
 
-export const statsPresets = Object.keys(presets);
+export const statsPresets = [...presets.keys()];
 
 export async function statsCommand(
   sql: Sql,
@@ -227,7 +234,7 @@ export async function statsCommand(
   target: string | undefined,
 ): Promise<CommandResult> {
   const name = target ?? "overview";
-  const preset = presets[name];
+  const preset = presets.get(name);
   // A preset wins unless the caller asked for a grouping, in which case they want the generic
   // aggregate over that resource (`arcadia stats titles --by audience`).
   if (preset && listFlag(args, "by").length === 0 && listFlag(args, "metric").length === 0) {

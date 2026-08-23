@@ -15,7 +15,7 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import type { ParsedArgs } from "../args";
 import { boolFlag, stringFlag } from "../args";
-import { type Sql, type TransactionSql, recordAudit } from "../db";
+import { parameters, recordAudit, type Sql, type TransactionSql } from "../db";
 import { loadSchema, requireTable } from "../introspect";
 import { CliError } from "../output";
 import { resolveRef } from "../resolve";
@@ -28,7 +28,11 @@ const episodeDocument = z.object({
   number: z.number().positive(),
   position: z.number().int().min(0).optional(),
   title: z.string().nullable().optional(),
-  releaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  releaseDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
   runtimeMinutes: z.number().int().min(0).nullable().optional(),
 });
 
@@ -39,7 +43,11 @@ const installmentDocument = z.object({
   title: z.string().min(1),
   summary: z.string().optional(),
   status: z.enum(["announced", "airing", "completed", "unknown"]).optional(),
-  releaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  releaseDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
   runtimeMinutes: z.number().int().min(0).nullable().optional(),
   audienceOverride: z.string().nullable().optional(),
   ageOverride: z.string().nullable().optional(),
@@ -138,9 +146,25 @@ export type WorkDocument = z.infer<typeof workDocument>;
 
 type ApplyMode = "merge" | "replace";
 
-/** Sort key convention used across the catalog: leading English articles are dropped. */
+type ApplyOutcome = { titleId: string; created: boolean };
+
+/** Numeric columns arrive as strings from the driver; null stays null rather than becoming 0. */
+function number(value: SqlValue): number | null {
+  return value === null || value === undefined ? null : Number(value);
+}
+
+/** An award's `installment` field is either a 1-based position in this document or a UUID. */
+function isPositionReference(value: number | string): value is number {
+  return typeof value === "number";
+}
+
+/**
+ * Sort key convention used across the catalog: the canonical title, lowercased. Leading
+ * articles are deliberately kept — every one of the existing 172 rows sorts under "the …"
+ * rather than under the following word.
+ */
 export function deriveSortTitle(canonicalTitle: string): string {
-  return canonicalTitle.replace(/^(the|a|an)\s+/i, "").trim() || canonicalTitle;
+  return canonicalTitle.trim().toLowerCase();
 }
 
 const lookupTables = {
@@ -331,12 +355,12 @@ async function upsertTitle(
 
   if (existingId) {
     const names = [...values.keys()];
-    const parameters = [...values.values()];
+    const parameterValues = [...values.values()];
     await transaction.unsafe(
       `update titles set ${names
         .map((name, index) => `"${name}" = $${index + 2}`)
         .join(", ")}, updated_at = now() where id = $1`,
-      [existingId, ...parameters],
+      parameters([existingId, ...parameterValues]),
     );
     return { id: existingId, created: false };
   }
@@ -345,7 +369,7 @@ async function upsertTitle(
   const rows = await transaction.unsafe<Array<{ id: string }>>(
     `insert into titles (${names.map((name) => `"${name}"`).join(", ")})
      values (${names.map((_name, index) => `$${index + 1}`).join(", ")}) returning id`,
-    [...values.values()],
+    parameters([...values.values()]),
   );
   const row = rows[0];
   if (!row) throw new CliError("Insert into titles returned no row");
@@ -358,9 +382,10 @@ async function syncInstallments(
   documents: readonly z.infer<typeof installmentDocument>[],
   mode: ApplyMode,
 ): Promise<Map<number, string>> {
-  const existing = await transaction.unsafe<
-    Array<{ id: string; position: number; title: string }>
-  >(`select id, position, title from installments where title_id = $1`, [titleId]);
+  const existing = await transaction.unsafe<Array<{ id: string; position: number; title: string }>>(
+    `select id, position, title from installments where title_id = $1`,
+    parameters([titleId]),
+  );
   const byId = new Map(existing.map((row) => [row.id, row]));
   const byPosition = new Map(existing.map((row) => [row.position, row]));
   const seen = new Set<string>();
@@ -397,7 +422,7 @@ async function syncInstallments(
         `update installments set ${names
           .map((name, offset) => `"${name}" = $${offset + 2}`)
           .join(", ")}, updated_at = now() where id = $1`,
-        [match.id, ...values.values()],
+        parameters([match.id, ...values.values()]),
       );
       installmentId = match.id;
     } else {
@@ -406,7 +431,7 @@ async function syncInstallments(
       const rows = await transaction.unsafe<Array<{ id: string }>>(
         `insert into installments (${names.map((name) => `"${name}"`).join(", ")})
          values (${names.map((_name, offset) => `$${offset + 1}`).join(", ")}) returning id`,
-        [...values.values()],
+        parameters([...values.values()]),
       );
       const row = rows[0];
       if (!row) throw new CliError(`Could not insert installment "${document.title}"`);
@@ -417,7 +442,11 @@ async function syncInstallments(
 
     if (document.score) await upsertScore(transaction, installmentId, document.score);
     if (document.media)
-      await assignMedia(transaction, { column: "installment_id", id: installmentId }, document.media);
+      await assignMedia(
+        transaction,
+        { column: "installment_id", id: installmentId },
+        document.media,
+      );
     if (document.episodes) {
       await syncEpisodes(transaction, installmentId, document.episodes, mode);
     }
@@ -451,14 +480,14 @@ async function upsertScore(
   const provided = columns.filter(([, value]) => value !== undefined);
   if (provided.length === 0) return;
   const names = provided.map(([name]) => name);
-  const parameters = provided.map(([, value]) => value ?? null);
+  const scoreValues = provided.map(([, value]) => value ?? null);
   await transaction.unsafe(
     `insert into installment_scores (installment_id, ${names.map((name) => `"${name}"`).join(", ")})
      values ($1, ${names.map((_name, index) => `$${index + 2}`).join(", ")})
      on conflict (installment_id) do update set ${names
        .map((name) => `"${name}" = excluded."${name}"`)
        .join(", ")}, updated_at = now()`,
-    [installmentId, ...parameters],
+    [installmentId, ...scoreValues],
   );
 }
 
@@ -494,7 +523,7 @@ async function syncEpisodes(
         `update episodes set ${names
           .map((name, offset) => `"${name}" = $${offset + 2}`)
           .join(", ")}, updated_at = now() where id = $1`,
-        [match.id, ...values.values()],
+        parameters([match.id, ...values.values()]),
       );
       seen.add(match.id);
       continue;
@@ -504,7 +533,7 @@ async function syncEpisodes(
     const rows = await transaction.unsafe<Array<{ id: string }>>(
       `insert into episodes (${names.map((name) => `"${name}"`).join(", ")})
        values (${names.map((_name, offset) => `$${offset + 1}`).join(", ")}) returning id`,
-      [...values.values()],
+      parameters([...values.values()]),
     );
     const row = rows[0];
     if (row) seen.add(row.id);
@@ -542,7 +571,12 @@ async function syncCredits(
         'List valid roles with "arcadia role list" — the set is fixed by a CHECK constraint.',
       );
     }
-    const entityId = await resolveEntity(transaction, document.entity, role.entity_kind, createMissing);
+    const entityId = await resolveEntity(
+      transaction,
+      document.entity,
+      role.entity_kind,
+      createMissing,
+    );
     await transaction.unsafe(
       `insert into contributions (title_id, entity_id, role_id, position, is_primary)
        values ($1, $2, $3, $4, $5)
@@ -624,10 +658,9 @@ async function syncAwards(
 
     let installmentId: string | null = null;
     if (document.installment !== null && document.installment !== undefined) {
-      installmentId =
-        typeof document.installment === "number"
-          ? (installmentPositions.get(document.installment) ?? null)
-          : document.installment;
+      installmentId = isPositionReference(document.installment)
+        ? (installmentPositions.get(document.installment) ?? null)
+        : document.installment;
       if (!installmentId) {
         throw new CliError(
           `Award references installment ${String(document.installment)}, which this work does not have`,
@@ -636,11 +669,23 @@ async function syncAwards(
     }
 
     await transaction.unsafe(
+      // `award_recognitions` has no unique constraint to conflict on, so re-applying the same
+      // document would otherwise insert a second copy of every award. Match on the tuple that
+      // makes a recognition the same recognition, treating null installment/year as equal.
       `insert into award_recognitions
          (title_id, installment_id, organization_id, category_id, organization_slug,
           organization_name, category, year, result, is_featured, source_url, notes, position)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-      [
+       select $1,$2::uuid,$3,$4,$5,$6,$7,$8::int,$9::award_result,$10,$11,$12,$13
+       where not exists (
+         select 1 from award_recognitions existing
+         where existing.title_id = $1
+           and existing.installment_id is not distinct from $2::uuid
+           and existing.organization_slug = $5
+           and existing.category = $7
+           and existing.year is not distinct from $8::int
+           and existing.result = $9::award_result
+       )`,
+      parameters([
         titleId,
         installmentId,
         organization.id,
@@ -654,7 +699,7 @@ async function syncAwards(
         document.sourceUrl ?? null,
         document.notes ?? null,
         index,
-      ],
+      ]),
     );
   }
 }
@@ -668,9 +713,12 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
       'Pass a file: arcadia work apply work.json — or --json \'{"canonicalTitle":"…"}\'. Start from "arcadia work template".',
     );
   }
+  // SAFETY: `file` is non-empty here — the guard above returns when both it and `inline` are unset.
   const raw = inline ?? (await readFile(file as string, "utf8"));
   let parsedJson: unknown;
   try {
+    // SAFETY: the parsed value is immediately handed to workDocument.safeParse below, which is
+    // the actual boundary check; `unknown` is the honest type until then.
     parsedJson = JSON.parse(raw) as unknown;
   } catch (error) {
     throw new CliError(
@@ -708,7 +756,10 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
 
     if (document.aliases) {
       if (mode === "replace") {
-        await transaction.unsafe(`delete from title_aliases where title_id = $1`, [titleId]);
+        await transaction.unsafe(
+          `delete from title_aliases where title_id = $1`,
+          parameters([titleId]),
+        );
       }
       for (const alias of document.aliases) {
         await transaction.unsafe(
@@ -725,7 +776,10 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
 
     if (document.planets) {
       if (mode === "replace") {
-        await transaction.unsafe(`delete from title_planets where title_id = $1`, [titleId]);
+        await transaction.unsafe(
+          `delete from title_planets where title_id = $1`,
+          parameters([titleId]),
+        );
       }
       for (const planet of document.planets) {
         const rows = await transaction.unsafe<Array<{ id: string }>>(
@@ -783,7 +837,10 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
 
     if (document.awards) {
       if (mode === "replace") {
-        await transaction.unsafe(`delete from award_recognitions where title_id = $1`, [titleId]);
+        await transaction.unsafe(
+          `delete from award_recognitions where title_id = $1`,
+          parameters([titleId]),
+        );
       }
       await syncAwards(transaction, titleId, document.awards, positions, createMissing);
     }
@@ -818,8 +875,7 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
     };
   }
 
-  const outcome = await sql.begin(run);
-  const result = outcome as unknown as { titleId: string; created: boolean };
+  const result: ApplyOutcome = await sql.begin(run);
   return { ok: true, mode, created: result.created, titleId: result.titleId };
 }
 
@@ -838,35 +894,59 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
     select * from titles where id = ${titleId}`;
   if (!title) throw new CliError(`No title with id ${titleId}`);
 
-  const [aliases, genres, tones, tags, countries, planets, credits, externalIds, relations, media, installments, awards] =
-    await Promise.all([
-      sql<Array<{ title: string }>>`select title from title_aliases where title_id = ${titleId} order by title`,
-      sql<Array<{ slug: string }>>`select g.slug from title_genres j join genres g on g.id = j.value_id where j.title_id = ${titleId} order by g.slug`,
-      sql<Array<{ slug: string }>>`select g.slug from title_tones j join tones g on g.id = j.value_id where j.title_id = ${titleId} order by g.slug`,
-      sql<Array<{ slug: string }>>`select g.slug from title_tags j join tags g on g.id = j.value_id where j.title_id = ${titleId} order by g.slug`,
-      sql<Array<{ slug: string }>>`select g.slug from title_countries j join countries g on g.id = j.value_id where j.title_id = ${titleId} order by g.slug`,
-      sql<Array<{ slug: string }>>`select p.slug from title_planets j join planets p on p.id = j.planet_id where j.title_id = ${titleId} order by p.slug`,
-      sql<Array<{ entity: string; role: string; is_primary: boolean; position: number }>>`
+  const [
+    aliases,
+    genres,
+    tones,
+    tags,
+    countries,
+    planets,
+    credits,
+    externalIds,
+    relations,
+    media,
+    installments,
+    awards,
+  ] = await Promise.all([
+    sql<
+      Array<{ title: string }>
+    >`select title from title_aliases where title_id = ${titleId} order by title`,
+    sql<
+      Array<{ slug: string }>
+    >`select g.slug from title_genres j join genres g on g.id = j.value_id where j.title_id = ${titleId} order by g.slug`,
+    sql<
+      Array<{ slug: string }>
+    >`select g.slug from title_tones j join tones g on g.id = j.value_id where j.title_id = ${titleId} order by g.slug`,
+    sql<
+      Array<{ slug: string }>
+    >`select g.slug from title_tags j join tags g on g.id = j.value_id where j.title_id = ${titleId} order by g.slug`,
+    sql<
+      Array<{ slug: string }>
+    >`select g.slug from title_countries j join countries g on g.id = j.value_id where j.title_id = ${titleId} order by g.slug`,
+    sql<
+      Array<{ slug: string }>
+    >`select p.slug from title_planets j join planets p on p.id = j.planet_id where j.title_id = ${titleId} order by p.slug`,
+    sql<Array<{ entity: string; role: string; is_primary: boolean; position: number }>>`
         select e.name as entity, r.slug as role, c.is_primary, c.position
         from contributions c join entities e on e.id = c.entity_id join roles r on r.id = c.role_id
         where c.title_id = ${titleId} order by c.position`,
-      sql<Array<{ provider: string; external_id: string; url: string | null }>>`
+    sql<Array<{ provider: string; external_id: string; url: string | null }>>`
         select provider, external_id, url from external_identities where title_id = ${titleId} order by provider`,
-      sql<Array<{ target: string; kind: string; notes: string }>>`
+    sql<Array<{ target: string; kind: string; notes: string }>>`
         select t.canonical_title as target, r.kind, r.notes
         from title_relations r join titles t on t.id = r.target_title_id
         where r.source_title_id = ${titleId} order by r.kind`,
-      sql<Array<{ role: string; path: string }>>`
+    sql<Array<{ role: string; path: string }>>`
         select x.role, a.path from media_asset_assignments x join media_assets a on a.id = x.asset_id
         where x.title_id = ${titleId} and x.is_primary`,
-      sql<Row[]>`
+    sql<Row[]>`
         select i.*, s.story, s.characters, s.depth, s.world_building, s.originality, s.craft
         from installments i left join installment_scores s on s.installment_id = i.id
         where i.title_id = ${titleId} order by i.position`,
-      sql<Row[]>`
+    sql<Row[]>`
         select organization_slug, category, year, result, is_featured, source_url, notes, installment_id
         from award_recognitions where title_id = ${titleId} order by position`,
-    ]);
+  ]);
 
   const episodesByInstallment = new Map<string, Row[]>();
   if (installments.length > 0) {
@@ -881,11 +961,14 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
     }
   }
 
-  const number = (value: SqlValue) => (value === null || value === undefined ? null : Number(value));
   const positionById = new Map(
     installments.map((row) => [String(row.id), Number(row.position)] as const),
   );
 
+  // SAFETY: every assertion below reads a column straight out of `titles`, `installments`,
+  // `episodes`, or `award_recognitions`. Each one is constrained by a Postgres enum or a NOT
+  // NULL/nullable text column whose members are exactly the union being asserted, so the
+  // database has already guaranteed the narrowing that TypeScript cannot see through `Row`.
   return {
     id: String(title.id),
     canonicalTitle: String(title.canonical_title),

@@ -64,18 +64,22 @@ The importer writes `migration-report.json` and never mutates the SQLite source.
 
 ## API and CLI
 
-OpenAPI is available at `http://127.0.0.1:3001/openapi.json`. With the API running, inspect
-the catalog as JSON from the command line:
+OpenAPI is available at `http://127.0.0.1:3001/openapi.json`.
+
+`./bin/arcadia` reads and edits the catalog directly against PostgreSQL (no API server needed):
 
 ```bash
-devenv shell -- pnpm arcadia -- health
-devenv shell -- pnpm arcadia -- titles --search "monster" --limit 20
-devenv shell -- pnpm arcadia -- title <title-id>
-devenv shell -- pnpm arcadia -- list planets
+./bin/arcadia health
+./bin/arcadia title list --search "monster" --limit 20
+./bin/arcadia title get <title-or-alias>
+./bin/arcadia stats coverage
+./bin/arcadia work apply new-work.json --dry-run
+./bin/arcadia help
 ```
 
-Set `ARCADIA_API_URL` to inspect another local API origin. Regenerate checked-in API types
-after changing the OpenAPI contract:
+Set `DATABASE_URL` to point at another database, and `ARCADIA_CLI_ACTOR` to attribute the
+`audit_logs` rows it writes. Regenerate checked-in API types after changing the OpenAPI
+contract:
 
 ```bash
 devenv shell -- pnpm client:generate

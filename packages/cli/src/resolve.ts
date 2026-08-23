@@ -7,16 +7,18 @@
  * anywhere a UUID is accepted.
  */
 
-import { type Sql, type TransactionSql, isUuid } from "./db";
+import { isUuid, parameters, type Sql, type TransactionSql } from "./db";
 import type { ColumnInfo, SchemaInfo, TableInfo } from "./introspect";
 import { CliError } from "./output";
 import { findResource } from "./registry";
 
+type SecondaryLookup = { table: string; column: string; target: string };
+
 /** Extra lookup paths that reach a row through a satellite table. */
-const secondaryLookups: Record<string, { table: string; column: string; target: string }> = {
-  titles: { table: "title_aliases", column: "title", target: "title_id" },
-  entities: { table: "entity_aliases", column: "alias", target: "entity_id" },
-};
+const secondaryLookups = new Map<string, SecondaryLookup>([
+  ["titles", { table: "title_aliases", column: "title", target: "title_id" }],
+  ["entities", { table: "entity_aliases", column: "alias", target: "entity_id" }],
+]);
 
 export type ResolveOptions = {
   /** Restrict resolution to rows matching these column values (used for scoped resources). */
@@ -71,9 +73,7 @@ function resourceNameFor(table: TableInfo): string {
 function refColumnsFor(table: TableInfo): string[] {
   const registered = findResource(table.name);
   const configured = registered?.refColumns ?? [];
-  const present = configured.filter((name) =>
-    table.columns.some((column) => column.name === name),
-  );
+  const present = configured.filter((name) => table.columns.some((column) => column.name === name));
   if (present.length > 0) return [...present];
   // Fall back to conventional naming so unregistered tables still resolve by slug or name.
   return ["slug", "name", "title", "label_en", "display_name"].filter((name) =>
@@ -118,10 +118,10 @@ async function findCandidates(
       .join(" or ");
     const text = `select "${primaryKey}"::text as id, ${label} as label
       from "${table.name}" where (${comparison}) ${scopeClause} limit 25`;
-    const rows = await sql.unsafe<Candidate[]>(text, [pass.value, ...scopeParams]);
+    const rows = await sql.unsafe<Candidate[]>(text, parameters([pass.value, ...scopeParams]));
     if (rows.length > 0) return rows;
 
-    const secondary = secondaryLookups[table.name];
+    const secondary = secondaryLookups.get(table.name);
     if (secondary && pass.operator === "=") {
       const aliasRows = await sql.unsafe<Candidate[]>(
         `select distinct s."${secondary.target}"::text as id, s."${secondary.column}"::text as label

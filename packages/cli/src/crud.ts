@@ -7,21 +7,21 @@
 
 import type { ParsedArgs } from "./args";
 import { boolFlag, intFlag, listFlag, rawListFlag, stringFlag } from "./args";
-import { type Sql, assertIdentifier, camelizeRow, recordAudit } from "./db";
+import { assertIdentifier, camelizeRow, parameters, recordAudit, type Sql } from "./db";
 import type { SchemaInfo, TableInfo } from "./introspect";
 import { requireColumn, requireTable } from "./introspect";
 import { CliError } from "./output";
 import {
-  QueryBuilder,
   buildCondition,
   buildSearchCondition,
   combine,
+  QueryBuilder,
   sanitizeOrderBy,
   selectList,
 } from "./query";
 import type { Resource } from "./registry";
-import type { CommandResult, Row, SqlValue } from "./types";
 import { resolveForeignKey, resolveRef } from "./resolve";
+import type { CommandResult, Row, SqlValue } from "./types";
 import { coerceValue, splitAssignment } from "./values";
 
 export type CrudContext = {
@@ -47,11 +47,9 @@ function whereConditions(builder: QueryBuilder, context: CrudContext) {
   }
   const search = stringFlag(context.args, "search");
   if (search) {
-    const columns = (
-      context.resource.searchColumns ??
-      context.resource.refColumns ??
-      []
-    ).filter((name) => context.table.columns.some((column) => column.name === name));
+    const columns = (context.resource.searchColumns ?? context.resource.refColumns ?? []).filter(
+      (name) => context.table.columns.some((column) => column.name === name),
+    );
     const condition = buildSearchCondition(builder, columns, search);
     if (!condition) {
       throw new CliError(
@@ -87,7 +85,10 @@ export async function listRows(context: CrudContext): Promise<CommandResult> {
 
   if (boolFlag(args, "count")) {
     const text = `select count(*)::int as count from "${table.name}" ${combine(conditions)}`;
-    const rows = await context.sql.unsafe<Array<{ count: number }>>(text, builder.params);
+    const rows = await context.sql.unsafe<Array<{ count: number }>>(
+      text,
+      parameters(builder.params),
+    );
     return { count: rows[0]?.count ?? 0 };
   }
 
@@ -102,7 +103,7 @@ export async function listRows(context: CrudContext): Promise<CommandResult> {
   ]
     .filter((part) => part.length > 0)
     .join(" ");
-  const rows = await context.sql.unsafe<Row[]>(text, builder.params);
+  const rows = await context.sql.unsafe<Row[]>(text, parameters(builder.params));
   return boolFlag(args, "camel") ? rows.map(camelizeRow) : rows;
 }
 
@@ -118,7 +119,7 @@ export async function getRow(context: CrudContext, ref: string): Promise<Command
   const id = await resolveRef(context.sql, table, ref, { scope: context.resource.scope ?? {} });
   const builder = new QueryBuilder();
   const text = `select * from "${table.name}" where "${primaryKey}"::text = ${builder.bind(id)} limit 1`;
-  const rows = await context.sql.unsafe<Row[]>(text, builder.params);
+  const rows = await context.sql.unsafe<Row[]>(text, parameters(builder.params));
   const row = rows[0];
   if (!row) throw new CliError(`No ${context.resource.name} with ${primaryKey} "${id}"`);
   return boolFlag(context.args, "camel") ? camelizeRow(row) : row;
@@ -140,9 +141,13 @@ async function collectAssignments(context: CrudContext): Promise<Map<string, Sql
     const { key, value } = splitAssignment(entry);
     const column = requireColumn(context.table, assertIdentifier(key, "column name"));
     try {
-      assignments.set(column.name, JSON.parse(value) as unknown);
+      // SAFETY: --json-set is an explicit request to store parsed JSON in this column.
+      assignments.set(column.name, JSON.parse(value) as SqlValue);
     } catch {
-      throw new CliError(`--json-set ${key} received invalid JSON`, `Received: ${value.slice(0, 120)}`);
+      throw new CliError(
+        `--json-set ${key} received invalid JSON`,
+        `Received: ${value.slice(0, 120)}`,
+      );
     }
   }
   for (const [name, value] of Object.entries(context.resource.scope ?? {})) {
@@ -180,9 +185,14 @@ export async function createRow(context: CrudContext): Promise<CommandResult> {
     values (${placeholders.join(", ")}) returning *`;
 
   if (boolFlag(context.args, "dry-run")) {
-    return { dryRun: true, action: "create", table: context.table.name, values: Object.fromEntries(assignments) };
+    return {
+      dryRun: true,
+      action: "create",
+      table: context.table.name,
+      values: Object.fromEntries(assignments),
+    };
   }
-  const rows = await context.sql.unsafe<Row[]>(text, builder.params);
+  const rows = await context.sql.unsafe<Row[]>(text, parameters(builder.params));
   const row = rows[0];
   await recordAudit(context.sql, {
     action: `cli.${context.resource.name}.create`,
@@ -236,7 +246,10 @@ async function buildTargetConditions(
   return conditions;
 }
 
-export async function updateRows(context: CrudContext, ref: string | undefined): Promise<CommandResult> {
+export async function updateRows(
+  context: CrudContext,
+  ref: string | undefined,
+): Promise<CommandResult> {
   const assignments = await collectAssignments(context);
   for (const name of Object.keys(context.resource.scope ?? {})) {
     // Scope values are a filter, not an edit: updating `person` must not rewrite `kind`.
@@ -258,7 +271,7 @@ export async function updateRows(context: CrudContext, ref: string | undefined):
     const previewConditions = await buildTargetConditions(previewBuilder, context, ref, "update");
     const affected = await context.sql.unsafe<Row[]>(
       `select * from "${context.table.name}" ${combine(previewConditions)}`,
-      previewBuilder.params,
+      parameters(previewBuilder.params),
     );
     return {
       dryRun: true,
@@ -281,7 +294,7 @@ export async function updateRows(context: CrudContext, ref: string | undefined):
     touchesUpdatedAt && !assignments.has("updated_at") ? ", updated_at = now()" : ""
   } ${combine(conditions)} returning *`;
 
-  const rows = await context.sql.unsafe<Row[]>(text, builder.params);
+  const rows = await context.sql.unsafe<Row[]>(text, parameters(builder.params));
   await recordAudit(context.sql, {
     action: `cli.${context.resource.name}.update`,
     targetType: context.table.name,
@@ -292,13 +305,16 @@ export async function updateRows(context: CrudContext, ref: string | undefined):
   return rows;
 }
 
-export async function deleteRows(context: CrudContext, ref: string | undefined): Promise<CommandResult> {
+export async function deleteRows(
+  context: CrudContext,
+  ref: string | undefined,
+): Promise<CommandResult> {
   const builder = new QueryBuilder();
   const conditions = await buildTargetConditions(builder, context, ref, "delete");
   const where = combine(conditions);
   const affected = await context.sql.unsafe<Row[]>(
     `select * from "${context.table.name}" ${where}`,
-    builder.params,
+    parameters(builder.params),
   );
   if (boolFlag(context.args, "dry-run")) {
     return {
@@ -317,7 +333,7 @@ export async function deleteRows(context: CrudContext, ref: string | undefined):
   }
   const rows = await context.sql.unsafe<Row[]>(
     `delete from "${context.table.name}" ${where} returning *`,
-    builder.params,
+    parameters(builder.params),
   );
   await recordAudit(context.sql, {
     action: `cli.${context.resource.name}.delete`,

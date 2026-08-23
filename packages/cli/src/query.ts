@@ -9,10 +9,10 @@
  */
 
 import { assertIdentifier } from "./db";
-import type { SqlValue } from "./types";
 import type { ColumnInfo, TableInfo } from "./introspect";
 import { requireColumn } from "./introspect";
 import { CliError } from "./output";
+import type { SqlValue } from "./types";
 import { coerceValue, nullLiterals } from "./values";
 
 export class QueryBuilder {
@@ -41,20 +41,18 @@ const operators = [
 
 type OperatorKind = (typeof operators)[number]["kind"];
 
-const comparisonSymbol: Record<string, string> = {
+const comparisonSymbol = {
   ne: "<>",
   gte: ">=",
   lte: "<=",
   gt: ">",
   lt: "<",
   eq: "=",
-};
+} satisfies Partial<Record<OperatorKind, string>>;
 
-function parseExpression(expression: string): {
-  column: string;
-  kind: OperatorKind;
-  value: string;
-} {
+type ParsedFilter = { column: string; kind: OperatorKind; value: string };
+
+function parseExpression(expression: string): ParsedFilter {
   for (const { token, kind } of operators) {
     const index = expression.indexOf(token);
     if (index > 0) {
@@ -67,7 +65,7 @@ function parseExpression(expression: string): {
   }
   throw new CliError(
     `Could not parse filter "${expression}"`,
-    'Use column=value, column!=value, column~substring, column>value, or column:in=a,b,c',
+    "Use column=value, column!=value, column~substring, column>value, or column:in=a,b,c",
   );
 }
 
@@ -125,7 +123,9 @@ export function buildSearchCondition(
 ): Condition | undefined {
   if (columns.length === 0) return undefined;
   const placeholder = builder.bind(`%${term}%`);
-  const parts = columns.map((column) => `"${assertIdentifier(column, "column name")}"::text ilike ${placeholder}`);
+  const parts = columns.map(
+    (column) => `"${assertIdentifier(column, "column name")}"::text ilike ${placeholder}`,
+  );
   return { text: `(${parts.join(" or ")})` };
 }
 

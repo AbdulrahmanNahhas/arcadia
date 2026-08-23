@@ -13,8 +13,7 @@ import type { Row, SqlValue } from "./types";
 export type OutputMode = "table" | "json" | "ndjson" | "csv";
 
 const combiningMarks = /\p{M}/gu;
-const wideCharacters =
-  /[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹯＀-｠￠-￦]/u;
+const wideCharacters = /[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹯＀-｠￠-￦]/u;
 
 /** Approximate terminal columns a string occupies: combining marks are zero-width, CJK is two. */
 export function displayWidth(value: string): number {
@@ -25,10 +24,20 @@ export function displayWidth(value: string): number {
   return width;
 }
 
+function isText(value: SqlValue): value is string {
+  return typeof value === "string";
+}
+function isScalar(value: SqlValue): value is number | boolean {
+  return typeof value === "number" || typeof value === "boolean";
+}
+function isRow(value: SqlValue): value is Row {
+  return value instanceof Object && !Array.isArray(value) && !(value instanceof Date);
+}
+
 function cell(value: SqlValue): string {
   if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (isText(value)) return value;
+  if (isScalar(value)) return String(value);
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map(cell).join(", ");
   return JSON.stringify(value);
@@ -69,7 +78,10 @@ export function renderTable(rows: readonly Row[], maxCellWidth = 60): string {
       .trimEnd();
   return [
     line(columns),
-    widths.map((width) => "-".repeat(width)).join("  ").trimEnd(),
+    widths
+      .map((width) => "-".repeat(width))
+      .join("  ")
+      .trimEnd(),
     ...body.map(line),
   ].join("\n");
 }
@@ -105,16 +117,22 @@ export function renderCsv(rows: readonly Row[]): string {
   ].join("\n");
 }
 
+/** Narrow a command result to the row shapes the table and CSV renderers understand. */
+function asRows(value: SqlValue): Row[] {
+  if (Array.isArray(value)) return value.filter(isRow);
+  return isRow(value) ? [value] : [];
+}
+
 export function render(value: SqlValue, mode: OutputMode, maxCellWidth = 60): string {
   if (mode === "json") return JSON.stringify(value, null, 2);
   if (mode === "ndjson") {
     const rows = Array.isArray(value) ? value : [value];
     return rows.map((row) => JSON.stringify(row)).join("\n");
   }
-  if (mode === "csv") return renderCsv(Array.isArray(value) ? (value as Row[]) : [value as Row]);
-  if (Array.isArray(value)) return renderTable(value as Row[], maxCellWidth);
+  if (mode === "csv") return renderCsv(asRows(value));
+  if (Array.isArray(value)) return renderTable(asRows(value), maxCellWidth);
   // Single records are never truncated: there is only one, and its long fields are the point.
-  if (value !== null && typeof value === "object") return renderRecord(value as Row, 0);
+  if (isRow(value)) return renderRecord(value, 0);
   return cell(value);
 }
 

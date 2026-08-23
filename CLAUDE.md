@@ -18,7 +18,7 @@ packages/contracts   shared Zod schemas and generated API types
 packages/database    PostgreSQL schema, Drizzle migrations, seed, and v1 importer
 packages/domain      taxonomy, classification, policy, and scoring rules (framework-independent)
 packages/i18n        shared Arabic/English interface vocabulary and taxonomy labels
-scripts              repository command-line tools (e.g. arcadia-cli.mjs)
+packages/cli         `arcadia` agent-facing CLI over the PostgreSQL catalog
 ```
 
 ## Commands
@@ -70,14 +70,23 @@ Regenerate the checked-in API client types after changing the OpenAPI contract:
 devenv shell -- pnpm client:generate
 ```
 
-Inspect the catalog from the CLI (API must be running):
+Read and edit the catalog from the CLI (`packages/cli`, talks straight to PostgreSQL — the API
+does not need to be running):
 
 ```bash
-devenv shell -- pnpm arcadia -- health
-devenv shell -- pnpm arcadia -- titles --search "monster" --limit 20
-devenv shell -- pnpm arcadia -- title <title-id>
-devenv shell -- pnpm arcadia -- list planets
+./bin/arcadia health
+./bin/arcadia title list --search "monster" --limit 20
+./bin/arcadia title get <title-or-alias>          # references, not just UUIDs
+./bin/arcadia schema titles                        # live column/enum introspection
+./bin/arcadia stats coverage                       # catalog completeness
+./bin/arcadia work apply new-work.json --dry-run   # whole-work create/update, one transaction
 ```
+
+Use `./bin/arcadia`, not `devenv shell -- pnpm arcadia`: the devenv banner writes to stdout and
+corrupts `--json` output. The CLI can edit every table, so writes support `--dry-run`, require
+`--yes` past one row, and record `audit_logs` rows. Two skills document it in depth:
+`.agents/skills/arcadia-db` (the interface) and `.agents/skills/arcadia-cataloging` (scoring,
+classification, and the Arabic `contentWarnings`/`analysisNotes` conventions).
 
 ## Environment
 

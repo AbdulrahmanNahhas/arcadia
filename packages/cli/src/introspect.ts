@@ -8,7 +8,7 @@
  * `arcadia schema` is always describing what actually exists.
  */
 
-import { type Sql, assertIdentifier } from "./db";
+import { assertIdentifier, type Sql } from "./db";
 import { CliError } from "./output";
 
 export type ColumnInfo = {
@@ -114,16 +114,17 @@ export async function loadSchema(sql: Sql): Promise<SchemaInfo> {
     }
     const isArray = row.udt_name.startsWith("_");
     const type = isArray ? row.udt_name.slice(1) : row.udt_name;
-    const enumValues = enums.get(type);
-    table.columns.push({
+    const column: ColumnInfo = {
       name: row.column_name,
       type,
       nullable: row.is_nullable === "YES",
       hasDefault: row.has_default,
       isArray,
       isGenerated: row.is_generated,
-      ...(enumValues ? { enumValues } : {}),
-    });
+    };
+    const enumValues = enums.get(type);
+    if (enumValues) column.enumValues = enumValues;
+    table.columns.push(column);
   }
   for (const row of primaryKeyRows) tables.get(row.table_name)?.primaryKey.push(row.column_name);
   for (const row of foreignKeyRows) {
@@ -134,6 +135,8 @@ export async function loadSchema(sql: Sql): Promise<SchemaInfo> {
     });
   }
 
+  // SAFETY: `enums` is only ever populated with string arrays above and is never mutated after
+  // this point, so widening its values to readonly is sound.
   cached = { tables, enums: enums as Map<string, readonly string[]> };
   return cached;
 }

@@ -7,9 +7,9 @@
  */
 
 import { isUuid } from "./db";
-import type { SqlValue } from "./types";
 import type { ColumnInfo } from "./introspect";
 import { CliError } from "./output";
+import type { SqlValue } from "./types";
 
 const integerTypes = new Set(["int2", "int4", "int8"]);
 const numericTypes = new Set(["numeric", "float4", "float8"]);
@@ -79,7 +79,8 @@ export function coerceValue(column: ColumnInfo, raw: string): SqlValue {
   }
   if (jsonTypes.has(column.type)) {
     try {
-      return JSON.parse(raw) as unknown;
+      // SAFETY: the column is json/jsonb, so any successfully parsed JSON is a legal value for it.
+      return JSON.parse(raw) as SqlValue;
     } catch {
       throw new CliError(
         `Column "${column.name}" is ${column.type} but received invalid JSON`,
@@ -90,7 +91,7 @@ export function coerceValue(column: ColumnInfo, raw: string): SqlValue {
   if (column.type === "uuid" && !isUuid(raw.trim())) {
     throw new CliError(
       `Column "${column.name}" expects a UUID but received "${raw}"`,
-      "Pass a UUID, or use a reference the CLI can resolve (see \"arcadia help refs\").",
+      'Pass a UUID, or use a reference the CLI can resolve (see "arcadia help refs").',
     );
   }
   return raw;
@@ -105,8 +106,10 @@ function assertEnum(column: ColumnInfo, value: string): string {
   );
 }
 
+export type Assignment = { key: string; value: string };
+
 /** Split a `key=value` assignment, tolerating `=` inside the value. */
-export function splitAssignment(input: string): { key: string; value: string } {
+export function splitAssignment(input: string): Assignment {
   const index = input.indexOf("=");
   if (index === -1) {
     throw new CliError(
