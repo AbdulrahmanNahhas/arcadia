@@ -62,8 +62,8 @@ export function StudioLineagePage() {
   const [zoom, setZoom] = useState(0.72);
   const [pan, setPan] = useState<Point>({ x: 0, y: 30 });
   const [isDragging, setIsDragging] = useState(false);
-  const [showPanel, setShowPanel] = useState(true);
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>("organic");
+  const [showPanel, setShowPanel] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("flow");
   const [familyIndex, setFamilyIndex] = useState(0);
   const drag = useRef<{ pointerId: number; origin: Point; pan: Point } | null>(null);
   const types = useMemo(

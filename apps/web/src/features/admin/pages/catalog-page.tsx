@@ -354,10 +354,17 @@ function CatalogCard({
           {work.imagePath ? (
             <img src={work.imagePath} alt="" className="size-full object-cover transition" />
           ) : null}
-          <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black via-black/70 to-transparent p-3 pt-12 text-white">
+          <div className="absolute left-2 top-2 text-white">
             <div className="flex flex-wrap gap-1">
               <Badge variant="secondary">{kindLabels[work.kind] ?? work.kind}</Badge>
-              {work.isPrivate ? <Badge variant="destructive">خاص</Badge> : null}
+              {work.isPrivate ? (
+                <Badge
+                  variant="destructive"
+                  className="bg-destructive/75! backdrop-blur-lg text-white!"
+                >
+                  خاص
+                </Badge>
+              ) : null}
             </div>
           </div>
         </div>

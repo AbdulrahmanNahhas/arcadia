@@ -24,7 +24,7 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
       <main className="platform-surface grid min-h-svh place-items-center px-6">
         <div className="text-center text-muted-foreground" aria-live="polite">
           <CircleNotchIcon className="mx-auto mb-4 size-7 animate-spin text-primary" />
-          <p>جارٍ فتح مدارك في أركاديا…</p>
+          <p>جارٍ تحميل الصفحة، يرجى الإنتظار قليلاً.</p>
         </div>
       </main>
     );

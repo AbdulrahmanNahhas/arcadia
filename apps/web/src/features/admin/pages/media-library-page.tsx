@@ -251,7 +251,7 @@ export function MediaLibraryPage() {
         </Card>
 
         {data.items.length ? (
-          <div className="grid min-w-0 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid min-w-0 gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
             {data.items.map((asset) => (
               <AssetCard
                 key={asset.id}
@@ -333,7 +333,7 @@ function AssetCard({
 }) {
   return (
     <Card className="min-w-0 overflow-hidden">
-      <div className="relative aspect-[16/9] bg-muted">
+      <div className="relative aspect-video bg-muted">
         {asset.health === "missing" ? (
           <div className="flex size-full flex-col items-center justify-center gap-2 text-destructive">
             <FileImageIcon className="size-8" />
@@ -347,7 +347,7 @@ function AssetCard({
             loading="lazy"
           />
         )}
-        <div className="absolute end-3 top-3">
+        <div className="absolute inset-e-3 top-3">
           <HealthBadge asset={asset} />
         </div>
       </div>
@@ -379,7 +379,7 @@ function AssetCard({
         {asset.deletionError ? (
           <p className="flex min-w-0 items-start gap-2 text-sm text-destructive">
             <WarningIcon className="mt-0.5 shrink-0" />
-            <span className="break-words">{asset.deletionError}</span>
+            <span className="wrap-break-word">{asset.deletionError}</span>
           </p>
         ) : null}
       </CardContent>
