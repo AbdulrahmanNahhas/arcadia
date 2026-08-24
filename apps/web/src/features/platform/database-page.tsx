@@ -5,6 +5,7 @@ import {
   MagnifyingGlassIcon,
   PanoramaIcon,
   SidebarSimpleIcon,
+  TableIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -41,8 +42,14 @@ import {
   workMatchesCatalogFilters,
 } from "@/features/catalog/catalog-filtering";
 import { CatalogFilterSheet, CatalogFilterSidebar } from "@/features/catalog/catalog-filters";
+import {
+  type CatalogGroupBy,
+  catalogGroupByOptions,
+  groupWorks,
+} from "@/features/catalog/catalog-grouping";
 import type { Work } from "@/features/library/model";
 import { scoreCriterionLabels } from "@/features/library/scoring";
+import { usePersistedState } from "@/lib/use-persisted-state";
 import { cn } from "@/lib/utils";
 import {
   getAdminPlatformCatalogInstallments,
@@ -52,8 +59,10 @@ import {
 } from "@/server/platform.functions";
 import { PlatformShell } from "./components/platform-shell";
 import { WorkCard } from "./components/work-card";
+import { useWorkTableColumns, WorkTable, WorkTableColumnPicker } from "./components/work-table";
 
-type CatalogView = "poster" | "banner" | "logo";
+type CatalogGridView = "poster" | "banner" | "logo";
+type CatalogView = CatalogGridView | "table";
 type CatalogDensity = "compact" | "balanced" | "large";
 type CatalogMode = "titles" | "installments";
 type CatalogSort =
@@ -125,6 +134,25 @@ function sortWorks(works: Work[], sort: CatalogSort) {
   });
 }
 
+function gridClassName(view: CatalogGridView, density: CatalogDensity) {
+  if (view === "banner") {
+    if (density === "compact") {
+      return "grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
+    }
+    if (density === "large") {
+      return "grid-cols-1 gap-x-6 gap-y-10 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4";
+    }
+    return "grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5";
+  }
+  if (density === "compact") {
+    return "grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8";
+  }
+  if (density === "large") {
+    return "grid-cols-2 gap-x-5 gap-y-9 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
+  }
+  return "grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7";
+}
+
 function matchesQuery(work: Work, query: string) {
   if (!query) return true;
   return [
@@ -167,8 +195,16 @@ export function DatabasePage() {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<CatalogMode>("titles");
   const [sort, setSort] = useState<CatalogSort>("newest");
-  const [view, setView] = useState<CatalogView>("poster");
-  const [density, setDensity] = useState<CatalogDensity>("balanced");
+  const [view, setView] = usePersistedState<CatalogView>("arcadia:browse:view", "poster");
+  const [density, setDensity] = usePersistedState<CatalogDensity>(
+    "arcadia:browse:density",
+    "balanced",
+  );
+  const [groupBy, setGroupBy] = usePersistedState<CatalogGroupBy>(
+    "arcadia:browse:group-by",
+    "none",
+  );
+  const [tableColumns, setTableColumns] = useWorkTableColumns();
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(createCatalogFilters);
 
@@ -188,6 +224,10 @@ export function DatabasePage() {
         sort,
       ),
     [catalogWorks, filters, normalizedQuery, sort],
+  );
+  const groups = useMemo(
+    () => groupWorks(visibleWorks, groupBy, sort !== "oldest"),
+    [visibleWorks, groupBy, sort],
   );
   const activeFilterCount = countCatalogFilters(filters);
   const resetFilters = () => setFilters(createCatalogFilters());
@@ -297,6 +337,25 @@ export function DatabasePage() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+              <Select
+                value={groupBy}
+                onValueChange={(value) => value && setGroupBy(value as CatalogGroupBy)}
+              >
+                <SelectTrigger className="min-w-32 flex-1 md:flex-none">
+                  <SelectValue>
+                    {catalogGroupByOptions.find((option) => option.value === groupBy)?.label}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {catalogGroupByOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -323,20 +382,24 @@ export function DatabasePage() {
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <ToggleGroup
-                value={[density]}
-                multiple={false}
-                variant="outline"
-                size="sm"
-                spacing={0}
-                aria-label="حجم بطاقات الشبكة"
-                disabled={!interactive}
-                onValueChange={(values) => values[0] && setDensity(values[0] as CatalogDensity)}
-              >
-                <ToggleGroupItem value="compact">صغير</ToggleGroupItem>
-                <ToggleGroupItem value="balanced">متوسط</ToggleGroupItem>
-                <ToggleGroupItem value="large">كبير</ToggleGroupItem>
-              </ToggleGroup>
+              {view !== "table" ? (
+                <ToggleGroup
+                  value={[density]}
+                  multiple={false}
+                  variant="outline"
+                  size="sm"
+                  spacing={0}
+                  aria-label="حجم بطاقات الشبكة"
+                  disabled={!interactive}
+                  onValueChange={(values) => values[0] && setDensity(values[0] as CatalogDensity)}
+                >
+                  <ToggleGroupItem value="compact">صغير</ToggleGroupItem>
+                  <ToggleGroupItem value="balanced">متوسط</ToggleGroupItem>
+                  <ToggleGroupItem value="large">كبير</ToggleGroupItem>
+                </ToggleGroup>
+              ) : (
+                <WorkTableColumnPicker visible={tableColumns} onChange={setTableColumns} />
+              )}
               <ToggleGroup
                 value={[view]}
                 multiple={false}
@@ -356,6 +419,9 @@ export function DatabasePage() {
                 <ToggleGroupItem value="logo" aria-label="شعارات">
                   <ImageSquareIcon />
                 </ToggleGroupItem>
+                <ToggleGroupItem value="table" aria-label="جدول">
+                  <TableIcon />
+                </ToggleGroupItem>
               </ToggleGroup>
             </div>
           </div>
@@ -369,29 +435,30 @@ export function DatabasePage() {
         >
           {showFilters ? <CatalogFilterSidebar {...filterProps} /> : null}
           <div className="min-w-0">
-            {visibleWorks.length ? (
-              <div
-                className={cn(
-                  "grid",
-                  view === "banner"
-                    ? density === "compact"
-                      ? "grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
-                      : density === "large"
-                        ? "grid-cols-1 gap-x-6 gap-y-10 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
-                        : "grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
-                    : density === "compact"
-                      ? "grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8"
-                      : density === "large"
-                        ? "grid-cols-2 gap-x-5 gap-y-9 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
-                        : "grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7",
-                )}
-              >
-                {visibleWorks.map((work) => (
-                  <WorkCard
-                    key={`${mode}:${work.installmentId ?? work.id}`}
-                    work={work}
-                    variant={view}
-                  />
+            {groups.length ? (
+              <div className="flex flex-col gap-9">
+                {groups.map((group) => (
+                  <section key={group.key}>
+                    {group.label ? (
+                      <div className="mb-4 flex items-baseline gap-2">
+                        <h2 className="font-heading text-lg font-semibold">{group.label}</h2>
+                        <Badge variant="outline">{group.works.length} نتيجة</Badge>
+                      </div>
+                    ) : null}
+                    {view === "table" ? (
+                      <WorkTable works={group.works} columns={tableColumns} />
+                    ) : (
+                      <div className={cn("grid", gridClassName(view, density))}>
+                        {group.works.map((work) => (
+                          <WorkCard
+                            key={`${mode}:${work.installmentId ?? work.id}`}
+                            work={work}
+                            variant={view}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </section>
                 ))}
               </div>
             ) : (

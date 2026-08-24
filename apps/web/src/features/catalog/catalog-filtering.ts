@@ -7,6 +7,7 @@ export type CatalogFacetKey =
   | "kinds"
   | "releaseStatuses"
   | "audiences"
+  | "ages"
   | "genres"
   | "tones"
   | "tags"
@@ -40,6 +41,7 @@ export const catalogFacetKeys: CatalogFacetKey[] = [
   "kinds",
   "releaseStatuses",
   "audiences",
+  "ages",
   "genres",
   "tones",
   "tags",
@@ -98,6 +100,7 @@ export function getCatalogFacetValues(work: Work, key: CatalogFacetKey): string[
   }
   if (key === "releaseStatuses") return [work.releaseStatus];
   if (key === "audiences") return work.audience ? [work.audience] : ["unknown"];
+  if (key === "ages") return work.age ? [work.age] : ["unknown"];
   if (key === "genres") return work.genres;
   if (key === "tones") return work.tone;
   if (key === "tags") return work.tags;

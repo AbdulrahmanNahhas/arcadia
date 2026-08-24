@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { taxonomyLabels } from "@/features/library/model";
 import { scoreCriteria, scoreCriterionLabels } from "@/features/library/scoring";
 import { kindLabelsAr, useArabicTranslations } from "@/features/library/translations";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,7 @@ const fixedLabels: Record<string, string> = {
   Teen: "مراهقون",
   "Young Adult": "شباب",
   Adult: "بالغون",
+  ...taxonomyLabels.ages,
 };
 
 const facetVocabulary: Partial<Record<CatalogFacetKey, string>> = {
@@ -287,6 +289,13 @@ function CatalogFilterContent(props: CatalogFiltersProps) {
         <FacetList
           facet="audiences"
           options={props.options.audiences}
+          filters={props.filters}
+          onCycle={updateFacet}
+        />
+        <FacetLabel>الفئة العمرية</FacetLabel>
+        <FacetList
+          facet="ages"
+          options={props.options.ages}
           filters={props.filters}
           onCycle={updateFacet}
         />

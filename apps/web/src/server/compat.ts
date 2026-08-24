@@ -72,6 +72,17 @@ function audience(value: string | undefined): Work["audience"] {
           : null;
 }
 
+/**
+ * An installment's own release status ("announced"/"airing"/"completed"/"unknown"), not the
+ * parent title's ("upcoming"/"airing"/"returning"/"completed"/"unknown"). Installment-mode
+ * browsing must filter on the installment's own status — a "returning" title (an ongoing,
+ * multi-season show) still has individual seasons/movies that are each announced, airing, or
+ * completed, and those shouldn't collapse into the title's umbrella status.
+ */
+export function installmentReleaseStatus(status: Installment["status"]): Work["releaseStatus"] {
+  return status === "announced" ? "upcoming" : status;
+}
+
 function contribution(credit: TitleDetail["credits"][number]): WorkContribution {
   return {
     entityId: credit.id,
@@ -301,7 +312,7 @@ function installmentWorks(items: Installment[], titles: TitleSummary[]) {
       kind: title?.kind ?? (item.kind === "season" ? "anime" : "movie"),
       installmentKinds: [item.kind],
       year: item.releaseDate ? Number(item.releaseDate.slice(0, 4)) : null,
-      releaseStatus: title?.releaseStatus ?? "unknown",
+      releaseStatus: installmentReleaseStatus(item.status),
       isPrivate: title?.isPrivate ?? false,
       planetId: title?.planetId ?? null,
       runtimeMinutes: item.runtimeMinutes,

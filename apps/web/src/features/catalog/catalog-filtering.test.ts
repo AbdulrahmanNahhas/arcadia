@@ -15,6 +15,7 @@ const work = {
   calculatedRating: 8.2,
   scoreComponents: { depth: 8.5, story: 7.5 },
   audience: "Teen",
+  age: "13+",
   genres: ["Drama"],
   tone: ["Reflective"],
   tags: ["Coming-of-Age"],
@@ -79,6 +80,22 @@ describe("catalog filtering", () => {
     filters.facets.countries.include = ["Japan"];
     expect(workMatchesCatalogFilters(work, filters)).toBe(true);
     expect(workMatchesCatalogFilters(otherWork, filters)).toBe(false);
+  });
+
+  it("filters by age rating and buckets unset ages as unknown", () => {
+    const unratedAge = { ...work, id: "no-age", age: null };
+    const options = buildCatalogFacetOptions([work, unratedAge]);
+    expect(options.ages).toEqual(
+      expect.arrayContaining([
+        { value: "13+", count: 1 },
+        { value: "unknown", count: 1 },
+      ]),
+    );
+
+    const filters = createCatalogFilters();
+    filters.facets.ages.include = ["13+"];
+    expect(workMatchesCatalogFilters(work, filters)).toBe(true);
+    expect(workMatchesCatalogFilters(unratedAge, filters)).toBe(false);
   });
 
   it("keeps unrated works visible until a minimum rating is selected", () => {
