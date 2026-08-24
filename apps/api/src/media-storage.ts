@@ -116,28 +116,32 @@ function safeSlug(value: string) {
   );
 }
 
-export async function storeMedia(input: {
-  dataUrl: string;
-  fileName: string;
+function sniffMimeType(bytes: Buffer): keyof typeof mimeDetails | null {
+  for (const [mimeType, details] of Object.entries(mimeDetails)) {
+    if (details.signature(bytes)) return mimeType as keyof typeof mimeDetails;
+  }
+  return null;
+}
+
+/** Validates and writes already-in-memory image bytes; shared by the base64-upload and
+ * fetch-from-URL entry points below so there's one write/dedupe path, not two. */
+async function storeImageBytes(input: {
+  bytes: Buffer;
+  mimeType: keyof typeof mimeDetails;
+  originalFilename: string;
   assetType: MediaKind;
   ownerName: string;
 }) {
-  const match = /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/]+={0,2})$/.exec(
-    input.dataUrl,
-  );
-  if (!match) throw new Error("Use a valid JPEG, PNG, WebP, or GIF image.");
-
-  const mimeType = match[1] as keyof typeof mimeDetails;
-  const encodedImage = match[2];
-  if (!encodedImage) throw new Error("The image is empty.");
-  const bytes = Buffer.from(encodedImage, "base64");
+  const { bytes, mimeType } = input;
   const details = mimeDetails[mimeType];
   if (!bytes.length || bytes.length > maximumImageBytes)
     throw new Error("Images must be no larger than 10 MB.");
   if (!details.signature(bytes)) throw new Error("The file contents do not match its image type.");
 
   const folder = input.assetType === "profile" ? "profiles" : `${input.assetType}s`;
-  const name = safeSlug(input.ownerName || basename(input.fileName, extname(input.fileName)));
+  const name = safeSlug(
+    input.ownerName || basename(input.originalFilename, extname(input.originalFilename)),
+  );
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const fingerprint = sha256.slice(0, 10);
   const dimensions = imageDimensions(bytes, mimeType);
@@ -158,8 +162,57 @@ export async function storeMedia(input: {
     sha256,
     byteSize: bytes.byteLength,
     ...dimensions,
-    originalFilename: basename(input.fileName),
+    originalFilename: basename(input.originalFilename),
   };
+}
+
+export async function storeMedia(input: {
+  dataUrl: string;
+  fileName: string;
+  assetType: MediaKind;
+  ownerName: string;
+}) {
+  const match = /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/]+={0,2})$/.exec(
+    input.dataUrl,
+  );
+  if (!match) throw new Error("Use a valid JPEG, PNG, WebP, or GIF image.");
+  const mimeType = match[1] as keyof typeof mimeDetails;
+  const encodedImage = match[2];
+  if (!encodedImage) throw new Error("The image is empty.");
+  return storeImageBytes({
+    bytes: Buffer.from(encodedImage, "base64"),
+    mimeType,
+    originalFilename: input.fileName,
+    assetType: input.assetType,
+    ownerName: input.ownerName,
+  });
+}
+
+/**
+ * Downloads an image from a remote URL (TMDB/AniList/Fanart artwork, or any other https source)
+ * and runs it through the same validated, content-addressed write path as a manual upload.
+ * Mime type is sniffed from the downloaded bytes' signature, not trusted from the response's
+ * Content-Type header — a remote server can say anything there.
+ */
+export async function storeMediaFromUrl(input: {
+  url: string;
+  assetType: MediaKind;
+  ownerName: string;
+}) {
+  const parsed = new URL(input.url);
+  if (parsed.protocol !== "https:") throw new Error("Only https image URLs are allowed.");
+  const response = await fetch(parsed);
+  if (!response.ok) throw new Error(`Could not download the image (HTTP ${response.status}).`);
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const mimeType = sniffMimeType(bytes);
+  if (!mimeType) throw new Error("The file contents do not match a supported image type.");
+  return storeImageBytes({
+    bytes,
+    mimeType,
+    originalFilename: basename(parsed.pathname) || "image",
+    assetType: input.assetType,
+    ownerName: input.ownerName,
+  });
 }
 
 export async function removeStoredMedia(relativePath: string | null | undefined) {

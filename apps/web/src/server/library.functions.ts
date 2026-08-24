@@ -7,6 +7,8 @@ import type {
   AdminAwardsDocument,
   AdminEntityContributionInput,
   AdminStatistics,
+  ArtworkCandidate,
+  ArtworkProvider,
   AwardOrganizationOption,
   MediaAsset,
   VocabularyTerm,
@@ -341,6 +343,41 @@ export async function updateMediaFocal({
     method: "PATCH",
     body: JSON.stringify({ focalX: data.focalX, focalY: data.focalY }),
   });
+}
+export async function searchArtwork({
+  data,
+}: Data<{
+  title: string;
+  year?: number;
+  kind?: "anime" | "movie";
+  role: "poster" | "banner" | "logo";
+}>) {
+  const params = new URLSearchParams({ title: data.title, role: data.role });
+  if (data.year) params.set("year", String(data.year));
+  if (data.kind) params.set("kind", data.kind);
+  return apiFetch<{ candidates: ArtworkCandidate[] }>(
+    `/api/v1/admin/media-artwork-search?${params}`,
+  );
+}
+export async function ingestArtwork({
+  data,
+}: Data<{
+  downloadUrl: string;
+  role: "poster" | "banner" | "logo";
+  ownerName: string;
+  owner?: Record<string, string>;
+  isPrimary?: boolean;
+  provider: ArtworkProvider;
+  externalId: string;
+  titleId?: string;
+}>) {
+  return apiFetch<{ relativePath: string; mimeType: string }>(
+    "/api/v1/admin/media-artwork-ingest",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 export async function getAdminRecordBundles({ data }: Data<{ workIds: string[] }>) {

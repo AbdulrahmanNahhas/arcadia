@@ -1,9 +1,11 @@
 "use client";
 
+import type { ArtworkCandidate, ArtworkProvider } from "@arcadia/contracts";
 import {
   CheckIcon,
   CodeIcon,
   DatabaseIcon,
+  GlobeIcon,
   ImageSquareIcon,
   InfoIcon,
   LockKeyIcon,
@@ -17,7 +19,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
-import { useId, useMemo, useState } from "react";
+import { useDeferredValue, useId, useMemo, useState } from "react";
 import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -94,8 +96,10 @@ import {
   getAdminWorkStructure,
   getMediaAssets,
   getWorkStructure,
+  ingestArtwork,
   saveWork,
   saveWorkStructure,
+  searchArtwork,
   uploadWorkImage,
 } from "@/server/library.functions";
 import { getAdminPlanets } from "@/server/platform.functions";
@@ -1099,6 +1103,9 @@ function WorkEditorFormFields({
                 label="الملصق"
                 assetType="poster"
                 ownerName={draft.title}
+                year={draft.year}
+                kind={draft.kind === "anime" ? "anime" : "movie"}
+                titleId={draft.id}
                 value={draft.imagePath}
                 onChange={(imagePath) => setDraft({ ...draft, imagePath })}
               />
@@ -1106,6 +1113,9 @@ function WorkEditorFormFields({
                 label="الغلاف"
                 assetType="banner"
                 ownerName={draft.title}
+                year={draft.year}
+                kind={draft.kind === "anime" ? "anime" : "movie"}
+                titleId={draft.id}
                 value={draft.bannerPath}
                 onChange={(bannerPath) => setDraft({ ...draft, bannerPath })}
               />
@@ -1113,13 +1123,21 @@ function WorkEditorFormFields({
                 label="الشعار"
                 assetType="logo"
                 ownerName={draft.title}
+                year={draft.year}
+                kind={draft.kind === "anime" ? "anime" : "movie"}
+                titleId={draft.id}
                 value={draft.logoPath}
                 onChange={(logoPath) => setDraft({ ...draft, logoPath })}
               />
             </div>
             {structure && (
               <div className="col-span-full">
-                <SeasonArtworkManager structure={structure} workTitle={draft.title} />
+                <SeasonArtworkManager
+                  structure={structure}
+                  workTitle={draft.title}
+                  year={draft.year}
+                  kind={draft.kind === "anime" ? "anime" : "movie"}
+                />
               </div>
             )}
           </EditorSection>
@@ -1199,28 +1217,221 @@ function JsonWorkDialog({ work }: { work: Work }) {
   );
 }
 
+function artworkAspectRatio(role: "poster" | "banner" | "logo") {
+  return role === "banner" ? "aspect-video" : role === "logo" ? "aspect-square" : "aspect-[2/3]";
+}
+
+const artworkProviderStyle = {
+  tmdb: { label: "TMDB", className: "border-sky-500/30 bg-sky-500/10 text-sky-300" },
+  anilist: { label: "AniList", className: "border-indigo-500/30 bg-indigo-500/10 text-indigo-300" },
+  fanart: { label: "Fanart", className: "border-amber-500/30 bg-amber-500/10 text-amber-300" },
+} satisfies Record<ArtworkProvider, { label: string; className: string }>;
+
+/**
+ * Shared picker used by both ArtworkField (title-level poster/banner/logo) and SeasonPosterCard
+ * (per-installment posters). Picking only *selects* — nothing is downloaded here. An existing
+ * asset is already stored (its path is free to preview); an external candidate is handed back
+ * as-is and only fetched if the caller actually commits it (see ingestPendingArtwork below) —
+ * browsing/comparing candidates shouldn't cost a download.
+ */
+function ArtworkPickerDialog({
+  open,
+  onOpenChange,
+  artworkRole,
+  ownerName,
+  year,
+  kind,
+  onPickExisting,
+  onPickExternal,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  // Named artworkRole, not role — "role" as a JSX prop reads as the ARIA role attribute to
+  // Biome's a11y lint, which isn't what this is.
+  artworkRole: "poster" | "banner" | "logo";
+  ownerName: string;
+  year?: number | null;
+  kind?: "anime" | "movie";
+  onPickExisting: (path: string) => void;
+  onPickExternal: (item: ArtworkCandidate) => void;
+}) {
+  const [tab, setTab] = useState<"existing" | "external">("existing");
+  const [assetSearch, setAssetSearch] = useState("");
+  const [externalQuery, setExternalQuery] = useState(ownerName);
+  const deferredExternalQuery = useDeferredValue(externalQuery);
+
+  const assets = useQuery({
+    queryKey: ["media-picker", artworkRole, assetSearch],
+    queryFn: () =>
+      getMediaAssets(`?role=${artworkRole}&q=${encodeURIComponent(assetSearch)}&limit=30`),
+    enabled: open && tab === "existing",
+  });
+  const externalResults = useQuery({
+    queryKey: ["artwork-search", artworkRole, deferredExternalQuery, year, kind],
+    queryFn: () =>
+      searchArtwork({
+        data: { title: deferredExternalQuery, year: year ?? undefined, kind, role: artworkRole },
+      }),
+    enabled: open && tab === "external" && deferredExternalQuery.trim().length > 0,
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="min-w-0 overflow-hidden sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>اختيار صورة</DialogTitle>
+          <DialogDescription>
+            إعادة استخدام صورة موجودة أو اختيار نتيجة من مصدر خارجي لا يغيّر الصورة الحالية بعد؛
+            التنزيل والتغيير يحدثان فقط بعد الضغط على زر الاعتماد.
+          </DialogDescription>
+        </DialogHeader>
+        <Tabs
+          value={tab}
+          onValueChange={(next) => {
+            // SAFETY: the only two TabsTrigger values below are "existing" and "external".
+            setTab(next as typeof tab);
+          }}
+        >
+          <TabsList>
+            <TabsTrigger value="existing">
+              <ImageSquareIcon data-icon="inline-start" /> مستخدم من قبل
+            </TabsTrigger>
+            <TabsTrigger value="external">
+              <GlobeIcon data-icon="inline-start" /> بحث خارجي
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="existing" className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <MagnifyingGlassIcon />
+              <Input
+                value={assetSearch}
+                onChange={(event) => setAssetSearch(event.target.value)}
+                placeholder="ابحث في الصور…"
+              />
+            </div>
+            <div className="grid max-h-[55dvh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-4">
+              {assets.data?.items.map((asset) => (
+                <button
+                  key={asset.id}
+                  type="button"
+                  className="overflow-hidden rounded-xl border text-start focus-visible:outline-2 focus-visible:outline-ring"
+                  onClick={() => onPickExisting(asset.path)}
+                >
+                  <img
+                    src={asset.path}
+                    alt={asset.originalFilename}
+                    className={cn(
+                      artworkAspectRatio(artworkRole),
+                      "w-full object-contain bg-muted",
+                    )}
+                  />
+                  <span className="flex items-center justify-between gap-2 p-2 text-xs">
+                    <span className="truncate">{asset.originalFilename}</span>
+                    <Badge variant="outline">{asset.usageCount}</Badge>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </TabsContent>
+          <TabsContent value="external" className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <MagnifyingGlassIcon />
+              <Input
+                value={externalQuery}
+                onChange={(event) => setExternalQuery(event.target.value)}
+                placeholder="اسم العمل بالإنجليزية…"
+                dir="ltr"
+              />
+            </div>
+            {externalResults.isFetching ? (
+              <p className="text-xs text-muted-foreground">جارٍ البحث…</p>
+            ) : externalResults.data && externalResults.data.candidates.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                لا توجد نتائج مطابقة. جرّب تعديل اسم البحث.
+              </p>
+            ) : null}
+            <div className="grid max-h-[55dvh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-4">
+              {externalResults.data?.candidates.map((item) => {
+                const style = artworkProviderStyle[item.provider];
+                return (
+                  <button
+                    key={`${item.provider}:${item.externalId}:${item.downloadUrl}`}
+                    type="button"
+                    className="overflow-hidden rounded-xl border text-start focus-visible:outline-2 focus-visible:outline-ring"
+                    onClick={() => onPickExternal(item)}
+                  >
+                    <img
+                      src={item.previewUrl}
+                      alt={item.matchLabel}
+                      className={cn(
+                        artworkAspectRatio(artworkRole),
+                        "w-full object-contain bg-muted",
+                      )}
+                    />
+                    <span className="flex items-center justify-between gap-2 p-2 text-xs">
+                      <span className="truncate">{item.matchLabel}</span>
+                      <Badge variant="outline" className={style.className}>
+                        {style.label}
+                      </Badge>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Downloads and registers a picked-but-not-yet-fetched external candidate, run only when the
+ * caller actually commits it (never while just browsing the picker). */
+async function ingestPendingArtwork(
+  ingest: ReturnType<
+    typeof useMutation<
+      { relativePath: string; mimeType: string },
+      Error,
+      Parameters<typeof ingestArtwork>[0]
+    >
+  >,
+  item: ArtworkCandidate,
+  input: { role: "poster" | "banner" | "logo"; ownerName: string; titleId?: string },
+) {
+  const data: Parameters<typeof ingestArtwork>[0]["data"] = {
+    downloadUrl: item.downloadUrl,
+    role: input.role,
+    ownerName: input.ownerName,
+    provider: item.provider,
+    externalId: item.externalId,
+  };
+  if (input.titleId) data.titleId = input.titleId;
+  return ingest.mutateAsync({ data });
+}
+
 function ArtworkField({
   label,
   assetType,
   ownerName,
+  year,
+  kind,
+  titleId,
   value,
   onChange,
 }: {
   label: string;
   assetType: "poster" | "banner" | "logo";
   ownerName: string;
+  year?: number | null;
+  kind?: "anime" | "movie";
+  titleId?: string;
   value: string | null;
   onChange: (path: string | null) => void;
 }) {
   const [candidate, setCandidate] = useState("");
+  const [pendingExternal, setPendingExternal] = useState<ArtworkCandidate | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [assetSearch, setAssetSearch] = useState("");
-  const assets = useQuery({
-    queryKey: ["media-picker", assetType, assetSearch],
-    queryFn: () =>
-      getMediaAssets(`?role=${assetType}&q=${encodeURIComponent(assetSearch)}&limit=30`),
-    enabled: pickerOpen,
-  });
+
   const fileInputId = useId();
   const upload = useMutation({ mutationFn: uploadWorkImage });
   const uploadFile = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1232,19 +1443,36 @@ function ArtworkField({
       if (reader.result !== null && !(reader.result instanceof ArrayBuffer)) {
         upload.mutate(
           { data: { dataUrl: reader.result, fileName: file.name, assetType, ownerName } },
-          { onSuccess: ({ relativePath }) => setCandidate(relativePath) },
+          {
+            onSuccess: ({ relativePath }) => {
+              setCandidate(relativePath);
+              setPendingExternal(null);
+            },
+          },
         );
       }
     });
     reader.readAsDataURL(file);
   };
+
+  const ingest = useMutation({ mutationFn: ingestArtwork });
+  const commit = async () => {
+    if (pendingExternal) {
+      const stored = await ingestPendingArtwork(ingest, pendingExternal, {
+        role: assetType,
+        ownerName,
+        titleId,
+      });
+      onChange(stored.relativePath);
+    } else {
+      onChange(candidate);
+    }
+    setCandidate("");
+    setPendingExternal(null);
+  };
+
   const preview = candidate || value;
-  const aspectRatio =
-    assetType === "banner"
-      ? "aspect-video"
-      : assetType === "logo"
-        ? "aspect-square"
-        : "aspect-[2/3]";
+  const aspectRatio = artworkAspectRatio(assetType);
 
   return (
     <Field label={label}>
@@ -1279,7 +1507,10 @@ function ArtworkField({
         <CardFooter className="flex-col items-stretch gap-3 px-4">
           <Input
             value={candidate}
-            onChange={(event) => setCandidate(event.target.value)}
+            onChange={(event) => {
+              setCandidate(event.target.value);
+              setPendingExternal(null);
+            }}
             placeholder="ألصق رابط الصورة أو مسارها"
             dir="ltr"
           />
@@ -1291,6 +1522,7 @@ function ArtworkField({
             onChange={uploadFile}
           />
           {upload.error ? <p className="text-xs text-destructive">{upload.error.message}</p> : null}
+          {ingest.error ? <p className="text-xs text-destructive">{ingest.error.message}</p> : null}
           <div className="flex flex-wrap gap-2">
             <Label
               htmlFor={fileInputId}
@@ -1304,18 +1536,16 @@ function ArtworkField({
               {upload.isPending ? "جارٍ رفع الصورة…" : "اختر صورة"}
             </Label>
             <Button type="button" size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
-              <ImageSquareIcon data-icon="inline-start" /> اختيار صورة موجودة
+              <GlobeIcon data-icon="inline-start" /> صورة موجودة أو بحث خارجي
             </Button>
             <Button
               type="button"
               size="sm"
-              disabled={!candidate}
-              onClick={() => {
-                onChange(candidate);
-                setCandidate("");
-              }}
+              disabled={!candidate || ingest.isPending}
+              onClick={commit}
             >
-              <CheckIcon data-icon="inline-start" /> اعتماد
+              <CheckIcon data-icon="inline-start" />
+              {ingest.isPending ? "جارٍ التنزيل…" : "اعتماد"}
             </Button>
             {value ? (
               <Button type="button" size="sm" variant="ghost" onClick={() => onChange(null)}>
@@ -1323,47 +1553,24 @@ function ArtworkField({
               </Button>
             ) : null}
           </div>
-          <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-            <DialogContent className="min-w-0 overflow-hidden sm:max-w-3xl">
-              <DialogHeader>
-                <DialogTitle>اختيار أصل موجود</DialogTitle>
-                <DialogDescription>
-                  إعادة الاستخدام لا تنسخ الملف؛ تنشئ تعييناً جديداً عند حفظ العمل.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex items-center gap-2">
-                <MagnifyingGlassIcon />
-                <Input
-                  value={assetSearch}
-                  onChange={(event) => setAssetSearch(event.target.value)}
-                  placeholder="ابحث في الصور…"
-                />
-              </div>
-              <div className="grid max-h-[55dvh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-4">
-                {assets.data?.items.map((asset) => (
-                  <button
-                    key={asset.id}
-                    type="button"
-                    className="overflow-hidden rounded-xl border text-start focus-visible:outline-2 focus-visible:outline-ring"
-                    onClick={() => {
-                      setCandidate(asset.path);
-                      setPickerOpen(false);
-                    }}
-                  >
-                    <img
-                      src={asset.path}
-                      alt={asset.originalFilename}
-                      className="aspect-square w-full object-contain bg-muted"
-                    />
-                    <span className="flex items-center justify-between gap-2 p-2 text-xs">
-                      <span className="truncate">{asset.originalFilename}</span>
-                      <Badge variant="outline">{asset.usageCount}</Badge>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </DialogContent>
-          </Dialog>
+          <ArtworkPickerDialog
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            artworkRole={assetType}
+            ownerName={ownerName}
+            year={year}
+            kind={kind}
+            onPickExisting={(path) => {
+              setCandidate(path);
+              setPendingExternal(null);
+              setPickerOpen(false);
+            }}
+            onPickExternal={(item) => {
+              setCandidate(item.previewUrl);
+              setPendingExternal(item);
+              setPickerOpen(false);
+            }}
+          />
         </CardFooter>
       </Card>
     </Field>
@@ -1484,9 +1691,13 @@ function StructureSummary({ structure }: { structure: WorkStructure | undefined 
 function SeasonArtworkManager({
   structure,
   workTitle,
+  year,
+  kind,
 }: {
   structure: WorkStructure;
   workTitle: string;
+  year?: number | null;
+  kind?: "anime" | "movie";
 }) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -1527,6 +1738,9 @@ function SeasonArtworkManager({
             key={season.id}
             season={season}
             workTitle={workTitle}
+            year={year}
+            kind={kind}
+            titleId={structure.workId}
             disabled={mutation.isPending}
             onSave={(posterPath) => savePoster(season.id, posterPath)}
           />
@@ -1546,15 +1760,24 @@ function SeasonArtworkManager({
 function SeasonPosterCard({
   season,
   workTitle,
+  year,
+  kind,
+  titleId,
   disabled,
   onSave,
 }: {
   season: WorkStructure["seasons"][number];
   workTitle: string;
+  year?: number | null;
+  kind?: "anime" | "movie";
+  titleId?: string;
   disabled: boolean;
   onSave: (posterPath: string | null) => void;
 }) {
   const [candidate, setCandidate] = useState("");
+  const [pendingExternal, setPendingExternal] = useState<ArtworkCandidate | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const ownerName = `${workTitle} ${season.installmentKind} ${season.position + 1}`;
   const fileInputId = useId();
   const upload = useMutation({ mutationFn: uploadWorkImage });
   const uploadFile = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1564,20 +1787,35 @@ function SeasonPosterCard({
     reader.addEventListener("load", () => {
       if (reader.result !== null && !(reader.result instanceof ArrayBuffer)) {
         upload.mutate(
+          { data: { dataUrl: reader.result, fileName: file.name, assetType: "poster", ownerName } },
           {
-            data: {
-              dataUrl: reader.result,
-              fileName: file.name,
-              assetType: "poster",
-              ownerName: `${workTitle} ${season.installmentKind} ${season.position + 1}`,
+            onSuccess: ({ relativePath }) => {
+              setCandidate(relativePath);
+              setPendingExternal(null);
             },
           },
-          { onSuccess: ({ relativePath }) => setCandidate(relativePath) },
         );
       }
     });
     reader.readAsDataURL(file);
   };
+
+  const ingest = useMutation({ mutationFn: ingestArtwork });
+  const save = async () => {
+    if (pendingExternal) {
+      const stored = await ingestPendingArtwork(ingest, pendingExternal, {
+        role: "poster",
+        ownerName,
+        titleId,
+      });
+      onSave(stored.relativePath);
+    } else {
+      onSave(candidate);
+    }
+    setCandidate("");
+    setPendingExternal(null);
+  };
+
   const preview = candidate || season.posterPath;
 
   return (
@@ -1603,7 +1841,10 @@ function SeasonPosterCard({
       <CardFooter className="flex-col items-stretch gap-3 px-4">
         <Input
           value={candidate}
-          onChange={(event) => setCandidate(event.target.value)}
+          onChange={(event) => {
+            setCandidate(event.target.value);
+            setPendingExternal(null);
+          }}
           placeholder="رابط أو مسار الملصق"
           dir="ltr"
           disabled={disabled}
@@ -1617,6 +1858,7 @@ function SeasonPosterCard({
           disabled={disabled || upload.isPending}
         />
         {upload.error ? <p className="text-xs text-destructive">{upload.error.message}</p> : null}
+        {ingest.error ? <p className="text-xs text-destructive">{ingest.error.message}</p> : null}
         <div className="flex flex-wrap gap-2">
           <Label
             htmlFor={fileInputId}
@@ -1632,13 +1874,20 @@ function SeasonPosterCard({
           <Button
             type="button"
             size="sm"
-            disabled={disabled || !candidate}
-            onClick={() => {
-              onSave(candidate);
-              setCandidate("");
-            }}
+            variant="outline"
+            disabled={disabled}
+            onClick={() => setPickerOpen(true)}
           >
-            <CheckIcon data-icon="inline-start" /> حفظ الملصق
+            <GlobeIcon data-icon="inline-start" /> صورة موجودة أو بحث خارجي
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={disabled || !candidate || ingest.isPending}
+            onClick={save}
+          >
+            <CheckIcon data-icon="inline-start" />
+            {ingest.isPending ? "جارٍ التنزيل…" : "حفظ الملصق"}
           </Button>
           {season.posterPath ? (
             <Button
@@ -1652,6 +1901,24 @@ function SeasonPosterCard({
             </Button>
           ) : null}
         </div>
+        <ArtworkPickerDialog
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          artworkRole="poster"
+          ownerName={ownerName}
+          year={year}
+          kind={kind}
+          onPickExisting={(path) => {
+            setCandidate(path);
+            setPendingExternal(null);
+            setPickerOpen(false);
+          }}
+          onPickExternal={(item) => {
+            setCandidate(item.previewUrl);
+            setPendingExternal(item);
+            setPickerOpen(false);
+          }}
+        />
       </CardFooter>
     </Card>
   );

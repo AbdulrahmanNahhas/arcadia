@@ -1,4 +1,5 @@
 import {
+  adminArtworkIngestSchema,
   adminEntityContributionDeleteSchema,
   adminEntityContributionInputSchema,
   adminEntityInputSchema,
@@ -9,6 +10,7 @@ import {
   adminPlanetSchema,
   adminStatisticsSchema,
   adminVocabularyInputSchema,
+  artworkSearchQuerySchema,
   browseQuerySchema,
   browseResponseSchema,
   healthSchema,
@@ -33,7 +35,14 @@ import {
   parseLegacyTitleInput,
   TitleWriteError,
 } from "./features/titles/write";
-import { type mediaKinds, removeStoredMedia, storedMediaExists, storeMedia } from "./media-storage";
+import { searchArtwork } from "./integrations/artwork-search";
+import {
+  type mediaKinds,
+  removeStoredMedia,
+  storedMediaExists,
+  storeMedia,
+  storeMediaFromUrl,
+} from "./media-storage";
 import {
   browse,
   titleDetail,
@@ -578,6 +587,57 @@ app.post("/api/v1/admin/media", async (context) => {
   } catch (error) {
     return context.json(
       { message: error instanceof Error ? error.message : "Image upload failed" },
+      400,
+    );
+  }
+});
+
+app.get("/api/v1/admin/media-artwork-search", async (context) => {
+  const parsed = artworkSearchQuerySchema.safeParse(context.req.query());
+  if (!parsed.success) return context.json({ message: "Invalid artwork search" }, 400);
+  const candidates = await searchArtwork(parsed.data);
+  return context.json({ candidates });
+});
+
+app.post("/api/v1/admin/media-artwork-ingest", async (context) => {
+  const parsed = adminArtworkIngestSchema.safeParse(await context.req.json());
+  if (!parsed.success) return context.json({ message: "Invalid artwork selection" }, 400);
+  const input = parsed.data;
+  try {
+    const stored = await storeMediaFromUrl({
+      url: input.downloadUrl,
+      assetType: input.role,
+      ownerName: input.ownerName,
+    });
+    const sql = database().client;
+    const [existing] = await sql`select * from media_assets where sha256=${stored.sha256}`;
+    let assetId: string;
+    let relativePath: string;
+    let duplicate = false;
+    if (existing) {
+      assetId = String(existing.id);
+      relativePath = String(existing.path);
+      duplicate = true;
+      if (relativePath !== stored.relativePath) await removeStoredMedia(stored.relativePath);
+    } else {
+      const [asset] = await sql`insert into media_assets
+        (path, sha256, mime_type, byte_size, width, height, original_filename)
+        values (${stored.relativePath}, ${stored.sha256}, ${stored.mimeType}, ${stored.byteSize}, ${stored.width}, ${stored.height}, ${stored.originalFilename}) returning id`;
+      if (!asset) throw new Error("Could not register the media asset");
+      assetId = String(asset.id);
+      relativePath = stored.relativePath;
+    }
+    if (input.owner)
+      await assignMediaPath(sql, relativePath, input.role, input.owner, input.isPrimary);
+    if (input.titleId) {
+      await sql`insert into external_identities (title_id, provider, external_id)
+        values (${input.titleId}, ${input.provider}, ${input.externalId})
+        on conflict (lower(btrim(provider)), external_id) do nothing`;
+    }
+    return context.json({ ...stored, id: assetId, relativePath, duplicate }, 201);
+  } catch (error) {
+    return context.json(
+      { message: error instanceof Error ? error.message : "Artwork ingest failed" },
       400,
     );
   }

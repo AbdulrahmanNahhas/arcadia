@@ -312,6 +312,44 @@ export const adminMediaSearchSchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+/** Artwork roles TMDB/AniList/Fanart can supply — "profile" (people/studios) isn't sourced from
+ * any of them, so it's deliberately excluded here even though `mediaAssetRoleSchema` allows it. */
+export const artworkRoleSchema = z.enum(["poster", "banner", "logo"]);
+export const artworkProviderSchema = z.enum(["tmdb", "anilist", "fanart"]);
+export const artworkSearchQuerySchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  year: z.coerce.number().int().min(1850).max(2100).optional(),
+  kind: z.enum(["anime", "movie"]).optional(),
+  role: artworkRoleSchema,
+});
+export const artworkCandidateSchema = z.object({
+  provider: artworkProviderSchema,
+  externalId: z.string().min(1),
+  role: artworkRoleSchema,
+  previewUrl: z.string().url(),
+  downloadUrl: z.string().url(),
+  width: z.number().int().positive().nullable(),
+  height: z.number().int().positive().nullable(),
+  language: z.string().nullable(),
+  /** What matched, e.g. the TMDB/AniList title — lets an admin sanity-check the source picked
+   * the right work before trusting its images. */
+  matchLabel: z.string(),
+});
+export const adminArtworkSearchResponseSchema = z.object({
+  candidates: z.array(artworkCandidateSchema),
+});
+export const adminArtworkIngestSchema = z.object({
+  downloadUrl: z.string().url(),
+  role: artworkRoleSchema,
+  ownerName: z.string().trim().min(1).max(200),
+  owner: mediaOwnerSchema.optional(),
+  isPrimary: z.boolean().default(true),
+  provider: artworkProviderSchema,
+  externalId: z.string().min(1),
+  /** When set, also records/updates an external_identities row for this title+provider. */
+  titleId: z.string().uuid().optional(),
+});
+
 export const vocabularyNameSchema = z.enum([
   "genres",
   "tones",
@@ -930,6 +968,8 @@ export type AwardResult = z.infer<typeof awardResultSchema>;
 export type BrowseResponse = z.infer<typeof browseResponseSchema>;
 export type AdminTitleDetail = z.infer<typeof adminTitleDetailSchema>;
 export type MediaAsset = z.infer<typeof mediaAssetSchema>;
+export type ArtworkCandidate = z.infer<typeof artworkCandidateSchema>;
+export type ArtworkProvider = z.infer<typeof artworkProviderSchema>;
 export type AdminEntity = z.infer<typeof adminEntitySchema>;
 export type AdminEntityInput = z.infer<typeof adminEntityInputSchema>;
 export type AdminEntityContributionInput = z.infer<typeof adminEntityContributionInputSchema>;
