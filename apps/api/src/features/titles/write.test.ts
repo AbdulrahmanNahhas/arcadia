@@ -80,6 +80,53 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
     expect(row.summary).toBe("After.");
   });
 
+  it("preserves age, workflow status, quality score, and curator notes when a caller sends them as null (not omitted)", async () => {
+    // The JSON editor's bulk-save path builds a title's payload from the admin *list* endpoint
+    // (`TitleSummary`), which doesn't carry these fields at all — the client fills the gap with
+    // `null` rather than omitting the key. `legacyTitleInputToCanonical` must treat that `null`
+    // the same as "field not sent" (fall back to the row's current value), not as an explicit
+    // clear — none of these four are actually nullable in `adminTitleInputSchema`, so failing to
+    // do so previously made a null-workflowStatus/qualityScore/curatorNotes reject the entire
+    // save with a generic 400, for every title the JSON editor touched.
+    const title = `Null Means Absent Test ${randomUUID()}`;
+    const createResponse = await postTitle({
+      title,
+      summary: "x",
+      age: "16+",
+      workflowStatus: "published",
+      qualityScore: 55,
+      curatorNotes: "keep me",
+    });
+    const { id } = (await createResponse.json()) as { id: string };
+    createdTitleIds.push(id);
+
+    const updateResponse = await postTitle({
+      id,
+      title,
+      summary: "x",
+      isPrivate: true,
+      age: null,
+      workflowStatus: null,
+      qualityScore: null,
+      curatorNotes: null,
+    });
+    expect(updateResponse.status).toBe(200);
+
+    const row = assertDefined(
+      (
+        await database().client`
+        select age, workflow_status, quality_score, curator_notes, is_private
+        from titles where id=${id}`
+      )[0],
+      "expected the updated title row",
+    );
+    expect(row.age).toBe("16+");
+    expect(row.workflow_status).toBe("published");
+    expect(row.quality_score).toBe(55);
+    expect(row.curator_notes).toBe("keep me");
+    expect(row.is_private).toBe(true);
+  });
+
   it("rejects an invalid audience with a 400 and structured issues", async () => {
     const response = await postTitle({
       title: `Invalid Audience Test ${randomUUID()}`,

@@ -107,8 +107,16 @@ export function legacyTitleInputToCanonical(
 ) {
   const risk = raw.riskProfile ?? {};
   const curation = raw.curation;
+  // `workflowStatus`/`qualityScore`/`curatorNotes`/`age` are never actually nullable in the
+  // canonical schema below (the DB columns are NOT NULL, `curation`'s own two-state proxy has no
+  // null case) — a `null` here only ever means "this view of the work doesn't carry the field",
+  // never "clear it". The admin titles list (`TitleSummary`, what `allAdminWorks()` and so the
+  // JSON editor's bulk-save path build a title's `Work` from) omits these fields entirely, and
+  // `titleToWork` fills the gap with `null` rather than `undefined`. Treating that `null` the
+  // same as an absent field (via `!= null` instead of `!== undefined`) is what actually preserves
+  // the row's current value for that caller, instead of failing `adminTitleInputSchema` outright.
   const workflowStatus =
-    raw.workflowStatus !== undefined
+    raw.workflowStatus != null
       ? raw.workflowStatus
       : curation
         ? curation.status === "verified"
@@ -126,13 +134,13 @@ export function legacyTitleInputToCanonical(
           : null
         : preserved.verifiedAt;
   const curatorNotes =
-    raw.curatorNotes !== undefined
+    raw.curatorNotes != null
       ? raw.curatorNotes
       : curation !== undefined
         ? (curation?.notes ?? "")
         : preserved.curatorNotes;
-  const age = raw.age !== undefined ? raw.age : preserved.age;
-  const qualityScore = raw.qualityScore !== undefined ? raw.qualityScore : preserved.qualityScore;
+  const age = raw.age != null ? raw.age : preserved.age;
+  const qualityScore = raw.qualityScore != null ? raw.qualityScore : preserved.qualityScore;
 
   return {
     id: raw.id,
