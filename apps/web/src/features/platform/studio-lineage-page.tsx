@@ -186,8 +186,8 @@ export function StudioLineagePage() {
                     viewBox="0 0 10 10"
                     refX="8"
                     refY="5"
-                    markerWidth="7"
-                    markerHeight="7"
+                    markerWidth="11"
+                    markerHeight="11"
                     orient="auto-start-reverse"
                   >
                     <path d="M 0 0 L 10 5 L 0 10 z" className="fill-primary" />
@@ -208,6 +208,10 @@ export function StudioLineagePage() {
                         edge.relationship.type.category === "corporate" && "stroke-primary/65",
                         edge.relationship.type.category === "creative" &&
                           "stroke-foreground/55 stroke-2 [stroke-dasharray:8_8]",
+                        // Directed relationships (the ones with an arrowhead) get a heavier
+                        // stroke so the direction actually reads at a glance instead of getting
+                        // lost against the undirected lines around it.
+                        edge.relationship.type.isDirected && "stroke-[3.5]",
                         normalizedSearch &&
                           !matchingIds.has(edge.source.entity.id) &&
                           !matchingIds.has(edge.target.entity.id) &&
@@ -416,6 +420,9 @@ export function StudioLineagePage() {
           <LegendDot className="bg-foreground/60" label="تاريخي" />
           <span className="flex items-center gap-2">
             <span className="h-px w-5 border-t border-dashed border-foreground/60" /> إبداعي
+          </span>
+          <span className="flex items-center gap-2">
+            <ArrowLeftIcon className="text-primary" /> السهم يشير من المصدر إلى الجهة المتأثرة
           </span>
         </div>
       </div>
@@ -626,8 +633,10 @@ function buildOrganicPositions(
         if (!left || !right) continue;
         const deltaX = left.x - right.x || 0.1;
         const deltaY = left.y - right.y || 0.1;
-        const distance = Math.max(40, Math.hypot(deltaX, deltaY));
-        const force = Math.min(18, 72_000 / (distance * distance));
+        // Minimum distance and force scaled up from the original 40/72_000 — the node card
+        // (image + name + relationship badge on its edge) needs more clearance than a bare dot.
+        const distance = Math.max(70, Math.hypot(deltaX, deltaY));
+        const force = Math.min(22, 110_000 / (distance * distance));
         const offset = { x: (deltaX / distance) * force, y: (deltaY / distance) * force };
         const leftMovement = movement.get(leftId);
         const rightMovement = movement.get(rightId);
@@ -648,7 +657,7 @@ function buildOrganicPositions(
       const deltaX = target.x - source.x;
       const deltaY = target.y - source.y;
       const distance = Math.max(1, Math.hypot(deltaX, deltaY));
-      const force = (distance - 330) * 0.018;
+      const force = (distance - 370) * 0.018;
       const offset = { x: (deltaX / distance) * force, y: (deltaY / distance) * force };
       const sourceMovement = movement.get(relationship.source.id);
       const targetMovement = movement.get(relationship.target.id);
@@ -724,8 +733,10 @@ function buildFlowPositions(
       const sortedIds = [...levelIds].sort((left, right) => stableHash(left) - stableHash(right));
       sortedIds.forEach((id, index) => {
         positions.set(id, {
-          x: clamp(center.x + (maxLevel / 2 - itemLevel) * 390, 150, board.width - 150),
-          y: clamp(center.y + (index - (sortedIds.length - 1) / 2) * 220, 160, board.height - 160),
+          // Wide enough that a node's label and the relationship badge floating on its incoming
+          // edge don't collide with the next column/row — this was the main source of overlap.
+          x: clamp(center.x + (maxLevel / 2 - itemLevel) * 430, 150, board.width - 150),
+          y: clamp(center.y + (index - (sortedIds.length - 1) / 2) * 280, 160, board.height - 160),
         });
       });
     }
@@ -757,12 +768,12 @@ function edgeGeometry(edge: GraphEdge) {
   const normal = { x: -deltaY / distance, y: deltaX / distance };
   const curve = ((stableHash(edge.relationship.id) % 3) - 1) * 54;
   const source = {
-    x: edge.source.x + (deltaX / distance) * 76,
-    y: edge.source.y + (deltaY / distance) * 76,
+    x: edge.source.x + (deltaX / distance) * 90,
+    y: edge.source.y + (deltaY / distance) * 90,
   };
   const target = {
-    x: edge.target.x - (deltaX / distance) * 84,
-    y: edge.target.y - (deltaY / distance) * 84,
+    x: edge.target.x - (deltaX / distance) * 100,
+    y: edge.target.y - (deltaY / distance) * 100,
   };
   const control = {
     x: (source.x + target.x) / 2 + normal.x * curve,

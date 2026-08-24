@@ -1,99 +1,129 @@
-import { accountKindLabels, accountRoleLabels } from "@arcadia/i18n";
-import { GearIcon, SignOutIcon, SparkleIcon, UsersThreeIcon } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { accountKindLabels, accountRoleLabels, ar } from "@arcadia/i18n";
+import {
+  GearIcon,
+  IdentificationCardIcon,
+  ShieldCheckIcon,
+  SignOutIcon,
+  UsersThreeIcon,
+} from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { PlatformShell } from "@/components/platform-shell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AccountAvatar } from "@/features/accounts/account-avatar";
-import { accountKeys, getFamilyAccounts } from "@/features/accounts/api";
+import { useCurrentAccount } from "@/features/accounts/api";
+import { PlatformShell } from "@/features/platform/components/platform-shell";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 
+async function signOut() {
+  await authClient.signOut();
+  window.location.assign("/login");
+}
+
+/**
+ * Your own profile at a glance — not a family roster. Switching between family members and
+ * managing their accounts is an owner/editor job that lives entirely in the admin dashboard;
+ * this page only ever shows the signed-in account.
+ */
 export function AccountsPage() {
-  const accounts = useQuery({
-    queryKey: accountKeys.family,
-    queryFn: getFamilyAccounts,
-  });
-
-  async function signOut() {
-    await authClient.signOut();
-    window.location.assign("/login");
-  }
+  const { data, isLoading } = useCurrentAccount();
+  const account = data?.account;
+  const canManageAccounts = account?.role === "owner" || account?.role === "editor";
 
   return (
     <PlatformShell>
-      <section className="mx-auto max-w-6xl px-5 pb-28 pt-20">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="mb-5 flex size-12 items-center justify-center rounded-full border border-primary/35 bg-primary/8 text-primary">
-              <UsersThreeIcon size={25} weight="duotone" />
-            </div>
-            <p className="text-xs font-semibold tracking-[0.18em] text-primary">مدار العائلة</p>
-            <h1 className="mt-3 font-heading text-4xl font-semibold sm:text-5xl">
-              من يستكشف معنا؟
-            </h1>
-            <p className="mt-3 max-w-xl text-muted-foreground">
-              لكل شخص مكتبته وحدوده وانطباعاته، بينما تبقى النقاشات والنشاطات مساحة مشتركة.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" nativeButton={false} render={<Link to="/settings" />}>
-              <GearIcon data-icon="inline-start" />
-              إعداداتي
-            </Button>
-            <Button variant="ghost" onClick={signOut}>
-              <SignOutIcon data-icon="inline-start" />
-              تبديل الحساب
-            </Button>
-          </div>
-        </div>
-
-        {accounts.isLoading ? (
-          <p className="mt-12 text-muted-foreground">جارٍ جمع العائلة…</p>
-        ) : accounts.isError ? (
-          <Card className="mt-10">
-            <CardHeader>
-              <CardTitle>تعذّر تحميل الحسابات</CardTitle>
-              <CardDescription>أعد المحاولة بعد التأكد من اتصال خادم أركاديا.</CardDescription>
-            </CardHeader>
-          </Card>
+      <section className="mx-auto max-w-3xl px-5 pb-28 pt-20">
+        {isLoading || !account ? (
+          <p className="text-muted-foreground">جارٍ تحميل حسابك…</p>
         ) : (
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {accounts.data?.map((account) => (
-              <Card
-                key={account.id}
-                className={
-                  account.isCurrent
-                    ? "relative overflow-hidden border-primary/45 bg-primary/5"
-                    : "relative overflow-hidden"
-                }
-              >
-                <div className="absolute inset-x-0 top-0 h-px bg-linear-to-l from-transparent via-primary/50 to-transparent" />
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <AccountAvatar
-                      avatarKey={account.avatarKey}
-                      label={`صورة ${account.displayName}`}
-                      className="size-16"
-                    />
-                    {account.isCurrent ? (
-                      <Badge>
-                        <SparkleIcon data-icon="inline-start" weight="fill" />
-                        أنت هنا
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <CardTitle className="mt-3">{account.displayName}</CardTitle>
-                  <CardDescription>{account.bio || "عضو في عائلة أركاديا"}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-wrap gap-2">
+          <>
+            <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-start sm:text-start">
+              <AccountAvatar
+                avatarKey={account.avatarKey}
+                label={`صورة ${account.displayName}`}
+                className="size-24 shrink-0 ring-2 ring-primary/25"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold tracking-[0.18em] text-primary">حسابك</p>
+                <h1 className="mt-2 font-heading text-3xl font-semibold sm:text-4xl">
+                  {account.displayName}
+                </h1>
+                {account.username ? (
+                  <p className="mt-1 font-mono text-sm text-muted-foreground" dir="ltr">
+                    @{account.username}
+                  </p>
+                ) : null}
+                <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+                  {account.bio || "لم تكتب نبذة عنك بعد."}
+                </p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
                   <Badge variant="secondary">{accountKindLabels[account.kind]}</Badge>
                   <Badge variant="outline">{accountRoleLabels[account.role]}</Badge>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-10 grid gap-4 sm:grid-cols-2">
+              <Card>
+                <CardHeader className="flex-row items-center gap-3 space-y-0">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <ShieldCheckIcon weight="duotone" />
+                  </span>
+                  <div className="min-w-0">
+                    <CardTitle className="text-base">حدود المحتوى</CardTitle>
+                    <CardDescription>الجمهور والمخاطر المسموح بها لحسابك.</CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                  <Badge variant="outline">جمهور {account.contentPolicy.audience}</Badge>
+                  <Badge variant="outline">عمر {account.contentPolicy.age}</Badge>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+
+              <Card>
+                <CardHeader className="flex-row items-center gap-3 space-y-0">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <IdentificationCardIcon weight="duotone" />
+                  </span>
+                  <div className="min-w-0">
+                    <CardTitle className="text-base">إدارة الحساب</CardTitle>
+                    <CardDescription>الصورة والتفضيلات وحدود المحتوى.</CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Link
+                    to="/settings"
+                    className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+                  >
+                    <GearIcon data-icon="inline-start" />
+                    إعداداتي
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+
+            {canManageAccounts ? (
+              <Link
+                to="/admin/accounts"
+                className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-dashed p-4 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+              >
+                <span className="flex items-center gap-2">
+                  <UsersThreeIcon /> إدارة حسابات العائلة كلها من لوحة الإدارة
+                </span>
+                <span className="text-primary">فتح لوحة الإدارة</span>
+              </Link>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="mt-8 flex items-center gap-2 text-sm text-muted-foreground transition hover:text-destructive"
+            >
+              <SignOutIcon data-icon="inline-start" />
+              {ar.auth.signOut}
+            </button>
+          </>
         )}
       </section>
     </PlatformShell>

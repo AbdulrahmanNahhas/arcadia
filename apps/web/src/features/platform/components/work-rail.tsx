@@ -85,7 +85,9 @@ export function WorkRail({
   title: string;
   description?: string;
   works: Work[];
-  href?: { to: "/planets/$planetSlug"; params: { planetSlug: string } };
+  href?:
+    | { to: "/planets/$planetSlug"; params: { planetSlug: string } }
+    | { to: "/awards/$organizationSlug"; params: { organizationSlug: string } };
   variant?: "poster" | "banner";
 }) {
   const { containerRef, style: fadeStyle } = useEdgeFade();
@@ -120,7 +122,7 @@ export function WorkRail({
         ref={containerRef}
         style={fadeStyle}
         className={cn(
-          "grid grid-flow-col overflow-x-auto overflow-y-visible overscroll-x-contain scrollbar-none px-4 pt-2",
+          "grid grid-flow-col scroll-fade-x! overflow-x-auto overflow-y-visible overscroll-x-contain scrollbar-none px-4 pt-2",
           variant === "banner"
             ? "auto-cols-[86%] gap-3 pb-18 pt-2 sm:auto-cols-[55%] md:auto-cols-[42%] lg:auto-cols-[34%] xl:auto-cols-[28%]"
             : "auto-cols-[43%] gap-3 pb-5 sm:auto-cols-[28%] md:auto-cols-[21%] lg:auto-cols-[16%] xl:auto-cols-[13.5%]",

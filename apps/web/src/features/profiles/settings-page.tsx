@@ -4,7 +4,6 @@ import { ageOptions, ar, audienceOptions, avatarLabels, riskOptions } from "@arc
 import { CheckCircleIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { PlatformShell } from "@/components/platform-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -28,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccountAvatar } from "@/features/accounts/account-avatar";
 import { accountKeys, updateCurrentAccount, useCurrentAccount } from "@/features/accounts/api";
+import { PlatformShell } from "@/features/platform/components/platform-shell";
 import { cn } from "@/lib/utils";
 
 type SettingsDraft = {
