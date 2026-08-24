@@ -57,14 +57,15 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
             loading={index < 2 ? "eager" : "lazy"}
             className={cn(
               "absolute inset-0 -z-30 size-full object-cover object-center opacity-0 transition duration-1000 ease-out motion-reduce:transition-none",
+              "blur-sm md:blur-none",
               !candidate.bannerPath && "scale-110 blur-xl",
               candidate.id === work.id && "opacity-100",
             )}
           />
         ) : null;
       })}
-      <div className="absolute inset-0 -z-20 bg-linear-to-l from-background via-background/62 to-background/10" />
-      <div className="absolute inset-0 -z-20 bg-linear-to-t from-background via-background/15 to-background/30" />
+      <div className="absolute inset-0 -z-20 bg-linear-to-t sm:bg-linear-to-l from-background via-background/62 to-background/10" />
+      <div className="absolute inset-0 -z-20 bg-linear-to-t sm:bg-linear-to-t from-background via-background/15 to-background/30" />
       <div
         className="absolute inset-y-0 inset-s-0 -z-10 w-2/3 bg-[radial-gradient(circle,var(--primary),transparent_70%)] opacity-15 blur-3xl"
         aria-hidden="true"
