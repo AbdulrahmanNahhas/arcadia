@@ -11,205 +11,282 @@ export function PlanetsPage() {
     queryKey: ["planets"],
     queryFn: () => getPlanets(),
   });
+
+  const sortedPlanets = useMemo(
+    () => [...planets].sort((a, b) => (b.workCount || 0) - (a.workCount || 0)),
+    [planets],
+  );
+
   const totalWorks = useMemo(
-    () => planets.reduce((acc, p) => acc + (p.workCount || 0), 0),
+    () => planets.reduce((acc, planet) => acc + (planet.workCount || 0), 0),
     [planets],
   );
 
   return (
     <PlatformShell immersive>
-      <div className="relative overflow-hidden border-b border-border/60 bg-background/80 backdrop-blur-3xl">
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b border-border/60 bg-background">
         <div
-          className="pointer-events-none absolute -top-32 right-1/3 size-150 rounded-full bg-primary/15 blur-[160px]"
-          aria-hidden="true"
-        />
-        <div
-          className="pointer-events-none absolute top-1/2 -left-20 size-112.5 -translate-y-1/2 rounded-full bg-purple-600/10 blur-[150px]"
-          aria-hidden="true"
-        />
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-size-[32px_32px]"
+          className="pointer-events-none absolute -top-40 right-1/3 size-120 rounded-full bg-primary/8 blur-[140px]"
           aria-hidden="true"
         />
 
-        <header className="relative mx-auto max-w-7xl px-6 py-16 sm:px-8 sm:py-20 lg:py-24">
+        <div
+          className="pointer-events-none absolute -bottom-32 -left-20 size-100 rounded-full bg-primary/5 blur-[130px]"
+          aria-hidden="true"
+        />
+
+        <div className="relative mx-auto max-w-7xl px-6 py-14 sm:px-8 sm:py-18 lg:py-20">
           <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
+            {/* Intro */}
             <div className="max-w-3xl">
-              <h1 className="mt-6 text-3xl font-heading font-semibold leading-normal sm:text-5xl lg:text-6xl">
-                اعبر البوابة إلى <br />
-                <span className="bg-linear-to-l from-primary via-purple-300 to-amber-200 bg-clip-text text-transparent">
-                  عالمك المفضل.
+              <div className="flex items-center gap-3">
+                <span className="h-px w-8 bg-primary/50" />
+
+                <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+                  أرشيف الكواكب
                 </span>
+              </div>
+
+              <h1 className="mt-5 font-heading text-4xl font-semibold leading-normal tracking-tight sm:text-5xl lg:text-6xl">
+                اعبر البوابة إلى
+                <br />
+                <span className="text-muted-foreground">عالمك المفضل.</span>
               </h1>
 
-              {/* Fixed typo: "يتشكل مدار كل كوكب" instead of "كوكب كل كوكب" */}
-              <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg sm:leading-8">
-                الكواكب ليست مجرد تصنيفات، بل هي وجهات سينمائية تضم أفلامك، مسلسلاتك، وأعمال الأنمي
-                المفضلة. يتشكل مدار كل كوكب بحسب ثقل الأرشيف المكتنز داخله.
+              <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+                الكواكب ليست مجرد تصنيفات، بل وجهات سينمائية تضم أفلامك، مسلسلاتك، وأعمال الأنمي
+                المفضلة. يكبر مدار كل كوكب بقدر ما يحتفظ به من أعمال.
               </p>
             </div>
 
-            <div className="inline-flex items-center rounded-2xl border border-border/75 bg-card/40 p-2.5 backdrop-blur-2xl shadow-2xl shadow-black/40">
-              <div className="flex items-center gap-3.5 px-4 py-1 border-e">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
-                  <PlanetIcon weight="duotone" className="size-5" />
+            {/* Stats */}
+            <div className="flex w-fit items-center rounded-2xl border border-border/70 bg-card/50 p-1.5 shadow-sm backdrop-blur-xl">
+              <div className="flex items-center gap-3 px-3.5 py-2.5 sm:px-4">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <PlanetIcon weight="duotone" className="size-4.5" />
                 </div>
+
                 <div>
-                  <div className="font-mono text-2xl font-extrabold leading-none tracking-tight">
+                  <div className="font-mono text-xl font-semibold leading-none">
                     {planets.length}
                   </div>
-                  <span className="mt-1 block text-[11px] font-medium text-muted-foreground/80">
-                    كوكب نشط
-                  </span>
+
+                  <span className="mt-1 block text-[10px] text-muted-foreground">كوكب نشط</span>
                 </div>
               </div>
 
-              {/* Total Works Metric */}
-              <div className="flex items-center gap-3.5 px-4 py-1">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-purple-500/15 text-purple-300 ring-1 ring-purple-500/25">
-                  <FilmStripIcon weight="duotone" className="size-5" />
+              <div className="h-9 w-px bg-border/70" />
+
+              <div className="flex items-center gap-3 px-3.5 py-2.5 sm:px-4">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                  <FilmStripIcon weight="duotone" className="size-4.5" />
                 </div>
+
                 <div>
-                  <div className="font-mono text-2xl font-extrabold leading-none tracking-tight">
-                    {totalWorks}
-                  </div>
-                  <span className="mt-1 block text-[11px] font-medium text-muted-foreground/80">
-                    عمل وسائطي
-                  </span>
+                  <div className="font-mono text-xl font-semibold leading-none">{totalWorks}</div>
+
+                  <span className="mt-1 block text-[10px] text-muted-foreground">عمل وسائطي</span>
                 </div>
               </div>
             </div>
           </div>
-        </header>
-      </div>
+        </div>
+      </section>
 
-      <main className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[...planets]
-            .sort((a, b) => b.workCount - a.workCount)
-            .map((planet, index) => {
-              const primaryColor = planet.primaryColor || "#6366f1";
-              const secondaryColor = planet.secondaryColor || "#f59e0b";
-              const worksList = planet.works || [];
-              const featuredBanner = worksList[0]?.bannerPath || worksList[0]?.imagePath;
+      {/* Planet collection */}
+      <main className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-12">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {sortedPlanets.map((planet, index) => {
+            const primaryColor = planet.primaryColor || "#6366f1";
+            const secondaryColor = planet.secondaryColor || "#f59e0b";
+            const works = planet.works || [];
+            const featuredArtwork = works[0]?.bannerPath || works[0]?.imagePath;
 
-              return (
-                <Link
-                  key={planet.id}
-                  to="/planets/$planetSlug"
-                  params={{ planetSlug: planet.slug }}
-                  style={
-                    {
-                      "--planet-color": primaryColor,
-                      "--planet-secondary": secondaryColor,
-                    } as React.CSSProperties
-                  }
-                  className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-card/50 p-6 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-white/20 hover:shadow-2xl hover:shadow-black/60"
-                >
-                  {/* Ambient Background Radial Light */}
+            return (
+              <Link
+                key={planet.id}
+                to="/planets/$planetSlug"
+                params={{ planetSlug: planet.slug }}
+                className="
+                  group relative flex min-h-95 flex-col overflow-hidden
+                  rounded-2xl border border-border/70
+                  bg-card/50 p-2.5
+                  transition-all duration-300
+                  hover:-translate-y-1
+                  hover:border-border
+                  hover:bg-card
+                  hover:shadow-xl hover:shadow-black/5
+                  focus-visible:outline-none
+                  focus-visible:ring-2 focus-visible:ring-ring
+                  motion-reduce:transition-none
+                "
+              >
+                {/* Artwork */}
+                <div className="relative aspect-[1.45] overflow-hidden rounded-xl bg-muted">
+                  {featuredArtwork ? (
+                    <img
+                      src={featuredArtwork}
+                      alt=""
+                      loading="lazy"
+                      className="
+                        absolute inset-0 size-full
+                        scale-105 object-cover
+                        blur-[5px]
+                        opacity-60
+                        saturate-[0.75]
+                        transition duration-500
+                        group-hover:scale-[1.08]
+                        group-hover:opacity-70
+                        motion-reduce:transition-none
+                      "
+                    />
+                  ) : (
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        background: `
+                          radial-gradient(
+                            circle at 50% 20%,
+                            ${secondaryColor}20,
+                            transparent 45%
+                          ),
+                          linear-gradient(
+                            135deg,
+                            ${primaryColor}20,
+                            transparent 70%
+                          )
+                        `,
+                      }}
+                    />
+                  )}
+
+                  {/* Atmospheric tint */}
                   <div
-                    className="pointer-events-none absolute -left-20 -top-20 size-72 rounded-full blur-[100px] opacity-20 transition-opacity duration-700 group-hover:opacity-40"
-                    style={{ background: primaryColor }}
-                    aria-hidden="true"
+                    className="absolute inset-0"
+                    style={{
+                      background: `
+                        linear-gradient(
+                          180deg,
+                          ${primaryColor}08 0%,
+                          ${primaryColor}12 45%,
+                          hsl(var(--background) / 0.94) 100%
+                        )
+                      `,
+                    }}
                   />
 
-                  <div>
-                    {/* Card Header: Orbit Badge */}
-                    <div className="flex items-center justify-between gap-2">
-                      <span
-                        className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3.5 py-1 font-mono text-xs font-semibold backdrop-blur-md transition-colors"
-                        style={{
-                          backgroundColor: `${primaryColor}12`,
-                          borderColor: `${primaryColor}30`,
-                          color: primaryColor,
-                        }}
-                      >
+                  {/* Top row */}
+                  <div className="absolute inset-x-3 top-3 flex items-center justify-between">
+                    <span
+                      className="
+                        flex size-7 items-center justify-center
+                        rounded-full border border-white/10
+                        bg-black/20
+                        text-[9px] font-medium text-white/75
+                        backdrop-blur-md
+                      "
+                    >
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+
+                    <span
+                      className="
+                        rounded-full border border-white/10
+                        bg-black/20 px-2 py-0.5
+                        text-[9px] font-medium text-white/75
+                        backdrop-blur-md
+                      "
+                    >
+                      {planet.workCount || 0} عمل
+                    </span>
+                  </div>
+
+                  {/* Planet icon */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span
+                      className="
+                        flex size-16 items-center justify-center
+                        rounded-full
+                        border border-white/10
+                        bg-black/10
+                        text-3xl
+                        shadow-2xl
+                        backdrop-blur-sm
+                        transition duration-300
+                        group-hover:scale-105
+                        motion-reduce:transition-none
+                      "
+                      style={{
+                        boxShadow: `0 14px 45px ${primaryColor}30`,
+                      }}
+                    >
+                      {planet.icon || <PlanetIcon weight="duotone" className="size-9 text-white" />}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex flex-1 flex-col px-1.5 pb-0.5 pt-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
                         <span
-                          className="size-1.5 rounded-full shadow-[0_0_8px_currentColor] animate-pulse"
-                          style={{ background: primaryColor }}
-                        />
-                        كوكب {String(index + 1).padStart(2, "0")}
-                      </span>
-                    </div>
-
-                    {/* Centerpiece: Celestial Planet Portal */}
-                    <div className="my-7 flex items-center justify-center">
-                      <div className="relative flex items-center justify-center">
-                        {/* Animated Dashed Orbit Ring */}
-                        <div
-                          className="absolute -inset-5 rounded-full border border-dashed opacity-25 transition-all duration-1000 ease-out group-hover:scale-110 group-hover:rotate-90 group-hover:opacity-60"
-                          style={{ borderColor: primaryColor }}
-                          aria-hidden="true"
+                          className="size-1.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: primaryColor }}
                         />
 
-                        {/* Orbiting Satellite Dot */}
-                        <div
-                          className="absolute -top-3 left-3 size-3 rounded-full shadow-[0_0_12px_currentColor] transition-transform duration-700 group-hover:-translate-x-3 group-hover:-translate-y-1"
-                          style={{ color: secondaryColor, background: secondaryColor }}
-                          aria-hidden="true"
-                        />
-
-                        {/* Planet Core Sphere */}
-                        <div
-                          className="relative flex size-28 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-background shadow-2xl transition-all duration-500 group-hover:scale-105"
-                          style={{ boxShadow: `0 16px 50px ${primaryColor}30` }}
-                        >
-                          {featuredBanner && (
-                            <img
-                              src={featuredBanner}
-                              alt=""
-                              loading="lazy"
-                              className="absolute inset-0 size-full object-cover blur-[2px] opacity-40 transition-all duration-700 group-hover:scale-125 group-hover:opacity-60"
-                            />
-                          )}
-
-                          <div
-                            className="absolute inset-0 mix-blend-color opacity-60"
-                            style={{ background: primaryColor }}
-                          />
-                          <div className="absolute inset-0 bg-linear-to-t from-background/90 via-background/20 to-transparent" />
-
-                          {/* Planet Icon */}
-                          <span className="relative text-4xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] transition-transform duration-500 group-hover:scale-110">
-                            {planet.icon || (
-                              <PlanetIcon weight="duotone" className="size-10 text-white" />
-                            )}
-                          </span>
-                        </div>
+                        <h2 className="truncate font-heading text-lg font-semibold tracking-tight">
+                          {planet.nameAr}
+                        </h2>
                       </div>
-                    </div>
 
-                    {/* Title & Description */}
-                    <div className="text-center sm:text-right pt-4!">
-                      {/* Title colored dynamically using primaryColor */}
-                      <h2
-                        className="font-heading text-2xl font-bold tracking-tight transition-all duration-300 group-hover:drop-shadow-[0_2px_10px_currentColor]"
-                        style={{ color: primaryColor }}
-                      >
-                        {planet.nameAr}
-                      </h2>
-                      <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground/80">
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
                         {planet.description ||
                           "استكشف الأعمال والأفلام والمسلسلات داخل هذا الكوكب."}
                       </p>
                     </div>
+
+                    <span
+                      className="
+                        flex size-8 shrink-0 items-center justify-center
+                        rounded-full border border-border/70
+                        text-muted-foreground
+                        transition-all duration-300
+                        group-hover:border-border
+                        group-hover:bg-muted
+                        group-hover:text-foreground
+                        motion-reduce:transition-none
+                      "
+                      aria-hidden="true"
+                    >
+                      <ArrowLeftIcon
+                        weight="bold"
+                        className="
+                          size-3.5
+                          transition-transform duration-300
+                          group-hover:-translate-x-0.5
+                          motion-reduce:transition-none
+                        "
+                      />
+                    </span>
                   </div>
 
-                  {/* Card Footer */}
-                  <div className="mt-8 border-t border-white/10 pt-4">
-                    <div className="flex items-center justify-between">
-                      {/* Poster Stack Preview */}
-                      <div className="flex items-center gap-2.5">
-                        {worksList.length > 0 ? (
+                  <div className="mt-auto border-t border-border/50 pt-3">
+                    <div className="flex items-center justify-between gap-3">
+                      {/* Preview */}
+                      <div className="flex min-w-0 items-center">
+                        {works.length > 0 ? (
                           <div className="flex items-center">
-                            {worksList.slice(0, 3).map((preview, pIdx) => {
+                            {works.slice(0, 3).map((preview, previewIndex) => {
                               const poster = preview.imagePath || preview.bannerPath;
+
                               return (
-                                <div
-                                  key={preview.id || pIdx}
+                                <span
+                                  key={preview.id || previewIndex}
                                   className={cn(
-                                    "relative h-9 w-6 overflow-hidden rounded-md border border-white/20 bg-muted shadow-lg transition-transform duration-300 group-hover:-translate-y-1",
-                                    pIdx > 0 && "-ms-2.5",
+                                    "relative size-7 overflow-hidden rounded-md border-2 border-card bg-muted",
+                                    previewIndex > 0 && "-ms-1.5",
                                   )}
                                 >
                                   {poster ? (
@@ -220,47 +297,82 @@ export function PlanetsPage() {
                                       className="size-full object-cover"
                                     />
                                   ) : (
-                                    <div className="flex size-full items-center justify-center bg-muted/80">
+                                    <span className="flex size-full items-center justify-center">
                                       <FilmStripIcon
                                         weight="thin"
                                         className="size-3 text-muted-foreground"
                                       />
-                                    </div>
+                                    </span>
                                   )}
-                                </div>
+                                </span>
                               );
                             })}
+
+                            {works.length > 3 && (
+                              <span
+                                className="
+                                  -ms-1.5 flex size-7 items-center justify-center
+                                  rounded-md border-2 border-card
+                                  bg-muted text-[8px] font-medium
+                                  text-muted-foreground
+                                "
+                              >
+                                +{works.length - 3}
+                              </span>
+                            )}
                           </div>
                         ) : (
-                          <div className="flex size-7 items-center justify-center rounded-lg bg-white/5 border border-white/10">
+                          <span className="flex size-7 items-center justify-center rounded-lg border border-border/70 bg-muted">
                             <PopcornIcon
                               weight="duotone"
                               className="size-3.5 text-muted-foreground"
                             />
-                          </div>
+                          </span>
                         )}
 
-                        <span className="font-mono text-xs font-semibold text-muted-foreground/80">
+                        <span className="ms-2.5 text-[11px] font-medium text-muted-foreground">
                           {planet.workCount || 0} عمل
                         </span>
                       </div>
 
-                      {/* CTA Button colored with primaryColor */}
                       <span
-                        className="inline-flex items-center gap-1.5 text-xs font-bold transition-transform duration-300 group-hover:translate-x-0.5"
-                        style={{ color: primaryColor }}
+                        className="
+                          inline-flex shrink-0 items-center gap-1.5
+                          text-[10px] font-semibold
+                          text-muted-foreground
+                          transition-colors
+                          group-hover:text-foreground
+                        "
                       >
-                        اعبر البوابة
+                        استكشف العالم
                         <ArrowLeftIcon
                           weight="bold"
-                          className="size-3.5 transition-transform duration-300 group-hover:-translate-x-1"
+                          className="
+                            size-3
+                            transition-transform duration-300
+                            group-hover:-translate-x-0.5
+                            motion-reduce:transition-none
+                          "
                         />
                       </span>
                     </div>
                   </div>
-                </Link>
-              );
-            })}
+                </div>
+
+                {/* Planet accent */}
+                <span
+                  className="
+                    absolute inset-x-4 bottom-0 h-px
+                    opacity-0 transition-opacity duration-300
+                    group-hover:opacity-100
+                    motion-reduce:transition-none
+                  "
+                  style={{ backgroundColor: primaryColor }}
+                  aria-hidden="true"
+                />
+              </Link>
+            );
+          })}
         </div>
       </main>
     </PlatformShell>

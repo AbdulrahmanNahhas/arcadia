@@ -277,7 +277,7 @@ function PosterCard({ work, className }: { work: Work; className?: string }) {
           )}
           <HoverScrim />
           <PlayGlyph />
-          <TopBadges work={work} />
+          <TopBadges work={work} mode="hover" />
         </div>
 
         <div className="flex flex-col gap-1 px-0.5 pt-2.5">
