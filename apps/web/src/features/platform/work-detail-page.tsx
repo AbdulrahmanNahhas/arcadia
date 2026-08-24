@@ -14,14 +14,23 @@ import {
   SparkleIcon,
   StarIcon,
   TelevisionIcon,
-  TrendUpIcon,
   TrophyIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  PolarAngleAxis,
+  PolarGrid,
+  Radar,
+  RadarChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +39,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   type ChartConfig,
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
@@ -43,7 +54,6 @@ import {
 } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { recordHistory } from "@/features/archive/api";
 import { WorkFamilyActions } from "@/features/archive/work-family-actions";
@@ -363,9 +373,9 @@ function WorkHero({
 
         {/* layered scrim: this is the actual Netflix/Prime/Apple TV trick — three gradients doing
             three different jobs, instead of one flat wash trying to do all of them */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-background/70 via-45% to-transparent" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-l from-background/90 via-background/10 to-transparent lg:from-background/80" />
-        <div className="absolute inset-x-0 top-0 -z-10 h-40 bg-gradient-to-b from-background/60 to-transparent" />
+        <div className="absolute inset-0 -z-10 bg-linear-to-t from-background via-background/70 via-45% to-transparent" />
+        <div className="absolute inset-0 -z-10 bg-linear-to-l from-background/90 via-background/10 to-transparent lg:from-background/80" />
+        <div className="absolute inset-x-0 top-0 -z-10 h-40 bg-linear-to-b from-background/60 to-transparent" />
 
         <div className="mx-auto grid min-h-[88svh] max-w-400 items-end gap-10 px-5 pb-10 pt-32 sm:px-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:pb-14">
           <div className="max-w-3xl">
@@ -385,22 +395,20 @@ function WorkHero({
               </Link>
             )}
 
-            <h1 className="text-balance font-heading text-4xl leading-[1.15] font-semibold drop-shadow-[0_2px_24px_rgb(0_0_0_/_0.35)] sm:text-6xl lg:text-7xl">
+            <h1 className="text-balance font-heading text-4xl leading-[1.15] font-semibold drop-shadow-[0_2px_24px_rgb(0_0_0/0.35)] sm:text-6xl lg:text-7xl">
               {work.logoPath ? (
                 <img
                   src={work.logoPath}
                   alt={work.arabicTitle || work.title}
-                  className="h-24! max-w-full object-contain drop-shadow-[0_4px_30px_rgb(0_0_0_/_0.4)] sm:h-32! md:h-36! xl:h-48!"
+                  className="h-24! max-w-full object-contain drop-shadow-[0_4px_30px_rgb(0_0_0/0.4)] sm:h-32! md:h-36! xl:h-48!"
                 />
               ) : (
                 work.arabicTitle || work.title
               )}
             </h1>
-            {work.arabicTitle && (
-              <p className="mt-3 font-mono text-base text-muted-foreground sm:text-lg" dir="ltr">
-                {work.title}
-              </p>
-            )}
+            <p className="mt-3 font-mono text-base text-muted-foreground sm:text-lg" dir="ltr">
+              {work.logoPath ? work.arabicTitle : work.arabicTitle && work.title}
+            </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-foreground/80 sm:text-base">
               {work.calculatedRating !== null && (
@@ -1225,60 +1233,125 @@ function SimilarSection({ recommendations }: { recommendations: Recommendation[]
 // Scores tab
 // ---------------------------------------------------------------------------
 
-const scoreTrendChartConfig = {
-  rating: { label: "التقييم", color: "var(--chart-1)" },
-} satisfies ChartConfig;
+/** One `--chart-N` token per criterion, in the same fixed order as `scoreCriteria`. */
+const criterionColor = {
+  story: "var(--chart-1)",
+  characters: "var(--chart-2)",
+  depth: "var(--chart-3)",
+  worldBuilding: "var(--chart-4)",
+  originality: "var(--chart-5)",
+  craft: "var(--chart-6)",
+} satisfies Record<(typeof scoreCriteria)[number], string>;
 
-function ScoreTrendCard({
-  data,
-}: {
-  data: Array<{ label: string; fullLabel: string; rating: number }>;
-}) {
-  const delta = (data.at(-1)?.rating ?? 0) - (data[0]?.rating ?? 0);
+function RadarScoreCard({ work }: { work: Work }) {
+  const config = Object.fromEntries(
+    scoreCriteria.map((criterion) => [
+      criterion,
+      { label: scoreLabel(criterion, work.kind).ar, color: criterionColor[criterion] },
+    ]),
+  ) satisfies ChartConfig;
+  const data = scoreCriteria.map((criterion) => ({
+    criterion,
+    label: scoreLabel(criterion, work.kind).ar,
+    value: work.scoreComponents[criterion] ?? 0,
+    weight: Math.round(scoreWeights[criterion] * 100),
+  }));
+
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between border-b">
-        <div>
-          <CardTitle>تطوّر التقييم عبر الأجزاء</CardTitle>
-          <CardDescription>تقييم كل جزء، بترتيب صدوره.</CardDescription>
-        </div>
-        {Math.abs(delta) >= 0.05 ? (
-          <Badge variant={delta > 0 ? "default" : "destructive"} className="gap-1 font-mono">
-            <TrendUpIcon weight="bold" className={delta < 0 ? "-scale-y-100" : undefined} />
-            {delta > 0 ? "+" : ""}
-            {delta.toFixed(1)}
-          </Badge>
-        ) : null}
+      <CardHeader className="border-b">
+        <CardTitle>بصمة التقييم</CardTitle>
+        <CardDescription>شكل توزّع الدرجات على المعايير الستّة قبل تطبيق أوزانها.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-center">
+        <ChartContainer config={config} className="mx-auto aspect-square max-h-80 w-full">
+          <RadarChart data={data}>
+            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+            <PolarGrid stroke="var(--border)" />
+            <PolarAngleAxis
+              dataKey="label"
+              tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+            />
+            <Radar
+              dataKey="value"
+              fill="var(--primary)"
+              fillOpacity={0.35}
+              stroke="var(--primary)"
+              strokeWidth={2}
+              dot={{ r: 3, fill: "var(--primary)" }}
+            />
+          </RadarChart>
+        </ChartContainer>
+        <dl className="flex flex-col gap-2.5">
+          {data.map((item) => (
+            <div key={item.criterion} className="flex items-center justify-between gap-3 text-sm">
+              <dt className="flex min-w-0 items-center gap-2 truncate text-muted-foreground">
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ background: criterionColor[item.criterion] }}
+                  aria-hidden="true"
+                />
+                <span className="truncate">{item.label}</span>
+              </dt>
+              <dd className="font-mono font-semibold tabular-nums">{item.value.toFixed(1)}</dd>
+            </div>
+          ))}
+        </dl>
+      </CardContent>
+    </Card>
+  );
+}
+
+function InstallmentScoreTrendCard({
+  work,
+  data,
+}: {
+  work: Work;
+  data: Array<
+    Record<(typeof scoreCriteria)[number] | "label" | "fullLabel", string | number | null>
+  >;
+}) {
+  const config = Object.fromEntries(
+    scoreCriteria.map((criterion) => [
+      criterion,
+      { label: scoreLabel(criterion, work.kind).ar, color: criterionColor[criterion] },
+    ]),
+  ) satisfies ChartConfig;
+
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>تطوّر كل معيار عبر الأجزاء</CardTitle>
+        <CardDescription>درجة كل معيار في كل جزء على حدة، بترتيب صدورها.</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={scoreTrendChartConfig} className="max-h-64 w-full">
-          <AreaChart data={data} margin={{ right: 8 }}>
-            <defs>
-              <linearGradient id="score-trend-fill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-rating)" stopOpacity={0.45} />
-                <stop offset="95%" stopColor="var(--color-rating)" stopOpacity={0.03} />
-              </linearGradient>
-            </defs>
+        <ChartContainer config={config} className="max-h-80 w-full">
+          <LineChart data={data} margin={{ right: 8 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="label" tickLine={false} axisLine={false} />
-            <YAxis domain={[0, 10]} tickLine={false} axisLine={false} width={28} />
+            <YAxis domain={[4, 10]} tickLine={false} axisLine={false} width={28} />
             <ChartTooltip
               content={
                 <ChartTooltipContent
+                  indicator="dot"
                   labelFormatter={(_, payload) => payload?.[0]?.payload?.fullLabel ?? ""}
                 />
               }
             />
-            <Area
-              dataKey="rating"
-              type="monotone"
-              fill="url(#score-trend-fill)"
-              stroke="var(--color-rating)"
-              strokeWidth={2}
-              dot={{ r: 3, fill: "var(--color-rating)" }}
-              activeDot={{ r: 5 }}
-            />
-          </AreaChart>
+            <ChartLegend content={<ChartLegendContent />} />
+            {scoreCriteria.map((criterion) => (
+              <Line
+                key={criterion}
+                dataKey={criterion}
+                type="monotone"
+                stroke={criterionColor[criterion]}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
+                connectNulls
+              />
+            ))}
+          </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>
@@ -1290,7 +1363,7 @@ function ScoreSection({ work, structure }: { work: Work; structure: WorkStructur
     (criterion) => work.scoreComponents[criterion] !== undefined,
   );
   const trendData = structure.seasons
-    .filter((season): season is typeof season & { rating: number } => season.rating != null)
+    .filter((season) => season.score && scoreCriteria.some((c) => season.score?.[c] != null))
     .toSorted((a, b) => a.position - b.position)
     .map((season, index) => ({
       label:
@@ -1298,12 +1371,17 @@ function ScoreSection({ work, structure }: { work: Work; structure: WorkStructur
           ? `م${season.seasonNumber ?? index + 1}`
           : `#${index + 1}`,
       fullLabel: season.title,
-      rating: season.rating,
+      story: season.score?.story ?? null,
+      characters: season.score?.characters ?? null,
+      depth: season.score?.depth ?? null,
+      worldBuilding: season.score?.worldBuilding ?? null,
+      originality: season.score?.originality ?? null,
+      craft: season.score?.craft ?? null,
     }));
 
   return (
     <div className="flex flex-col gap-4">
-      {trendData.length >= 2 ? <ScoreTrendCard data={trendData} /> : null}
+      {trendData.length >= 2 ? <InstallmentScoreTrendCard work={work} data={trendData} /> : null}
 
       {availableCriteria.length === 0 ? (
         <Empty className="border border-border/40 bg-card/30">
@@ -1316,34 +1394,7 @@ function ScoreSection({ work, structure }: { work: Work; structure: WorkStructur
         </Empty>
       ) : (
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <Card>
-            <CardHeader className="border-b">
-              <CardTitle>مكوّنات التقييم</CardTitle>
-              <CardDescription>يمثّل طول كل شريط الدرجة قبل تطبيق وزنها.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-              {scoreCriteria.map((criterion) => {
-                const value = work.scoreComponents[criterion];
-                const label = scoreLabel(criterion, work.kind).ar;
-                const weight = Math.round(scoreWeights[criterion] * 100);
-                return (
-                  <Progress
-                    key={criterion}
-                    value={value === undefined ? null : value * 10}
-                    className={cn(value === undefined && "opacity-45")}
-                  >
-                    <ProgressLabel>{label}</ProgressLabel>
-                    <Badge variant="outline" className="font-mono text-[10px]">
-                      الوزن {weight}%
-                    </Badge>
-                    <ProgressValue className="font-mono font-semibold text-foreground">
-                      {() => (value === undefined ? "—" : value.toFixed(1))}
-                    </ProgressValue>
-                  </Progress>
-                );
-              })}
-            </CardContent>
-          </Card>
+          <RadarScoreCard work={work} />
 
           <Card>
             <CardHeader className="border-b">
