@@ -13,7 +13,8 @@ pnpm monorepo:
 
 ```text
 apps/api            Hono API and OpenAPI document
-apps/web             React 19 and TanStack Start client
+apps/web             React 19 and TanStack Start client (builds as a static SPA)
+src-tauri            Tauri desktop shell wrapping apps/web's SPA build (Linux for now)
 packages/contracts   shared Zod schemas and generated API types
 packages/database    PostgreSQL schema, Drizzle migrations, seed, and v1 importer
 packages/domain      taxonomy, classification, policy, and scoring rules (framework-independent)
@@ -26,8 +27,10 @@ packages/cli         `arcadia` agent-facing CLI over the PostgreSQL catalog
 The project targets Node.js 26 and expects the Nix/devenv environment (`devenv shell -- <cmd>`,
 or work inside a shell already entered with `devenv shell`).
 
-- `devenv up` — start PostgreSQL, the API on port 3001, and the web app on port 3000.
-- `pnpm dev` — run API + web dev servers in parallel (without devenv's Postgres).
+- `devenv up` — start PostgreSQL, the API on port 3001, and the Tauri desktop app (which starts
+  its own `apps/web` dev server as part of `tauri dev`; see "Desktop (Tauri)" in README.md).
+- `pnpm dev` — run API + web dev servers in parallel in a browser, without devenv's Postgres or
+  the desktop shell.
 - `pnpm typecheck` — typecheck every workspace (`tsc --noEmit` per package).
 - `pnpm test` — run Vitest across the monorepo (each package: `vitest run --passWithNoTests`).
 - `pnpm build` — build every workspace.
@@ -35,6 +38,8 @@ or work inside a shell already entered with `devenv shell`).
 - `pnpm format` — format the repo with Biome (Biome is the authoritative formatter/linter; oxlint
   runs additional rules including a local `anti-slop` plugin under `tools/oxlint/anti-slop/`).
 - `nix shell nixpkgs#chromium --command devenv shell -- pnpm test:e2e` — Playwright, from `apps/web`.
+- `pnpm tauri build` only produces a runnable bundle in CI, not on a NixOS dev machine — see
+  "Desktop (Tauri)" in README.md.
 
 Single-package/single-test scoping (run from repo root via pnpm `--filter`, or `cd` into the
 package and use vitest args directly):
@@ -146,7 +151,10 @@ types (`src/generated.ts`, produced by `pnpm client:generate` — do not hand-ed
 - `components/` — reusable app components; `components/ui/` — shadcn primitives on Base UI.
 - `lib/api.ts` — typed `openapi-fetch` client (`apiFetch`, `browseTitles`, `getTitle`, …) that
   always sends `credentials: "include"`.
-- `server/*.functions.ts` — TanStack Start server functions.
+- `server/*.functions.ts` — despite the name, plain async functions that call `lib/api.ts`'s
+  `apiFetch`, not TanStack Start server functions (no `createServerFn`). Keep it that way: the app
+  builds in TanStack Start's `spa` mode (`vite.config.ts`) for `src-tauri/`, which ships no Node
+  server, so a real server function would work in the browser but break the desktop app.
 - `public/media/` — static web assets (banners/logos/posters follow a
   `<slug>-<kind>-<hash>.<ext>` naming convention).
 

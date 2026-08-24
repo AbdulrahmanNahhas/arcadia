@@ -19,12 +19,15 @@ scripts             repository command-line tools
 
 ## Development
 
-Arcadia targets Node.js 26. Enter the reproducible Nix environment and start PostgreSQL, the
-API on port 3001, and the web app on port 3000:
+Arcadia targets Node.js 26. Enter the reproducible Nix environment and start PostgreSQL, the API
+on port 3001, and the Tauri desktop app (see "Desktop (Tauri)" below):
 
 ```bash
 devenv up
 ```
+
+For browser-only work without the desktop shell, run the web dev server directly instead:
+`devenv shell -- pnpm --filter @arcadia/web dev` (with `devenv up api` running alongside it).
 
 `DATABASE_URL`, `VITE_API_URL`, the local Better Auth secret, and demo-seed flag are supplied
 by `devenv.nix`. Browser routes use real cookie-backed sessions; the test-only identity bypass
@@ -61,6 +64,27 @@ devenv shell -- pnpm db:restore:legacy
 ```
 
 The importer writes `migration-report.json` and never mutates the SQLite source.
+
+## Desktop (Tauri)
+
+`apps/web` builds as a static SPA (TanStack Start's `spa` mode — no server functions, no Node
+runtime at request time; every call goes through `@arcadia/api` over HTTP) and `src-tauri/` wraps
+that build as a native desktop app. `devenv up` starts PostgreSQL, the API, and `pnpm tauri dev`
+together; run `devenv shell -- pnpm tauri dev` directly if you only want to (re)start the app
+itself against an already-running API.
+
+Linux/WebKitGTK-on-Wayland has a long-standing upstream DPI-scaling bug (misreported
+`devicePixelRatio` — the app renders zoomed out, responsive breakpoints misfire, blur/animations
+lag if you work around it with `WEBKIT_DISABLE_COMPOSITING_MODE`). `src-tauri/src/main.rs` fixes
+this by forcing `GDK_BACKEND=x11` before GTK initializes — don't remove it without re-testing on
+Wayland.
+
+**Building a distributable bundle only works in CI, not on this NixOS dev machine.** Nix-built
+binaries embed a `/nix/store/...` path as their ELF dynamic linker (`readelf -p .interp`) and
+can't execute on a non-NixOS machine at all, and Tauri's own AppImage step downloads a generic
+`linuxdeploy` binary that can't execute *on* NixOS either. `pnpm tauri build` therefore only
+produces something runnable in a GitHub Actions `ubuntu-latest` (or similar standard-distro)
+workflow — that's not yet set up. Locally, `pnpm tauri dev` is the supported way to run the app.
 
 ## API and CLI
 

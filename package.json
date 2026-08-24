@@ -24,11 +24,15 @@
     "db:restore:legacy": "pnpm db:import:knowledge && pnpm db:consolidate",
     "client:generate": "pnpm --filter @arcadia/contracts generate",
     "arcadia": "pnpm --filter @arcadia/cli exec tsx src/main.ts",
-    "test:e2e": "pnpm --filter @arcadia/web test:e2e"
+    "test:e2e": "pnpm --filter @arcadia/web test:e2e",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build --bundles appimage,deb"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.11",
     "@oxlint/plugins": "1.79.0",
+    "@tauri-apps/cli": "^2",
     "oxlint": "^1.79.0",
     "typescript": "^6",
     "vitest": "^4.0.18"
