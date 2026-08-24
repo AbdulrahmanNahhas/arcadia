@@ -137,7 +137,7 @@ export const taxonomy = {
     ["social-anxiety", "Social Anxiety", "القلق الاجتماعي"],
     ["witches", "Witches", "الساحرات"],
     ["aliens", "Aliens", "كائنات فضائية"],
-    ["childhood", "Childhood", "Childhood"],
+    ["childhood", "Childhood", "الطفولة"],
     ["college", "College", "الجامعة"],
     ["dragons", "Dragons", "التنانين"],
     ["environment", "Environment", "البيئة"],
@@ -156,6 +156,13 @@ export const taxonomy = {
     ["vikings", "Vikings", "الفايكنغ"],
     ["virtual-world", "Virtual World", "عالم افتراضي"],
     ["writing", "Writing", "الكتابة"],
+    ["immortality", "Immortality", "الخلود"],
+    ["virtual-reality", "Virtual Reality", "الواقع الافتراضي"],
+    ["medicine", "Medicine", "الطب"],
+    ["time-loop", "Time Loop", "حلقة زمنية"],
+    ["transported-to-another-world", "Transported to Another World", "الانتقال إلى عالم آخر"],
+    ["parallel-worlds", "Parallel Worlds", "عوالم متوازية"],
+    ["superheroes", "Superheroes", "الأبطال الخارقون"],
   ],
 } as const;
 

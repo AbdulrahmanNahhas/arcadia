@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { getTaxonomyTerms } from "@/server/library.functions";
 import type { FacetKey } from "./filtering";
 import type { Work, WorkKind } from "./model";
-import { tagLabelsAr, taxonomyLabels } from "./model";
 
 export const kindLabelsAr: Record<WorkKind, string> = {
   movie: "فيلم",
@@ -78,13 +77,15 @@ const facetVocabulary: Partial<Record<FacetKey, string>> = {
   audiences: "audience",
 };
 
-const fallbackTaxonomyLabels: Readonly<Record<string, Record<string, string>>> = {
-  genre: taxonomyLabels.genres,
-  tone: taxonomyLabels.tones,
-  audience: taxonomyLabels.audiences,
-  tag: tagLabelsAr,
-  country: taxonomyLabels.countries,
-};
+// `@arcadia/domain`'s taxonomy (genres/tones/tags) is keyed in the plural, but browse facets
+// use the singular vocabulary name (matching the `vocabulary_terms`-style DB rows). Map back to
+// the plural before delegating to `vocabularyFallbackLabel`, or its lookup silently misses.
+function canonicalVocabulary(vocabulary: string) {
+  if (vocabulary === "genre") return "genres";
+  if (vocabulary === "tone") return "tones";
+  if (vocabulary === "tag") return "tags";
+  return vocabulary;
+}
 
 export const facetLabelsAr: Record<FacetKey, string> = {
   genres: "التصنيفات",
@@ -123,15 +124,9 @@ export function useArabicTranslations() {
     ),
   );
 
-  const taxonomyLabel = (vocabulary: string, value: string) => {
-    const fallback = fallbackTaxonomyLabels[vocabulary]?.[value];
-    if (vocabulary === "country" && fallback) return fallback;
-    return (
-      databaseLabels.get(`${vocabulary}:${value}`) ??
-      fallback ??
-      vocabularyFallbackLabel("ar", vocabulary, value)
-    );
-  };
+  const taxonomyLabel = (vocabulary: string, value: string) =>
+    databaseLabels.get(`${vocabulary}:${value}`) ??
+    vocabularyFallbackLabel("ar", canonicalVocabulary(vocabulary), value);
 
   const facetValueLabel = (facet: FacetKey, value: string) => {
     const vocabulary = facetVocabulary[facet];
