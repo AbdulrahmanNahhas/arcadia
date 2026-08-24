@@ -40,6 +40,38 @@ export const awardRecognitionSchema = z.object({
   sourceUrl: z.string().url().nullable(),
   notes: z.string().nullable(),
 });
+export const publicAwardOrganizationSchema = z.object({
+  id: z.string().uuid(),
+  slug: z.string().min(1),
+  nameAr: z.string().min(1),
+  nameEn: z.string().nullable(),
+  description: z.string().nullable(),
+  websiteUrl: z.string().url().nullable(),
+  logoPath: z.string().nullable(),
+  winnerCount: z.number().int().min(0),
+  nomineeCount: z.number().int().min(0),
+  workCount: z.number().int().min(0),
+});
+export const publicAwardRecognitionSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().uuid(),
+  organizationSlug: z.string().min(1),
+  organizationName: z.string().min(1),
+  category: z.string().min(1),
+  year: z.number().int().nullable(),
+  result: awardResultSchema,
+  isFeatured: z.boolean(),
+  titleId: z.string().uuid(),
+  title: z.string(),
+  titleAr: z.string().nullable(),
+  posterPath: z.string().nullable(),
+  installmentId: z.string().uuid().nullable(),
+  installmentTitle: z.string().nullable(),
+});
+export const publicAwardsDocumentSchema = z.object({
+  organizations: z.array(publicAwardOrganizationSchema),
+  recognitions: z.array(publicAwardRecognitionSchema),
+});
 export const episodeSchema = z.object({
   id: z.string().uuid(),
   number: z.number(),
@@ -926,6 +958,9 @@ export type TitleSocial = z.infer<typeof titleSocialSchema>;
 export type FamilyActivity = z.infer<typeof familyActivitySchema>;
 export type Notification = z.infer<typeof notificationSchema>;
 export type AwardOrganizationOption = z.infer<typeof awardOrganizationOptionSchema>;
+export type PublicAwardOrganization = z.infer<typeof publicAwardOrganizationSchema>;
+export type PublicAwardRecognition = z.infer<typeof publicAwardRecognitionSchema>;
+export type PublicAwardsDocument = z.infer<typeof publicAwardsDocumentSchema>;
 export type AdminAwardsDocument = z.infer<typeof adminAwardsDocumentSchema>;
 export type AdminAwardOrganizationInput = z.infer<typeof adminAwardOrganizationInputSchema>;
 export type AdminAwardCategoryInput = z.infer<typeof adminAwardCategoryInputSchema>;

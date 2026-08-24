@@ -9,6 +9,7 @@ import {
   awardOptionsSchema,
   createAwardCategorySchema,
   createAwardOrganizationSchema,
+  publicAwardsDocumentSchema,
 } from "@arcadia/contracts";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "zod";
@@ -28,6 +29,52 @@ async function canEditAwards(headers: Headers) {
 }
 
 export const awardRoutes = new OpenAPIHono();
+
+// Public, family-facing feed — any signed-in account (the global /api/v1/* middleware already
+// requires a session). Only active organizations and non-private titles are exposed; this is the
+// same "hard-exclude private" convention /api/v1/people and /api/v1/studios use, not the fuller
+// per-account classification policy that title browsing applies.
+awardRoutes.get("/api/v1/awards", async (context) => {
+  const sql = database().client;
+  const [organizations, recognitions] = await Promise.all([
+    sql`select o.id, o.slug, o.name_ar as "nameAr", o.name_en as "nameEn",
+      o.description, o.website_url as "websiteUrl", o.logo_path as "logoPath",
+      (select count(*)::int from award_recognitions r join titles t on t.id=r.title_id
+        where r.organization_id=o.id and r.result='winner' and t.is_private=false) as "winnerCount",
+      (select count(*)::int from award_recognitions r join titles t on t.id=r.title_id
+        where r.organization_id=o.id and r.result='nominee' and t.is_private=false) as "nomineeCount",
+      (select count(distinct r.title_id)::int from award_recognitions r
+        join titles t on t.id=r.title_id
+        where r.organization_id=o.id and t.is_private=false) as "workCount"
+      from award_organizations o where o.is_active=true order by o.name_ar`,
+    sql`select r.id, r.organization_id as "organizationId", r.organization_slug as "organizationSlug",
+      r.organization_name as "organizationName", r.category, r.year, r.result,
+      r.is_featured as "isFeatured", r.title_id as "titleId", t.canonical_title as title,
+      t.title_ar as "titleAr",
+      -- Prefer the recognized installment's own poster (e.g. a specific season's art) and only
+      -- fall back to the title's poster when the recognition isn't tied to one installment.
+      coalesce(
+        (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id
+          where maa.installment_id=r.installment_id and maa.role='poster' and maa.is_primary
+          limit 1),
+        (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id
+          where maa.title_id=t.id and maa.role='poster' and maa.is_primary limit 1)
+      ) as "posterPath",
+      r.installment_id as "installmentId", i.title as "installmentTitle"
+      from award_recognitions r
+      join titles t on t.id=r.title_id
+      join award_organizations o on o.id=r.organization_id
+      left join installments i on i.id=r.installment_id
+      where t.is_private=false and o.is_active=true
+      order by r.is_featured desc, r.year desc nulls last, r.organization_name, t.sort_title`,
+  ]);
+  return context.json(
+    publicAwardsDocumentSchema.parse({
+      organizations: organizations.filter((organization) => organization.workCount > 0),
+      recognitions,
+    }),
+  );
+});
 
 awardRoutes.use("/api/v1/admin/awards/*", async (context, next) => {
   if (!(await canEditAwards(context.req.raw.headers))) {

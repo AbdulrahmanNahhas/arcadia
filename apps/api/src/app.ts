@@ -1203,6 +1203,17 @@ app.put("/api/v1/admin/titles/:titleId/structure", async (context) => {
     const preservedScoreRows =
       await transaction`select i.id, s.story, s.characters, s.depth, s.world_building, s.originality, s.craft from installments i join installment_scores s on s.installment_id=i.id where i.title_id=${titleId}`;
     const preservedScores = new Map(preservedScoreRows.map((score) => [String(score.id), score]));
+    // award_recognitions.installment_id cascades on installment delete, so rebuilding the
+    // installment list below would otherwise silently drop any award tied to one — read them out
+    // first, keyed by their (soon-to-be-deleted) installment id, and reinsert once the matching
+    // installment exists again under its new id.
+    const preservedAwardRows =
+      await transaction`select installment_id, organization_id, category_id, ceremony_id, organization_slug, organization_name, category, year, result, is_featured, source_url, notes, position from award_recognitions where installment_id in (select id from installments where title_id=${titleId})`;
+    const preservedAwards = new Map<string, (typeof preservedAwardRows)[number][]>();
+    for (const award of preservedAwardRows) {
+      const key = String(award.installment_id);
+      preservedAwards.set(key, [...(preservedAwards.get(key) ?? []), award]);
+    }
     await transaction`delete from installments where title_id=${titleId}`;
     for (const [index, season] of (input.seasons ?? []).entries()) {
       const units = season.units ?? [];
@@ -1225,6 +1236,14 @@ app.put("/api/v1/admin/titles/:titleId/structure", async (context) => {
       const requestedScore = season.score;
       if (requestedScore || preservedScore)
         await transaction`insert into installment_scores (installment_id, story, characters, depth, world_building, originality, craft) values (${installment.id}, ${requestedScore?.story ?? preservedScore?.story ?? null}, ${requestedScore?.characters ?? preservedScore?.characters ?? null}, ${requestedScore?.depth ?? preservedScore?.depth ?? null}, ${requestedScore?.worldBuilding ?? preservedScore?.world_building ?? null}, ${requestedScore?.originality ?? preservedScore?.originality ?? null}, ${requestedScore?.craft ?? preservedScore?.craft ?? null})`;
+      for (const award of season.id ? (preservedAwards.get(season.id) ?? []) : [])
+        await transaction`insert into award_recognitions
+          (title_id, installment_id, organization_id, category_id, ceremony_id, organization_slug,
+           organization_name, category, year, result, is_featured, source_url, notes, position)
+          values (${titleId}, ${installment.id}, ${award.organization_id}, ${award.category_id},
+            ${award.ceremony_id}, ${award.organization_slug}, ${award.organization_name},
+            ${award.category}, ${award.year}, ${award.result}, ${award.is_featured},
+            ${award.source_url}, ${award.notes}, ${award.position})`;
       for (const [unitIndex, unit] of units.entries())
         await transaction`
         insert into episodes (installment_id, number, position, title, release_date, runtime_minutes)

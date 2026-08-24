@@ -14,6 +14,7 @@ import { Route as EntitiesRouteImport } from './routes/_entities'
 import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ArchiveRouteImport } from './routes/archive'
+import { Route as AwardsRouteImport } from './routes/awards'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as LoginRouteImport } from './routes/login'
@@ -34,6 +35,8 @@ import { Route as AdminStatisticsRouteImport } from './routes/admin/statistics'
 import { Route as AdminStudiosRouteImport } from './routes/admin/studios'
 import { Route as AdminValidationRouteImport } from './routes/admin/validation'
 import { Route as AdminVocabulariesRouteImport } from './routes/admin/vocabularies'
+import { Route as AwardsIndexRouteImport } from './routes/awards.index'
+import { Route as AwardsOrganizationSlugRouteImport } from './routes/awards.$organizationSlug'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as TitlesTitleIdRouteImport } from './routes/titles.$titleId'
 import { Route as EntitiesPeopleIndexRouteImport } from './routes/_entities/people.index'
@@ -71,6 +74,11 @@ const AdminRoute = AdminRouteImport.update({
 const ArchiveRoute = ArchiveRouteImport.update({
   id: '/archive',
   path: '/archive',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AwardsRoute = AwardsRouteImport.update({
+  id: '/awards',
+  path: '/awards',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BrowseRoute = BrowseRouteImport.update({
@@ -173,6 +181,16 @@ const AdminVocabulariesRoute = AdminVocabulariesRouteImport.update({
   path: '/vocabularies',
   getParentRoute: () => AdminRoute,
 } as any)
+const AwardsIndexRoute = AwardsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AwardsRoute,
+} as any)
+const AwardsOrganizationSlugRoute = AwardsOrganizationSlugRouteImport.update({
+  id: '/$organizationSlug',
+  path: '/$organizationSlug',
+  getParentRoute: () => AwardsRoute,
+} as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
   id: '/invite/$token',
   path: '/invite/$token',
@@ -252,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/accounts': typeof AccountsRoute
   '/admin': typeof AdminRouteWithChildren
   '/archive': typeof ArchiveRoute
+  '/awards': typeof AwardsRouteWithChildren
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
   '/login': typeof LoginRoute
@@ -271,9 +290,11 @@ export interface FileRoutesByFullPath {
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/validation': typeof AdminValidationRoute
   '/admin/vocabularies': typeof AdminVocabulariesRoute
+  '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
   '/invite/$token': typeof InviteTokenRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/awards/': typeof AwardsIndexRoute
   '/people/$personId': typeof EntitiesPeoplePersonIdRoute
   '/planets/$planetSlug': typeof EntitiesPlanetsPlanetSlugRoute
   '/studios/$studioId': typeof EntitiesStudiosStudioIdRoute
@@ -308,9 +329,11 @@ export interface FileRoutesByTo {
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/validation': typeof AdminValidationRoute
   '/admin/vocabularies': typeof AdminVocabulariesRoute
+  '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
   '/invite/$token': typeof InviteTokenRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin': typeof AdminIndexRoute
+  '/awards': typeof AwardsIndexRoute
   '/people/$personId': typeof EntitiesPeoplePersonIdRoute
   '/planets/$planetSlug': typeof EntitiesPlanetsPlanetSlugRoute
   '/studios/$studioId': typeof EntitiesStudiosStudioIdRoute
@@ -331,6 +354,7 @@ export interface FileRoutesById {
   '/accounts': typeof AccountsRoute
   '/admin': typeof AdminRouteWithChildren
   '/archive': typeof ArchiveRoute
+  '/awards': typeof AwardsRouteWithChildren
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
   '/login': typeof LoginRoute
@@ -350,9 +374,11 @@ export interface FileRoutesById {
   '/admin/studios': typeof AdminStudiosRoute
   '/admin/validation': typeof AdminValidationRoute
   '/admin/vocabularies': typeof AdminVocabulariesRoute
+  '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
   '/invite/$token': typeof InviteTokenRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/awards/': typeof AwardsIndexRoute
   '/_entities/people/$personId': typeof EntitiesPeoplePersonIdRoute
   '/_entities/planets/$planetSlug': typeof EntitiesPlanetsPlanetSlugRoute
   '/_entities/studios/$studioId': typeof EntitiesStudiosStudioIdRoute
@@ -373,6 +399,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/admin'
     | '/archive'
+    | '/awards'
     | '/browse'
     | '/compare'
     | '/login'
@@ -392,9 +419,11 @@ export interface FileRouteTypes {
     | '/admin/studios'
     | '/admin/validation'
     | '/admin/vocabularies'
+    | '/awards/$organizationSlug'
     | '/invite/$token'
     | '/titles/$titleId'
     | '/admin/'
+    | '/awards/'
     | '/people/$personId'
     | '/planets/$planetSlug'
     | '/studios/$studioId'
@@ -429,9 +458,11 @@ export interface FileRouteTypes {
     | '/admin/studios'
     | '/admin/validation'
     | '/admin/vocabularies'
+    | '/awards/$organizationSlug'
     | '/invite/$token'
     | '/titles/$titleId'
     | '/admin'
+    | '/awards'
     | '/people/$personId'
     | '/planets/$planetSlug'
     | '/studios/$studioId'
@@ -451,6 +482,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/admin'
     | '/archive'
+    | '/awards'
     | '/browse'
     | '/compare'
     | '/login'
@@ -470,9 +502,11 @@ export interface FileRouteTypes {
     | '/admin/studios'
     | '/admin/validation'
     | '/admin/vocabularies'
+    | '/awards/$organizationSlug'
     | '/invite/$token'
     | '/titles/$titleId'
     | '/admin/'
+    | '/awards/'
     | '/_entities/people/$personId'
     | '/_entities/planets/$planetSlug'
     | '/_entities/studios/$studioId'
@@ -493,6 +527,7 @@ export interface RootRouteChildren {
   AccountsRoute: typeof AccountsRoute
   AdminRoute: typeof AdminRouteWithChildren
   ArchiveRoute: typeof ArchiveRoute
+  AwardsRoute: typeof AwardsRouteWithChildren
   BrowseRoute: typeof BrowseRoute
   CompareRoute: typeof CompareRoute
   LoginRoute: typeof LoginRoute
@@ -538,6 +573,13 @@ declare module '@tanstack/react-router' {
       path: '/archive'
       fullPath: '/archive'
       preLoaderRoute: typeof ArchiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/awards': {
+      id: '/awards'
+      path: '/awards'
+      fullPath: '/awards'
+      preLoaderRoute: typeof AwardsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/browse': {
@@ -679,6 +721,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/vocabularies'
       preLoaderRoute: typeof AdminVocabulariesRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/awards/': {
+      id: '/awards/'
+      path: '/'
+      fullPath: '/awards/'
+      preLoaderRoute: typeof AwardsIndexRouteImport
+      parentRoute: typeof AwardsRoute
+    }
+    '/awards/$organizationSlug': {
+      id: '/awards/$organizationSlug'
+      path: '/$organizationSlug'
+      fullPath: '/awards/$organizationSlug'
+      preLoaderRoute: typeof AwardsOrganizationSlugRouteImport
+      parentRoute: typeof AwardsRoute
     }
     '/invite/$token': {
       id: '/invite/$token'
@@ -871,12 +927,26 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface AwardsRouteChildren {
+  AwardsOrganizationSlugRoute: typeof AwardsOrganizationSlugRoute
+  AwardsIndexRoute: typeof AwardsIndexRoute
+}
+
+const AwardsRouteChildren: AwardsRouteChildren = {
+  AwardsOrganizationSlugRoute: AwardsOrganizationSlugRoute,
+  AwardsIndexRoute: AwardsIndexRoute,
+}
+
+const AwardsRouteWithChildren =
+  AwardsRoute._addFileChildren(AwardsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EntitiesRoute: EntitiesRouteWithChildren,
   AccountsRoute: AccountsRoute,
   AdminRoute: AdminRouteWithChildren,
   ArchiveRoute: ArchiveRoute,
+  AwardsRoute: AwardsRouteWithChildren,
   BrowseRoute: BrowseRoute,
   CompareRoute: CompareRoute,
   LoginRoute: LoginRoute,

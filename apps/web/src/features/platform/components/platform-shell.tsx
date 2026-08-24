@@ -6,6 +6,7 @@ import {
   HouseIcon,
   PlanetIcon,
   ScalesIcon,
+  TrophyIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
@@ -47,16 +48,16 @@ export function PlatformShell({
           "sticky top-0 z-40 backdrop-blur-0",
           !immersive && "bg-background/72 mx-0 backdrop-blur-lg border-t-0",
           immersive &&
-            "fixed inset-x-0 bg-linear-to-b from-background/70 via-50% via-background/75 pb-0 to-background/40 backdrop-blur-lg border border-border/50 rounded-full m-1 container mx-auto",
+            "fixed inset-x-0 bg-linear-to-b from-background/70 via-50% via-background/75 pb-0 to-background/40 backdrop-blur-lg border border-border/50 sm:rounded-full sm:m-1 sm:container sm:mx-auto!",
         )}
       >
-        <div className="mx-auto flex container! h-14 max-w-400 items-center gap-4 p-3!">
+        <div className="mx-auto flex container! h-14 max-w-400 items-center gap-4 px-6 md:px-3 p-3!">
           <Link to="/" className="me-2 flex shrink-0 items-center gap-2 font-heading font-semibold">
             <span className="relative flex size-8 items-center justify-center rounded-full border border-primary/50 text-primary">
               <span className="size-2 rounded-full bg-primary" />
               <span className="absolute h-px w-10 -rotate-20 bg-primary/60" />
             </span>
-            <span className="hidden text-lg sm:block">نحّاسينما</span>
+            <span className=" text-lg block">نحّاسينما</span>
           </Link>
 
           <nav className="hidden items-center gap-1 lg:flex" aria-label="التنقل الرئيسي">
@@ -129,6 +130,25 @@ export function PlatformShell({
                               </div>
                               <p className="line-clamp-2 text-xs text-muted-foreground">
                                 قارن بين الأعمال والإحصائيات
+                              </p>
+                            </Link>
+                          }
+                        />
+                      </li>
+
+                      <li>
+                        <NavigationMenuLink
+                          render={
+                            <Link
+                              to="/awards"
+                              className="flex flex-col gap-1 rounded-md p-2.5 transition-colors hover:bg-accent focus:bg-accent"
+                            >
+                              <div className="flex items-start ml-auto! gap-2 text-sm font-semibold text-foreground">
+                                <TrophyIcon className="size-4 text-primary" />
+                                <span>الجوائز</span>
+                              </div>
+                              <p className="line-clamp-2 text-xs text-muted-foreground">
+                                الجهات المانحة والأعمال الفائزة والمرشّحة
                               </p>
                             </Link>
                           }

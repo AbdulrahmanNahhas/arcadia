@@ -1,4 +1,4 @@
-import type { FamilyActivity } from "@arcadia/contracts";
+import type { FamilyActivity, PublicAwardsDocument } from "@arcadia/contracts";
 import type { Work } from "@/features/library/model";
 import type {
   OrganizationRelationship,
@@ -98,6 +98,7 @@ function selectHeroWorks(
   return [...upcoming.slice(0, 5), ...available.slice(0, 5)];
 }
 export const getPlanets = () => planetsWithWorks();
+export const getPublicAwards = () => apiFetch<PublicAwardsDocument>("/api/v1/awards");
 export const getAdminPlanets = adminPlanetsWithWorks;
 export async function getPlatformCatalogWorks({ data }: Data<{ query?: string }> = { data: {} }) {
   return allWorks(data.query);
@@ -119,9 +120,7 @@ export async function getAdminUnassignedPlanetWorks() {
 export async function getPlanetDetail({ data }: Data<{ slug: string }>) {
   return (await planetsWithWorks()).find((planet) => planet.slug === data.slug) ?? null;
 }
-export async function getPlatformWorkDetail({
-  data,
-}: Data<{ workId: string }>) {
+export async function getPlatformWorkDetail({ data }: Data<{ workId: string }>) {
   const [detail, works, planets] = await Promise.all([
     fullDetail(data.workId),
     allWorks(),
