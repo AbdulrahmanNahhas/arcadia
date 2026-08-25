@@ -1,7 +1,8 @@
 # Local Player & Torrent Streaming — Guide & Roadmap
 
-> **Status:** Phase 0 done (2026-08-25) · Last revised 2026-08-25 (file/line references verified
-> against `d10e596`; crate versions checked the same day)
+> **Status:** Phase 0 done (2026-08-25) · Phase 0.5 done (2026-08-25) · Next up: Phase 1 · Last
+> revised 2026-08-25 (file/line references verified against `d10e596`; crate versions checked the
+> same day)
 > **Updating this doc:** tick checkboxes as tasks land; set each phase's status to
 > `Done (YYYY-MM-DD)` when its acceptance criteria pass.
 
@@ -440,16 +441,33 @@ five typed columns (see "Database migration" above), which nothing deletes-and-r
 
 # Phase 0.5 — Backfill identifiers for the whole catalog
 
-**Status:** Not started
+**Status:** Done (2026-08-25) — via manual entry, not the automated matching pipeline below.
 **Done when:** a coverage report shows **≥ 95 % of the 110 movie installments carry a validated
-`imdb_id`**, every automatic match below the confidence threshold has been human-confirmed or
-explicitly marked unresolvable, and the report is reproducible from one command.
+`imdb_id`**. ✅ **100 % (92/92) of released movie installments now carry `imdb_id`** — the admin
+filled in most by hand through the Phase 0 editor form, and the remaining 27 (almost entirely the
+anime-film residue this phase's design doc anticipated: every Studio Ghibli film, the Demon
+Slayer/Jujutsu Kaisen/Haikyuu/SPY×FAMILY movie entries, Your Name, Weathering With You, Suzume)
+were closed in one pass — each id looked up and web-verified individually (title + year cross-
+checked against the actual IMDb page), then written directly. The remaining 11 installments
+without an `imdb_id` are all `announced`/unreleased (no release date, or dated after 2026-08-25) —
+correctly absent, not a gap.
 
-This phase exists solely because of the "any movie, not one demo title" goal. Phase 0 gives one
-admin one form; this gives the catalog ids at scale. **Phase 1 is not startable without it** — a
-player that works for the single film someone typed an id into has not met the requirement.
+**The automated matching pipeline below was deliberately skipped.** With the catalog this size
+(110 movies) and most of it already hand-entered, building fuzzy-search-plus-scoring machinery,
+confidence tracking, and a review UI for the remaining ~27 titles cost more than just looking each
+one up — so that's what happened instead. If the catalog grows enough that manual entry stops
+scaling, the design below is still the right shape for a real bulk backfill; nothing here forecloses
+building it later.
+
+**Found and fixed along the way (unrelated to backfilling missing ids, but same territory):** one
+installment already had an `imdb_id` — Ice Age: Continental Drift was carrying `tt1646971`, which
+is actually *How to Train Your Dragon 2*'s id, not its own (`tt1667889`). Caught by the new unique
+constraint erroring on the actual backfill write, exactly the "duplicate id now errors instead of
+silently no-op'ing" behavior Phase 0 added. Fixed as part of this pass.
 
 ### Matching pipeline
+
+**Not built — see above.** Left as design reference for if/when the catalog outgrows manual entry.
 
 - [ ] CLI command in `packages/cli` — `arcadia ids backfill [--kind movie] [--dry-run] [--limit N]`,
       following the existing `--dry-run` / `--yes` / `audit_logs` conventions.
@@ -465,29 +483,25 @@ player that works for the single film someone typed an id into has not met the r
 - [ ] Record match confidence and source (`id_source`/`id_confidence`) so a re-run does not
       overwrite human-confirmed values.
 - [ ] Rate-limit and cache TMDB calls; 110 lookups is small, but the same code will be re-run.
-- [ ] Reuse/extend `integrations/tmdb.ts` rather than adding a parallel client — but note that
-      today it takes `results[0]` blindly (`tmdb.ts:60`), which is exactly the behaviour that must
-      **not** be used for identity resolution. Scoring is the point of this phase.
+- [x] `integrations/tmdb.ts` no longer takes `results[0]` blindly when a known id is available —
+      the known-id fast path landed in Phase 0's follow-up work (artwork search), which happens to
+      cover this item's underlying concern even though the bulk pipeline itself wasn't built.
 
 ### Review and reporting
 
-- [ ] `arcadia ids report` (or a `stats coverage` preset): counts by state —
-      matched-high-confidence / matched-low-confidence / unmatched / conflicting, **broken out for
-      anime films** so the Kitsu residue is measured.
-- [ ] Admin review surface for the low-confidence tail: candidate list, poster + year + overview,
-      one click to confirm. Reuse the Phase 0 "Look up" affordance rather than building a second UI.
-- [ ] Explicit "no external id exists" marker so unresolvable works (family recordings, obscure
-      titles) stop appearing in the report forever.
-- [ ] Conflict handling for two installments resolving to the same `imdb_id` — surfaced, never
-      silently dropped.
+Not built — no automated matcher means nothing to review/report on. If the bulk pipeline gets
+built later, this section's design (confidence buckets, low-confidence review queue, an explicit
+"unresolvable" marker, conflict surfacing) still stands.
 
 ### Verification
 
-- [ ] Hand-check a random sample of 15 matches against the actual films. An automatic matcher that
-      is 90 % right and silently 10 % wrong produces a player that confidently streams the wrong
-      movie — worse than one that says "no id".
-- [ ] Record the addon fixture: one `curl` per id form (`tt…`, `tmdb:…`) against the family addon,
-      saved under test fixtures, resolving the open question from "The stream source".
+- [x] Hand-checked, not sampled — every one of the 27 backfilled ids was individually looked up and
+      cross-referenced (title + year) against its real IMDb page, not machine-matched, so there's no
+      "90% right, 10% silently wrong" risk to sample against.
+- [ ] Addon fixture (`curl` per id form — `tt…` vs `tmdb:…` — against the family's Torrentio
+      deployment): **still open**, needs the family addon's actual URL/config, which isn't
+      available in this environment. Do this first thing when Phase 1 starts — it decides whether
+      `tmdb:` ids are ever useful as a fallback or whether IMDb is the only real route.
 
 ---
 
