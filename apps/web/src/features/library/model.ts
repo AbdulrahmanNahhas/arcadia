@@ -419,6 +419,17 @@ export const workSchema = z.object({
       url: z.url(),
     }),
   ),
+  /** Typed catalog identifiers — for a franchise title these are the title's own ids (AniList/
+   * MAL/TVDB), distinct from each installment's `tmdbId`/`imdbId` on `WorkSeasonDetail`. */
+  tmdbId: z.number().int().positive().nullable().default(null),
+  imdbId: z
+    .string()
+    .regex(/^tt\d{7,10}$/)
+    .nullable()
+    .default(null),
+  tvdbId: z.number().int().positive().nullable().default(null),
+  anilistId: z.number().int().positive().nullable().default(null),
+  malId: z.number().int().positive().nullable().default(null),
   awards: z.array(awardRecognitionSchema),
   releaseStart: z.string().nullable(),
   releaseEnd: z.string().nullable(),
@@ -519,6 +530,13 @@ export type WorkSeasonDetail = {
   unitCount: number | null;
   releaseAt: number | null;
   posterPath?: string | null;
+  /** This installment's own catalog identifiers — a movie's IMDb id lives here, not on the
+   * title, since a franchise title's installments each match a different IMDb/TMDB entry. */
+  tmdbId?: number | null;
+  imdbId?: string | null;
+  tvdbId?: number | null;
+  anilistId?: number | null;
+  malId?: number | null;
   progress: StructuralProgress | null;
   units: WorkUnitDetail[];
 };
@@ -563,6 +581,15 @@ export const editableWorkSeasonSchema = z.object({
   runtimeMinutes: z.number().int().min(0).nullable().default(null),
   unitCount: z.number().int().min(0).nullable().default(null),
   releaseAt: z.number().int().nullable().default(null),
+  tmdbId: z.number().int().positive().nullable().default(null),
+  imdbId: z
+    .string()
+    .regex(/^tt\d{7,10}$/)
+    .nullable()
+    .default(null),
+  tvdbId: z.number().int().positive().nullable().default(null),
+  anilistId: z.number().int().positive().nullable().default(null),
+  malId: z.number().int().positive().nullable().default(null),
   units: z.array(editableWorkUnitSchema),
 });
 

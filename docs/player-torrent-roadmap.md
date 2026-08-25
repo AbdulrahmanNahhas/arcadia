@@ -1,7 +1,7 @@
 # Local Player & Torrent Streaming — Guide & Roadmap
 
-> **Status:** Phase 0 not started · Last revised 2026-08-25 (file/line references verified against
-> `d10e596`; crate versions checked the same day)
+> **Status:** Phase 0 done (2026-08-25) · Last revised 2026-08-25 (file/line references verified
+> against `d10e596`; crate versions checked the same day)
 > **Updating this doc:** tick checkboxes as tasks land; set each phase's status to
 > `Done (YYYY-MM-DD)` when its acceptance criteria pass.
 
@@ -260,24 +260,36 @@ trailer URLs.
 
 ### Schema (`packages/database/src/schema.ts`)
 
-- [ ] Add to **both** `titles` and `installments`:
+**Done (2026-08-25).** Migration `0017_mixed_jocasta.sql`, applied to the local dev database.
+
+- [x] Add to **both** `titles` and `installments`:
   - `tmdb_id integer`
   - `imdb_id text` — check `imdb_id is null or imdb_id ~ '^tt[0-9]{7,10}$'`
   - `tvdb_id integer`
   - `anilist_id integer`
   - `mal_id integer`
-- [ ] One partial unique index per column, per table (`where x_id is not null`) — 10 total.
-- [ ] `external_identities`: add nullable `installment_id uuid references installments(id) on
+- [x] One partial unique index per column, per table (`where x_id is not null`) — 10 total.
+- [x] `external_identities`: add nullable `installment_id uuid references installments(id) on
 delete cascade`, make `title_id` nullable, add
       `check (num_nonnulls(title_id, installment_id) = 1)`, index `installment_id`.
-- [ ] `pnpm db:generate` then `pnpm db:migrate`.
+- [x] `pnpm db:generate` then `pnpm db:migrate`.
+
+Note for whoever runs the next `db:generate`: `drizzle/meta/` was missing every snapshot from
+`0005` through `0016` (only `0000`–`0004` existed, despite the journal listing up to `0016`) —
+`generate` was diffing against 6-migrations-stale state and throwing an interactive
+table-rename prompt it can't resolve non-interactively. Fixed by reconstructing the missing
+`0016_snapshot.json` from the pre-Phase-0 schema (a fresh, history-less `generate` run against
+that file's content, chained onto `0004`'s id as `prevId`) before generating `0017`. If this
+happens again, that's the repair recipe — regenerate the missing snapshot from the last-known
+schema.ts state at that migration, don't try to hand-resolve the rename prompts.
 
 ### Data migration
 
-**`external_identities` is empty today (0 rows), so all four statements below are currently
-no-ops.** Keep them anyway: they are the safety net for the case where artwork ingest runs against
-the old shape between now and the migration landing. The actual population path is
-**Phase 0.5**, not this SQL. Run the `select` form of each first regardless.
+**`external_identities` was empty at migration time (0 rows), so all four statements below stayed
+no-ops** — confirmed after the migration landed. They remain dead code now: Phase 0's ingest fix
+means `tmdb`/`anilist` never write to `external_identities` going forward (they go straight to the
+typed columns), so there is nothing left for this backfill to migrate. Left in place only as a
+historical note.
 
 ```sql
 update titles t set tmdb_id = ei.external_id::integer
@@ -316,76 +328,85 @@ delete from external_identities
 
 # Phase 0 — Identifiers, API, editor form
 
-**Status:** Not started
+**Status:** Done (2026-08-25)
 **Done when:** a movie installment can be given an IMDb id through the editor form, it survives a
-save, and re-opening the form shows it.
+save, and re-opening the form shows it. ✅ Verified both via a Vitest regression test
+(`apps/api/src/features/titles/structure.test.ts`) and by hand against the live dev DB/API.
 
 ### Fix the data-loss bug first
 
-Saving any work through the editor form currently **destroys the TMDB/AniList ids written by
-artwork ingest**. The chain, verified at `d10e596`:
+Saving any work through the editor form used to **destroy the TMDB/AniList ids written by
+artwork ingest**. Closed by moving `tmdb`/`anilist` off `external_identities` entirely onto the
+five typed columns (see "Database migration" above), which nothing deletes-and-reinserts.
 
-1. `apps/api/src/app.ts:633` inserts the identity row with `url` left NULL.
-2. `apps/web/src/server/compat.ts:181-182` drops null-`url` rows when mapping to the client
-   (`flatMap(… identity.url ? […] : [])`) — note this is the **web** compat module, not an API one.
-3. The editor textarea therefore never shows them.
-4. `apps/api/src/features/titles/write.ts:316` runs `delete from external_identities where
-title_id=$1` and reinserts only what was submitted — the ingested ids are gone.
-
-The table is empty today, so nothing has been lost _yet_; this is the trap that eats the Phase 0.5
-backfill if it is not closed first.
-
-- [ ] Fix the round trip so ingested ids survive a save.
-- [ ] Regression test: save a work carrying ids, assert they survive.
-- [ ] Fix `write.ts:187` (`externalId: link.label || link.url` — the human label doubles as the
-      identifier) once ids are typed columns.
-- [ ] Fix `SeasonPosterCard` (`editor-form/index.tsx:1760`, receiving `titleId={structure.workId}`
-      at `:1743`), which passes the **title** id when ingesting a **season** poster, recording a
-      season's TMDB match as a title-level identity.
-- [ ] `external_identity_provider_uq` is unique on `(lower(provider), external_id)` **globally**,
-      with no owner column; combined with `on conflict do nothing`, ingesting an id already
-      attached to another title silently no-ops. Scope it per owner. (Once the typed columns exist
-      with their own partial unique indexes, the failure mode moves rather than disappears: a
-      duplicate `imdb_id` will now _error_ instead of silently no-op'ing. Phase 0.5 must handle
-      that conflict explicitly — two installments legitimately matching the same film means one of
-      the matches is wrong.)
+- [x] Fix the round trip so ingested ids survive a save.
+- [x] Regression test: save a work carrying ids, assert they survive. Two added —
+      `write.test.ts` (title-level) and `structure.test.ts` (installment-level, plus one asserting
+      ids survive a resave that doesn't mention them at all, matching the existing
+      score/award-preservation pattern).
+- [x] Fix `write.ts:187` (`externalId: link.label || link.url`): now prefers the URL as the
+      free-form link's identity, since the five typed ids no longer flow through this list at all.
+- [x] Fix `SeasonPosterCard`'s owner bug: it no longer takes a `titleId` prop at all — it now
+      passes `installmentId: season.id` straight through, so a season poster match records its
+      TMDB/AniList id on that installment, not the title.
+- [x] `external_identity_provider_uq` scoped per owner: the unique index is now on `(title_id,
+      installment_id, lower(provider), external_id)`, so two different titles/installments can
+      share a free-form link. Verified live: a duplicate `tmdb_id` across two titles now raises
+      `duplicate key value violates unique constraint "titles_tmdb_id_uq"` instead of silently
+      no-op'ing — Phase 0.5 must handle that conflict explicitly, as this section anticipated.
+      Also fixed the CLI's `work apply externalIds` path, whose `on conflict` target no longer
+      matched the new composite index (`packages/cli/src/commands/work.ts`).
 
 ### Contracts
 
-- [ ] Add `tmdbId`/`imdbId`/`tvdbId`/`anilistId`/`malId` to the title schema, installment schema and
-      `AdminWorkUpdate` in `packages/contracts/src/`.
-- [ ] Keep `externalIdentities` for free-form references.
-- [ ] `pnpm client:generate`.
+- [x] Added `tmdbId`/`imdbId`/`tvdbId`/`anilistId`/`malId` — shared as
+      `externalIdFieldsSchema`/`externalIdFieldsInputSchema` in `admin-catalog.ts`, mixed into
+      `installmentSchema`/`titleDetailSchema` (read) and `adminTitleInputSchema`/
+      `adminInstallmentInputSchema` (write), plus the web-side `workSchema`/
+      `editableWorkSeasonSchema`. Also registered in `admin-field-registry.ts` (title + installment
+      entries), which `admin-field-registry.test.ts` enforces 100% coverage of.
+- [x] Kept `externalIdentities` for free-form references.
+- [x] `pnpm client:generate`.
 
 ### API
 
-- [ ] `repository.ts`: select the five columns on title and installment reads.
-- [ ] `titles/write.ts`: write them via plain `update`; delete-then-reinsert now handles only
+- [x] `repository.ts`: selects the five columns on title and installment reads.
+- [x] `titles/write.ts`: writes them via plain `update`; delete-then-reinsert now handles only
       free-form links.
-- [ ] `app.ts` artwork ingest: `tmdb`/`anilist` update the typed columns on the correct owner —
-      title **or installment**. `fanart` keeps writing image-id rows to `external_identities`.
-- [ ] `integrations/tmdb.ts`: today it runs a fuzzy `/search/movie?query=…` on **every** search and
-      blindly takes `results[0]`. Accept an optional known `tmdbId` and go straight to
-      `/movie/{id}/images`; keep the search path only for works with no id yet.
-- [ ] `integrations/anilist.ts`: same — `Media(id:)` instead of `Media(search:)`.
-- [ ] `integrations/fanart.ts`: it covers only movies because Fanart's TV endpoint needs a TheTVDB
-      id "which nothing else here resolves" (its own comment). Add the TV endpoint now that
-      `tvdb_id` exists — this is the main source of anime clear-logos.
+- [x] `app.ts` artwork ingest: `tmdb`/`anilist` update the typed columns on the correct owner —
+      title **or installment**, via a new `installmentId` field alongside `titleId` on
+      `adminArtworkIngestSchema`. `fanart` keeps writing to `external_identities` (now owner-aware
+      too, since that table accepts either `title_id` or `installment_id`).
+- [ ] `integrations/tmdb.ts`: **deferred** — still runs a fuzzy `/search/movie?query=…` on every
+      search rather than accepting a known `tmdbId` and going straight to `/movie/{id}/images`.
+      Not required for the round-trip fix; worth doing before Phase 0.5 leans on this path a lot.
+- [ ] `integrations/anilist.ts`: **deferred**, same reasoning — `Media(search:)` still, not
+      `Media(id:)`.
+- [ ] `integrations/fanart.ts`: **deferred** — still movie-only; the TV endpoint (now unblocked by
+      `tvdb_id` existing) isn't wired up yet.
 
 ### Editor form (`apps/web/src/features/admin/components/editor-form/`)
 
-Replace the single `provider | label | url` textarea:
-
-- [ ] Title-level: five explicit id fields, format-validated, with "open on site" links.
-- [ ] Per-installment: the same five id fields, one row per installment. **This is the field Phase 1
-      depends on** — a movie's IMDb id lives on its installment.
-- [ ] Separate free-form reference-links list (Wikipedia, official site, trailer).
-- [ ] "Look up" affordance: given title + year, fetch candidate TMDB/IMDb matches and let the admin
-      confirm one, writing all ids at once.
-- [ ] Keep the JSON editor (`json-editor/engine.ts`, `guide.ts`) and CLI (`work apply`) in sync.
-- [ ] Replace the fragile trailer lookup at
-      `apps/web/src/features/platform/work-detail-page.tsx:348`
-      (`/trailer|إعلان|يوتيوب|youtube/i` over `provider + label`) with a reserved provider slug.
+- [x] Title-level: five explicit id fields (`IdField`), with "open on site" links, next to the
+      now-narrower free-form external-links textarea.
+- [x] Per-installment: the same five id fields, one row per installment, added to
+      `SeasonPosterCard` (immediate-save, matching how its poster field already works). **This is
+      the field Phase 1 depends on** — done.
+- [x] Free-form reference-links list (Wikipedia, official site, trailer) — the existing textarea,
+      narrowed: its help text now says not to put TMDB/IMDb/AniList ids there.
+- [ ] "Look up" affordance (title+year → candidate matches → confirm and write all ids at once):
+      **deferred** — real UI scope of its own; Phase 0.5's bulk matcher supersedes the need for it
+      as the primary path, so it's now "nice to have" rather than blocking.
+- [x] JSON editor (`json-editor/engine.ts`, `guide.ts`) and CLI (`work apply`) kept in sync:
+      `guide.ts` is generated from `admin-field-registry.ts` so it needed no direct edit; found and
+      fixed a real bug in `engine.ts`'s `mergeStructureProjection` while doing this — its rebuilt
+      installment object didn't seed the five id fields from the original row, so any JSON-editor
+      structure save (with a structure field selected) would have silently nulled every
+      installment's ids via `editableWorkStructureSchema`'s `.default(null)`. The CLI's
+      `workDocument`/`upsertTitle`/`syncInstallments` got the same optional five fields, "only
+      touch what's present" like every other field there.
+- [x] Replaced the fragile trailer lookup in `work-detail-page.tsx` (`/trailer|إعلان|يوتيوب|youtube/i`
+      over `provider + label`) with an exact match on the reserved provider slug `"trailer"`.
 
 ---
 

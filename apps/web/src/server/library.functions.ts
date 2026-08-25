@@ -370,6 +370,7 @@ export async function ingestArtwork({
   provider: ArtworkProvider;
   externalId: string;
   titleId?: string;
+  installmentId?: string;
 }>) {
   return apiFetch<{ relativePath: string; mimeType: string }>(
     "/api/v1/admin/media-artwork-ingest",
@@ -407,6 +408,11 @@ export async function getAdminRecordBundles({ data }: Data<{ workIds: string[] }
                   runtimeMinutes: season.runtimeMinutes,
                   unitCount: season.unitCount,
                   releaseAt: season.releaseAt,
+                  tmdbId: season.tmdbId ?? null,
+                  imdbId: season.imdbId ?? null,
+                  tvdbId: season.tvdbId ?? null,
+                  anilistId: season.anilistId ?? null,
+                  malId: season.malId ?? null,
                   units: season.units.map((unit) => ({
                     id: unit.id,
                     unitType: "episode" as const,

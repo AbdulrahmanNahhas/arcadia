@@ -344,8 +344,11 @@ function WorkHero({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: socialKeys.title(work.id) }),
   });
 
-  const trailerLink = work.externalLinks.find((link) =>
-    /trailer|إعلان|يوتيوب|youtube/i.test(`${link.provider} ${link.label}`),
+  // "trailer" is a reserved provider slug (see the editor form's external links field), not a
+  // fuzzy match over provider/label text — that used to misfire on any link whose label happened
+  // to mention a trailer-ish word for an unrelated reason.
+  const trailerLink = work.externalLinks.find(
+    (link) => link.provider.trim().toLowerCase() === "trailer",
   );
   const trailerEmbedUrl = trailerLink ? youtubeEmbedUrl(trailerLink.url) : null;
 

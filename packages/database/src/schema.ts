@@ -95,6 +95,22 @@ const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 };
+/**
+ * The five external-catalog identifiers Phase 0 of the player/torrent roadmap needs, kept as
+ * typed columns (not `external_identities` rows) so they can be looked up and written without a
+ * join, and so `tmdb`/`anilist` ingest can update-in-place instead of insert-or-noop. Present on
+ * both `titles` and `installments`: a franchise title carries its own `anilist_id`/`mal_id`/
+ * `tvdb_id`, while each film installment carries its own `tmdb_id`/`imdb_id` — Torrentio and
+ * Jellyfin both key off the installment-level ids for movie playback.
+ */
+const externalIdColumns = {
+  tmdbId: integer("tmdb_id"),
+  imdbId: text("imdb_id"),
+  tvdbId: integer("tvdb_id"),
+  anilistId: integer("anilist_id"),
+  malId: integer("mal_id"),
+};
+
 const classificationDefaults = {
   audience: audienceEnum("audience").notNull().default("general"),
   age: ageEnum("age").notNull().default("all"),
@@ -121,6 +137,7 @@ export const titles = pgTable(
     provenance: jsonb("provenance").notNull().default(sql`'{}'::jsonb`),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     verifiedByAccountId: uuid("verified_by_account_id"),
+    ...externalIdColumns,
     ...classificationDefaults,
     ...timestamps,
   },
@@ -128,6 +145,12 @@ export const titles = pgTable(
     index("titles_sort_idx").on(t.sortTitle),
     index("titles_release_year_idx").on(t.releaseYear),
     index("titles_search_trgm_idx").using("gin", sql`${t.canonicalTitle} gin_trgm_ops`),
+    check("titles_imdb_id_check", sql`${t.imdbId} is null or ${t.imdbId} ~ '^tt[0-9]{7,10}$'`),
+    uniqueIndex("titles_tmdb_id_uq").on(t.tmdbId).where(sql`${t.tmdbId} is not null`),
+    uniqueIndex("titles_imdb_id_uq").on(t.imdbId).where(sql`${t.imdbId} is not null`),
+    uniqueIndex("titles_tvdb_id_uq").on(t.tvdbId).where(sql`${t.tvdbId} is not null`),
+    uniqueIndex("titles_anilist_id_uq").on(t.anilistId).where(sql`${t.anilistId} is not null`),
+    uniqueIndex("titles_mal_id_uq").on(t.malId).where(sql`${t.malId} is not null`),
   ],
 );
 export const titleAliases = pgTable(
@@ -168,6 +191,7 @@ export const installments = pgTable(
     sexualityRiskOverride: riskEnum("sexuality_risk_override"),
     behavioralRiskOverride: riskEnum("behavioral_risk_override"),
     theologyRiskOverride: riskEnum("theology_risk_override"),
+    ...externalIdColumns,
     ...timestamps,
   },
   (t) => [
@@ -177,6 +201,17 @@ export const installments = pgTable(
       "installments_values_check",
       sql`${t.position} >= 0 and (${t.runtimeMinutes} is null or ${t.runtimeMinutes} >= 0)`,
     ),
+    check(
+      "installments_imdb_id_check",
+      sql`${t.imdbId} is null or ${t.imdbId} ~ '^tt[0-9]{7,10}$'`,
+    ),
+    uniqueIndex("installments_tmdb_id_uq").on(t.tmdbId).where(sql`${t.tmdbId} is not null`),
+    uniqueIndex("installments_imdb_id_uq").on(t.imdbId).where(sql`${t.imdbId} is not null`),
+    uniqueIndex("installments_tvdb_id_uq").on(t.tvdbId).where(sql`${t.tvdbId} is not null`),
+    uniqueIndex("installments_anilist_id_uq")
+      .on(t.anilistId)
+      .where(sql`${t.anilistId} is not null`),
+    uniqueIndex("installments_mal_id_uq").on(t.malId).where(sql`${t.malId} is not null`),
   ],
 );
 export const awardOrganizations = pgTable(
@@ -542,17 +577,29 @@ export const externalIdentities = pgTable(
   "external_identities",
   {
     ...id,
-    titleId: uuid("title_id")
-      .notNull()
-      .references(() => titles.id, { onDelete: "cascade" }),
+    titleId: uuid("title_id").references(() => titles.id, { onDelete: "cascade" }),
+    installmentId: uuid("installment_id").references(() => installments.id, {
+      onDelete: "cascade",
+    }),
     provider: text("provider").notNull(),
     externalId: text("external_id").notNull(),
     url: text("url"),
   },
   (t) => [
-    uniqueIndex("external_identity_provider_uq").on(sql`lower(btrim(${t.provider}))`, t.externalId),
+    // Scoped per owner, not global: two different titles/installments are allowed to reference
+    // the same free-form URL (e.g. a shared franchise Wikipedia page). This table now only holds
+    // free-form references (Wikipedia, official site, trailer, Fanart image ids) — the five
+    // typed catalog ids (tmdb/imdb/tvdb/anilist/mal) live on `titles`/`installments` directly.
+    uniqueIndex("external_identity_provider_uq").on(
+      t.titleId,
+      t.installmentId,
+      sql`lower(btrim(${t.provider}))`,
+      t.externalId,
+    ),
     index("external_identities_title_idx").on(t.titleId),
+    index("external_identities_installment_idx").on(t.installmentId),
     check("external_identity_provider_check", sql`btrim(${t.provider}) <> ''`),
+    check("external_identity_owner_check", sql`num_nonnulls(${t.titleId}, ${t.installmentId}) = 1`),
   ],
 );
 

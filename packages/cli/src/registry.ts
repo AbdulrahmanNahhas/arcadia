@@ -257,8 +257,11 @@ export const resources: readonly Resource[] = [
   {
     name: "external-id",
     table: "external_identities",
-    summary: "Provider identifiers (MAL, AniList, TMDB, …) for a title.",
-    listColumns: ["id", "title_id", "provider", "external_id", "url"],
+    summary:
+      "Free-form references (Wikipedia, official site, trailer, Fanart image ids) for a title " +
+      "or installment. The five typed catalog ids (tmdb/imdb/tvdb/anilist/mal) live as columns " +
+      "on `title`/`installment` directly, not here.",
+    listColumns: ["id", "title_id", "installment_id", "provider", "external_id", "url"],
     orderBy: "provider",
   },
   {

@@ -67,6 +67,11 @@ function editableStructure(structure: WorkStructure): EditableWorkStructure {
       runtimeMinutes: installment.runtimeMinutes,
       unitCount: installment.unitCount,
       releaseAt: installment.releaseAt,
+      tmdbId: installment.tmdbId ?? null,
+      imdbId: installment.imdbId ?? null,
+      tvdbId: installment.tvdbId ?? null,
+      anilistId: installment.anilistId ?? null,
+      malId: installment.malId ?? null,
       units: installment.units.map((unit) => ({
         id: unit.id,
         unitType: "episode",

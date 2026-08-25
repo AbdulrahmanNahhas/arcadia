@@ -163,6 +163,11 @@ type AdminStructureSeason = Partial<{
   releaseAt: number;
   runtimeMinutes: number | null;
   units: AdminStructureUnit[];
+  tmdbId: number | null;
+  imdbId: string | null;
+  tvdbId: number | null;
+  anilistId: number | null;
+  malId: number | null;
 }>;
 function initialInstallmentStatus(value: string | undefined) {
   if (value === "upcoming" || value === "announced") return "announced";
@@ -192,6 +197,15 @@ const adminStructureSchema = z.object({
         releaseAt: z.number().nullable().optional(),
         runtimeMinutes: z.number().int().min(0).nullable().optional(),
         score: adminScoreSchema.optional(),
+        tmdbId: z.number().int().positive().nullable().optional(),
+        imdbId: z
+          .string()
+          .regex(/^tt\d{7,10}$/)
+          .nullable()
+          .optional(),
+        tvdbId: z.number().int().positive().nullable().optional(),
+        anilistId: z.number().int().positive().nullable().optional(),
+        malId: z.number().int().positive().nullable().optional(),
         units: z
           .array(
             z.object({
@@ -629,10 +643,25 @@ app.post("/api/v1/admin/media-artwork-ingest", async (context) => {
     }
     if (input.owner)
       await assignMediaPath(sql, relativePath, input.role, input.owner, input.isPrimary);
-    if (input.titleId) {
-      await sql`insert into external_identities (title_id, provider, external_id)
-        values (${input.titleId}, ${input.provider}, ${input.externalId})
-        on conflict (lower(btrim(provider)), external_id) do nothing`;
+    // `tmdb`/`anilist` are catalog ids — they belong on the typed `tmdb_id`/`anilist_id` column
+    // of whichever row this artwork search matched (the installment for a per-season pick, the
+    // title otherwise), written in place rather than accumulating as `external_identities` rows
+    // that a later title save would silently delete (see the player/torrent roadmap's Phase 0).
+    // `fanart` has no typed column — it's an image id, not a catalog id — so it keeps the old
+    // `external_identities` row, now scoped to either owner.
+    if (input.provider === "tmdb" || input.provider === "anilist") {
+      const column = input.provider === "tmdb" ? "tmdb_id" : "anilist_id";
+      const numericId = Number(input.externalId);
+      if (Number.isFinite(numericId)) {
+        if (input.installmentId)
+          await sql`update installments set ${sql(column)}=${numericId}, updated_at=now() where id=${input.installmentId}`;
+        else if (input.titleId)
+          await sql`update titles set ${sql(column)}=${numericId}, updated_at=now() where id=${input.titleId}`;
+      }
+    } else if (input.titleId || input.installmentId) {
+      await sql`insert into external_identities (title_id, installment_id, provider, external_id)
+        values (${input.titleId ?? null}, ${input.installmentId ?? null}, ${input.provider}, ${input.externalId})
+        on conflict (title_id, installment_id, lower(btrim(provider)), external_id) do nothing`;
     }
     return context.json({ ...stored, id: assetId, relativePath, duplicate }, 201);
   } catch (error) {
@@ -1263,6 +1292,13 @@ app.put("/api/v1/admin/titles/:titleId/structure", async (context) => {
     const preservedScoreRows =
       await transaction`select i.id, s.story, s.characters, s.depth, s.world_building, s.originality, s.craft from installments i join installment_scores s on s.installment_id=i.id where i.title_id=${titleId}`;
     const preservedScores = new Map(preservedScoreRows.map((score) => [String(score.id), score]));
+    // Same rebuild-loses-it hazard as scores/awards below: the structure document doesn't always
+    // carry the five typed ids (e.g. the JSON structure editor's older documents, or a caller
+    // that only touches episodes) — fall back to what the installment already had rather than
+    // silently clearing an ingested/entered id on an unrelated structure save.
+    const preservedIdRows =
+      await transaction`select id, tmdb_id, imdb_id, tvdb_id, anilist_id, mal_id from installments where title_id=${titleId}`;
+    const preservedIds = new Map(preservedIdRows.map((row) => [String(row.id), row]));
     // award_recognitions.installment_id cascades on installment delete, so rebuilding the
     // installment list below would otherwise silently drop any award tied to one — read them out
     // first, keyed by their (soon-to-be-deleted) installment id, and reinsert once the matching
@@ -1284,10 +1320,17 @@ app.put("/api/v1/admin/titles/:titleId/structure", async (context) => {
         `${String(ownerTitle.canonical_title)} ${kind} ${Number(season.position ?? index) + 1} ${installmentTitle}`,
         "poster",
       );
+      const preservedId = season.id ? preservedIds.get(season.id) : undefined;
       const [installment] = await transaction`
-        insert into installments (title_id, kind, position, title, summary, release_date, runtime_minutes, status)
+        insert into installments (title_id, kind, position, title, summary, release_date, runtime_minutes, status,
+          tmdb_id, imdb_id, tvdb_id, anilist_id, mal_id)
         values (${titleId}, ${kind}, ${Number(season.position ?? index + 1)}, ${installmentTitle},
-          ${String(season.summary ?? "")}, ${season.releaseAt ? new Date(Number(season.releaseAt)).toISOString().slice(0, 10) : null}, ${season.runtimeMinutes ?? null}, ${season.releaseStatus ?? "unknown"}) returning id`;
+          ${String(season.summary ?? "")}, ${season.releaseAt ? new Date(Number(season.releaseAt)).toISOString().slice(0, 10) : null}, ${season.runtimeMinutes ?? null}, ${season.releaseStatus ?? "unknown"},
+          ${season.tmdbId !== undefined ? season.tmdbId : (preservedId?.tmdb_id ?? null)},
+          ${season.imdbId !== undefined ? season.imdbId : (preservedId?.imdb_id ?? null)},
+          ${season.tvdbId !== undefined ? season.tvdbId : (preservedId?.tvdb_id ?? null)},
+          ${season.anilistId !== undefined ? season.anilistId : (preservedId?.anilist_id ?? null)},
+          ${season.malId !== undefined ? season.malId : (preservedId?.mal_id ?? null)}) returning id`;
       if (!installment) throw new Error("Could not create installment");
       await assignMediaPath(transaction as unknown as typeof sql, posterPath, "poster", {
         installmentId: String(installment.id),

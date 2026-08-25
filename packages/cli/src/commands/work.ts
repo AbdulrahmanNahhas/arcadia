@@ -54,6 +54,17 @@ const installmentDocument = z.object({
   sexualityRiskOverride: z.string().nullable().optional(),
   behavioralRiskOverride: z.string().nullable().optional(),
   theologyRiskOverride: z.string().nullable().optional(),
+  // A movie's IMDb id lives here, on its installment — not on the umbrella title. See the
+  // player/torrent roadmap's Phase 0.
+  tmdbId: z.number().int().positive().nullable().optional(),
+  imdbId: z
+    .string()
+    .regex(/^tt\d{7,10}$/)
+    .nullable()
+    .optional(),
+  tvdbId: z.number().int().positive().nullable().optional(),
+  anilistId: z.number().int().positive().nullable().optional(),
+  malId: z.number().int().positive().nullable().optional(),
   score: z
     .object({
       story: scoreValue.optional(),
@@ -104,6 +115,17 @@ export const workDocument = z.object({
   sexualityRisk: z.enum(["none", "low", "medium", "high"]).optional(),
   behavioralRisk: z.enum(["none", "low", "medium", "high"]).optional(),
   theologyRisk: z.enum(["none", "low", "medium", "high"]).optional(),
+  // A franchise title's own ids (AniList/MAL/TVDB); a movie installment carries its own
+  // tmdbId/imdbId separately (see `installmentDocument`).
+  tmdbId: z.number().int().positive().nullable().optional(),
+  imdbId: z
+    .string()
+    .regex(/^tt\d{7,10}$/)
+    .nullable()
+    .optional(),
+  tvdbId: z.number().int().positive().nullable().optional(),
+  anilistId: z.number().int().positive().nullable().optional(),
+  malId: z.number().int().positive().nullable().optional(),
   aliases: z.array(z.string().min(1)).optional(),
   genres: z.array(z.string().min(1)).optional(),
   tones: z.array(z.string().min(1)).optional(),
@@ -333,6 +355,11 @@ const titleScalarColumns: Array<[keyof WorkDocument, string]> = [
   ["sexualityRisk", "sexuality_risk"],
   ["behavioralRisk", "behavioral_risk"],
   ["theologyRisk", "theology_risk"],
+  ["tmdbId", "tmdb_id"],
+  ["imdbId", "imdb_id"],
+  ["tvdbId", "tvdb_id"],
+  ["anilistId", "anilist_id"],
+  ["malId", "mal_id"],
 ];
 
 async function upsertTitle(
@@ -410,6 +437,11 @@ async function syncInstallments(
       ["sexualityRiskOverride", "sexuality_risk_override"],
       ["behavioralRiskOverride", "behavioral_risk_override"],
       ["theologyRiskOverride", "theology_risk_override"],
+      ["tmdbId", "tmdb_id"],
+      ["imdbId", "imdb_id"],
+      ["tvdbId", "tvdb_id"],
+      ["anilistId", "anilist_id"],
+      ["malId", "mal_id"],
     ] as const) {
       const value = document[key];
       if (value !== undefined) values.set(column, value);
@@ -803,9 +835,10 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
     if (document.externalIds) {
       for (const identity of document.externalIds) {
         await transaction.unsafe(
-          `insert into external_identities (title_id, provider, external_id, url)
-           values ($1, $2, $3, $4)
-           on conflict (lower(btrim(provider)), external_id) do update set url = excluded.url`,
+          `insert into external_identities (title_id, installment_id, provider, external_id, url)
+           values ($1, null, $2, $3, $4)
+           on conflict (title_id, installment_id, lower(btrim(provider)), external_id)
+           do update set url = excluded.url`,
           [titleId, identity.provider, identity.externalId, identity.url ?? null],
         );
       }
@@ -987,6 +1020,11 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
     sexualityRisk: title.sexuality_risk as WorkDocument["sexualityRisk"],
     behavioralRisk: title.behavioral_risk as WorkDocument["behavioralRisk"],
     theologyRisk: title.theology_risk as WorkDocument["theologyRisk"],
+    tmdbId: number(title.tmdb_id),
+    imdbId: (title.imdb_id as string | null) ?? null,
+    tvdbId: number(title.tvdb_id),
+    anilistId: number(title.anilist_id),
+    malId: number(title.mal_id),
     aliases: aliases.map((row) => row.title),
     genres: genres.map((row) => row.slug),
     tones: tones.map((row) => row.slug),
@@ -1024,6 +1062,11 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
       sexualityRiskOverride: (row.sexuality_risk_override as string | null) ?? null,
       behavioralRiskOverride: (row.behavioral_risk_override as string | null) ?? null,
       theologyRiskOverride: (row.theology_risk_override as string | null) ?? null,
+      tmdbId: number(row.tmdb_id),
+      imdbId: (row.imdb_id as string | null) ?? null,
+      tvdbId: number(row.tvdb_id),
+      anilistId: number(row.anilist_id),
+      malId: number(row.mal_id),
       score: {
         story: number(row.story),
         characters: number(row.characters),

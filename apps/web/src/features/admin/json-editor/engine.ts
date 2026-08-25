@@ -843,6 +843,16 @@ function mergeStructureProjection(
       runtimeMinutes: originalInstallment?.runtimeMinutes ?? null,
       unitCount: originalInstallment?.unitCount ?? 0,
       releaseAt: originalInstallment?.releaseAt ?? null,
+      // Not (yet) a selectable `InstallmentJsonField` — always carried over from the live row so
+      // a structure projection that doesn't know about these fields can't null them out (see the
+      // player/torrent roadmap's Phase 0: this is the same rebuild-loses-it hazard `write.ts` and
+      // the structure PUT handler close server-side, but the JSON editor bypasses those through
+      // its own client-side merge, so it needs the same guard).
+      tmdbId: originalInstallment?.tmdbId ?? null,
+      imdbId: originalInstallment?.imdbId ?? null,
+      tvdbId: originalInstallment?.tvdbId ?? null,
+      anilistId: originalInstallment?.anilistId ?? null,
+      malId: originalInstallment?.malId ?? null,
       units: originalInstallment?.units ?? [],
     };
     // Every branch below writes a JSON-derived value onto `merged`.

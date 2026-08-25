@@ -74,6 +74,48 @@ describe("PUT /api/v1/admin/titles/:titleId/structure — award recognition surv
     });
   });
 
+  it("writes an installment's IMDb/TMDB ids and shows them back on the next read (player/torrent roadmap Phase 0)", async () => {
+    const { titleId, installmentId } = await createTitleWithInstallment();
+    const response = await putStructure(titleId, {
+      seasons: [
+        {
+          id: installmentId,
+          title: "Movie With An IMDb Id",
+          installmentKind: "movie",
+          position: 0,
+          tmdbId: 129,
+          imdbId: "tt1798709",
+        },
+      ],
+      ungroupedUnits: [],
+    });
+    expect(response.status).toBe(200);
+
+    const sql = database().client;
+    const rows = await sql`select tmdb_id, imdb_id from installments where title_id=${titleId}`;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.tmdb_id).toBe(129);
+    expect(rows[0]?.imdb_id).toBe("tt1798709");
+  });
+
+  it("preserves an installment's ids across a resave that doesn't mention them, the same way scores/awards survive", async () => {
+    const { titleId, installmentId } = await createTitleWithInstallment();
+    await database().client`update installments set imdb_id='tt0245429', tmdb_id=572154 where id=${installmentId}`;
+
+    // A resave that renames the installment but never sends tmdbId/imdbId at all (e.g. an older
+    // structure-editing surface, or a partial patch) must not null out ids it doesn't know about.
+    const response = await putStructure(titleId, {
+      seasons: [{ id: installmentId, title: "Renamed, ids untouched", position: 0 }],
+      ungroupedUnits: [],
+    });
+    expect(response.status).toBe(200);
+
+    const rows =
+      await database().client`select imdb_id, tmdb_id from installments where title_id=${titleId}`;
+    expect(rows[0]?.imdb_id).toBe("tt0245429");
+    expect(rows[0]?.tmdb_id).toBe(572154);
+  });
+
   it("carries a title-level award recognition (no installment_id) through untouched, as before", async () => {
     const { titleId, installmentId } = await createTitleWithInstallment();
     const sql = database().client;

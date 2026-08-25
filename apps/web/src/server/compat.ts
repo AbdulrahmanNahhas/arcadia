@@ -183,6 +183,11 @@ export function titleToWork(title: TitleSummary | TitleDetail | AdminTitleDetail
               : [],
           )
         : [],
+    tmdbId: "tmdbId" in title ? title.tmdbId : null,
+    imdbId: "imdbId" in title ? title.imdbId : null,
+    tvdbId: "tvdbId" in title ? title.tvdbId : null,
+    anilistId: "anilistId" in title ? title.anilistId : null,
+    malId: "malId" in title ? title.malId : null,
     awards: title.awards,
     releaseStart: first?.releaseDate ?? null,
     releaseEnd: null,
@@ -259,6 +264,11 @@ export function detailToStructure(detail: TitleDetail): WorkStructure {
     unitCount: item.episodes?.length ?? (item.kind === "movie" ? 1 : 0),
     releaseAt: item.releaseDate ? new Date(item.releaseDate).valueOf() : null,
     posterPath: item.posterPath,
+    tmdbId: item.tmdbId,
+    imdbId: item.imdbId,
+    tvdbId: item.tvdbId,
+    anilistId: item.anilistId,
+    malId: item.malId,
     progress: null,
     units: (item.episodes ?? []).map((episode) => episodeUnit(detail.id, item, episode)),
   }));
@@ -347,6 +357,13 @@ function installmentWorks(items: Installment[], titles: TitleSummary[]) {
         Object.entries(item.score).filter(([, value]) => value !== null),
       ),
       externalLinks: [],
+      // Prefer the installment's own ids (a movie's IMDb id lives here) over the umbrella
+      // title's (AniList/MAL/TVDB, for a franchise title's own identity).
+      tmdbId: item.tmdbId ?? title?.tmdbId ?? null,
+      imdbId: item.imdbId ?? title?.imdbId ?? null,
+      tvdbId: item.tvdbId ?? title?.tvdbId ?? null,
+      anilistId: item.anilistId ?? title?.anilistId ?? null,
+      malId: item.malId ?? title?.malId ?? null,
       awards: [
         ...(title?.awards.filter((recognition) => recognition.installmentId === null) ?? []),
         ...item.awards,

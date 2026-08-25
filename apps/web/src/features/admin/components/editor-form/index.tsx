@@ -1013,6 +1013,39 @@ function WorkEditorFormFields({
               />
             </Field>
 
+            <IdField
+              label="TMDB"
+              value={draft.tmdbId}
+              onChange={(value) => setDraft({ ...draft, tmdbId: value })}
+              openUrl={(value) => `https://www.themoviedb.org/movie/${value}`}
+            />
+            <IdField
+              label="IMDb"
+              value={draft.imdbId}
+              onChange={(value) => setDraft({ ...draft, imdbId: value })}
+              numeric={false}
+              placeholder="tt0133093"
+              openUrl={(value) => `https://www.imdb.com/title/${value}`}
+            />
+            <IdField
+              label="TVDB"
+              value={draft.tvdbId}
+              onChange={(value) => setDraft({ ...draft, tvdbId: value })}
+              openUrl={(value) => `https://thetvdb.com/dereferrer/series/${value}`}
+            />
+            <IdField
+              label="AniList"
+              value={draft.anilistId}
+              onChange={(value) => setDraft({ ...draft, anilistId: value })}
+              openUrl={(value) => `https://anilist.co/anime/${value}`}
+            />
+            <IdField
+              label="MyAnimeList"
+              value={draft.malId}
+              onChange={(value) => setDraft({ ...draft, malId: value })}
+              openUrl={(value) => `https://myanimelist.net/anime/${value}`}
+            />
+
             <Field label="الروابط الخارجية" wide>
               <Textarea
                 rows={4}
@@ -1021,7 +1054,9 @@ function WorkEditorFormFields({
                 placeholder="AniList | AniList | https://…"
               />
               <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-                الصيغة: المزوّد | التسمية | الرابط (رابط واحد في كل سطر)
+                الصيغة: المزوّد | التسمية | الرابط (رابط واحد في كل سطر) — لا تُستخدم لمعرّفات TMDB أو
+                IMDb أو AniList، فهذه معرّفات مكتوبة أعلاه. استخدم المزوّد "trailer" لرابط الإعلان
+                الرسمي كي تلتقطه صفحة العمل تلقائياً.
               </p>
             </Field>
           </EditorSection>
@@ -1396,7 +1431,12 @@ async function ingestPendingArtwork(
     >
   >,
   item: ArtworkCandidate,
-  input: { role: "poster" | "banner" | "logo"; ownerName: string; titleId?: string },
+  input: {
+    role: "poster" | "banner" | "logo";
+    ownerName: string;
+    titleId?: string;
+    installmentId?: string;
+  },
 ) {
   const data: Parameters<typeof ingestArtwork>[0]["data"] = {
     downloadUrl: item.downloadUrl,
@@ -1406,6 +1446,7 @@ async function ingestPendingArtwork(
     externalId: item.externalId,
   };
   if (input.titleId) data.titleId = input.titleId;
+  if (input.installmentId) data.installmentId = input.installmentId;
   return ingest.mutateAsync({ data });
 }
 
@@ -1577,6 +1618,56 @@ function ArtworkField({
   );
 }
 
+/** A single typed catalog identifier field (TMDB/IMDb/TVDB/AniList/MAL) — `numeric` controls
+ * whether the raw input parses as an integer (every provider but IMDb, whose id is `ttNNNNNNN`)
+ * or is kept as a trimmed string. `openUrl`, when the field has a value, renders an "open on
+ * site" link so an admin can sanity-check the id without leaving the form. */
+function IdField<T extends number | string>({
+  label,
+  value,
+  onChange,
+  numeric = true,
+  placeholder,
+  openUrl,
+}: {
+  label: string;
+  value: T | null;
+  onChange: (value: T | null) => void;
+  numeric?: boolean;
+  placeholder?: string;
+  openUrl?: (value: string) => string;
+}) {
+  return (
+    <Field label={`معرّف ${label}`}>
+      <div className="flex items-center gap-2">
+        <Input
+          value={value ?? ""}
+          placeholder={placeholder}
+          inputMode={numeric ? "numeric" : "text"}
+          onChange={(e) => {
+            const raw = e.target.value.trim();
+            if (!raw) return onChange(null);
+            // SAFETY: `numeric` and `T` are set together by every caller below (`numeric` only
+            // goes `false` for the IMDb field, whose `value`/`onChange` are typed `string`) — the
+            // branch taken here always matches the caller's `T`.
+            onChange((numeric ? (Number.isFinite(Number(raw)) ? Number(raw) : null) : raw) as T);
+          }}
+        />
+        {value != null && openUrl && (
+          <a
+            href={openUrl(String(value))}
+            target="_blank"
+            rel="noreferrer"
+            className="shrink-0 text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            فتح
+          </a>
+        )}
+      </div>
+    </Field>
+  );
+}
+
 function ArtworkPreview({
   label,
   src,
@@ -1688,6 +1779,16 @@ function StructureSummary({ structure }: { structure: WorkStructure | undefined 
   );
 }
 
+/** A single installment's own catalog identifiers — a movie's IMDb id lives here, not on the
+ * title (see the player/torrent roadmap's Phase 0). */
+type SeasonIdPatch = {
+  tmdbId?: number | null;
+  imdbId?: string | null;
+  tvdbId?: number | null;
+  anilistId?: number | null;
+  malId?: number | null;
+};
+
 function SeasonArtworkManager({
   structure,
   workTitle,
@@ -1706,7 +1807,13 @@ function SeasonArtworkManager({
       await queryClient.invalidateQueries({ queryKey: ["work-structure", structure.workId] });
     },
   });
-  const savePoster = (seasonId: string, posterPath: string | null) => {
+  const savePoster = (seasonId: string, posterPath: string | null) =>
+    saveSeasonPatch(seasonId, { posterPath });
+  const saveIdentifiers = (seasonId: string, ids: SeasonIdPatch) => saveSeasonPatch(seasonId, ids);
+  const saveSeasonPatch = (
+    seasonId: string,
+    patch: SeasonIdPatch & { posterPath?: string | null },
+  ) => {
     const editable = parseEditableStructure(
       JSON.stringify(editableStructure(structure)),
       structure.workId,
@@ -1716,7 +1823,7 @@ function SeasonArtworkManager({
         workId: editable.workId,
         ungroupedUnits: editable.ungroupedUnits,
         seasons: editable.seasons.map((season) =>
-          season.id === seasonId ? { ...season, posterPath } : season,
+          season.id === seasonId ? { ...season, ...patch } : season,
         ),
       },
     });
@@ -1740,9 +1847,9 @@ function SeasonArtworkManager({
             workTitle={workTitle}
             year={year}
             kind={kind}
-            titleId={structure.workId}
             disabled={mutation.isPending}
             onSave={(posterPath) => savePoster(season.id, posterPath)}
+            onSaveIdentifiers={(ids) => saveIdentifiers(season.id, ids)}
           />
         ))}
       </CardContent>
@@ -1762,21 +1869,34 @@ function SeasonPosterCard({
   workTitle,
   year,
   kind,
-  titleId,
   disabled,
   onSave,
+  onSaveIdentifiers,
 }: {
   season: WorkStructure["seasons"][number];
   workTitle: string;
   year?: number | null;
   kind?: "anime" | "movie";
-  titleId?: string;
   disabled: boolean;
   onSave: (posterPath: string | null) => void;
+  onSaveIdentifiers: (ids: SeasonIdPatch) => void;
 }) {
   const [candidate, setCandidate] = useState("");
   const [pendingExternal, setPendingExternal] = useState<ArtworkCandidate | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [ids, setIds] = useState<SeasonIdPatch>({
+    tmdbId: season.tmdbId ?? null,
+    imdbId: season.imdbId ?? null,
+    tvdbId: season.tvdbId ?? null,
+    anilistId: season.anilistId ?? null,
+    malId: season.malId ?? null,
+  });
+  const idsChanged =
+    ids.tmdbId !== (season.tmdbId ?? null) ||
+    ids.imdbId !== (season.imdbId ?? null) ||
+    ids.tvdbId !== (season.tvdbId ?? null) ||
+    ids.anilistId !== (season.anilistId ?? null) ||
+    ids.malId !== (season.malId ?? null);
   const ownerName = `${workTitle} ${season.installmentKind} ${season.position + 1}`;
   const fileInputId = useId();
   const upload = useMutation({ mutationFn: uploadWorkImage });
@@ -1803,10 +1923,14 @@ function SeasonPosterCard({
   const ingest = useMutation({ mutationFn: ingestArtwork });
   const save = async () => {
     if (pendingExternal) {
+      // `installmentId`, not `titleId`: this poster search matched a season/installment, and its
+      // TMDB/AniList id belongs on that installment, not on the umbrella title (see the
+      // player/torrent roadmap's Phase 0 — this used to record a season's match at the title
+      // level).
       const stored = await ingestPendingArtwork(ingest, pendingExternal, {
         role: "poster",
         ownerName,
-        titleId,
+        installmentId: season.id,
       });
       onSave(stored.relativePath);
     } else {
@@ -1920,6 +2044,77 @@ function SeasonPosterCard({
           }}
         />
       </CardFooter>
+      <CardFooter className="flex-col items-stretch gap-2 border-t px-4 pt-3">
+        <p className="text-xs font-medium text-muted-foreground">
+          معرّفات هذا الجزء — معرّف IMDb هو ما يحتاجه التشغيل لاحقاً
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            placeholder="TMDB"
+            dir="ltr"
+            className="text-xs"
+            disabled={disabled}
+            value={ids.tmdbId ?? ""}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              setIds({ ...ids, tmdbId: raw && Number.isFinite(Number(raw)) ? Number(raw) : null });
+            }}
+          />
+          <Input
+            placeholder="IMDb (tt…)"
+            dir="ltr"
+            className="text-xs"
+            disabled={disabled}
+            value={ids.imdbId ?? ""}
+            onChange={(e) => setIds({ ...ids, imdbId: e.target.value.trim() || null })}
+          />
+          <Input
+            placeholder="TVDB"
+            dir="ltr"
+            className="text-xs"
+            disabled={disabled}
+            value={ids.tvdbId ?? ""}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              setIds({ ...ids, tvdbId: raw && Number.isFinite(Number(raw)) ? Number(raw) : null });
+            }}
+          />
+          <Input
+            placeholder="AniList"
+            dir="ltr"
+            className="text-xs"
+            disabled={disabled}
+            value={ids.anilistId ?? ""}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              setIds({
+                ...ids,
+                anilistId: raw && Number.isFinite(Number(raw)) ? Number(raw) : null,
+              });
+            }}
+          />
+          <Input
+            placeholder="MyAnimeList"
+            dir="ltr"
+            className="col-span-2 text-xs"
+            disabled={disabled}
+            value={ids.malId ?? ""}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              setIds({ ...ids, malId: raw && Number.isFinite(Number(raw)) ? Number(raw) : null });
+            }}
+          />
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={disabled || !idsChanged}
+          onClick={() => onSaveIdentifiers(ids)}
+        >
+          <CheckIcon data-icon="inline-start" /> حفظ المعرّفات
+        </Button>
+      </CardFooter>
     </Card>
   );
 }
@@ -1970,6 +2165,11 @@ function editableStructure(structure: WorkStructure) {
       runtimeMinutes: installment.runtimeMinutes,
       posterPath: installment.posterPath ?? null,
       score: installment.score,
+      tmdbId: installment.tmdbId ?? null,
+      imdbId: installment.imdbId ?? null,
+      tvdbId: installment.tvdbId ?? null,
+      anilistId: installment.anilistId ?? null,
+      malId: installment.malId ?? null,
       episodes: installment.units.map((episode) => ({
         id: episode.id,
         title: episode.title,
@@ -1998,6 +2198,11 @@ interface RawStructureInstallment {
   position?: unknown;
   releaseDate?: unknown;
   runtimeMinutes?: unknown;
+  tmdbId?: unknown;
+  imdbId?: unknown;
+  tvdbId?: unknown;
+  anilistId?: unknown;
+  malId?: unknown;
   episodes?: unknown;
 }
 
@@ -2033,6 +2238,11 @@ function parseEditableStructure(raw: string, workId: string): EditableWorkStruct
         seasonNumber: installment.kind === "season" ? Number(installment.position ?? 0) : null,
         position: installment.position,
         runtimeMinutes: installment.runtimeMinutes ?? null,
+        tmdbId: installment.tmdbId ?? null,
+        imdbId: installment.imdbId ?? null,
+        tvdbId: installment.tvdbId ?? null,
+        anilistId: installment.anilistId ?? null,
+        malId: installment.malId ?? null,
         unitCount: episodes.length,
         releaseAt: resolveStructureDate(
           structureDateSchema.safeParse(installment.releaseDate),

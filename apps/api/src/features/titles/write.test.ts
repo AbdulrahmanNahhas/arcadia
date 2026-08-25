@@ -250,6 +250,68 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
     expect(row.verified_at).toBeNull();
   });
 
+  it("round-trips the five typed catalog ids across a save (player/torrent roadmap Phase 0)", async () => {
+    // The bug this closes: artwork ingest used to write tmdb/anilist matches into
+    // `external_identities`, and every title save did `delete from external_identities where
+    // title_id=$1` and reinserted only what the client submitted — silently destroying any
+    // ingested id. The typed columns this test checks are written directly by `applyTitleWrite`,
+    // not through that delete-then-reinsert path.
+    const title = `External Ids Roundtrip Test ${randomUUID()}`;
+    const createResponse = await postTitle({
+      title,
+      summary: "x",
+      tmdbId: 129,
+      imdbId: "tt1798709",
+      tvdbId: 79986,
+      anilistId: 5114,
+      malId: 5114,
+    });
+    expect(createResponse.status).toBe(201);
+    const { id } = (await createResponse.json()) as { id: string };
+    createdTitleIds.push(id);
+
+    const created = assertDefined(
+      (
+        await database().client`
+        select tmdb_id, imdb_id, tvdb_id, anilist_id, mal_id from titles where id=${id}`
+      )[0],
+      "expected the created title row",
+    );
+    expect(created.tmdb_id).toBe(129);
+    expect(created.imdb_id).toBe("tt1798709");
+    expect(created.tvdb_id).toBe(79986);
+    expect(created.anilist_id).toBe(5114);
+    expect(created.mal_id).toBe(5114);
+
+    // Saving again with the same ids (as the editor form's full-object resend does) must not
+    // lose them.
+    const updateResponse = await postTitle({
+      id,
+      title,
+      summary: "x, updated",
+      tmdbId: 129,
+      imdbId: "tt1798709",
+      tvdbId: 79986,
+      anilistId: 5114,
+      malId: 5114,
+    });
+    expect(updateResponse.status).toBe(200);
+
+    const updated = assertDefined(
+      (
+        await database().client`
+        select tmdb_id, imdb_id, tvdb_id, anilist_id, mal_id, summary from titles where id=${id}`
+      )[0],
+      "expected the updated title row",
+    );
+    expect(updated.tmdb_id).toBe(129);
+    expect(updated.imdb_id).toBe("tt1798709");
+    expect(updated.tvdb_id).toBe(79986);
+    expect(updated.anilist_id).toBe(5114);
+    expect(updated.mal_id).toBe(5114);
+    expect(updated.summary).toBe("x, updated");
+  });
+
   it("silently ignores a legacy 'awards' array in the payload rather than writing it", async () => {
     const title = `Legacy Award Test ${randomUUID()}`;
     const response = await postTitle({

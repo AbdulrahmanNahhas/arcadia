@@ -1,6 +1,6 @@
 import { ageSchema, audienceSchema, riskLevelSchema, taxonomySchema } from "@arcadia/domain";
 import { z } from "zod";
-import { adminAwardCeremonyInputSchema } from "./admin-catalog";
+import { adminAwardCeremonyInputSchema, externalIdFieldsSchema } from "./admin-catalog";
 import {
   awardResultSchema,
   installmentKindSchema,
@@ -98,6 +98,7 @@ export const installmentSchema = z.object({
   rating: z.number().nullable(),
   awards: z.array(awardRecognitionSchema),
   episodes: z.array(episodeSchema).optional(),
+  ...externalIdFieldsSchema.shape,
 });
 export const titleSummarySchema = z.object({
   id: z.string().uuid(),
@@ -141,6 +142,7 @@ export const titleSummarySchema = z.object({
   awards: z.array(awardRecognitionSchema),
 });
 export const titleDetailSchema = titleSummarySchema.extend({
+  ...externalIdFieldsSchema.shape,
   installments: z.array(installmentSchema),
   relationships: z.array(
     z.object({
@@ -346,8 +348,12 @@ export const adminArtworkIngestSchema = z.object({
   isPrimary: z.boolean().default(true),
   provider: artworkProviderSchema,
   externalId: z.string().min(1),
-  /** When set, also records/updates an external_identities row for this title+provider. */
+  /** When set, also records the matched id on this owner: `tmdb`/`anilist` update the typed
+   * `tmdb_id`/`anilist_id` column on the title or installment; `fanart` still writes an
+   * `external_identities` row (it's an image id, not a catalog id). Exactly one of `titleId`/
+   * `installmentId` is expected when either is set. */
   titleId: z.string().uuid().optional(),
+  installmentId: z.string().uuid().optional(),
 });
 
 export const vocabularyNameSchema = z.enum([

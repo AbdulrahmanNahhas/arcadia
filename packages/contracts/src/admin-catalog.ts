@@ -39,6 +39,33 @@ const isoDateSchema = z
 
 const openVocabularyArray = z.array(z.string().trim().min(1)).default([]);
 
+/**
+ * The five typed external-catalog identifiers, present on both `titles` and `installments`
+ * (see the player/torrent roadmap's "Database migration" section). Shared here so the read-side
+ * schemas in `index.ts` and the write-side input schemas below stay in sync.
+ */
+export const externalIdFieldsSchema = z.object({
+  tmdbId: z.number().int().positive().nullable(),
+  imdbId: z
+    .string()
+    .regex(/^tt\d{7,10}$/)
+    .nullable(),
+  tvdbId: z.number().int().positive().nullable(),
+  anilistId: z.number().int().positive().nullable(),
+  malId: z.number().int().positive().nullable(),
+});
+export const externalIdFieldsInputSchema = z.object({
+  tmdbId: z.number().int().positive().nullable().default(null),
+  imdbId: z
+    .string()
+    .regex(/^tt\d{7,10}$/)
+    .nullable()
+    .default(null),
+  tvdbId: z.number().int().positive().nullable().default(null),
+  anilistId: z.number().int().positive().nullable().default(null),
+  malId: z.number().int().positive().nullable().default(null),
+});
+
 export const adminEpisodeInputSchema = z.object({
   /** Omit to create a new episode; present + matching an existing row updates it. */
   id: z.string().uuid().optional(),
@@ -68,6 +95,7 @@ export const adminInstallmentInputSchema = z.object({
   theologyRiskOverride: riskLevelSchema.nullable().default(null),
   score: scoreSchema.partial().optional(),
   episodes: z.array(adminEpisodeInputSchema).default([]),
+  ...externalIdFieldsInputSchema.shape,
 });
 
 /**
@@ -154,6 +182,7 @@ export const adminTitleInputSchema = z.object({
   contributors: z.array(adminContributorInputSchema).default([]),
   relations: z.array(adminTitleRelationInputSchema).default([]),
   externalIdentities: z.array(adminExternalIdentityInputSchema).default([]),
+  ...externalIdFieldsInputSchema.shape,
 
   imagePath: z.string().nullable().default(null),
   bannerPath: z.string().nullable().default(null),

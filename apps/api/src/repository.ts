@@ -346,6 +346,11 @@ function installment(
     score: score as Installment["score"],
     rating: installmentRating(score),
     awards: awards.filter((item) => item.installment_id === row.id).map(award),
+    tmdbId: numeric(row.tmdb_id),
+    imdbId: row.imdb_id ? String(row.imdb_id) : null,
+    tvdbId: numeric(row.tvdb_id),
+    anilistId: numeric(row.anilist_id),
+    malId: numeric(row.mal_id),
   };
 }
 
@@ -549,6 +554,11 @@ export async function titleDetail(
     : null;
   return {
     ...summary(row, data, includePrivate),
+    tmdbId: numeric(row.tmdb_id),
+    imdbId: row.imdb_id ? String(row.imdb_id) : null,
+    tvdbId: numeric(row.tvdb_id),
+    anilistId: numeric(row.anilist_id),
+    malId: numeric(row.mal_id),
     installments: installmentRows,
     relationships: relationships
       .filter(
@@ -559,8 +569,7 @@ export async function titleDetail(
         type: String(item.type),
         titleId: String(item.title_id),
         title: String(item.title),
-        direction:
-          item.source_title_id === titleId ? ("outgoing" as const) : ("incoming" as const),
+        direction: item.source_title_id === titleId ? ("outgoing" as const) : ("incoming" as const),
         notes: String(item.notes ?? ""),
       })),
     credits: credits.map((credit) => ({

@@ -253,6 +253,13 @@ export interface paths {
                       | "vikings"
                       | "virtual-world"
                       | "writing"
+                      | "immortality"
+                      | "virtual-reality"
+                      | "medicine"
+                      | "time-loop"
+                      | "transported-to-another-world"
+                      | "parallel-worlds"
+                      | "superheroes"
                     )[];
                     countries: string[];
                     planet: {
@@ -381,6 +388,11 @@ export interface paths {
                       releaseDate: string | null;
                       runtimeMinutes: number | null;
                     }[];
+                    tmdbId: number | null;
+                    imdbId: string | null;
+                    tvdbId: number | null;
+                    anilistId: number | null;
+                    malId: number | null;
                   }
               )[];
               total: number;
@@ -596,6 +608,13 @@ export interface paths {
                 | "vikings"
                 | "virtual-world"
                 | "writing"
+                | "immortality"
+                | "virtual-reality"
+                | "medicine"
+                | "time-loop"
+                | "transported-to-another-world"
+                | "parallel-worlds"
+                | "superheroes"
               )[];
               countries: string[];
               planet: {
@@ -659,6 +678,11 @@ export interface paths {
                 sourceUrl: string | null;
                 notes: string | null;
               }[];
+              tmdbId: number | null;
+              imdbId: string | null;
+              tvdbId: number | null;
+              anilistId: number | null;
+              malId: number | null;
               installments: {
                 /** Format: uuid */
                 id: string;
@@ -723,6 +747,11 @@ export interface paths {
                   releaseDate: string | null;
                   runtimeMinutes: number | null;
                 }[];
+                tmdbId: number | null;
+                imdbId: string | null;
+                tvdbId: number | null;
+                anilistId: number | null;
+                malId: number | null;
               }[];
               relationships: {
                 /** Format: uuid */
