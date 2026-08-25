@@ -1013,38 +1013,49 @@ function WorkEditorFormFields({
               />
             </Field>
 
-            <IdField
-              label="TMDB"
-              value={draft.tmdbId}
-              onChange={(value) => setDraft({ ...draft, tmdbId: value })}
-              openUrl={(value) => `https://www.themoviedb.org/movie/${value}`}
-            />
-            <IdField
-              label="IMDb"
-              value={draft.imdbId}
-              onChange={(value) => setDraft({ ...draft, imdbId: value })}
-              numeric={false}
-              placeholder="tt0133093"
-              openUrl={(value) => `https://www.imdb.com/title/${value}`}
-            />
-            <IdField
-              label="TVDB"
-              value={draft.tvdbId}
-              onChange={(value) => setDraft({ ...draft, tvdbId: value })}
-              openUrl={(value) => `https://thetvdb.com/dereferrer/series/${value}`}
-            />
-            <IdField
-              label="AniList"
-              value={draft.anilistId}
-              onChange={(value) => setDraft({ ...draft, anilistId: value })}
-              openUrl={(value) => `https://anilist.co/anime/${value}`}
-            />
-            <IdField
-              label="MyAnimeList"
-              value={draft.malId}
-              onChange={(value) => setDraft({ ...draft, malId: value })}
-              openUrl={(value) => `https://myanimelist.net/anime/${value}`}
-            />
+            {draft.kind === "anime" ? (
+              <>
+                <IdField
+                  label="TMDB"
+                  value={draft.tmdbId}
+                  onChange={(value) => setDraft({ ...draft, tmdbId: value })}
+                  openUrl={(value) => `https://www.themoviedb.org/tv/${value}`}
+                />
+                <IdField
+                  label="IMDb"
+                  value={draft.imdbId}
+                  onChange={(value) => setDraft({ ...draft, imdbId: value })}
+                  numeric={false}
+                  placeholder="tt0133093"
+                  openUrl={(value) => `https://www.imdb.com/title/${value}`}
+                />
+                <IdField
+                  label="TVDB"
+                  value={draft.tvdbId}
+                  onChange={(value) => setDraft({ ...draft, tvdbId: value })}
+                  openUrl={(value) => `https://thetvdb.com/dereferrer/series/${value}`}
+                />
+                <IdField
+                  label="AniList"
+                  value={draft.anilistId}
+                  onChange={(value) => setDraft({ ...draft, anilistId: value })}
+                  openUrl={(value) => `https://anilist.co/anime/${value}`}
+                />
+                <IdField
+                  label="MyAnimeList"
+                  value={draft.malId}
+                  onChange={(value) => setDraft({ ...draft, malId: value })}
+                  openUrl={(value) => `https://myanimelist.net/anime/${value}`}
+                />
+              </>
+            ) : (
+              <Field label="معرّفات خارجية" wide>
+                <p className="text-xs text-muted-foreground">
+                  لا معرّف TMDB/IMDb على مستوى العمل هنا — كل فيلم من أفلام هذا العمل له معرّفه الخاص،
+                  يُدخل في بطاقة ملصقه أدناه.
+                </p>
+              </Field>
+            )}
 
             <Field label="الروابط الخارجية" wide>
               <Textarea
@@ -1141,6 +1152,8 @@ function WorkEditorFormFields({
                 year={draft.year}
                 kind={draft.kind === "anime" ? "anime" : "movie"}
                 titleId={draft.id}
+                tmdbId={draft.tmdbId}
+                anilistId={draft.anilistId}
                 value={draft.imagePath}
                 onChange={(imagePath) => setDraft({ ...draft, imagePath })}
               />
@@ -1151,6 +1164,8 @@ function WorkEditorFormFields({
                 year={draft.year}
                 kind={draft.kind === "anime" ? "anime" : "movie"}
                 titleId={draft.id}
+                tmdbId={draft.tmdbId}
+                anilistId={draft.anilistId}
                 value={draft.bannerPath}
                 onChange={(bannerPath) => setDraft({ ...draft, bannerPath })}
               />
@@ -1161,6 +1176,8 @@ function WorkEditorFormFields({
                 year={draft.year}
                 kind={draft.kind === "anime" ? "anime" : "movie"}
                 titleId={draft.id}
+                tmdbId={draft.tmdbId}
+                anilistId={draft.anilistId}
                 value={draft.logoPath}
                 onChange={(logoPath) => setDraft({ ...draft, logoPath })}
               />
@@ -1276,6 +1293,8 @@ function ArtworkPickerDialog({
   ownerName,
   year,
   kind,
+  knownTmdbId,
+  knownAnilistId,
   onPickExisting,
   onPickExternal,
 }: {
@@ -1287,6 +1306,11 @@ function ArtworkPickerDialog({
   ownerName: string;
   year?: number | null;
   kind?: "anime" | "movie";
+  /** A confirmed TMDB/AniList id already on this title/installment — when set, the external tab
+   * looks the row up directly instead of fuzzy-searching by title/year (see the player/torrent
+   * roadmap's Phase 0). */
+  knownTmdbId?: number | null;
+  knownAnilistId?: number | null;
   onPickExisting: (path: string) => void;
   onPickExternal: (item: ArtworkCandidate) => void;
 }) {
@@ -1294,6 +1318,7 @@ function ArtworkPickerDialog({
   const [assetSearch, setAssetSearch] = useState("");
   const [externalQuery, setExternalQuery] = useState(ownerName);
   const deferredExternalQuery = useDeferredValue(externalQuery);
+  const hasKnownId = knownTmdbId != null || knownAnilistId != null;
 
   const assets = useQuery({
     queryKey: ["media-picker", artworkRole, assetSearch],
@@ -1302,12 +1327,27 @@ function ArtworkPickerDialog({
     enabled: open && tab === "existing",
   });
   const externalResults = useQuery({
-    queryKey: ["artwork-search", artworkRole, deferredExternalQuery, year, kind],
+    queryKey: [
+      "artwork-search",
+      artworkRole,
+      deferredExternalQuery,
+      year,
+      kind,
+      knownTmdbId,
+      knownAnilistId,
+    ],
     queryFn: () =>
       searchArtwork({
-        data: { title: deferredExternalQuery, year: year ?? undefined, kind, role: artworkRole },
+        data: {
+          title: deferredExternalQuery,
+          year: year ?? undefined,
+          kind,
+          role: artworkRole,
+          tmdbId: knownTmdbId,
+          anilistId: knownAnilistId,
+        },
       }),
-    enabled: open && tab === "external" && deferredExternalQuery.trim().length > 0,
+    enabled: open && tab === "external" && (deferredExternalQuery.trim().length > 0 || hasKnownId),
   });
 
   return (
@@ -1369,15 +1409,24 @@ function ArtworkPickerDialog({
             </div>
           </TabsContent>
           <TabsContent value="external" className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <MagnifyingGlassIcon />
-              <Input
-                value={externalQuery}
-                onChange={(event) => setExternalQuery(event.target.value)}
-                placeholder="اسم العمل بالإنجليزية…"
-                dir="ltr"
-              />
-            </div>
+            {hasKnownId ? (
+              <Alert>
+                <AlertDescription className="text-xs">
+                  نتائج دقيقة عبر المعرّف المحفوظ ({knownTmdbId ? "TMDB" : "AniList"}) — لا حاجة
+                  للبحث بالاسم.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="flex items-center gap-2">
+                <MagnifyingGlassIcon />
+                <Input
+                  value={externalQuery}
+                  onChange={(event) => setExternalQuery(event.target.value)}
+                  placeholder="اسم العمل بالإنجليزية…"
+                  dir="ltr"
+                />
+              </div>
+            )}
             {externalResults.isFetching ? (
               <p className="text-xs text-muted-foreground">جارٍ البحث…</p>
             ) : externalResults.data && externalResults.data.candidates.length === 0 ? (
@@ -1457,6 +1506,8 @@ function ArtworkField({
   year,
   kind,
   titleId,
+  tmdbId,
+  anilistId,
   value,
   onChange,
 }: {
@@ -1466,6 +1517,8 @@ function ArtworkField({
   year?: number | null;
   kind?: "anime" | "movie";
   titleId?: string;
+  tmdbId?: number | null;
+  anilistId?: number | null;
   value: string | null;
   onChange: (path: string | null) => void;
 }) {
@@ -1601,6 +1654,8 @@ function ArtworkField({
             ownerName={ownerName}
             year={year}
             kind={kind}
+            knownTmdbId={tmdbId}
+            knownAnilistId={anilistId}
             onPickExisting={(path) => {
               setCandidate(path);
               setPendingExternal(null);
@@ -2032,6 +2087,8 @@ function SeasonPosterCard({
           ownerName={ownerName}
           year={year}
           kind={kind}
+          knownTmdbId={season.tmdbId}
+          knownAnilistId={season.anilistId}
           onPickExisting={(path) => {
             setCandidate(path);
             setPendingExternal(null);
@@ -2045,65 +2102,75 @@ function SeasonPosterCard({
         />
       </CardFooter>
       <CardFooter className="flex-col items-stretch gap-2 border-t px-4 pt-3">
-        <p className="text-xs font-medium text-muted-foreground">
-          معرّفات هذا الجزء — معرّف IMDb هو ما يحتاجه التشغيل لاحقاً
-        </p>
+        {season.installmentKind === "season" ? (
+          <p className="text-xs font-medium text-muted-foreground">
+            التشغيل يستخدم معرّف IMDb الخاص بالعمل ككل مع رقم الموسم والحلقة — معرّفا AniList وMAL هنا
+            خاصان بهذا الموسم تحديداً
+          </p>
+        ) : (
+          <p className="text-xs font-medium text-muted-foreground">
+            معرّفات هذا الفيلم — معرّف IMDb هو ما يحتاجه التشغيل لاحقاً
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2">
-          <Input
-            placeholder="TMDB"
-            dir="ltr"
-            className="text-xs"
-            disabled={disabled}
-            value={ids.tmdbId ?? ""}
-            onChange={(e) => {
-              const raw = e.target.value.trim();
-              setIds({ ...ids, tmdbId: raw && Number.isFinite(Number(raw)) ? Number(raw) : null });
-            }}
-          />
-          <Input
-            placeholder="IMDb (tt…)"
-            dir="ltr"
-            className="text-xs"
-            disabled={disabled}
-            value={ids.imdbId ?? ""}
-            onChange={(e) => setIds({ ...ids, imdbId: e.target.value.trim() || null })}
-          />
-          <Input
-            placeholder="TVDB"
-            dir="ltr"
-            className="text-xs"
-            disabled={disabled}
-            value={ids.tvdbId ?? ""}
-            onChange={(e) => {
-              const raw = e.target.value.trim();
-              setIds({ ...ids, tvdbId: raw && Number.isFinite(Number(raw)) ? Number(raw) : null });
-            }}
-          />
-          <Input
-            placeholder="AniList"
-            dir="ltr"
-            className="text-xs"
-            disabled={disabled}
-            value={ids.anilistId ?? ""}
-            onChange={(e) => {
-              const raw = e.target.value.trim();
-              setIds({
-                ...ids,
-                anilistId: raw && Number.isFinite(Number(raw)) ? Number(raw) : null,
-              });
-            }}
-          />
-          <Input
-            placeholder="MyAnimeList"
-            dir="ltr"
-            className="col-span-2 text-xs"
-            disabled={disabled}
-            value={ids.malId ?? ""}
-            onChange={(e) => {
-              const raw = e.target.value.trim();
-              setIds({ ...ids, malId: raw && Number.isFinite(Number(raw)) ? Number(raw) : null });
-            }}
-          />
+          {season.installmentKind !== "season" && (
+            <>
+              <Input
+                placeholder="TMDB"
+                dir="ltr"
+                className="text-xs"
+                disabled={disabled}
+                value={ids.tmdbId ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  setIds({
+                    ...ids,
+                    tmdbId: raw && Number.isFinite(Number(raw)) ? Number(raw) : null,
+                  });
+                }}
+              />
+              <Input
+                placeholder="IMDb (tt…)"
+                dir="ltr"
+                className="text-xs"
+                disabled={disabled}
+                value={ids.imdbId ?? ""}
+                onChange={(e) => setIds({ ...ids, imdbId: e.target.value.trim() || null })}
+              />
+            </>
+          )}
+          {kind === "anime" && (
+            <>
+              <Input
+                placeholder="AniList"
+                dir="ltr"
+                className="text-xs"
+                disabled={disabled}
+                value={ids.anilistId ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  setIds({
+                    ...ids,
+                    anilistId: raw && Number.isFinite(Number(raw)) ? Number(raw) : null,
+                  });
+                }}
+              />
+              <Input
+                placeholder="MyAnimeList"
+                dir="ltr"
+                className="text-xs"
+                disabled={disabled}
+                value={ids.malId ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  setIds({
+                    ...ids,
+                    malId: raw && Number.isFinite(Number(raw)) ? Number(raw) : null,
+                  });
+                }}
+              />
+            </>
+          )}
         </div>
         <Button
           type="button"

@@ -22,9 +22,14 @@ export async function searchArtwork(query: Query) {
       year: query.year,
       role: query.role,
       mediaType: tmdbMediaType,
+      tmdbId: query.tmdbId,
     }).catch(() => ({ candidates: [], matchedId: null })),
     isAnime
-      ? searchAniListArtwork({ title: query.title, role: query.role }).catch(() => ({
+      ? searchAniListArtwork({
+          title: query.title,
+          role: query.role,
+          anilistId: query.anilistId,
+        }).catch(() => ({
           candidates: [],
         }))
       : Promise.resolve({ candidates: [] }),

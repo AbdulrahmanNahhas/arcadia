@@ -377,26 +377,54 @@ five typed columns (see "Database migration" above), which nothing deletes-and-r
       title **or installment**, via a new `installmentId` field alongside `titleId` on
       `adminArtworkIngestSchema`. `fanart` keeps writing to `external_identities` (now owner-aware
       too, since that table accepts either `title_id` or `installment_id`).
-- [ ] `integrations/tmdb.ts`: **deferred** — still runs a fuzzy `/search/movie?query=…` on every
-      search rather than accepting a known `tmdbId` and going straight to `/movie/{id}/images`.
-      Not required for the round-trip fix; worth doing before Phase 0.5 leans on this path a lot.
-- [ ] `integrations/anilist.ts`: **deferred**, same reasoning — `Media(search:)` still, not
-      `Media(id:)`.
-- [ ] `integrations/fanart.ts`: **deferred** — still movie-only; the TV endpoint (now unblocked by
-      `tvdb_id` existing) isn't wired up yet.
+- [x] `integrations/tmdb.ts`: `searchTmdbArtwork` accepts an optional `tmdbId`; when present it
+      skips `/search/{mediaType}` and its "blindly take `results[0]`" risk entirely, going
+      straight to `/{mediaType}/{tmdbId}/images`. The search path only runs for a row with no id
+      yet — exactly the "known-id fast path" this checklist originally deferred, now done because
+      the artwork picker (below) actually needed it to be trustworthy.
+- [x] `integrations/anilist.ts`: same — `Media(id:)` when a known `anilistId` is passed, else
+      `Media(search:)`.
+- [ ] `integrations/fanart.ts`: **still deferred** — still movie-only; the TV endpoint (now
+      unblocked by `tvdb_id` existing) isn't wired up yet. Lower priority than the two above since
+      Fanart only contributes clear-logos, not the primary poster/banner source.
 
 ### Editor form (`apps/web/src/features/admin/components/editor-form/`)
 
 - [x] Title-level: five explicit id fields (`IdField`), with "open on site" links, next to the
-      now-narrower free-form external-links textarea.
-- [x] Per-installment: the same five id fields, one row per installment, added to
-      `SeasonPosterCard` (immediate-save, matching how its poster field already works). **This is
-      the field Phase 1 depends on** — done.
+      now-narrower free-form external-links textarea. **Shown only when the title is anime-kind**
+      (has season-kind installments) — a movie-collection title (Hotel Transylvania) has no
+      single TMDB/IMDb entry of its own, only its individual films do, so the section is replaced
+      with a one-line pointer to the per-installment fields instead of five permanently-empty
+      inputs.
+- [x] Per-installment: added to `SeasonPosterCard` (immediate-save, matching how its poster field
+      already works), **contextual by installment kind and title kind** rather than always
+      showing all five:
+      - `season`-kind installments (an anime's numbered seasons) show **AniList + MAL only** —
+        Stremio/Torrentio resolve TV content as `{title's imdbId}:{season}:{episode}`, so a
+        season has no TMDB/IMDb match of its own to enter; AniList/MAL, by contrast, id anime per
+        season, so those two are exactly what's missing at title level.
+      - `movie`/`special`-kind installments show **TMDB + IMDb always** (this is the field Phase 1
+        actually depends on), **plus AniList + MAL only if the title is anime-kind** — a Demon
+        Slayer movie has both (it's an anime film with its own AniList entry); a Hotel
+        Transylvania film only has TMDB/IMDb.
+      - `tvdb_id` isn't exposed in either UI (title or installment) — TheTVDB only really models
+        whole series, not sub-seasons or standalone films, and matters here solely for Fanart's
+        TV clear-logo endpoint, which is title-level. The column still exists for that later use.
+      This resolves the exact split a mixed-structure title needs (Demon Slayer: seasons 1–4/5
+      use the title's own IMDb id with season/episode numbers; the movie entries — Mugen Train,
+      etc. — each carry their own TMDB/IMDb, plus their own AniList/MAL like any anime entry).
 - [x] Free-form reference-links list (Wikipedia, official site, trailer) — the existing textarea,
       narrowed: its help text now says not to put TMDB/IMDb/AniList ids there.
+- [x] Artwork search (`ArtworkPickerDialog`, used by both the title-level `ArtworkField` and
+      `SeasonPosterCard`) now passes whatever known `tmdbId`/`anilistId` the row already has
+      through to `searchArtwork` → the two provider fast paths above, and shows "نتائج دقيقة عبر
+      المعرّف المحفوظ" instead of a text search box when one exists. This was flagged mid-review as
+      still doing a blind fuzzy search after the rest of Phase 0 landed — fixed same-day.
 - [ ] "Look up" affordance (title+year → candidate matches → confirm and write all ids at once):
-      **deferred** — real UI scope of its own; Phase 0.5's bulk matcher supersedes the need for it
-      as the primary path, so it's now "nice to have" rather than blocking.
+      **still deferred** — real UI scope of its own; Phase 0.5's bulk matcher supersedes the need
+      for it as the primary path, so it's "nice to have" rather than blocking. The artwork
+      picker's known-id fast path above covers the "id already set" half of this; what's still
+      missing is a dedicated flow to *find* the id in the first place from inside the editor form.
 - [x] JSON editor (`json-editor/engine.ts`, `guide.ts`) and CLI (`work apply`) kept in sync:
       `guide.ts` is generated from `admin-field-registry.ts` so it needed no direct edit; found and
       fixed a real bug in `engine.ts`'s `mergeStructureProjection` while doing this — its rebuilt

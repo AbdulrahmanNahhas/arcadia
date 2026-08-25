@@ -43,37 +43,51 @@ type TmdbImage = {
  * candidates for the requested role. Movies chain a Fanart.tv lookup by TMDB id (see fanart.ts);
  * TV/anime don't, since Fanart's TV endpoint needs a TheTVDB id, not a TMDB one — out of scope
  * for now (documented limitation, not a bug).
+ *
+ * When `tmdbId` is given (the title/installment already has a confirmed match — see the
+ * player/torrent roadmap's Phase 0), this skips `/search/{mediaType}` and its "blindly take
+ * `results[0]`" risk entirely, going straight to `/{mediaType}/{tmdbId}/images`. The search path
+ * only runs for a row with no id yet.
  */
 export async function searchTmdbArtwork(input: {
   title: string;
   year?: number;
   role: "poster" | "banner" | "logo";
   mediaType: "movie" | "tv";
+  tmdbId?: number;
 }): Promise<{ candidates: ArtworkCandidate[]; matchedId: number | null }> {
-  const searchPath = input.mediaType === "movie" ? "/search/movie" : "/search/tv";
-  const yearParam =
-    input.mediaType === "movie" ? { year: input.year } : { first_air_date_year: input.year };
-  const search = await tmdbFetch<SearchResponse>(searchPath, {
-    query: input.title,
-    ...yearParam,
-  });
-  const match = search?.results[0];
-  if (!match) return { candidates: [], matchedId: null };
+  let matchId: number;
+  let label: string;
+  if (input.tmdbId) {
+    matchId = input.tmdbId;
+    label = input.title;
+  } else {
+    const searchPath = input.mediaType === "movie" ? "/search/movie" : "/search/tv";
+    const yearParam =
+      input.mediaType === "movie" ? { year: input.year } : { first_air_date_year: input.year };
+    const search = await tmdbFetch<SearchResponse>(searchPath, {
+      query: input.title,
+      ...yearParam,
+    });
+    const match = search?.results[0];
+    if (!match) return { candidates: [], matchedId: null };
+    matchId = match.id;
+    label = match.title ?? match.name ?? input.title;
+  }
 
-  const images = await tmdbFetch<ImagesResponse>(`/${input.mediaType}/${match.id}/images`, {
+  const images = await tmdbFetch<ImagesResponse>(`/${input.mediaType}/${matchId}/images`, {
     include_image_language: "en,ar,null",
   });
-  if (!images) return { candidates: [], matchedId: match.id };
+  if (!images) return { candidates: [], matchedId: matchId };
 
   const byRole: Record<typeof input.role, TmdbImage[]> = {
     poster: images.posters,
     banner: images.backdrops,
     logo: images.logos,
   };
-  const label = match.title ?? match.name ?? input.title;
   const candidates: ArtworkCandidate[] = byRole[input.role].slice(0, 12).map((image) => ({
     provider: "tmdb",
-    externalId: String(match.id),
+    externalId: String(matchId),
     role: input.role,
     previewUrl: `${imageBase}/w500${image.file_path}`,
     downloadUrl: `${imageBase}/original${image.file_path}`,
@@ -82,5 +96,5 @@ export async function searchTmdbArtwork(input: {
     language: image.iso_639_1,
     matchLabel: label,
   }));
-  return { candidates, matchedId: match.id };
+  return { candidates, matchedId: matchId };
 }

@@ -351,10 +351,14 @@ export async function searchArtwork({
   year?: number;
   kind?: "anime" | "movie";
   role: "poster" | "banner" | "logo";
+  tmdbId?: number | null;
+  anilistId?: number | null;
 }>) {
   const params = new URLSearchParams({ title: data.title, role: data.role });
   if (data.year) params.set("year", String(data.year));
   if (data.kind) params.set("kind", data.kind);
+  if (data.tmdbId) params.set("tmdbId", String(data.tmdbId));
+  if (data.anilistId) params.set("anilistId", String(data.anilistId));
   return apiFetch<{ candidates: ArtworkCandidate[] }>(
     `/api/v1/admin/media-artwork-search?${params}`,
   );

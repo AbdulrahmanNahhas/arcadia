@@ -4,954 +4,631 @@
  */
 
 export interface paths {
-  "/api/v1/health": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description API and database readiness */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              /** @enum {string} */
-              status: "ok" | "degraded";
-              /** @enum {string} */
-              database: "ready" | "unavailable";
-              /** @enum {string} */
-              version: "v2";
+    "/api/v1/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/titles": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: {
-          q?: string;
-          mode?: "titles" | "installments";
-          genre?: string;
-          tone?: string;
-          tag?: string;
-          planet?: string;
-          sort?: "title" | "release" | "score";
-          limit?: number;
-          offset?: number | null;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Browse umbrella titles or flattened installments */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              items: (
-                | {
-                    /** Format: uuid */
-                    id: string;
-                    canonicalTitle: string;
-                    /** @enum {string} */
-                    kind: "movie" | "anime";
-                    titleAr: string | null;
-                    summary: string;
-                    posterPath: string | null;
-                    bannerPath: string | null;
-                    logoPath: string | null;
-                    releaseYear: number | null;
-                    /** @enum {string} */
-                    releaseStatus: "upcoming" | "airing" | "returning" | "completed" | "unknown";
-                    isPrivate?: boolean;
-                    aliases: string[];
-                    contentWarnings: string | null;
-                    analysisNotes: string | null;
-                    genres: (
-                      | "action"
-                      | "adventure"
-                      | "comedy"
-                      | "crime"
-                      | "drama"
-                      | "fantasy"
-                      | "historical"
-                      | "horror"
-                      | "mecha"
-                      | "music"
-                      | "mystery"
-                      | "psychological"
-                      | "romance"
-                      | "science-fiction"
-                      | "slice-of-life"
-                      | "sports"
-                      | "supernatural"
-                      | "thriller"
-                      | "war"
-                    )[];
-                    tones: (
-                      | "wholesome"
-                      | "emotional"
-                      | "bittersweet"
-                      | "reflective"
-                      | "tense"
-                      | "energetic"
-                      | "dark"
-                      | "whimsical"
-                      | "epic"
-                      | "atmospheric"
-                    )[];
-                    tags: (
-                      | "coming-of-age"
-                      | "found-family"
-                      | "friendship"
-                      | "family"
-                      | "magic"
-                      | "school"
-                      | "travel"
-                      | "political"
-                      | "artificial-intelligence"
-                      | "martial-arts"
-                      | "military"
-                      | "cooking"
-                      | "monsters"
-                      | "curses"
-                      | "special-abilities"
-                      | "training"
-                      | "slow-burn"
-                      | "childhood-classic"
-                      | "male-protagonist"
-                      | "female-protagonist"
-                      | "animated-movie"
-                      | "child-cast"
-                      | "ensemble-cast"
-                      | "teen-cast"
-                      | "nonhuman-characters"
-                      | "animal-cast"
-                      | "adult-cast"
-                      | "survival"
-                      | "anime-movie"
-                      | "workplace"
-                      | "urban-setting"
-                      | "conspiracy"
-                      | "crime-organization"
-                      | "rural-setting"
-                      | "detailed-worldbuilding"
-                      | "bullying"
-                      | "literary-classic"
-                      | "memory"
-                      | "political-intrigue"
-                      | "revenge"
-                      | "philosophy"
-                      | "redemption"
-                      | "sibling-relationship"
-                      | "swordplay"
-                      | "animals"
-                      | "class-conflict"
-                      | "mental-health"
-                      | "spirits"
-                      | "demons"
-                      | "hidden-identity"
-                      | "identity"
-                      | "mortality"
-                      | "robots"
-                      | "antihero"
-                      | "grief"
-                      | "healing"
-                      | "moral-ambiguity"
-                      | "mythology"
-                      | "parenthood"
-                      | "time-travel"
-                      | "trauma"
-                      | "adoption"
-                      | "body-horror"
-                      | "folklore"
-                      | "prejudice"
-                      | "rivalry"
-                      | "school-club"
-                      | "education"
-                      | "episodic"
-                      | "family-life"
-                      | "mind-games"
-                      | "royal-court"
-                      | "technology"
-                      | "art"
-                      | "investigation"
-                      | "island-setting"
-                      | "manipulation"
-                      | "maritime-setting"
-                      | "peace-and-nonviolence"
-                      | "underdog"
-                      | "corporate-power"
-                      | "disability"
-                      | "fairy-tales"
-                      | "post-apocalyptic"
-                      | "religion"
-                      | "steampunk"
-                      | "toys"
-                      | "video-games"
-                      | "anthology"
-                      | "assassins"
-                      | "detective"
-                      | "dystopia"
-                      | "guns"
-                      | "kaiju"
-                      | "natural-disaster"
-                      | "police"
-                      | "prehistoric-life"
-                      | "racing"
-                      | "rebellion"
-                      | "social-anxiety"
-                      | "witches"
-                      | "aliens"
-                      | "childhood"
-                      | "college"
-                      | "dragons"
-                      | "environment"
-                      | "espionage"
-                      | "fugitive"
-                      | "gods"
-                      | "idol-industry"
-                      | "intergenerational-conflict"
-                      | "lost-civilization"
-                      | "marriage"
-                      | "otaku-culture"
-                      | "overpowered-protagonist"
-                      | "pirates"
-                      | "regret"
-                      | "slavery"
-                      | "vikings"
-                      | "virtual-world"
-                      | "writing"
-                      | "immortality"
-                      | "virtual-reality"
-                      | "medicine"
-                      | "time-loop"
-                      | "transported-to-another-world"
-                      | "parallel-worlds"
-                      | "superheroes"
-                    )[];
-                    countries: string[];
-                    planet: {
-                      /** Format: uuid */
-                      id: string;
-                      slug: string;
-                      nameAr: string;
-                      icon: string;
-                    } | null;
-                    score: {
-                      rating: number | null;
-                      scored: number;
-                      total: number;
-                      components: {
-                        story: number | null;
-                        characters: number | null;
-                        depth: number | null;
-                        worldBuilding: number | null;
-                        originality: number | null;
-                        craft: number | null;
-                      };
+            requestBody?: never;
+            responses: {
+                /** @description API and database readiness */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
                     };
-                    classifications: {
-                      /** @enum {string} */
-                      audience: "general" | "teen" | "young-adult" | "adult";
-                      /** @enum {string} */
-                      age: "all" | "7+" | "10+" | "13+" | "16+" | "18+";
-                      /** @enum {string} */
-                      sexuality: "none" | "low" | "medium" | "high";
-                      /** @enum {string} */
-                      behavioral: "none" | "low" | "medium" | "high";
-                      /** @enum {string} */
-                      theology: "none" | "low" | "medium" | "high";
-                    }[];
-                    credits: {
-                      /** Format: uuid */
-                      id: string;
-                      name: string;
-                      /** @enum {string} */
-                      kind: "person" | "organization";
-                      role: string;
-                      /** @default 0 */
-                      position: number;
-                      /** @default false */
-                      isPrimary: boolean;
-                    }[];
-                    awards: {
-                      /** Format: uuid */
-                      id: string;
-                      organizationSlug: string;
-                      organizationName: string;
-                      category: string;
-                      year: number | null;
-                      /** @enum {string} */
-                      result: "winner" | "nominee";
-                      isFeatured: boolean;
-                      /** Format: uuid */
-                      installmentId: string | null;
-                      installmentTitle: string | null;
-                      /** Format: uri */
-                      sourceUrl: string | null;
-                      notes: string | null;
-                    }[];
-                  }
-                | {
-                    /** Format: uuid */
-                    id: string;
-                    /** Format: uuid */
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            status: "ok" | "degraded";
+                            /** @enum {string} */
+                            database: "ready" | "unavailable";
+                            /** @enum {string} */
+                            version: "v2";
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/titles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    mode?: "titles" | "installments";
+                    genre?: string;
+                    tone?: string;
+                    tag?: string;
+                    planet?: string;
+                    sort?: "title" | "release" | "score";
+                    limit?: number;
+                    offset?: number | null;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Browse umbrella titles or flattened installments */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: ({
+                                /** Format: uuid */
+                                id: string;
+                                canonicalTitle: string;
+                                /** @enum {string} */
+                                kind: "movie" | "anime";
+                                titleAr: string | null;
+                                summary: string;
+                                posterPath: string | null;
+                                bannerPath: string | null;
+                                logoPath: string | null;
+                                releaseYear: number | null;
+                                /** @enum {string} */
+                                releaseStatus: "upcoming" | "airing" | "returning" | "completed" | "unknown";
+                                isPrivate?: boolean;
+                                aliases: string[];
+                                contentWarnings: string | null;
+                                analysisNotes: string | null;
+                                genres: ("action" | "adventure" | "comedy" | "crime" | "drama" | "fantasy" | "historical" | "horror" | "mecha" | "music" | "mystery" | "psychological" | "romance" | "science-fiction" | "slice-of-life" | "sports" | "supernatural" | "thriller" | "war")[];
+                                tones: ("wholesome" | "emotional" | "bittersweet" | "reflective" | "tense" | "energetic" | "dark" | "whimsical" | "epic" | "atmospheric")[];
+                                tags: ("coming-of-age" | "found-family" | "friendship" | "family" | "magic" | "school" | "travel" | "political" | "artificial-intelligence" | "martial-arts" | "military" | "cooking" | "monsters" | "curses" | "special-abilities" | "training" | "slow-burn" | "childhood-classic" | "male-protagonist" | "female-protagonist" | "animated-movie" | "child-cast" | "ensemble-cast" | "teen-cast" | "nonhuman-characters" | "animal-cast" | "adult-cast" | "survival" | "anime-movie" | "workplace" | "urban-setting" | "conspiracy" | "crime-organization" | "rural-setting" | "detailed-worldbuilding" | "bullying" | "literary-classic" | "memory" | "political-intrigue" | "revenge" | "philosophy" | "redemption" | "sibling-relationship" | "swordplay" | "animals" | "class-conflict" | "mental-health" | "spirits" | "demons" | "hidden-identity" | "identity" | "mortality" | "robots" | "antihero" | "grief" | "healing" | "moral-ambiguity" | "mythology" | "parenthood" | "time-travel" | "trauma" | "adoption" | "body-horror" | "folklore" | "prejudice" | "rivalry" | "school-club" | "education" | "episodic" | "family-life" | "mind-games" | "royal-court" | "technology" | "art" | "investigation" | "island-setting" | "manipulation" | "maritime-setting" | "peace-and-nonviolence" | "underdog" | "corporate-power" | "disability" | "fairy-tales" | "post-apocalyptic" | "religion" | "steampunk" | "toys" | "video-games" | "anthology" | "assassins" | "detective" | "dystopia" | "guns" | "kaiju" | "natural-disaster" | "police" | "prehistoric-life" | "racing" | "rebellion" | "social-anxiety" | "witches" | "aliens" | "childhood" | "college" | "dragons" | "environment" | "espionage" | "fugitive" | "gods" | "idol-industry" | "intergenerational-conflict" | "lost-civilization" | "marriage" | "otaku-culture" | "overpowered-protagonist" | "pirates" | "regret" | "slavery" | "vikings" | "virtual-world" | "writing" | "immortality" | "virtual-reality" | "medicine" | "time-loop" | "transported-to-another-world" | "parallel-worlds" | "superheroes")[];
+                                countries: string[];
+                                planet: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    slug: string;
+                                    nameAr: string;
+                                    icon: string;
+                                } | null;
+                                score: {
+                                    rating: number | null;
+                                    scored: number;
+                                    total: number;
+                                    components: {
+                                        story: number | null;
+                                        characters: number | null;
+                                        depth: number | null;
+                                        worldBuilding: number | null;
+                                        originality: number | null;
+                                        craft: number | null;
+                                    };
+                                };
+                                classifications: {
+                                    /** @enum {string} */
+                                    audience: "general" | "teen" | "young-adult" | "adult";
+                                    /** @enum {string} */
+                                    age: "all" | "7+" | "10+" | "13+" | "16+" | "18+";
+                                    /** @enum {string} */
+                                    sexuality: "none" | "low" | "medium" | "high";
+                                    /** @enum {string} */
+                                    behavioral: "none" | "low" | "medium" | "high";
+                                    /** @enum {string} */
+                                    theology: "none" | "low" | "medium" | "high";
+                                }[];
+                                credits: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    /** @enum {string} */
+                                    kind: "person" | "organization";
+                                    role: string;
+                                    /** @default 0 */
+                                    position: number;
+                                    /** @default false */
+                                    isPrimary: boolean;
+                                }[];
+                                awards: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    organizationSlug: string;
+                                    organizationName: string;
+                                    category: string;
+                                    year: number | null;
+                                    /** @enum {string} */
+                                    result: "winner" | "nominee";
+                                    isFeatured: boolean;
+                                    /** Format: uuid */
+                                    installmentId: string | null;
+                                    installmentTitle: string | null;
+                                    /** Format: uri */
+                                    sourceUrl: string | null;
+                                    notes: string | null;
+                                }[];
+                            } | {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                titleId: string;
+                                /** @enum {string} */
+                                kind: "season" | "movie" | "special";
+                                position: number;
+                                title: string;
+                                summary: string;
+                                releaseDate: string | null;
+                                runtimeMinutes: number | null;
+                                /** @enum {string} */
+                                status: "announced" | "airing" | "completed" | "unknown";
+                                posterPath: string | null;
+                                episodeCount: number | null;
+                                classification: {
+                                    /** @enum {string} */
+                                    audience: "general" | "teen" | "young-adult" | "adult";
+                                    /** @enum {string} */
+                                    age: "all" | "7+" | "10+" | "13+" | "16+" | "18+";
+                                    /** @enum {string} */
+                                    sexuality: "none" | "low" | "medium" | "high";
+                                    /** @enum {string} */
+                                    behavioral: "none" | "low" | "medium" | "high";
+                                    /** @enum {string} */
+                                    theology: "none" | "low" | "medium" | "high";
+                                };
+                                classificationOverrides: string[];
+                                score: {
+                                    story: number | null;
+                                    characters: number | null;
+                                    depth: number | null;
+                                    worldBuilding: number | null;
+                                    originality: number | null;
+                                    craft: number | null;
+                                };
+                                rating: number | null;
+                                awards: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    organizationSlug: string;
+                                    organizationName: string;
+                                    category: string;
+                                    year: number | null;
+                                    /** @enum {string} */
+                                    result: "winner" | "nominee";
+                                    isFeatured: boolean;
+                                    /** Format: uuid */
+                                    installmentId: string | null;
+                                    installmentTitle: string | null;
+                                    /** Format: uri */
+                                    sourceUrl: string | null;
+                                    notes: string | null;
+                                }[];
+                                episodes?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    number: number;
+                                    position: number;
+                                    title: string | null;
+                                    releaseDate: string | null;
+                                    runtimeMinutes: number | null;
+                                }[];
+                                tmdbId: number | null;
+                                imdbId: string | null;
+                                tvdbId: number | null;
+                                anilistId: number | null;
+                                malId: number | null;
+                            })[];
+                            total: number;
+                            /** @enum {string} */
+                            mode: "titles" | "installments";
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/titles/{titleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
                     titleId: string;
-                    /** @enum {string} */
-                    kind: "season" | "movie" | "special";
-                    position: number;
-                    title: string;
-                    summary: string;
-                    releaseDate: string | null;
-                    runtimeMinutes: number | null;
-                    /** @enum {string} */
-                    status: "announced" | "airing" | "completed" | "unknown";
-                    posterPath: string | null;
-                    episodeCount: number | null;
-                    classification: {
-                      /** @enum {string} */
-                      audience: "general" | "teen" | "young-adult" | "adult";
-                      /** @enum {string} */
-                      age: "all" | "7+" | "10+" | "13+" | "16+" | "18+";
-                      /** @enum {string} */
-                      sexuality: "none" | "low" | "medium" | "high";
-                      /** @enum {string} */
-                      behavioral: "none" | "low" | "medium" | "high";
-                      /** @enum {string} */
-                      theology: "none" | "low" | "medium" | "high";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Title details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
                     };
-                    classificationOverrides: string[];
-                    score: {
-                      story: number | null;
-                      characters: number | null;
-                      depth: number | null;
-                      worldBuilding: number | null;
-                      originality: number | null;
-                      craft: number | null;
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            canonicalTitle: string;
+                            /** @enum {string} */
+                            kind: "movie" | "anime";
+                            titleAr: string | null;
+                            summary: string;
+                            posterPath: string | null;
+                            bannerPath: string | null;
+                            logoPath: string | null;
+                            releaseYear: number | null;
+                            /** @enum {string} */
+                            releaseStatus: "upcoming" | "airing" | "returning" | "completed" | "unknown";
+                            isPrivate?: boolean;
+                            aliases: string[];
+                            contentWarnings: string | null;
+                            analysisNotes: string | null;
+                            genres: ("action" | "adventure" | "comedy" | "crime" | "drama" | "fantasy" | "historical" | "horror" | "mecha" | "music" | "mystery" | "psychological" | "romance" | "science-fiction" | "slice-of-life" | "sports" | "supernatural" | "thriller" | "war")[];
+                            tones: ("wholesome" | "emotional" | "bittersweet" | "reflective" | "tense" | "energetic" | "dark" | "whimsical" | "epic" | "atmospheric")[];
+                            tags: ("coming-of-age" | "found-family" | "friendship" | "family" | "magic" | "school" | "travel" | "political" | "artificial-intelligence" | "martial-arts" | "military" | "cooking" | "monsters" | "curses" | "special-abilities" | "training" | "slow-burn" | "childhood-classic" | "male-protagonist" | "female-protagonist" | "animated-movie" | "child-cast" | "ensemble-cast" | "teen-cast" | "nonhuman-characters" | "animal-cast" | "adult-cast" | "survival" | "anime-movie" | "workplace" | "urban-setting" | "conspiracy" | "crime-organization" | "rural-setting" | "detailed-worldbuilding" | "bullying" | "literary-classic" | "memory" | "political-intrigue" | "revenge" | "philosophy" | "redemption" | "sibling-relationship" | "swordplay" | "animals" | "class-conflict" | "mental-health" | "spirits" | "demons" | "hidden-identity" | "identity" | "mortality" | "robots" | "antihero" | "grief" | "healing" | "moral-ambiguity" | "mythology" | "parenthood" | "time-travel" | "trauma" | "adoption" | "body-horror" | "folklore" | "prejudice" | "rivalry" | "school-club" | "education" | "episodic" | "family-life" | "mind-games" | "royal-court" | "technology" | "art" | "investigation" | "island-setting" | "manipulation" | "maritime-setting" | "peace-and-nonviolence" | "underdog" | "corporate-power" | "disability" | "fairy-tales" | "post-apocalyptic" | "religion" | "steampunk" | "toys" | "video-games" | "anthology" | "assassins" | "detective" | "dystopia" | "guns" | "kaiju" | "natural-disaster" | "police" | "prehistoric-life" | "racing" | "rebellion" | "social-anxiety" | "witches" | "aliens" | "childhood" | "college" | "dragons" | "environment" | "espionage" | "fugitive" | "gods" | "idol-industry" | "intergenerational-conflict" | "lost-civilization" | "marriage" | "otaku-culture" | "overpowered-protagonist" | "pirates" | "regret" | "slavery" | "vikings" | "virtual-world" | "writing" | "immortality" | "virtual-reality" | "medicine" | "time-loop" | "transported-to-another-world" | "parallel-worlds" | "superheroes")[];
+                            countries: string[];
+                            planet: {
+                                /** Format: uuid */
+                                id: string;
+                                slug: string;
+                                nameAr: string;
+                                icon: string;
+                            } | null;
+                            score: {
+                                rating: number | null;
+                                scored: number;
+                                total: number;
+                                components: {
+                                    story: number | null;
+                                    characters: number | null;
+                                    depth: number | null;
+                                    worldBuilding: number | null;
+                                    originality: number | null;
+                                    craft: number | null;
+                                };
+                            };
+                            classifications: {
+                                /** @enum {string} */
+                                audience: "general" | "teen" | "young-adult" | "adult";
+                                /** @enum {string} */
+                                age: "all" | "7+" | "10+" | "13+" | "16+" | "18+";
+                                /** @enum {string} */
+                                sexuality: "none" | "low" | "medium" | "high";
+                                /** @enum {string} */
+                                behavioral: "none" | "low" | "medium" | "high";
+                                /** @enum {string} */
+                                theology: "none" | "low" | "medium" | "high";
+                            }[];
+                            credits: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                                /** @enum {string} */
+                                kind: "person" | "organization";
+                                role: string;
+                                /** @default 0 */
+                                position: number;
+                                /** @default false */
+                                isPrimary: boolean;
+                            }[];
+                            awards: {
+                                /** Format: uuid */
+                                id: string;
+                                organizationSlug: string;
+                                organizationName: string;
+                                category: string;
+                                year: number | null;
+                                /** @enum {string} */
+                                result: "winner" | "nominee";
+                                isFeatured: boolean;
+                                /** Format: uuid */
+                                installmentId: string | null;
+                                installmentTitle: string | null;
+                                /** Format: uri */
+                                sourceUrl: string | null;
+                                notes: string | null;
+                            }[];
+                            tmdbId: number | null;
+                            imdbId: string | null;
+                            tvdbId: number | null;
+                            anilistId: number | null;
+                            malId: number | null;
+                            installments: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                titleId: string;
+                                /** @enum {string} */
+                                kind: "season" | "movie" | "special";
+                                position: number;
+                                title: string;
+                                summary: string;
+                                releaseDate: string | null;
+                                runtimeMinutes: number | null;
+                                /** @enum {string} */
+                                status: "announced" | "airing" | "completed" | "unknown";
+                                posterPath: string | null;
+                                episodeCount: number | null;
+                                classification: {
+                                    /** @enum {string} */
+                                    audience: "general" | "teen" | "young-adult" | "adult";
+                                    /** @enum {string} */
+                                    age: "all" | "7+" | "10+" | "13+" | "16+" | "18+";
+                                    /** @enum {string} */
+                                    sexuality: "none" | "low" | "medium" | "high";
+                                    /** @enum {string} */
+                                    behavioral: "none" | "low" | "medium" | "high";
+                                    /** @enum {string} */
+                                    theology: "none" | "low" | "medium" | "high";
+                                };
+                                classificationOverrides: string[];
+                                score: {
+                                    story: number | null;
+                                    characters: number | null;
+                                    depth: number | null;
+                                    worldBuilding: number | null;
+                                    originality: number | null;
+                                    craft: number | null;
+                                };
+                                rating: number | null;
+                                awards: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    organizationSlug: string;
+                                    organizationName: string;
+                                    category: string;
+                                    year: number | null;
+                                    /** @enum {string} */
+                                    result: "winner" | "nominee";
+                                    isFeatured: boolean;
+                                    /** Format: uuid */
+                                    installmentId: string | null;
+                                    installmentTitle: string | null;
+                                    /** Format: uri */
+                                    sourceUrl: string | null;
+                                    notes: string | null;
+                                }[];
+                                episodes?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    number: number;
+                                    position: number;
+                                    title: string | null;
+                                    releaseDate: string | null;
+                                    runtimeMinutes: number | null;
+                                }[];
+                                tmdbId: number | null;
+                                imdbId: string | null;
+                                tvdbId: number | null;
+                                anilistId: number | null;
+                                malId: number | null;
+                            }[];
+                            relationships: {
+                                /** Format: uuid */
+                                id: string;
+                                type: string;
+                                /** Format: uuid */
+                                titleId: string;
+                                title: string;
+                                /** @enum {string} */
+                                direction: "outgoing" | "incoming";
+                                notes: string;
+                            }[];
+                            externalIdentities: {
+                                /** Format: uuid */
+                                id: string;
+                                provider: string;
+                                externalId: string;
+                                url: string | null;
+                            }[];
+                        };
                     };
-                    rating: number | null;
-                    awards: {
-                      /** Format: uuid */
-                      id: string;
-                      organizationSlug: string;
-                      organizationName: string;
-                      category: string;
-                      year: number | null;
-                      /** @enum {string} */
-                      result: "winner" | "nominee";
-                      isFeatured: boolean;
-                      /** Format: uuid */
-                      installmentId: string | null;
-                      installmentTitle: string | null;
-                      /** Format: uri */
-                      sourceUrl: string | null;
-                      notes: string | null;
-                    }[];
-                    episodes?: {
-                      /** Format: uuid */
-                      id: string;
-                      number: number;
-                      position: number;
-                      title: string | null;
-                      releaseDate: string | null;
-                      runtimeMinutes: number | null;
-                    }[];
-                    tmdbId: number | null;
-                    imdbId: string | null;
-                    tvdbId: number | null;
-                    anilistId: number | null;
-                    malId: number | null;
-                  }
-              )[];
-              total: number;
-              /** @enum {string} */
-              mode: "titles" | "installments";
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/titles/{titleId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          titleId: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Title details */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              /** Format: uuid */
-              id: string;
-              canonicalTitle: string;
-              /** @enum {string} */
-              kind: "movie" | "anime";
-              titleAr: string | null;
-              summary: string;
-              posterPath: string | null;
-              bannerPath: string | null;
-              logoPath: string | null;
-              releaseYear: number | null;
-              /** @enum {string} */
-              releaseStatus: "upcoming" | "airing" | "returning" | "completed" | "unknown";
-              isPrivate?: boolean;
-              aliases: string[];
-              contentWarnings: string | null;
-              analysisNotes: string | null;
-              genres: (
-                | "action"
-                | "adventure"
-                | "comedy"
-                | "crime"
-                | "drama"
-                | "fantasy"
-                | "historical"
-                | "horror"
-                | "mecha"
-                | "music"
-                | "mystery"
-                | "psychological"
-                | "romance"
-                | "science-fiction"
-                | "slice-of-life"
-                | "sports"
-                | "supernatural"
-                | "thriller"
-                | "war"
-              )[];
-              tones: (
-                | "wholesome"
-                | "emotional"
-                | "bittersweet"
-                | "reflective"
-                | "tense"
-                | "energetic"
-                | "dark"
-                | "whimsical"
-                | "epic"
-                | "atmospheric"
-              )[];
-              tags: (
-                | "coming-of-age"
-                | "found-family"
-                | "friendship"
-                | "family"
-                | "magic"
-                | "school"
-                | "travel"
-                | "political"
-                | "artificial-intelligence"
-                | "martial-arts"
-                | "military"
-                | "cooking"
-                | "monsters"
-                | "curses"
-                | "special-abilities"
-                | "training"
-                | "slow-burn"
-                | "childhood-classic"
-                | "male-protagonist"
-                | "female-protagonist"
-                | "animated-movie"
-                | "child-cast"
-                | "ensemble-cast"
-                | "teen-cast"
-                | "nonhuman-characters"
-                | "animal-cast"
-                | "adult-cast"
-                | "survival"
-                | "anime-movie"
-                | "workplace"
-                | "urban-setting"
-                | "conspiracy"
-                | "crime-organization"
-                | "rural-setting"
-                | "detailed-worldbuilding"
-                | "bullying"
-                | "literary-classic"
-                | "memory"
-                | "political-intrigue"
-                | "revenge"
-                | "philosophy"
-                | "redemption"
-                | "sibling-relationship"
-                | "swordplay"
-                | "animals"
-                | "class-conflict"
-                | "mental-health"
-                | "spirits"
-                | "demons"
-                | "hidden-identity"
-                | "identity"
-                | "mortality"
-                | "robots"
-                | "antihero"
-                | "grief"
-                | "healing"
-                | "moral-ambiguity"
-                | "mythology"
-                | "parenthood"
-                | "time-travel"
-                | "trauma"
-                | "adoption"
-                | "body-horror"
-                | "folklore"
-                | "prejudice"
-                | "rivalry"
-                | "school-club"
-                | "education"
-                | "episodic"
-                | "family-life"
-                | "mind-games"
-                | "royal-court"
-                | "technology"
-                | "art"
-                | "investigation"
-                | "island-setting"
-                | "manipulation"
-                | "maritime-setting"
-                | "peace-and-nonviolence"
-                | "underdog"
-                | "corporate-power"
-                | "disability"
-                | "fairy-tales"
-                | "post-apocalyptic"
-                | "religion"
-                | "steampunk"
-                | "toys"
-                | "video-games"
-                | "anthology"
-                | "assassins"
-                | "detective"
-                | "dystopia"
-                | "guns"
-                | "kaiju"
-                | "natural-disaster"
-                | "police"
-                | "prehistoric-life"
-                | "racing"
-                | "rebellion"
-                | "social-anxiety"
-                | "witches"
-                | "aliens"
-                | "childhood"
-                | "college"
-                | "dragons"
-                | "environment"
-                | "espionage"
-                | "fugitive"
-                | "gods"
-                | "idol-industry"
-                | "intergenerational-conflict"
-                | "lost-civilization"
-                | "marriage"
-                | "otaku-culture"
-                | "overpowered-protagonist"
-                | "pirates"
-                | "regret"
-                | "slavery"
-                | "vikings"
-                | "virtual-world"
-                | "writing"
-                | "immortality"
-                | "virtual-reality"
-                | "medicine"
-                | "time-loop"
-                | "transported-to-another-world"
-                | "parallel-worlds"
-                | "superheroes"
-              )[];
-              countries: string[];
-              planet: {
-                /** Format: uuid */
-                id: string;
-                slug: string;
-                nameAr: string;
-                icon: string;
-              } | null;
-              score: {
-                rating: number | null;
-                scored: number;
-                total: number;
-                components: {
-                  story: number | null;
-                  characters: number | null;
-                  depth: number | null;
-                  worldBuilding: number | null;
-                  originality: number | null;
-                  craft: number | null;
                 };
-              };
-              classifications: {
-                /** @enum {string} */
-                audience: "general" | "teen" | "young-adult" | "adult";
-                /** @enum {string} */
-                age: "all" | "7+" | "10+" | "13+" | "16+" | "18+";
-                /** @enum {string} */
-                sexuality: "none" | "low" | "medium" | "high";
-                /** @enum {string} */
-                behavioral: "none" | "low" | "medium" | "high";
-                /** @enum {string} */
-                theology: "none" | "low" | "medium" | "high";
-              }[];
-              credits: {
-                /** Format: uuid */
-                id: string;
-                name: string;
-                /** @enum {string} */
-                kind: "person" | "organization";
-                role: string;
-                /** @default 0 */
-                position: number;
-                /** @default false */
-                isPrimary: boolean;
-              }[];
-              awards: {
-                /** Format: uuid */
-                id: string;
-                organizationSlug: string;
-                organizationName: string;
-                category: string;
-                year: number | null;
-                /** @enum {string} */
-                result: "winner" | "nominee";
-                isFeatured: boolean;
-                /** Format: uuid */
-                installmentId: string | null;
-                installmentTitle: string | null;
-                /** Format: uri */
-                sourceUrl: string | null;
-                notes: string | null;
-              }[];
-              tmdbId: number | null;
-              imdbId: string | null;
-              tvdbId: number | null;
-              anilistId: number | null;
-              malId: number | null;
-              installments: {
-                /** Format: uuid */
-                id: string;
-                /** Format: uuid */
-                titleId: string;
-                /** @enum {string} */
-                kind: "season" | "movie" | "special";
-                position: number;
-                title: string;
-                summary: string;
-                releaseDate: string | null;
-                runtimeMinutes: number | null;
-                /** @enum {string} */
-                status: "announced" | "airing" | "completed" | "unknown";
-                posterPath: string | null;
-                episodeCount: number | null;
-                classification: {
-                  /** @enum {string} */
-                  audience: "general" | "teen" | "young-adult" | "adult";
-                  /** @enum {string} */
-                  age: "all" | "7+" | "10+" | "13+" | "16+" | "18+";
-                  /** @enum {string} */
-                  sexuality: "none" | "low" | "medium" | "high";
-                  /** @enum {string} */
-                  behavioral: "none" | "low" | "medium" | "high";
-                  /** @enum {string} */
-                  theology: "none" | "low" | "medium" | "high";
+                /** @description Title not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            message: string;
+                        };
+                    };
                 };
-                classificationOverrides: string[];
-                score: {
-                  story: number | null;
-                  characters: number | null;
-                  depth: number | null;
-                  worldBuilding: number | null;
-                  originality: number | null;
-                  craft: number | null;
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List planets */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        }[];
+                    };
                 };
-                rating: number | null;
-                awards: {
-                  /** Format: uuid */
-                  id: string;
-                  organizationSlug: string;
-                  organizationName: string;
-                  category: string;
-                  year: number | null;
-                  /** @enum {string} */
-                  result: "winner" | "nominee";
-                  isFeatured: boolean;
-                  /** Format: uuid */
-                  installmentId: string | null;
-                  installmentTitle: string | null;
-                  /** Format: uri */
-                  sourceUrl: string | null;
-                  notes: string | null;
-                }[];
-                episodes?: {
-                  /** Format: uuid */
-                  id: string;
-                  number: number;
-                  position: number;
-                  title: string | null;
-                  releaseDate: string | null;
-                  runtimeMinutes: number | null;
-                }[];
-                tmdbId: number | null;
-                imdbId: string | null;
-                tvdbId: number | null;
-                anilistId: number | null;
-                malId: number | null;
-              }[];
-              relationships: {
-                /** Format: uuid */
-                id: string;
-                type: string;
-                /** Format: uuid */
-                titleId: string;
-                title: string;
-                /** @enum {string} */
-                direction: "outgoing" | "incoming";
-                notes: string;
-              }[];
-              externalIdentities: {
-                /** Format: uuid */
-                id: string;
-                provider: string;
-                externalId: string;
-                url: string | null;
-              }[];
             };
-          };
         };
-        /** @description Title not found */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              message: string;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
             };
-          };
+            requestBody?: never;
+            responses: {
+                /** @description List people */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+            };
         };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/planets": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description List planets */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              [key: string]: unknown;
-            }[];
-          };
+    "/api/v1/studios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/people": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description List people */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              [key: string]: unknown;
-            }[];
-          };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List studios */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+            };
         };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/studios": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description List studios */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              [key: string]: unknown;
-            }[];
-          };
+    "/api/v1/relationships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/relationships": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description List relationships */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              [key: string]: unknown;
-            }[];
-          };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List relationships */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+            };
         };
-      };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: never;
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    schemas: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

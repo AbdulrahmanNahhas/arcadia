@@ -323,6 +323,10 @@ export const artworkSearchQuerySchema = z.object({
   year: z.coerce.number().int().min(1850).max(2100).optional(),
   kind: z.enum(["anime", "movie"]).optional(),
   role: artworkRoleSchema,
+  /** A confirmed id already on the title/installment — when present, the matching provider
+   * looks the row up directly instead of fuzzy-searching by `title`/`year`. */
+  tmdbId: z.coerce.number().int().positive().optional(),
+  anilistId: z.coerce.number().int().positive().optional(),
 });
 export const artworkCandidateSchema = z.object({
   provider: artworkProviderSchema,
