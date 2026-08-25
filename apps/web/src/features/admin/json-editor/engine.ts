@@ -46,6 +46,11 @@ export const TITLE_FIELD_MAP = {
   posterPath: "imagePath",
   bannerPath: "bannerPath",
   logoPath: "logoPath",
+  tmdbId: "tmdbId",
+  imdbId: "imdbId",
+  tvdbId: "tvdbId",
+  anilistId: "anilistId",
+  malId: "malId",
 } as const satisfies Record<string, Exclude<keyof AdminWorkUpdate, "id">>;
 
 export type TitleJsonField = keyof typeof TITLE_FIELD_MAP;
@@ -60,7 +65,12 @@ export type InstallmentJsonField =
   | "releaseDate"
   | "runtimeMinutes"
   | "posterPath"
-  | "score";
+  | "score"
+  | "tmdbId"
+  | "imdbId"
+  | "tvdbId"
+  | "anilistId"
+  | "malId";
 export type EpisodeJsonField =
   | "id"
   | "title"
@@ -103,6 +113,11 @@ export const TITLE_PROJECTION_FIELDS = {
   posterPath: { label: "الملصق", group: "الصور" },
   bannerPath: { label: "الغلاف", group: "الصور" },
   logoPath: { label: "الشعار", group: "الصور" },
+  tmdbId: { label: "معرّف TMDB", group: "المعرّفات الخارجية" },
+  imdbId: { label: "معرّف IMDb", group: "المعرّفات الخارجية" },
+  tvdbId: { label: "معرّف TVDB", group: "المعرّفات الخارجية" },
+  anilistId: { label: "معرّف AniList", group: "المعرّفات الخارجية" },
+  malId: { label: "معرّف MyAnimeList", group: "المعرّفات الخارجية" },
 } satisfies Record<TitleJsonField, ProjectionFieldMetadata>;
 
 export const STRUCTURE_PROJECTION_FIELDS: Array<ProjectionField> = [
@@ -116,6 +131,15 @@ export const STRUCTURE_PROJECTION_FIELDS: Array<ProjectionField> = [
   { key: "structure.installments.runtimeMinutes", label: "مدة العرض", group: "الأجزاء" },
   { key: "structure.installments.posterPath", label: "ملصق الجزء", group: "الأجزاء" },
   { key: "structure.installments.score", label: "التقييم التحريري", group: "الأجزاء" },
+  { key: "structure.installments.tmdbId", label: "معرّف TMDB للجزء", group: "معرّفات الجزء" },
+  { key: "structure.installments.imdbId", label: "معرّف IMDb للجزء", group: "معرّفات الجزء" },
+  { key: "structure.installments.tvdbId", label: "معرّف TVDB للجزء", group: "معرّفات الجزء" },
+  {
+    key: "structure.installments.anilistId",
+    label: "معرّف AniList للجزء",
+    group: "معرّفات الجزء",
+  },
+  { key: "structure.installments.malId", label: "معرّف MyAnimeList للجزء", group: "معرّفات الجزء" },
   { key: "structure.installments.episodes.id", label: "معرّف الحلقة", group: "الحلقات" },
   { key: "structure.installments.episodes.title", label: "عنوان الحلقة", group: "الحلقات" },
   { key: "structure.installments.episodes.number", label: "رقم الحلقة", group: "الحلقات" },
@@ -660,6 +684,11 @@ function projectedInstallment(
     else if (field === "summary") output.summary = installment.summary;
     else if (field === "position") output.position = installment.position;
     else if (field === "runtimeMinutes") output.runtimeMinutes = installment.runtimeMinutes;
+    else if (field === "tmdbId") output.tmdbId = installment.tmdbId ?? null;
+    else if (field === "imdbId") output.imdbId = installment.imdbId ?? null;
+    else if (field === "tvdbId") output.tvdbId = installment.tvdbId ?? null;
+    else if (field === "anilistId") output.anilistId = installment.anilistId ?? null;
+    else if (field === "malId") output.malId = installment.malId ?? null;
     else output.posterPath = installment.posterPath;
   }
   if (episodeFields.length) {
@@ -892,6 +921,21 @@ function mergeStructureProjection(
       } else if (field === "posterPath" && "posterPath" in rawInstallment) {
         // SAFETY: see loop comment above.
         merged.posterPath = rawInstallment.posterPath as string | null;
+      } else if (field === "tmdbId" && "tmdbId" in rawInstallment) {
+        // SAFETY: see loop comment above.
+        merged.tmdbId = rawInstallment.tmdbId as number | null;
+      } else if (field === "imdbId" && "imdbId" in rawInstallment) {
+        // SAFETY: see loop comment above.
+        merged.imdbId = rawInstallment.imdbId as string | null;
+      } else if (field === "tvdbId" && "tvdbId" in rawInstallment) {
+        // SAFETY: see loop comment above.
+        merged.tvdbId = rawInstallment.tvdbId as number | null;
+      } else if (field === "anilistId" && "anilistId" in rawInstallment) {
+        // SAFETY: see loop comment above.
+        merged.anilistId = rawInstallment.anilistId as number | null;
+      } else if (field === "malId" && "malId" in rawInstallment) {
+        // SAFETY: see loop comment above.
+        merged.malId = rawInstallment.malId as number | null;
       }
     }
     if (episodeFields.length) {
