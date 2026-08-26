@@ -135,7 +135,12 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
               >
                 <PlayIcon weight="fill" data-icon="inline-start" /> تشغيل
               </TooltipTrigger>
-              <TooltipContent>يُفعّل عند ربط هذا العمل بخادم Jellyfin</TooltipContent>
+              {/*
+                Playback is torrent-first now, not Jellyfin-first — but it starts from a specific
+                film, and the radar shows whole titles. The work page is where the installment is
+                chosen, so that is where the play button lives.
+              */}
+              <TooltipContent>افتح صفحة العمل لاختيار الفيلم وتشغيله</TooltipContent>
             </Tooltip>
             <Link
               to="/titles/$titleId"

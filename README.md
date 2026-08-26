@@ -53,6 +53,21 @@ manual testing and are never created unless `ARCADIA_SEED_DEMO_ACCOUNTS=true`:
 Set a unique `BETTER_AUTH_SECRET` and trusted `WEB_ORIGIN` outside development. Public account
 registration is disabled: an owner creates an account directly or issues an expiring invitation.
 
+### Playback source
+
+The player finds torrents through the family's Torrentio-compatible Stremio addon. The API calls
+it — never the desktop binary — so the URL stays out of anything shipped. Put these in the
+repo-root `.env` (git-ignored):
+
+| Variable | Meaning |
+| --- | --- |
+| `ARCADIA_STREAM_ADDON_URL` | Addon base URL, e.g. `https://nahhas-arcadia.family.fun`. Absent means playback reports "no source configured" rather than failing obscurely. |
+| `ARCADIA_STREAM_ADDON_CONFIG` | Pipe-separated Torrentio options, e.g. `qualityfilter=cam,480p`. Pipes are encoded automatically. |
+| `ARCADIA_STREAM_TIMEOUT_MS` | Upstream timeout (default `8000`). |
+| `ARCADIA_STREAM_CACHE_TTL_MS` | In-process response cache (default 15 min), so two family members opening the same film make one addon call. |
+| `ARCADIA_STREAM_PREFERRED_HEIGHT` | Preferred vertical resolution (default `1080`). Ranking prefers the best release at or below this and treats anything larger as a last resort — a 4K remux will not reach first frame quickly on a family connection. |
+| `ARCADIA_STREAM_ALLOW_TMDB_IDS` | `true` lets `tmdb:` ids be sent when no IMDb id exists. Off by default until the addon is confirmed to accept them: a deployment that does not returns an empty list, which looks like "no sources" rather than "wrong id". |
+
 The active database is PostgreSQL and its migration history lives only in
 `packages/database/drizzle/`. The single retained `data/arcadia.db` file is a read-only v1
 recovery/import source. To rebuild a v2 catalog from it:
@@ -78,6 +93,28 @@ Linux/WebKitGTK-on-Wayland has a long-standing upstream DPI-scaling bug (misrepo
 lag if you work around it with `WEBKIT_DISABLE_COMPOSITING_MODE`). `src-tauri/src/main.rs` fixes
 this by forcing `GDK_BACKEND=x11` before GTK initializes — don't remove it without re-testing on
 Wayland.
+
+### Playback runtime
+
+The embedded player links against **libmpv** and decodes in hardware where it can
+(`vo=gpu-next`, `hwdec=auto-safe`). `devenv.nix` supplies `mpv`, `libGL`, `libva` and `libvdpau`
+for development; on a plain distro the runtime needs them installed:
+
+```bash
+# Fedora
+sudo dnf install mpv-libs libva libva-utils
+# plus the driver for your GPU: intel-media-driver, libva-intel-driver, mesa-va-drivers (AMD),
+# or nvidia-vaapi-driver
+```
+
+Verify hardware decode is actually active rather than assumed — the player logs a warning and
+falls back to software decode instead of failing, so a silent pass is possible. `vainfo` should
+list profiles, and the player reports `hwdec-current` (not `hwdec`, which only echoes what was
+requested).
+
+GStreamer packages are also in `devenv.nix`, and they are **not** for the player — mpv carries
+its own ffmpeg. They are what WebKitGTK needs to play the YouTube trailer iframe on a work
+detail page.
 
 **Building a distributable bundle only works in CI, not on this NixOS dev machine.** Nix-built
 binaries embed a `/nix/store/...` path as their ELF dynamic linker (`readelf -p .interp`) and
@@ -118,6 +155,11 @@ components should not duplicate either set locally.
 Run the static checks, unit/integration tests, and production builds inside the Nix
 environment. API and database integration tests expect the development PostgreSQL database
 to be migrated and seeded.
+
+`pnpm check` now covers the desktop shell too: it ends with `pnpm check:rust`
+(`cargo fmt --check` plus `cargo clippy --all-targets -- -D warnings`). The Rust side is the
+larger risk surface since the player landed, so it is no longer verified only by whether the app
+happens to start.
 
 ```bash
 devenv shell -- pnpm check

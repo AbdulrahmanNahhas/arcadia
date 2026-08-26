@@ -38,16 +38,21 @@ export interface ApiErrorIssue {
  * previously discarded here, leaving callers with only one flat message no matter how many
  * fields actually failed validation. `error instanceof Error` still holds for existing callers
  * that only check that.
+ *
+ * `code` is the machine-readable discriminant some routes send alongside `message` (playback
+ * source discovery is the first). Callers branch on it rather than matching on Arabic prose.
  */
 export class ApiError extends Error {
   readonly status: number;
   readonly issues: ApiErrorIssue[] | undefined;
+  readonly code: string | undefined;
 
-  constructor(message: string, status: number, issues?: ApiErrorIssue[]) {
+  constructor(message: string, status: number, issues?: ApiErrorIssue[], code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.issues = issues;
+    this.code = code;
   }
 }
 
@@ -61,11 +66,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     const body = (await response.json().catch(() => null)) as {
       message?: string;
       issues?: ApiErrorIssue[];
+      code?: string;
     } | null;
     throw new ApiError(
       body?.message ?? `Arcadia API request failed (${response.status})`,
       response.status,
       Array.isArray(body?.issues) ? body.issues : undefined,
+      body?.code,
     );
   }
   return (await response.json()) as T;

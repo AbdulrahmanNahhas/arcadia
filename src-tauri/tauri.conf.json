@@ -18,16 +18,17 @@
         "minWidth": 960,
         "minHeight": 600,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "transparent": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:*; media-src 'self' http://127.0.0.1:* blob:; img-src 'self' data: blob: http://127.0.0.1:* https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com"
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["appimage", "deb"],
+    "targets": ["appimage", "deb", "rpm"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -37,6 +38,14 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libmpv2 | libmpv1", "libva2", "libgl1"]
+      },
+      "rpm": {
+        "depends": ["mpv-libs", "libva", "mesa-libGL"]
+      }
     }
   }
 }

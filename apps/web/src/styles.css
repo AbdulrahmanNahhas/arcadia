@@ -199,6 +199,16 @@
     margin: 0;
     min-width: 320px;
   }
+
+  /*
+   * The player route is opaque black, not transparent. The native mpv surface sits *above* the
+   * webview and is shaped so the controls show through cut-outs (see src-tauri/src/player/
+   * surface.rs) — so nothing needs to see through to the desktop, and a transparent body would
+   * only make the control bar itself see-through.
+   */
+  body.arcadia-player-open {
+    background: #000;
+  }
   button,
   input,
   textarea,
@@ -226,4 +236,9 @@
 
 .ltr {
   direction: ltr;
+}
+
+.ltr\!,
+.ltr\! * {
+  direction: ltr !important;
 }

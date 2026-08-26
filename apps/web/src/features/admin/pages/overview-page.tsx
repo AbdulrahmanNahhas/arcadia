@@ -231,7 +231,7 @@ export function AdminOverviewPage() {
                 <Badge variant="secondary">Better Auth جاهز</Badge>
                 <Badge variant="outline">OpenAPI v1</Badge>
                 <Badge variant="outline">Jellyfin مؤجل</Badge>
-                <Badge variant="outline">التشغيل مؤجل</Badge>
+                <Badge variant="secondary">التشغيل عبر التورنت جاهز</Badge>
               </div>
             </CardContent>
           </Card>

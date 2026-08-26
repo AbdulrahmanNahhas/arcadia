@@ -1,8 +1,9 @@
 # Local Player & Torrent Streaming — Guide & Roadmap
 
-> **Status:** Phase 0 done (2026-08-25) · Phase 0.5 done (2026-08-25) · Next up: Phase 1 · Last
-> revised 2026-08-25 (file/line references verified against `d10e596`; crate versions checked the
-> same day)
+> **Status:** Phase 0 done (2026-08-25) · Phase 0.5 done (2026-08-25) · **Phase 1 playing
+> end-to-end on Linux/Niri (2026-08-26)** — a film streams from the addon and renders inside the
+> app window with working controls; the 10-film acceptance sample and CI packaging are still open ·
+> Next up: finish the Phase 1 acceptance run, then Phase 2 · Last revised 2026-08-26
 > **Updating this doc:** tick checkboxes as tasks land; set each phase's status to
 > `Done (YYYY-MM-DD)` when its acceptance criteria pass.
 
@@ -168,13 +169,13 @@ Everything below is new ground, so get the current idioms right the first time.
 **Version floor (checked 2026-08-25).** `src-tauri/Cargo.toml` currently pins `tauri = 2.11.3`,
 `edition = "2021"`, `rust-version = "1.77.2"` and defines no `[profile.release]`.
 
-- [ ] `tauri` → **2.11.5**, `tauri-build` → matching 2.6.x.
-- [ ] `librqbit = "9"` (latest **9.0.1**), `libmpv2 = "6"` (latest **6.0.0**) — both need a modern
+- [x] `tauri` → **2.11.5**, `tauri-build` → matching 2.6.x.
+- [x] `librqbit = "9"` (latest **9.0.1**), `libmpv2 = "6"` (latest **6.0.0**) — both need a modern
       toolchain; `rust-version = "1.77.2"` will not build them.
-- [ ] `edition = "2024"`, `rust-version = "1.85"`. The existing
+- [x] `edition = "2024"`, `rust-version = "1.85"`. The existing
       `unsafe { std::env::set_var("GDK_BACKEND", "x11") }` in `main.rs` is already written in the
       2024-compatible form, so the edition bump is mechanical.
-- [ ] Add a release profile — absent today, and the difference is large for a binary that now
+- [x] Add a release profile — absent today, and the difference is large for a binary that now
       contains ffmpeg-adjacent bindings and a BitTorrent stack:
 
   ```toml
@@ -186,9 +187,8 @@ Everything below is new ground, so get the current idioms right the first time.
   strip = true
   ```
 
-- [ ] Add `cargo clippy -- -D warnings` and `cargo fmt --check` to the pre-handoff routine;
-      `pnpm check` covers only the TypeScript side today, and this feature makes Rust the
-      larger risk surface.
+- [x] Add `cargo clippy -- -D warnings` and `cargo fmt --check` to the pre-handoff routine —
+      landed as `pnpm check:rust`, chained onto the end of `pnpm check`.
 
 **Resolver interface — fixed in Phase 1 so later sources are additive:**
 
@@ -507,196 +507,239 @@ built later, this section's design (confidence buckets, low-confidence review qu
 
 # Phase 1 — Play a movie, end to end
 
-**Status:** Not started
+**Status:** Code complete (2026-08-25); **acceptance run still outstanding.** Everything below is
+built, compiles, and is covered by unit/integration tests, but no film has been played on a real
+machine yet — the video surface, hardware decode and the whole time-to-first-frame budget are
+unverified in the only way that counts.
+
 **Done when:** **10 movies picked at random from the catalog** (not hand-chosen) each open from
 `تشغيل الفيلم`, reach first frame inside the Performance-targets budget, seek correctly, report an
 active hardware decoder, and tear the torrent session down cleanly on close — and the ones that
 _cannot_ play fail with a specific, honest message (no id / no streams / no peers), never a spinner
 that never resolves. A single demo film playing is **not** this phase.
 
-Ordered so each step is verifiable before the next depends on it.
+### What bringing this up on a real machine actually cost
+
+Five bugs stood between "compiles" and "a film plays", none of which any amount of desk-checking
+would have found. They are recorded because each one is a trap the next platform will re-set.
+
+1. **`gtk::Overlay` re-parenting aborts the app.** `tauri-runtime-wry` attaches an
+   undecorated-resize handler to *every* Linux window-content webview — unconditionally; its
+   `is_decorated()` check happens inside the handler, too late — and that handler does
+   `webview.parent().and_then(|w| w.parent()).downcast::<gtk::Window>().unwrap()`. It hard-codes
+   "the webview's grandparent is the toplevel". Any container inserted above the webview makes
+   that `unwrap` fail inside a GTK signal trampoline, a C frame that cannot unwind, so the panic
+   becomes `abort` on the first left click. **The widget tree must be left exactly as Tauri built
+   it**; the video surface is a sibling `GdkWindow`, not a widget.
+2. **libmpv refuses to start under a non-C `LC_NUMERIC`.** `mpv_create()` prints "Non-C locale
+   detected" and returns NULL, which libmpv2 reports as the bare `Error::Null` — the literal
+   "Null" that reached the family on screen. Fixed with `setlocale(LC_NUMERIC, "C")`; two tests
+   pin it.
+3. **GTK3 child windows are not X11 windows.** `gdk_window_new()` with `GDK_WINDOW_CHILD` creates
+   a *client-side* window, and `gdk_x11_window_get_xid()` then returns the nearest native
+   ancestor's id. mpv was handed the toplevel's id, could not embed, and opened its own window.
+   `gdk_window_ensure_native()` is mandatory.
+4. **`GDK_BACKEND=x11` does not steer libmpv.** With `WAYLAND_DISPLAY` set, mpv's `gpu-next`
+   probes `waylandvk` first — a context in which `wid` is meaningless, because embedding into a
+   foreign window is an X11 concept Wayland has no equivalent for. `main.rs` now removes
+   `WAYLAND_DISPLAY` as well, after which mpv falls through to `x11vk`. Verified directly:
+   `mpv -v` picks `waylandvk` with the variable set and `x11vk` without it.
+5. **X11 does not alpha-blend sibling windows.** Video below a transparent webview is invisible
+   (the webview paints alpha-0 over it and the desktop shows through while audio plays); video
+   above an opaque webview hides the controls. Neither ordering gives controls over a picture.
+   The surface is therefore stacked on top and **shaped** — its region is the window minus the
+   rectangles the interface occupies, measured live from the DOM, so the webview shows through
+   the holes and the picture is never cropped or resized.
+
+### Acceptance run — what is left
+
+- [x] **1.2 checkpoint:** a film renders inside the window with the React overlay on top, on
+      Niri/Wayland via XWayland.
+- [ ] Confirm `hwdec-current` reports a real decoder on this machine. The plumbing is in (a
+      software fallback logs a warning and raises a "بالمعالج" chip in the bar); what has not been
+      done is *reading* it on a machine with a known GPU.
+- [ ] **1.4 checkpoint:** the Sintel/Big Buck Bunny magnet as a checked-in fixture; seek mid-file;
+      confirm killing the window mid-stream leaves no orphaned session and no growing cache dir.
+- [ ] **The 10-film sample** picked at random, with first-frame times recorded rather than
+      estimated. This is the actual bar for calling Phase 1 done.
+- [ ] **Addon fixture** (`tt…` vs `tmdb:…`) recorded from the family deployment, so
+      `ARCADIA_STREAM_ALLOW_TMDB_IDS` can be settled. Note the public `torrentio.strem.fun`
+      Cloudflare-blocks VPN egress ranges outright — a 403 on every path, for browsers too — which
+      is worth knowing before blaming the code.
+- [ ] **Packaging:** confirm in CI that the bundled artifact plays a file. `pnpm tauri build` still
+      does not produce a runnable bundle on NixOS (see README), so this needs the CI workflow that
+      does not exist yet.
+
+### Known limits of the current compositing approach
+
+The shaped-surface technique works and is cheap, but cut-outs are **rectangular and hard-edged**.
+That rules out rounded corners on the bar, `backdrop-filter` blur behind it, and any fade between
+chrome and picture — all of those need per-pixel blending.
+
+The fix is mpv's **GL render API** drawing into a GTK `GLArea`, so the video joins the normal draw
+cycle and the webview composites over it like any other layer. It is blocked on trap #1 above: the
+`GLArea` has to sit above the webview, which is exactly what makes Tauri's handler abort. Options,
+in order of preference:
+
+- Upstream a fix to `tauri-runtime-wry` so the handler walks to the toplevel instead of assuming a
+  depth of two, then use `gtk::Overlay` normally.
+- Disconnect that one signal handler on the webview after Tauri installs it.
+- Keep the shaped surface and design the bar to suit it (solid fills, square edges).
 
 ### 1.1 Environment
 
-- [ ] Add to `devenv.nix`: `mpv`, `libmpv` (headers for `libmpv2-sys`), `libGL`, `libva`,
-      `libvdpau`, `pkg-config`.
-- [ ] Add GStreamer — **not for the player** (mpv uses ffmpeg internally) but for the webview: the
-      YouTube trailer iframe at `work-detail-page.tsx:476` plays media inside WebKitGTK, and
-      `devenv.nix` currently has no GStreamer packages at all.
-
-  ```nix
-  packages = with pkgs; [
-    # … existing …
-    mpv libmpv libGL libva libvdpau
-    gst_all_1.gstreamer
-    gst_all_1.gst-plugins-base
-    gst_all_1.gst-plugins-good
-    gst_all_1.gst-plugins-bad
-    gst_all_1.gst-libav
-  ];
-
-  # Same reason as the existing GIO_EXTRA_MODULES entry — devenv's plain `packages` list doesn't
-  # run the module-registration setup hooks, so plugin paths must be set explicitly.
-  env.GST_PLUGIN_SYSTEM_PATH_1_0 = lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" [
-    pkgs.gst_all_1.gstreamer
-    pkgs.gst_all_1.gst-plugins-base
-    pkgs.gst_all_1.gst-plugins-good
-    pkgs.gst_all_1.gst-plugins-bad
-    pkgs.gst_all_1.gst-libav
-  ];
-  ```
-
-- [ ] Document the Fedora runtime requirement (`mpv-libs`, `libva` + VAAPI driver).
+- [x] `devenv.nix`: `mpv`, `libGL`, `libva`, `libvdpau` (`pkg-config` was already there).
+      `pkgs.mpv` alone provides `mpv.pc` — no separate `libmpv` attribute is needed; verified with
+      `pkg-config --modversion mpv` → `2.5.0`.
+- [x] GStreamer — **not for the player** (mpv uses ffmpeg internally) but for the webview's YouTube
+      trailer iframe, plus `GST_PLUGIN_SYSTEM_PATH_1_0`, since devenv's plain `packages` list does
+      not run the module-registration setup hooks.
+- [x] Fedora runtime requirement documented in README ("Playback runtime").
 
 ### 1.2 mpv renders a local file inside the Tauri window
 
-The riskiest step — test with a local test file before adding any torrent or streaming logic.
-
-- [ ] Add `libmpv2 = "6"` to `src-tauri/Cargo.toml` (and make the edition/toolchain/profile changes
-      from "Tauri 2 shape" in the same commit — they are prerequisites, not cleanup).
-- [ ] `src-tauri/src/player/mod.rs`: `MpvEngine` owning the `libmpv` handle plus its event loop on a dedicated thread.
-- [ ] MPV Init options: `vo=gpu-next`, `hwdec=auto-safe`, `gpu-api=auto`, `keep-open=yes`, `osc=no`, `input-default-bindings=no`, `input-vo-keyboard=no` — React owns all UI and keyboard inputs.
-- [ ] Cache/decode options from "Performance targets" (`cache`, `demuxer-max-bytes`,
-      `demuxer-readahead-secs`, `cache-pause`, `hr-seek`, `vd-lavc-dr`) — set at init, not
-      discovered later when playback stutters.
-- [ ] **Linux Windowing (XWayland Strategy):** Keep `GDK_BACKEND=x11` in `src-tauri/src/main.rs`. This ensures robust cross-compositor compatibility (Niri, GNOME, KDE Wayland sessions via XWayland) by providing a stable X11 Window ID (`wid`) for `libmpv`.
-- [ ] **Composition via `gtk::Overlay`:**
-  - Base child: Native video render surface (`gtk::DrawingArea` / X11 window) receiving the `wid` from `libmpv`.
-  - Overlay child: Tauri Webview sitting directly on top.
-- [ ] **Webview Transparency:** Set `"transparent": true` in `tauri.conf.json` and `body { background: transparent; }` in CSS. This only makes the HTML background see-through so the mpv video layer underneath is visible (OS-level window transparency/PiP is explicitly disabled).
-- [ ] **UI Controls & Fullscreen Behavior:**
-  - React UI floats on top of the video layer.
-  - Implement mouse-inactivity auto-hide (controls fade out after 2.5s of no cursor movement).
-  - Add Fullscreen toggle triggered via Tauri's window API (`app_handle.fullscreen()`).
-- [ ] Keep the video surface positioned and resized in sync with window resize events.
-- [ ] Confirm `hwdec-current` (not `hwdec`) reports an active hardware decoder (e.g., `vaapi` or `nvdec`).
-- [ ] **Checkpoint:** A local `.mkv` plays with full hardware decoding, React UI overlays correctly, and controls auto-hide seamlessly on Niri/GNOME/KDE.
+- [x] `libmpv2 = "6"` plus the edition/toolchain/profile changes, in one commit.
+- [x] `src-tauri/src/player/mod.rs`: `MpvEngine` owning the libmpv handle, with its event loop on a
+      dedicated OS thread (`wait_event` blocks; a tokio worker held for the length of a film would
+      starve the runtime).
+- [x] Init options: `vo=gpu-next`, `hwdec=auto-safe`, `gpu-api=auto`, `keep-open=yes`, `osc=no`,
+      `input-default-bindings=no`, `input-vo-keyboard=no`.
+- [x] Cache/decode options set at init, not discovered later: `cache`, `demuxer-max-bytes` (256
+      MiB), `demuxer-max-back-bytes` (128 MiB), `demuxer-readahead-secs` (60), `cache-pause` +
+      `cache-pause-wait`, `hr-seek`, `vd-lavc-dr`, `interpolation=no`, `network-timeout`.
+- [x] **Linux windowing:** `GDK_BACKEND=x11` kept, giving libmpv a stable X11 `wid` on every
+      compositor via XWayland.
+- [x] **Composition via `gtk::Overlay`** (`player/surface.rs`): a `gtk::DrawingArea` becomes the
+      base child and Tauri's webview is re-parented on top as the overlay child. Written; **not
+      yet seen on screen.**
+- [x] **Webview transparency:** `"transparent": true` on the window, plus a
+      `body.arcadia-player-open { background: transparent }` class the player route adds while
+      mounted, so the rest of the app stays opaque.
+- [x] Fullscreen toggle through Tauri's window API, and mouse-inactivity auto-hide (2.5 s).
+- [x] Video surface kept in sync with window resize, through `connect_size_allocate` on the
+      toplevel — there is no `gtk::Overlay` to do it for free (see trap #1).
+- [x] `hwdec-current` (not `hwdec`) is read back after `FileLoaded`; software decode logs a warning
+      and raises a badge in the UI rather than passing silently.
 
 ### 1.3 mpv control surface
 
-- [ ] Commands: `player_load(url)`, `player_play`, `player_pause`, `player_seek(seconds)`,
-      `player_set_volume`, `player_set_property(name, value)`, `player_get_property(name)`,
-      `player_stop`.
-- [ ] Observe and push over a **`tauri::ipc::Channel`** — never poll from JS, and don't `emit`
-      per-tick: `time-pos`, `duration`, `pause`, `eof-reached`, `demuxer-cache-state`,
-      `track-list`, `hwdec-current`, `idle-active`. Throttle `time-pos` to 4 Hz **in Rust**.
-- [ ] Coalesce the property observations into one serialisable `PlayerEvent` enum rather than one
-      channel per property — one IPC hop per tick, not eight.
-- [ ] Register in `lib.rs` via `generate_handler!`. These are app-crate commands, so they need **no
-      capability entry**; add capability entries only for the core APIs the player calls
-      (`core:window:allow-set-fullscreen`, later always-on-top for PiP, and the app-data path used
-      by the torrent session). `capabilities/default.json` currently grants only `core:default`.
+- [x] Commands: `player_load` (via `player_start_stream`), `player_play`, `player_pause`,
+      `player_seek`, `player_set_volume`, `player_set_property`, `player_get_property`,
+      `player_stop`, plus `player_init` and `player_subscribe`.
+- [x] Observed and pushed over a **`tauri::ipc::Channel`**, never polled: `time-pos`, `duration`,
+      `pause`, `paused-for-cache`, `demuxer-cache-duration`, `eof-reached`, `idle-active`.
+      `time-pos` is throttled to 4 Hz **in Rust**.
+      Note: only *scalar* properties are observed. libmpv2's `PropertyData` hits `unimplemented!()`
+      on node-typed properties, so observing `demuxer-cache-state` or `track-list` would panic —
+      the scalar equivalents carry everything Phase 1 needs. Phase 2 must read `track-list`
+      on demand rather than observing it.
+- [x] Coalesced into one `PlayerEvent` enum — one IPC hop per tick, not eight.
+- [x] Registered via `generate_handler!`; no capability entries needed for them. Only
+      `core:window:allow-set-fullscreen` / `allow-is-fullscreen` were added to
+      `capabilities/default.json`.
 
 ### 1.4 Torrent engine
 
-- [ ] Add `librqbit = "9"`. **No separate `tokio` runtime** — use `tauri::async_runtime` (see
-      "Tauri 2 shape"); add `tokio` only for its `sync`/`io` types.
-- [ ] Long-lived `Session` built once in `setup`, DHT enabled, storage dir under Tauri app-data
-      (`app.path().app_cache_dir()` for streaming, `app_data_dir()` for kept downloads — they have
-      different lifetimes and different backup expectations).
-- [ ] `SessionOptions`: `fastresume: true`, `persistence: Some(SessionPersistenceConfig::…)` so
-      Phase 3's restart-resume is a config change rather than a rewrite, and a sane `peer_limit`.
-- [ ] `start_stream(info_hash, file_idx, filename, trackers) -> { id, url }`:
-  - build the magnet (see "Magnet construction" — **the `tr=` entries matter**)
-  - `session.add_torrent(AddTorrent::from_url(magnet), Some(AddTorrentOptions { only_files: Some(vec![file_idx]), .. }))`
-  - return the local HTTP stream URL for that file
-- [ ] Serve the file over a small local HTTP endpoint backed by
-      `Api::api_stream(id, file_idx)` (a seekable `FileStream`), honouring `Range` — mpv needs a
-      URL, so a custom `tauri://` protocol is not an option here.
-- [ ] **Secure the stream server.** `127.0.0.1` is not a permission boundary — every process on the
-      machine can reach it. Bind to **port 0** (ephemeral, discovered at runtime) and put a
-      per-session random token in the path (`/stream/{token}/{id}`). Do not expose librqbit's full
-      HTTP API (it includes torrent _control_ endpoints); serve only the read route you wrote.
-- [ ] Handle the magnet→metadata resolution delay as an explicit `resolving` state; it can take
-      seconds before file sizes are even known. Give it a **timeout** (~30 s) that fails over to
-      the next candidate rather than hanging.
-- [ ] **Candidate failover** — the thing that turns "a movie plays" into "any movie plays": if
-      metadata does not resolve, or no peer connects within ~20 s, or throughput stays at zero,
-      automatically try the next ranked candidate and tell the UI which attempt it is on. Give up
-      only after the list is exhausted.
-- [ ] `stream_status(id)` → progress, peers, download rate — pushed over the Channel, not polled.
-- [ ] `stop_stream(id)`; stop **all** streams on `CloseRequested`, `ExitRequested`, and `Drop`.
-- [ ] **Disk policy for "streaming".** Streaming still writes every fetched piece to disk. Without
-      a policy the cache dir grows until the disk is full and "streams by default, downloads only
-      on request" quietly becomes false. Decide and document: delete the torrent's data on
-      `stop_stream` unless it was promoted to a download (Phase 3), plus a size-capped cache dir
-      with LRU eviction on startup.
-- [ ] **Seeding posture.** librqbit uploads while connected. Make it an explicit, configurable
-      decision — stop seeding when playback ends, or keep seeding with a ratio cap — rather than an
-      accident. Note it in the user-facing settings, since it is the family's bandwidth.
-- [ ] **Checkpoint:** a known-good, freely distributable magnet (Sintel / Big Buck Bunny — keep the
-      exact magnet as a checked-in test fixture) streams to mpv and plays; seeking mid-file works;
-      killing the window mid-stream leaves no orphaned session and no growing cache dir.
+- [x] `librqbit = "9"`, no separate tokio runtime — `tauri::async_runtime` throughout.
+- [x] Long-lived `Session` built once in `setup`, storage under `app_cache_dir()/streams`
+      (disposable; Phase 3's kept downloads will use `app_data_dir()`).
+- [x] `SessionOptions`: `fastresume: true`, `persistence: Some(SessionPersistenceConfig::Json{..})`
+      so Phase 3's restart-resume is config rather than a rewrite, and `peer_limit: 64`.
+- [x] `start_stream` builds the magnet (**with every `tr=`**), adds the torrent with
+      `only_files: [file_idx]`, and returns the local stream URL.
+- [x] Served over a small axum route backed by `ManagedTorrent::stream(file_idx)`, honouring
+      `Range` — including the unsatisfiable-vs-malformed distinction, which is unit-tested.
+- [x] **Stream server secured:** bound to port 0 (ephemeral) with a per-session 32-char random
+      token in the path. librqbit's own HTTP API — which includes torrent *control* endpoints — is
+      not mounted.
+- [x] Magnet→metadata resolution is an explicit `resolving` state with a 30 s timeout that fails
+      over rather than hanging.
+- [x] **Candidate failover:** metadata timeout, no peer within 20 s, or zero throughput moves to
+      the next ranked candidate, and the UI is told which attempt it is on
+      (`PlayerEvent::Attempt`). Only an exhausted list is a failure.
+- [x] `stream_status` → progress, peers, download rate, pushed over the Channel at 4 Hz.
+- [x] `stop_stream`; all streams stopped on `CloseRequested`, `ExitRequested`, and `Drop`.
+- [x] **Disk policy decided:** `stop_stream` deletes the torrent's data (`delete_files: true`)
+      unless it was promoted to a download, and the cache dir is LRU-pruned to a 20 GB budget on
+      startup. Both constants live at the top of `src-tauri/src/torrent/mod.rs`.
+- [ ] **Seeding posture — still an open decision, and the one thing in Phase 1 nobody has chosen.** librqbit uploads while connected and nothing
+      currently stops it. `librqbit` has a `disable-upload` cargo feature and `SessionOptions`
+      exposes the flag behind it, so either answer is a small change; it is a bandwidth question
+      for the family, not a technical one. Note it in user-facing settings once decided.
 
 ### 1.5 API — stream discovery
 
-- [ ] `GET /api/v1/installments/:id/streams`:
-  1. resolve the stream id in order: `installments.imdb_id` → `installments.tmdb_id` as `tmdb:…`
-     (only if the Phase 0.5 fixture proved the addon accepts it) → the same two on `titles` when
-     the title has exactly one movie installment. Return a **specific** error code for "no id"
-     versus "no streams" — the UI must be able to tell the family "this film has no identifier yet"
-     rather than "unavailable".
-  2. **re-check visibility** via `visibleTitleIdsForAccount` — the play button being hidden is not
-     access control; without this, a restricted account that knows an installment id can resolve a
-     stream for a title it cannot see
-  3. call the addon, parse, rank
-  4. return typed candidates including `infoHash`, `fileIdx`, `filename`, trackers, and the parsed
-     quality/seeders/size
-- [ ] `integrations/torrent-source.ts` following existing integration conventions: base URL **and
-      config segment** from env, best-effort failure, never throws on provider error.
-- [ ] Parse `sources` into a clean tracker list; drop `dht:` entries.
-- [ ] Read `description ?? title`; parse quality/seeders/size out of the free-text string.
-- [ ] Rank: English heuristic → resolution → seeders → size. **No codec filtering.**
-- [ ] Unit-test the parser against captured fixture JSON — it is pure string parsing over
-      emoji-annotated text and will break silently otherwise. Include a fixture with **missing**
-      `sources`, missing `fileIdx`, and a malformed size string; the parser must degrade, not throw.
-- [ ] Return **all** viable candidates ranked, not just the winner — client-side failover needs the
-      list, and Phase "Deferred"'s quality picker gets it for free.
-- [ ] `AbortSignal.timeout` (~8 s) on the upstream call and a ~15 min in-process response cache,
-      keyed by id + config segment (see "Performance targets").
-- [ ] Add the response schema to `packages/contracts`; regenerate the client.
-- [ ] Handle the case where a stream carries a direct `url` instead of `infoHash` (that is what a
-      debrid-configured addon returns — Phase 6 gets this for free if handled now).
-- [ ] Audit-log nothing here (it is a GET), but do make sure the endpoint is under the
-      authenticated `/api/v1/*` boundary, not the `health`/`invites` exemption list.
+- [x] `GET /api/v1/installments/:id/streams`, resolving the id as `installments.imdb_id` →
+      `installments.tmdb_id` (flag-gated) → the same two on `titles` **only when the title holds
+      exactly one film**, since otherwise the title's id names a different work.
+- [x] Visibility re-checked via `visibleTitleIdsForAccount` — which applies the whole policy
+      (audience/age/risk classification and per-account blocks), not just the private flag. That
+      answers the open question below: playback inherits exactly the rules browsing has.
+- [x] Every failure has its own code: `not_found` (404), `not_permitted` (403), `no_identifier`
+      (409), `unsupported_kind` (400, seasons), `source_unavailable` (502),
+      `source_not_configured` (503). An addon that answers with nothing is a 200 with an empty
+      list — deliberately distinct from an addon that failed.
+- [x] `integrations/torrent-source.ts`: base URL **and** config segment from env, best-effort
+      failure, never throws. `null` means "did not answer"; `[]` means "answered, has nothing".
+- [x] `sources` parsed into a clean tracker list; `dht:` entries dropped.
+- [x] `description ?? title`; quality/seeders/size/indexer parsed out of the emoji-annotated text.
+- [x] Ranked English → resolution → seeders → size, with two guards in front: a `direct` (debrid)
+      source beats every torrent, and a zero-seeder source sinks to the bottom whatever its
+      resolution. **No codec filtering.** Resolution is ranked against
+      `ARCADIA_STREAM_PREFERRED_HEIGHT` (default 1080) rather than "highest wins" — a 40 GB 4K
+      remux cannot meet the 15 s first-frame budget, so naive descending would have quietly broken
+      the stated target.
+- [x] Parser unit-tested against a captured fixture including **missing `sources`, missing
+      `fileIdx`, a malformed size string, a mixed-case infoHash, a `description`-only stream, a
+      zero-seeder stream and an unplayable one**. The whole wire shape is parsed by a Zod schema
+      whose every field carries `.catch()`, so one bad value degrades instead of dropping the
+      response.
+- [x] **All** viable candidates returned ranked, not just the winner — failover needs the list.
+- [x] `AbortSignal.timeout` (~8 s) and a ~15 min in-process cache keyed by base URL + config + id.
+- [x] Response schema in `packages/contracts/src/playback.ts`; client regenerated.
+- [x] `url`-bearing (debrid) streams handled as first-class `direct` candidates, so Phase 6 is
+      mostly configuration.
+- [x] Under the authenticated `/api/v1/*` boundary; no audit row (it is a GET).
 
 ### 1.6 Web — player UI
 
-- [ ] Add `@tauri-apps/api` (not currently a dependency; nothing references `__TAURI__` yet).
-- [ ] **Guard every Tauri call behind a runtime capability check.** The same `apps/web` bundle is
-      also served as a plain SPA (`pnpm dev`, Playwright); importing `@tauri-apps/api` at module
-      scope in a browser context throws. Detect once, degrade to a disabled play button with a
-      "متاح في تطبيق سطح المكتب" explanation — this also keeps the existing e2e suite green.
-- [ ] `PlaybackResolver` implementing the resolver interface, initially `local | torrent`.
-- [ ] Player route: transparent background, React controls over the native surface — play/pause,
-      seek scrubber with buffered ranges, volume, fullscreen, keyboard shortcuts, RTL-correct.
-      Scrubber position via `ref` + rAF, never React state (see "Performance targets").
-- [ ] Buffering UI from `demuxer-cache-state` + rqbit progress; distinguish _resolving metadata_,
-      _buffering_, and _stalled — no peers_.
-- [ ] Error states: no IMDb id on the installment, no streams returned, all candidates dead, mpv
-      failed to init, not permitted.
-- [ ] Honor `account_preferences` (already wired end to end in `features/accounts/routes.ts`):
-      apply `autoplay`; constrain audio-track selection to `allowedAudio`; hide track switching
-      entirely when `canSwitchTracks` is false.
-- [ ] Wire the existing disabled placeholders, all under `apps/web/src/features/`:
-      `platform/work-detail-page.tsx:1003` (`تشغيل الفيلم`), `platform/work-detail-page.tsx:452-454`
-      (`ابدأ بالمشاهدة`, currently anchors to `#family-progress`),
-      `platform/components/watch-radar-hero.tsx:134` (whose tooltip still says
-      "يُفعّل عند ربط هذا العمل بخادم Jellyfin" — reword, torrent comes first now). Refresh the
-      badges at `admin/pages/overview-page.tsx:233` (`التشغيل مؤجل`).
-- [ ] Set a real CSP in `tauri.conf.json` (currently `null`) — it must allow the local stream
-      origin and the YouTube trailer iframe, so write it alongside the transparency change and test
-      both.
-- [ ] `"transparent": true` on the window in `tauri.conf.json`; on macOS this additionally requires
-      `app.macOSPrivateApi: true` (note it now, even though macOS is not a target yet).
-- [ ] Tear down the stream on route exit, window close, and app quit.
-- [ ] **Packaging is part of this phase, not Phase 4.** libmpv is a large runtime dependency: the
-      `.deb` needs a `Depends:` entry, the AppImage needs it bundled, and `pnpm tauri build` does
-      not produce a runnable bundle on NixOS (see README). Confirm in CI that the bundled artifact
-      plays a file — a player verified only under `tauri dev` is a player nobody in the family can
-      install.
-
----
+- [x] `@tauri-apps/api` added.
+- [x] **Every Tauri call guarded.** `@tauri-apps/api` is only ever reached through a dynamic
+      `import()`, behind `isDesktopShell()`. In a browser the play button degrades to a disabled
+      control explaining "متاح في تطبيق سطح المكتب", which also keeps the e2e suite green. The
+      check goes through `useSyncExternalStore` with a `false` server snapshot, so there is no
+      hydration mismatch in the prerendered shell.
+- [x] `PlaybackResolver` (`features/library/playback-resolver.ts`), `local | jellyfin | torrent |
+      debrid` in shape, `torrent`/`debrid` in behaviour.
+- [x] Player route (`/player/$installmentId`), outside the platform shell, transparent background,
+      RTL-correct controls: play/pause, scrubber with a buffered range, mute, fullscreen, keyboard
+      shortcuts. **Scrubber position is a `ref` written inside `requestAnimationFrame`**, which
+      extrapolates between the 4 Hz ticks so it moves at display rate while React commits nothing.
+- [x] Buffering UI distinguishes *resolving metadata*, *trying candidate N of M*, *buffering*, and
+      *stalled — no peers*.
+- [x] Error states for every failure code, plus "all candidates dead" and "mpv failed to init".
+- [x] `autoplay` honoured. `allowedAudio`/`canSwitchTracks` have nothing to gate yet — track
+      switching is Phase 2 — so they are wired at the preference read, not the UI.
+- [x] Placeholders wired: `تشغيل الفيلم` on the episodes tab, `ابدأ بالمشاهدة` in the hero (only
+      when the title holds exactly one film; otherwise it still jumps to the episode list, since
+      "start here" is meaningless for a franchise), the watch-radar tooltip reworded off Jellyfin,
+      and the admin overview badge flipped to "التشغيل عبر التورنت جاهز".
+- [x] Real CSP in `tauri.conf.json` (was `null`), allowing the loopback stream origin and the
+      YouTube trailer iframe.
+- [x] `"transparent": true` on the window. macOS would additionally need
+      `app.macOSPrivateApi: true` — noted, not set, since macOS is not a target.
+- [x] Stream torn down on route exit, window close, and app quit.
+- [x] `.rpm` added to bundle targets and libmpv declared as a `deb`/`rpm` dependency. **Whether the
+      bundle actually plays is still unverified** — see the acceptance run above.
+- [x] Control bar reworked for the shaped surface: full-window chrome layer with the back button
+      top-left and the transport bottom, `pointer-events-none` on the layer so clicks reach the
+      picture and each control opts back in. Real logic behind speed (mpv `speed`), volume, mute
+      and the ranked source list; slots with tooltips for subtitles, audio tracks, download, PiP
+      and cast. Keyboard: `Space`/`k`, `←`/`→` (following the LTR timeline, not the RTL page),
+      `↑`/`↓` for volume in 10 % steps, `f`, `m`, `Esc`.
+- [x] The surface is hidden until the first frame and hidden again on route exit — `keep-open=yes`
+      means mpv holds its last frame forever, which otherwise sits over whatever the app shows
+      next.
 
 # Phase 2 — Subtitles, tracks, resume
 
@@ -864,11 +907,11 @@ reference for the Activity/Surface wiring.
 
 # Open questions — answer before starting the phase that depends on them
 
-| Question                                                                                                                                                                                                                  | Blocks    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| Does the family addon accept `tmdb:` ids, or IMDb only?                                                                                                                                                                   | Phase 0.5 |
-| What confidence threshold separates "auto-accept" from "human confirms"? (Cheap to be conservative — 110 items.)                                                                                                          | Phase 0.5 |
-| Seeding: stop when playback ends, or keep seeding? Whose bandwidth question, not a technical one.                                                                                                                         | Phase 1.4 |
-| Streaming cache size cap, and where it lives (system disk vs. media drive).                                                                                                                                               | Phase 1.4 |
-| OpenSubtitles API key — free tier, registered to which account?                                                                                                                                                           | Phase 2   |
-| Is the play button gated on anything beyond title visibility (per-account age/risk classification already in `packages/domain`)? A family archive with classification levels probably wants playback to respect them too. | Phase 1.6 |
+| Question | Blocks | Status |
+| --- | --- | --- |
+| Does the family addon accept `tmdb:` ids, or IMDb only? | Phase 0.5 / 1.5 | **Still open.** Needs one `curl` against the family deployment; until then `ARCADIA_STREAM_ALLOW_TMDB_IDS` defaults off and only IMDb ids are sent. Nothing is blocked — the catalog is at 100 % IMDb coverage for released films. |
+| What confidence threshold separates "auto-accept" from "human confirms"? | Phase 0.5 | **Moot.** The bulk matcher was never built; every id was entered by hand. |
+| Seeding: stop when playback ends, or keep seeding? | Phase 1.4 | **Still open, and now the last blocker in Phase 1 that is a decision rather than a task.** librqbit uploads while connected and nothing stops it. `disable-upload` is a cargo feature with a matching `SessionOptions` flag, so either answer is a few lines. |
+| Streaming cache size cap, and where it lives. | Phase 1.4 | **Answered:** `app_cache_dir()/streams`, 20 GB, LRU-pruned on startup, and a stream's data is deleted when it stops unless promoted to a download. Constants at the top of `src-tauri/src/torrent/mod.rs` — change them there if 20 GB is wrong for the family's disk. |
+| OpenSubtitles API key — free tier, registered to which account? | Phase 2 | Still open. |
+| Is the play button gated on anything beyond title visibility? | Phase 1.6 | **Answered: yes, and it already is.** The endpoint filters through `visibleTitleIdsForAccount`, which applies the full `VisibilityPolicy` — audience, age, the three risk levels, and per-account title/tag/genre/entity/planet blocks. Playback inherits exactly the rules browsing has, and the hidden play button is not what enforces it. |

@@ -17,7 +17,7 @@ function Slider({
       : [min, max];
 
   return (
-    <DirectionProvider direction="rtl">
+    <DirectionProvider>
       <SliderPrimitive.Root
         className={cn("data-horizontal:w-full data-vertical:h-full ltr", className)}
         data-slot="slider"

@@ -1,0 +1,5 @@
+# Matches the repo's TypeScript settings (biome.json: indentWidth 2, lineWidth 100) and the
+# two-space Rust already in main.rs/build.rs, so `cargo fmt --check` in `pnpm check:rust` agrees
+# with the code that was here before the player landed.
+tab_spaces = 2
+max_width = 100

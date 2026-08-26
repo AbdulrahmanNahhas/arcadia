@@ -5,8 +5,9 @@ description = "Arcadia desktop shell — Arabic-first family media archive."
 authors = ["AbdulrahmanNahhas"]
 license = "UNLICENSED"
 repository = ""
-edition = "2021"
-rust-version = "1.77.2"
+# librqbit and libmpv2 both need a modern toolchain; the previous 1.77.2 floor will not build them.
+edition = "2024"
+rust-version = "1.85"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -21,5 +22,41 @@ tauri-build = { version = "2.6.3", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.11.3", features = [] }
+tauri = { version = "2.11.5", features = [] }
 tauri-plugin-log = "2"
+# Playback and transfer (see docs/player-torrent-roadmap.md). librqbit downloads sequentially by
+# default and re-prioritises pieces on seek; libmpv2 is the maintained binding to the libmpv the
+# Nix/Fedora runtime provides.
+librqbit = "9"
+libmpv2 = "6"
+# Types only — the async runtime is Tauri's own (`tauri::async_runtime` *is* tokio). Standing up
+# a second multi-thread runtime would mean two thread pools competing for cores during playback.
+tokio = { version = "1", features = ["sync", "io-util", "time", "rt", "net", "macros"] }
+tokio-util = { version = "0.7", features = ["io"] }
+axum = "0.8"
+rand = "0.9"
+thiserror = "2"
+anyhow = "1"
+percent-encoding = "2"
+
+# Only for `setlocale` — libmpv refuses to start under a non-C LC_NUMERIC (see player/mod.rs).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# The video surface is a native GTK child window under the transparent webview. These unify with
+# the versions Tauri/wry already resolve to, so the widget and GdkWindow types are the same ones
+# `window.gtk_window()` hands back.
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
+gdk = "0.18"
+gdkx11 = "0.18"
+glib = "0.18"
+
+# A binary that now carries a BitTorrent stack and ffmpeg-adjacent bindings; the defaults leave a
+# lot on the table.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true

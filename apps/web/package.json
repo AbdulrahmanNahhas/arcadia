@@ -26,6 +26,7 @@
     "@tanstack/react-router-ssr-query": "latest",
     "@tanstack/react-start": "latest",
     "@tanstack/router-plugin": "latest",
+    "@tauri-apps/api": "^2.11.1",
     "better-auth": "^1.6.29",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

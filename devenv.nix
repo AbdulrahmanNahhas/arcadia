@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 {
   languages.javascript = {
@@ -41,6 +41,18 @@
   # module-registration setup hook the way a real buildInputs list would.
   env.GIO_EXTRA_MODULES = "${pkgs.glib-networking}/lib/gio/modules";
 
+  # The embedded player (see docs/player-torrent-roadmap.md). libmpv is what src-tauri actually
+  # links against — mpv itself is here so a file can be sanity-checked outside the app — and
+  # libva/libvdpau are the hardware-decode paths `hwdec=auto-safe` picks from. mpv brings its own
+  # ffmpeg, so none of this is for the webview.
+  env.GST_PLUGIN_SYSTEM_PATH_1_0 = lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" [
+    pkgs.gst_all_1.gstreamer
+    pkgs.gst_all_1.gst-plugins-base
+    pkgs.gst_all_1.gst-plugins-good
+    pkgs.gst_all_1.gst-plugins-bad
+    pkgs.gst_all_1.gst-libav
+  ];
+
   packages = with pkgs; [
     biome
     typos
@@ -56,6 +68,21 @@
     openssl
     dbus
     patchelf
+    # Embedded playback: libmpv (headers for libmpv2-sys) plus the GPU/hardware-decode stack
+    # `vo=gpu-next` and `hwdec=auto-safe` need.
+    mpv
+    libGL
+    libva
+    libvdpau
+    # GStreamer is for WebKitGTK, not the player: the YouTube trailer iframe on the work detail
+    # page plays through the webview's own media stack, which had no plugins at all before this.
+    # Same reason as the GIO_EXTRA_MODULES entry above — devenv's plain `packages` list doesn't
+    # run the module-registration setup hooks, so the plugin path is set explicitly.
+    gst_all_1.gstreamer
+    gst_all_1.gst-plugins-base
+    gst_all_1.gst-plugins-good
+    gst_all_1.gst-plugins-bad
+    gst_all_1.gst-libav
   ];
 
   processes.api.exec = "pnpm --filter @arcadia/api dev";

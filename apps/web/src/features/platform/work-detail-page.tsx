@@ -58,6 +58,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { recordHistory } from "@/features/archive/api";
 import { WorkFamilyActions } from "@/features/archive/work-family-actions";
 import type { Entity, Work, WorkStructure } from "@/features/library/model";
+import { PlayFilmButton } from "@/features/library/play-button";
 import { scoreCriteria, scoreLabel, scoreWeights } from "@/features/library/scoring";
 import { useArabicTranslations } from "@/features/library/translations";
 import type { Recommendation, RiskAssessment } from "@/features/platform/model";
@@ -185,7 +186,12 @@ export function WorkDetailPage({
 
   return (
     <PlatformShell>
-      <WorkHero work={work} planet={planet?.planet ?? null} audienceLabel={audienceLabel} />
+      <WorkHero
+        work={work}
+        planet={planet?.planet ?? null}
+        audienceLabel={audienceLabel}
+        playableInstallmentId={soleFilmInstallmentId(structure)}
+      />
 
       <Tabs
         value={activeTab}
@@ -244,6 +250,7 @@ export function WorkDetailPage({
             {hasMedia && (
               <TabsContent value="episodes" className="mt-0 focus-visible:outline-none">
                 <EpisodesSection
+                  workId={work.id}
                   structure={structure}
                   selectedId={selectedInstallmentId}
                   onSelectedIdChange={setSelectedInstallmentId}
@@ -318,14 +325,28 @@ function youtubeEmbedUrl(url: string): string | null {
   }
 }
 
+/**
+ * The hero's play button only means something when there is exactly one film to play. A franchise
+ * or a series has no single "start here", so those keep jumping to the episodes list instead of
+ * guessing which installment the family meant.
+ */
+function soleFilmInstallmentId(structure: WorkStructure) {
+  const films = structure.seasons.filter(
+    (season) => season.installmentKind === "movie" || season.installmentKind === "special",
+  );
+  return films.length === 1 ? (films[0]?.id ?? null) : null;
+}
+
 function WorkHero({
   work,
   planet,
   audienceLabel,
+  playableInstallmentId,
 }: {
   work: Work;
   planet: PlanetInfo;
   audienceLabel: string | null;
+  playableInstallmentId: string | null;
 }) {
   const glow = planet?.primaryColor ?? "#7c8cf8";
   const heroAward =
@@ -448,14 +469,24 @@ function WorkHero({
             )}
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Button
-                size="lg"
-                className="px-8 font-semibold"
-                nativeButton={false}
-                render={<a href="#family-progress" />}
-              >
-                <PlayIcon weight="fill" data-icon="inline-start rotate-90" /> ابدأ بالمشاهدة
-              </Button>
+              {playableInstallmentId ? (
+                <PlayFilmButton
+                  size="lg"
+                  className="px-4 font-semibold"
+                  installmentId={playableInstallmentId}
+                  titleId={work.id}
+                  label="ابدأ بالمشاهدة"
+                />
+              ) : (
+                <Button
+                  size="lg"
+                  className="px-4 font-semibold"
+                  nativeButton={false}
+                  render={<a href="#family-progress" />}
+                >
+                  <PlayIcon weight="fill" data-icon="inline-start rotate-90" /> ابدأ بالمشاهدة
+                </Button>
+              )}
 
               {trailerLink ? (
                 trailerEmbedUrl ? (
@@ -906,10 +937,12 @@ type EpisodePreview = {
 };
 
 function EpisodesSection({
+  workId,
   structure,
   selectedId,
   onSelectedIdChange,
 }: {
+  workId: string;
   structure: WorkStructure;
   selectedId: string;
   onSelectedIdChange: (id: string) => void;
@@ -1002,9 +1035,7 @@ function EpisodesSection({
                 <p className="mt-4 line-clamp-3 leading-7 text-foreground/70">{selected.summary}</p>
               )}
               {isMovie && (
-                <Button className="mt-5" disabled title="يُفعّل عند ربط ملف وسائط بهذا الفيلم">
-                  <PlayIcon weight="fill" data-icon="inline-start" /> تشغيل الفيلم
-                </Button>
+                <PlayFilmButton className="mt-5" installmentId={selected.id} titleId={workId} />
               )}
             </div>
           </div>

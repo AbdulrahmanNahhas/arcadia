@@ -12,7 +12,7 @@
     "test": "pnpm -r test",
     "lint:oxlint": "oxlint .",
     "lint:oxlint:fix": "oxlint . --fix",
-    "check": "pnpm lint:oxlint && biome check . && pnpm typecheck",
+    "check": "pnpm lint:oxlint && biome check . && pnpm typecheck && pnpm check:rust",
     "format": "biome format --write .",
     "db:generate": "pnpm --filter @arcadia/database db:generate",
     "db:migrate": "pnpm --filter @arcadia/database db:migrate",
@@ -27,7 +27,8 @@
     "test:e2e": "pnpm --filter @arcadia/web test:e2e",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build --bundles appimage,deb"
+    "tauri:build": "tauri build --bundles appimage,deb",
+    "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.11",

@@ -1,11 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
-  "windows": [
-    "main"
-  ],
+  "description": "Core defaults plus the narrow window APIs the embedded player calls. Player commands themselves are app-crate commands registered through generate_handler!, which the ACL does not gate — only core APIs and plugin commands need entries here.",
+  "windows": ["main"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen"
   ]
 }

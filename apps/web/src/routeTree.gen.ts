@@ -38,6 +38,7 @@ import { Route as AdminVocabulariesRouteImport } from './routes/admin/vocabulari
 import { Route as AwardsIndexRouteImport } from './routes/awards.index'
 import { Route as AwardsOrganizationSlugRouteImport } from './routes/awards.$organizationSlug'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as PlayerInstallmentIdRouteImport } from './routes/player.$installmentId'
 import { Route as TitlesTitleIdRouteImport } from './routes/titles.$titleId'
 import { Route as EntitiesPeopleIndexRouteImport } from './routes/_entities/people.index'
 import { Route as EntitiesPeoplePersonIdRouteImport } from './routes/_entities/people.$personId'
@@ -196,6 +197,11 @@ const InviteTokenRoute = InviteTokenRouteImport.update({
   path: '/invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayerInstallmentIdRoute = PlayerInstallmentIdRouteImport.update({
+  id: '/player/$installmentId',
+  path: '/player/$installmentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TitlesTitleIdRoute = TitlesTitleIdRouteImport.update({
   id: '/titles/$titleId',
   path: '/titles/$titleId',
@@ -292,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/admin/vocabularies': typeof AdminVocabulariesRoute
   '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/player/$installmentId': typeof PlayerInstallmentIdRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin/': typeof AdminIndexRoute
   '/awards/': typeof AwardsIndexRoute
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/admin/vocabularies': typeof AdminVocabulariesRoute
   '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/player/$installmentId': typeof PlayerInstallmentIdRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin': typeof AdminIndexRoute
   '/awards': typeof AwardsIndexRoute
@@ -376,6 +384,7 @@ export interface FileRoutesById {
   '/admin/vocabularies': typeof AdminVocabulariesRoute
   '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/player/$installmentId': typeof PlayerInstallmentIdRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin/': typeof AdminIndexRoute
   '/awards/': typeof AwardsIndexRoute
@@ -421,6 +430,7 @@ export interface FileRouteTypes {
     | '/admin/vocabularies'
     | '/awards/$organizationSlug'
     | '/invite/$token'
+    | '/player/$installmentId'
     | '/titles/$titleId'
     | '/admin/'
     | '/awards/'
@@ -460,6 +470,7 @@ export interface FileRouteTypes {
     | '/admin/vocabularies'
     | '/awards/$organizationSlug'
     | '/invite/$token'
+    | '/player/$installmentId'
     | '/titles/$titleId'
     | '/admin'
     | '/awards'
@@ -504,6 +515,7 @@ export interface FileRouteTypes {
     | '/admin/vocabularies'
     | '/awards/$organizationSlug'
     | '/invite/$token'
+    | '/player/$installmentId'
     | '/titles/$titleId'
     | '/admin/'
     | '/awards/'
@@ -534,6 +546,7 @@ export interface RootRouteChildren {
   ProfilesRoute: typeof ProfilesRoute
   SettingsRoute: typeof SettingsRoute
   InviteTokenRoute: typeof InviteTokenRoute
+  PlayerInstallmentIdRoute: typeof PlayerInstallmentIdRoute
   TitlesTitleIdRoute: typeof TitlesTitleIdRoute
   TitlesTitleIdInstallmentsInstallmentIdRoute: typeof TitlesTitleIdInstallmentsInstallmentIdRoute
 }
@@ -741,6 +754,13 @@ declare module '@tanstack/react-router' {
       path: '/invite/$token'
       fullPath: '/invite/$token'
       preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/player/$installmentId': {
+      id: '/player/$installmentId'
+      path: '/player/$installmentId'
+      fullPath: '/player/$installmentId'
+      preLoaderRoute: typeof PlayerInstallmentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/titles/$titleId': {
@@ -953,6 +973,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfilesRoute: ProfilesRoute,
   SettingsRoute: SettingsRoute,
   InviteTokenRoute: InviteTokenRoute,
+  PlayerInstallmentIdRoute: PlayerInstallmentIdRoute,
   TitlesTitleIdRoute: TitlesTitleIdRoute,
   TitlesTitleIdInstallmentsInstallmentIdRoute:
     TitlesTitleIdInstallmentsInstallmentIdRoute,

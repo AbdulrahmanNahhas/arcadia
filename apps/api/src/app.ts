@@ -14,7 +14,9 @@ import {
   browseQuerySchema,
   browseResponseSchema,
   healthSchema,
+  installmentStreamsSchema,
   type mediaAssetSchema,
+  streamErrorSchema,
   titleDetailSchema,
   validationIssueSchema,
   vocabularyNameSchema,
@@ -36,6 +38,11 @@ import {
   TitleWriteError,
 } from "./features/titles/write";
 import { searchArtwork } from "./integrations/artwork-search";
+import {
+  fetchStreamCandidates,
+  streamSourceConfigured,
+  tmdbStreamIdsAllowed,
+} from "./integrations/torrent-source";
 import {
   type mediaKinds,
   removeStoredMedia,
@@ -392,6 +399,172 @@ app.openapi(detailRoute, async (context) => {
   );
   return detail ? context.json(detail, 200) : context.json({ message: "Title not found" }, 404);
 });
+
+/**
+ * Ranked playback sources for one installment (see `docs/player-torrent-roadmap.md`, Phase 1.5).
+ * Discovery lives on the API rather than in the desktop shell so the addon URL stays out of a
+ * shipped binary and one upstream call serves the whole family.
+ *
+ * Every failure gets its own code. The player has to be able to tell the family "this film has no
+ * identifier yet" apart from "the source is down" apart from "there are no sources" — the
+ * roadmap's rule is a specific, honest message, never a spinner that never resolves.
+ */
+const installmentStreamsRoute = createRoute({
+  method: "get",
+  path: "/api/v1/installments/{installmentId}/streams",
+  request: { params: z.object({ installmentId: z.string().uuid() }) },
+  responses: {
+    200: {
+      content: { "application/json": { schema: installmentStreamsSchema } },
+      description: "Ranked playback sources, best first",
+    },
+    400: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "This installment kind cannot be streamed yet",
+    },
+    403: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "The account cannot see this title",
+    },
+    404: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "Installment not found",
+    },
+    409: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "The installment carries no identifier the addon accepts",
+    },
+    502: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "The stream source did not answer",
+    },
+    503: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "No stream source is configured in this deployment",
+    },
+  },
+});
+app.openapi(installmentStreamsRoute, async (context) => {
+  const { installmentId } = context.req.valid("param");
+  const [row] = await database().client`
+    select i.title_id, i.kind, i.imdb_id, i.tmdb_id,
+      t.imdb_id as title_imdb_id, t.tmdb_id as title_tmdb_id, t.is_private,
+      (select count(*) from installments sibling
+        where sibling.title_id = i.title_id and sibling.kind in ('movie', 'special')) as film_count
+    from installments i join titles t on t.id = i.title_id
+    where i.id = ${installmentId}`;
+
+  const session = await getAuthSession(context.req.raw.headers);
+  const isStaff = session?.user.role === "owner" || session?.user.role === "editor";
+  if (!row || (row.is_private && !isStaff)) {
+    return context.json({ code: "not_found" as const, message: "لم يُعثر على هذا العمل." }, 404);
+  }
+  const titleId = String(row.title_id);
+
+  // The play button being hidden is not access control. Without this, a restricted account that
+  // knows an installment id could resolve a stream for a title it cannot see. `visibleTitleIds-
+  // ForAccount` applies the whole policy — audience/age/risk classification and per-account
+  // blocks — not just the private flag, so playback inherits the same rules browsing has.
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (current) {
+    const visible = await visibleTitleIdsForAccount(current.account.id, [titleId]);
+    if (!visible.has(titleId)) {
+      return context.json(
+        { code: "not_permitted" as const, message: "هذا العمل خارج نطاق ملفك." },
+        403,
+      );
+    }
+  }
+
+  if (row.kind === "season") {
+    return context.json(
+      {
+        code: "unsupported_kind" as const,
+        message: "تشغيل المسلسلات غير متاح بعد — الأفلام فقط في الوقت الحالي.",
+      },
+      400,
+    );
+  }
+
+  if (!streamSourceConfigured()) {
+    return context.json(
+      { code: "source_not_configured" as const, message: "لم يُضبط مصدر البث في هذا التثبيت." },
+      503,
+    );
+  }
+
+  const resolved = resolveStreamId({
+    installmentImdbId: row.imdb_id ? String(row.imdb_id) : null,
+    installmentTmdbId: positiveIntegerOrNull(row.tmdb_id ? String(row.tmdb_id) : null),
+    titleImdbId: row.title_imdb_id ? String(row.title_imdb_id) : null,
+    titleTmdbId: positiveIntegerOrNull(row.title_tmdb_id ? String(row.title_tmdb_id) : null),
+    filmCount: Number(row.film_count),
+  });
+  if (!resolved) {
+    return context.json(
+      {
+        code: "no_identifier" as const,
+        message: "لا يحمل هذا الفيلم معرّف IMDb بعد، فتعذّر البحث عن مصادر تشغيله.",
+      },
+      409,
+    );
+  }
+
+  const candidates = await fetchStreamCandidates({ type: "movie", id: resolved.streamId });
+  if (!candidates) {
+    return context.json(
+      { code: "source_unavailable" as const, message: "تعذّر الوصول إلى مصدر البث." },
+      502,
+    );
+  }
+
+  return context.json(
+    {
+      installmentId,
+      titleId,
+      streamId: resolved.streamId,
+      idSource: resolved.idSource,
+      candidates,
+    },
+    200,
+  );
+});
+
+/**
+ * `installments.imdb_id` first, then the same two ids on the parent title — but only when the
+ * title has exactly one film under it, since otherwise the title's id names a different work
+ * than the installment being played. `tmdb:` ids stay behind a flag until the family's addon is
+ * confirmed to accept them (roadmap open question); an addon that doesn't answers with an empty
+ * `streams` array rather than an error, which would look like "no sources" instead of "wrong id".
+ */
+function positiveIntegerOrNull(value: string | number | null) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function resolveStreamId(ids: {
+  installmentImdbId: string | null;
+  installmentTmdbId: number | null;
+  titleImdbId: string | null;
+  titleTmdbId: number | null;
+  filmCount: number;
+}) {
+  const allowTmdb = tmdbStreamIdsAllowed();
+  const isOnlyFilm = ids.filmCount === 1;
+  if (ids.installmentImdbId) {
+    return { streamId: ids.installmentImdbId, idSource: "installment.imdb" as const };
+  }
+  if (allowTmdb && ids.installmentTmdbId) {
+    return { streamId: `tmdb:${ids.installmentTmdbId}`, idSource: "installment.tmdb" as const };
+  }
+  if (isOnlyFilm && ids.titleImdbId) {
+    return { streamId: ids.titleImdbId, idSource: "title.imdb" as const };
+  }
+  if (isOnlyFilm && allowTmdb && ids.titleTmdbId) {
+    return { streamId: `tmdb:${ids.titleTmdbId}`, idSource: "title.tmdb" as const };
+  }
+  return null;
+}
 
 const listSchema = z.array(z.record(z.string(), z.unknown()));
 for (const resource of ["planets", "people", "studios", "relationships"] as const) {
