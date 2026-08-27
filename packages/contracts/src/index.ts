@@ -616,11 +616,47 @@ export const upsertTitleStateInputSchema = z.object({
   personalRating: z.number().int().min(1).max(5).nullable().optional(),
   notes: z.string().max(2000).optional(),
 });
+/**
+ * `PUT /api/v1/me/playback` — a progress tick from the player (pause/exit/interval). `isPlayed`
+ * is never accepted here: the server derives it from `positionSeconds`/`durationSeconds` against
+ * `AUTO_WATCHED_THRESHOLD` (`@arcadia/domain`), unless the row was already marked
+ * `playedManually`, in which case that choice sticks. Explicit watched/unwatched toggles go
+ * through `markPlayedInputSchema` instead.
+ */
 export const upsertPlaybackInputSchema = z.object({
   installmentId: z.string().uuid(),
   episodeId: z.string().uuid().nullable().default(null),
   positionSeconds: z.number().int().min(0),
-  completed: z.boolean().default(false),
+  /** Null until the player knows it (e.g. a torrent-backed stream still parsing the container). */
+  durationSeconds: z.number().int().min(0).nullable().default(null),
+});
+/** One playback-progress row, as read back by the API. */
+export const accountPlaybackStateSchema = z.object({
+  id: z.string().uuid(),
+  installmentId: z.string().uuid(),
+  episodeId: z.string().uuid().nullable(),
+  titleId: z.string().uuid(),
+  positionSeconds: z.number().int().min(0),
+  durationSeconds: z.number().int().min(0).nullable(),
+  isPlayed: z.boolean(),
+  playedManually: z.boolean(),
+  playedAt: z.string().nullable(),
+  updatedAt: z.string(),
+});
+/** `PATCH /api/v1/me/playback/:installmentId/played` — an explicit watched/unwatched toggle. */
+export const markPlayedInputSchema = z.object({
+  episodeId: z.string().uuid().nullable().default(null),
+  isPlayed: z.boolean(),
+});
+/**
+ * Bulk "mark season/series as watched or unwatched". Scoped to one installment (a season's
+ * episodes, or a single movie) when `installmentId` is set, or to every installment/episode under
+ * the title when it's omitted — writes one `account_playback_states` row per episode/movie in a
+ * single transaction.
+ */
+export const bulkMarkPlayedInputSchema = z.object({
+  installmentId: z.string().uuid().nullable().default(null),
+  isPlayed: z.boolean(),
 });
 export const upsertReviewInputSchema = z.object({
   rating: z.number().int().min(1).max(5),
@@ -992,6 +1028,10 @@ export type CreateInviteInput = z.infer<typeof createInviteInputSchema>;
 export type AdminUpdateAccountInput = z.infer<typeof adminUpdateAccountInputSchema>;
 export type AccountRestrictionEditor = z.infer<typeof accountRestrictionEditorSchema>;
 export type AccountTitleState = z.infer<typeof accountTitleStateSchema>;
+export type UpsertPlaybackInput = z.infer<typeof upsertPlaybackInputSchema>;
+export type AccountPlaybackState = z.infer<typeof accountPlaybackStateSchema>;
+export type MarkPlayedInput = z.infer<typeof markPlayedInputSchema>;
+export type BulkMarkPlayedInput = z.infer<typeof bulkMarkPlayedInputSchema>;
 export type TitleReview = z.infer<typeof titleReviewSchema>;
 export type TitleComment = z.infer<typeof titleCommentSchema>;
 export type TitleSocial = z.infer<typeof titleSocialSchema>;

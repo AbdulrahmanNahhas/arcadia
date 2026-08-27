@@ -13,6 +13,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -946,11 +947,34 @@ export const accountPlaybackStates = pgTable(
       .references(() => installments.id, { onDelete: "cascade" }),
     episodeId: uuid("episode_id"),
     positionSeconds: integer("position_seconds").notNull().default(0),
-    completed: boolean("completed").notNull().default(false),
+    /**
+     * Duration the player reported alongside `positionSeconds`, in seconds — needed to compute a
+     * watched percentage. Nullable: a torrent-backed stream may not know its duration for a
+     * while, and older rows written before this column existed never had one.
+     */
+    durationSeconds: integer("duration_seconds"),
+    /**
+     * Jellyfin-style watched flag. Auto-computed from `positionSeconds`/`durationSeconds` against
+     * `AUTO_WATCHED_THRESHOLD` (`@arcadia/domain`) unless `playedManually` is set, in which case a
+     * later progress write must not flip it back on its own. Replaces the old `completed` column
+     * (same slot, renamed — see `docs/tracking-dashboard-i18n-roadmap.md` Phase B).
+     */
+    isPlayed: boolean("is_played").notNull().default(false),
+    /** Set once a family member explicitly toggles watched/unwatched, so that choice sticks. */
+    playedManually: boolean("played_manually").notNull().default(false),
+    /** When `isPlayed` last became true — auto or manual. Null while unwatched. */
+    playedAt: timestamp("played_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("account_playback_owner_uq").on(t.accountId, t.installmentId, t.episodeId),
+    // `nullsNotDistinct` matters for movies/specials, which always carry a null `episodeId`: the
+    // default Postgres behaviour (two NULLs are never equal for uniqueness) would let every
+    // progress write for the same movie silently insert a brand-new row instead of updating the
+    // one row a movie is supposed to have — exactly the assumption the read-side endpoints below
+    // depend on.
+    unique("account_playback_owner_uq")
+      .on(t.accountId, t.installmentId, t.episodeId)
+      .nullsNotDistinct(),
     foreignKey({
       columns: [t.episodeId, t.installmentId],
       foreignColumns: [episodes.id, episodes.installmentId],
@@ -958,7 +982,10 @@ export const accountPlaybackStates = pgTable(
     }).onDelete("cascade"),
     index("account_playback_installment_idx").on(t.installmentId),
     index("account_playback_episode_idx").on(t.episodeId),
-    check("playback_position_check", sql`${t.positionSeconds} >= 0`),
+    check(
+      "playback_position_check",
+      sql`${t.positionSeconds} >= 0 and (${t.durationSeconds} is null or ${t.durationSeconds} >= 0)`,
+    ),
   ],
 );
 

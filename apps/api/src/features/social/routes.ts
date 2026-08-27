@@ -1,7 +1,10 @@
 import {
+  accountPlaybackStateSchema,
   accountTitleStateSchema,
+  bulkMarkPlayedInputSchema,
   createCommentInputSchema,
   familyActivitySchema,
+  markPlayedInputSchema,
   notificationSchema,
   reactionInputSchema,
   titleCommentSchema,
@@ -11,7 +14,9 @@ import {
   upsertReviewInputSchema,
   upsertTitleStateInputSchema,
 } from "@arcadia/contracts";
+import { nextIsPlayed } from "@arcadia/domain";
 import { OpenAPIHono } from "@hono/zod-openapi";
+import type postgres from "postgres";
 import { database } from "../../database";
 import { visibleTitleIdsForAccount } from "../../repository";
 import { currentFamilyAccount } from "../accounts/routes";
@@ -35,6 +40,21 @@ function state(row: Row | undefined) {
     isFavorite: row.isFavorite,
     personalRating: row.personalRating == null ? null : Number(row.personalRating),
     notes: row.notes,
+    updatedAt: iso(row.updatedAt),
+  });
+}
+
+function playbackState(row: Row) {
+  return accountPlaybackStateSchema.parse({
+    id: row.id,
+    installmentId: row.installmentId,
+    episodeId: row.episodeId,
+    titleId: row.titleId,
+    positionSeconds: Number(row.positionSeconds),
+    durationSeconds: row.durationSeconds == null ? null : Number(row.durationSeconds),
+    isPlayed: row.isPlayed,
+    playedManually: row.playedManually,
+    playedAt: nullableIso(row.playedAt),
     updatedAt: iso(row.updatedAt),
   });
 }
@@ -127,6 +147,36 @@ socialRoutes.put("/api/v1/me/library/:titleId", async (context) => {
   return context.json(state(saved));
 });
 
+/**
+ * Every episode/movie under an installment, at "playback row" granularity: one entry per movie
+ * (`episodeId: null`) for a `movie`/`special` installment, one entry per episode for a `season`
+ * installment. Shared by the single mark-played and bulk mark-played handlers below.
+ */
+async function playbackTargets(installmentId: string) {
+  const sql = database().client;
+  const [installment] = await sql`select kind from installments where id=${installmentId}`;
+  if (!installment) return null;
+  if (installment.kind !== "season") return [{ installmentId, episodeId: null as string | null }];
+  const episodes = await sql`select id from episodes where installment_id=${installmentId}`;
+  return episodes.map((episode) => ({ installmentId, episodeId: String(episode.id) }));
+}
+
+/** Upserts one playback row with an explicit, manually-chosen `isPlayed`, inside a transaction. */
+async function writeManualPlayed(
+  transaction: postgres.Sql | postgres.TransactionSql,
+  accountId: string,
+  target: { installmentId: string; episodeId: string | null },
+  isPlayed: boolean,
+) {
+  await transaction`insert into account_playback_states
+    (account_id, installment_id, episode_id, is_played, played_manually, played_at)
+    values (${accountId}, ${target.installmentId}, ${target.episodeId}, ${isPlayed}, true,
+      ${isPlayed ? new Date() : null})
+    on conflict (account_id, installment_id, episode_id) do update set
+      is_played=excluded.is_played, played_manually=true, played_at=excluded.played_at,
+      updated_at=now()`;
+}
+
 socialRoutes.put("/api/v1/me/playback", async (context) => {
   const current = await currentFamilyAccount(context.req.raw.headers);
   if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
@@ -138,14 +188,157 @@ socialRoutes.put("/api/v1/me/playback", async (context) => {
   if (!installment || !(await canSeeTitle(current.account.id, String(installment.title_id)))) {
     return context.json({ message: "الجزء غير متاح لهذا الحساب." }, 404);
   }
+  const [existing] = await database().client`
+    select is_played, played_manually, played_at from account_playback_states
+    where account_id=${current.account.id} and installment_id=${input.installmentId}
+      and episode_id is not distinct from ${input.episodeId}`;
+  const wasPlayed = Boolean(existing?.is_played);
+  const isPlayed = nextIsPlayed({
+    positionSeconds: input.positionSeconds,
+    durationSeconds: input.durationSeconds,
+    previouslyPlayedManually: Boolean(existing?.played_manually),
+    previouslyIsPlayed: wasPlayed,
+  });
+  const playedAt = isPlayed ? (wasPlayed ? existing?.played_at : new Date()) : null;
   const [saved] = await database().client`insert into account_playback_states
-    (account_id, installment_id, episode_id, position_seconds, completed)
+    (account_id, installment_id, episode_id, position_seconds, duration_seconds, is_played, played_at)
     values (${current.account.id}, ${input.installmentId}, ${input.episodeId},
-      ${input.positionSeconds}, ${input.completed})
+      ${input.positionSeconds}, ${input.durationSeconds}, ${isPlayed}, ${playedAt})
     on conflict (account_id, installment_id, episode_id) do update set
-      position_seconds=excluded.position_seconds, completed=excluded.completed, updated_at=now()
+      position_seconds=excluded.position_seconds, duration_seconds=excluded.duration_seconds,
+      is_played=excluded.is_played, played_at=excluded.played_at, updated_at=now()
     returning id, updated_at as "updatedAt"`;
   return context.json({ id: String(saved?.id), updatedAt: saved ? iso(saved.updatedAt) : null });
+});
+
+/**
+ * A single installment/episode's playback row, or `null` when nothing has been recorded yet —
+ * the player uses this to resume position and reflect the watched state on open.
+ */
+socialRoutes.get("/api/v1/me/playback/:installmentId", async (context) => {
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
+  const installmentId = context.req.param("installmentId");
+  const episodeId = context.req.query("episodeId") ?? null;
+  const [installment] = await database().client`
+    select title_id from installments where id=${installmentId}`;
+  if (!installment || !(await canSeeTitle(current.account.id, String(installment.title_id)))) {
+    return context.json({ message: "الجزء غير متاح لهذا الحساب." }, 404);
+  }
+  const [row] = await database().client`
+    select id, installment_id as "installmentId", episode_id as "episodeId",
+      ${installment.title_id}::uuid as "titleId", position_seconds as "positionSeconds",
+      duration_seconds as "durationSeconds", is_played as "isPlayed",
+      played_manually as "playedManually", played_at as "playedAt", updated_at as "updatedAt"
+    from account_playback_states
+    where account_id=${current.account.id} and installment_id=${installmentId}
+      and episode_id is not distinct from ${episodeId}`;
+  return context.json(row ? playbackState(row) : null);
+});
+
+/**
+ * Every playback row for one title (`?titleId=`) — the work-detail page's episode watched map and
+ * series progress badge read this — or, with no `titleId`, "continue watching": in-progress,
+ * not-yet-played rows across every title the account can see, most recent first.
+ */
+socialRoutes.get("/api/v1/me/playback", async (context) => {
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
+  const titleId = context.req.query("titleId");
+  const sql = database().client;
+  if (titleId) {
+    if (!(await canSeeTitle(current.account.id, titleId))) {
+      return context.json({ message: "العمل غير متاح لهذا الحساب." }, 404);
+    }
+    const rows = await sql`
+      select s.id, s.installment_id as "installmentId", s.episode_id as "episodeId",
+        i.title_id as "titleId", s.position_seconds as "positionSeconds",
+        s.duration_seconds as "durationSeconds", s.is_played as "isPlayed",
+        s.played_manually as "playedManually", s.played_at as "playedAt",
+        s.updated_at as "updatedAt"
+      from account_playback_states s join installments i on i.id=s.installment_id
+      where s.account_id=${current.account.id} and i.title_id=${titleId}`;
+    return context.json(rows.map(playbackState));
+  }
+  const rows = await sql`
+    select s.id, s.installment_id as "installmentId", s.episode_id as "episodeId",
+      i.title_id as "titleId", s.position_seconds as "positionSeconds",
+      s.duration_seconds as "durationSeconds", s.is_played as "isPlayed",
+      s.played_manually as "playedManually", s.played_at as "playedAt",
+      s.updated_at as "updatedAt"
+    from account_playback_states s join installments i on i.id=s.installment_id
+    where s.account_id=${current.account.id} and not s.is_played and s.position_seconds > 0
+    order by s.updated_at desc limit 30`;
+  const visible = await visibleTitleIdsForAccount(
+    current.account.id,
+    rows.map((row) => String(row.titleId)),
+  );
+  return context.json(rows.filter((row) => visible.has(String(row.titleId))).map(playbackState));
+});
+
+/** Explicit watched/unwatched toggle for one movie/episode — always wins over auto-computation. */
+socialRoutes.patch("/api/v1/me/playback/:installmentId/played", async (context) => {
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
+  const installmentId = context.req.param("installmentId");
+  const parsed = markPlayedInputSchema.safeParse(await context.req.json());
+  if (!parsed.success) return context.json({ message: "طلب غير صالح." }, 400);
+  const input = parsed.data;
+  const [installment] = await database().client`
+    select title_id from installments where id=${installmentId}`;
+  if (!installment || !(await canSeeTitle(current.account.id, String(installment.title_id)))) {
+    return context.json({ message: "الجزء غير متاح لهذا الحساب." }, 404);
+  }
+  if (input.episodeId) {
+    const [episode] = await database().client`
+      select id from episodes where id=${input.episodeId} and installment_id=${installmentId}`;
+    if (!episode) return context.json({ message: "الحلقة غير موجودة في هذا الجزء." }, 404);
+  }
+  await writeManualPlayed(
+    database().client,
+    current.account.id,
+    { installmentId, episodeId: input.episodeId },
+    input.isPlayed,
+  );
+  return context.json({ updated: true });
+});
+
+/**
+ * Bulk "mark season/series as watched or unwatched": one row per movie/episode in a single
+ * transaction. `installmentId: null` marks every installment under the title.
+ */
+socialRoutes.patch("/api/v1/titles/:titleId/playback/played", async (context) => {
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
+  const titleId = context.req.param("titleId");
+  if (!(await canSeeTitle(current.account.id, titleId))) {
+    return context.json({ message: "العمل غير متاح لهذا الحساب." }, 404);
+  }
+  const parsed = bulkMarkPlayedInputSchema.safeParse(await context.req.json());
+  if (!parsed.success) return context.json({ message: "طلب غير صالح." }, 400);
+  const input = parsed.data;
+
+  let installmentIds: string[];
+  if (input.installmentId) {
+    const [installment] = await database().client`
+      select id from installments where id=${input.installmentId} and title_id=${titleId}`;
+    if (!installment) return context.json({ message: "الجزء غير موجود في هذا العمل." }, 404);
+    installmentIds = [input.installmentId];
+  } else {
+    const installments = await database().client`
+      select id from installments where title_id=${titleId}`;
+    installmentIds = installments.map((row) => String(row.id));
+  }
+
+  const targetsByInstallment = await Promise.all(installmentIds.map(playbackTargets));
+  const targets = targetsByInstallment.flatMap((rows) => rows ?? []);
+
+  await database().client.begin(async (transaction) => {
+    for (const target of targets) {
+      await writeManualPlayed(transaction, current.account.id, target, input.isPlayed);
+    }
+  });
+  return context.json({ updated: targets.length });
 });
 
 socialRoutes.get("/api/v1/titles/:titleId/social", async (context) => {

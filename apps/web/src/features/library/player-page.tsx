@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCurrentAccount } from "@/features/accounts/api";
+import { updatePlaybackProgress } from "@/features/social/api";
 import {
   desktopPlayer,
   type PlayerEvent,
@@ -42,6 +43,12 @@ type Status = "starting" | "resolving" | "buffering" | "playing" | "error";
 const CONTROLS_TIMEOUT_MS = 2_500;
 /** One arrow press moves the volume a noticeable amount; 1 % steps would need 100 presses. */
 const VOLUME_STEP = 10;
+/**
+ * How often progress is persisted while playing, on top of the pause/exit writes below — the
+ * Jellyfin-style tracking roadmap's "read path" (`docs/tracking-dashboard-i18n-roadmap.md`,
+ * Phase B; folds in `docs/player-torrent-roadmap.md`'s Phase 2 write side).
+ */
+const PROGRESS_PERSIST_INTERVAL_MS = 20_000;
 /**
  * Everything the video surface must not cover. `data-video-overlay` marks the player's own
  * chrome; the two `data-slot` values are what the shared Popover and Tooltip primitives already
@@ -100,6 +107,30 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
    * the small cut-outs the controls occupy.
    */
   const wakeControls = useRef<() => void>(() => {});
+  /**
+   * Writes the current position/duration to `PUT /api/v1/me/playback`. Held in a ref (rather than
+   * called directly) so the pause/exit call sites and the periodic-interval effect below don't
+   * need `duration` in their own dependency arrays — the streaming-start effect in particular must
+   * never restart because `duration` changed mid-playback.
+   *
+   * Every installment the player opens today is a movie/special (`episodeId: null`): TV episode
+   * playback is deferred past this phase (see the episode list's disabled state in
+   * `work-detail-page.tsx`), so there is no episode id to carry yet.
+   */
+  const persistProgress = useRef<() => void>(() => {});
+  useEffect(() => {
+    persistProgress.current = () => {
+      const position = Math.round(tick.current.position);
+      if (position <= 0) return;
+      const total = tick.current.duration || duration;
+      void updatePlaybackProgress({
+        installmentId,
+        episodeId: null,
+        positionSeconds: position,
+        durationSeconds: total > 0 ? Math.round(total) : null,
+      }).catch(() => undefined);
+    };
+  }, [installmentId, duration]);
 
   // Only the pre-first-frame states get the big centred panel: until mpv has a picture there is
   // nothing behind it to obscure. Mid-playback buffering is reported inside the bar instead.
@@ -236,6 +267,8 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
 
     return () => {
       cancelled = true;
+      // Persist one last time before tearing the stream down, so leaving mid-film is never lost.
+      persistProgress.current();
       // Hide the surface *before* stopping: mpv keeps its last frame on screen (`keep-open=yes`),
       // and an un-hidden surface would sit over the page navigated to next.
       void desktopPlayer.setOverlay(false, []).catch(() => undefined);
@@ -243,6 +276,16 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
       void desktopPlayer.stop().catch(() => undefined);
     };
   }, [desktop, installmentId, onEvent, fail, preferences]);
+
+  // Periodic progress persistence, independent of the streaming-start effect above so a duration
+  // update (which that ref absorbs, see its own effect) never restarts the stream.
+  useEffect(() => {
+    if (!desktop) return;
+    const interval = window.setInterval(() => {
+      persistProgress.current();
+    }, PROGRESS_PERSIST_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [desktop]);
 
   // Smooth scrubber. Nothing in this loop touches React state, so the overlay never re-renders
   // while the film plays.
@@ -415,6 +458,7 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
     const next = !paused;
     setPaused(next);
     showFeedback({ kind: next ? "pause" : "play" });
+    if (next) persistProgress.current();
     await (next ? desktopPlayer.pause() : desktopPlayer.play()).catch(() => undefined);
   }, [paused, showFeedback]);
 

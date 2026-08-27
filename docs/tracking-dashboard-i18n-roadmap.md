@@ -1,8 +1,8 @@
 # Tracking Overhaul, Watch Gating, My Space Redesign & i18n Fixes
 
-> **Status:** Phase A done in code (2026-08-27); **migration not yet applied — run
-> `devenv shell -- pnpm db:migrate` against your dev DB before relying on this.** · Last revised
-> 2026-08-27
+> **Status:** Phases A and B done in code (2026-08-27); **neither phase's migration is applied yet
+> — run `devenv shell -- pnpm db:migrate` against your dev DB before relying on either (0018 for
+> Phase A, 0019 for Phase B).** · Last revised 2026-08-27
 > **Updating this doc:** tick checkboxes as tasks land; set each phase's status line to
 > `Done (YYYY-MM-DD)` when its goal is met.
 
@@ -79,39 +79,79 @@ gets a real redesign, and two unrelated Arabic-rendering bugs need fixing.
 
 ## Phase B — Jellyfin-style progress tracking (replaces it)
 
+**Status:** Done (2026-08-27).
+
 **Goal:** an episode/movie is "watched" once played past a threshold, with a manual override, and
 this is what "continue watching" / "up next" / series-progress badges are driven by.
 
-- [ ] Schema — extend `account_playback_states` rather than reintroduce a status enum:
-  - [ ] `durationSeconds integer` (needed to compute a percentage; currently only
-        `positionSeconds` exists)
-  - [ ] `isPlayed boolean not null default false` (rename semantics of the existing `completed`
-        column, or add alongside and drop `completed` — pick one, don't keep both)
-  - [ ] `playedManually boolean not null default false` — so an auto-set flag never gets silently
-        clobbered by a later auto-recompute once the user has explicitly toggled it
-  - [ ] `playedAt timestamp` (nullable)
-  - [ ] Migration + note here. This *is* `docs/player-torrent-roadmap.md`'s Phase 2 "playback
-        state read path" work — fold it in rather than duplicating.
-- [ ] API (`apps/api/src/features/social/routes.ts`):
-  - [ ] Extend `PUT /api/v1/me/playback` to accept `durationSeconds`; server computes `isPlayed =
-        position/duration >= threshold` unless `playedManually` is set.
-  - [ ] New `PATCH /api/v1/me/playback/:installmentId/played` (or similar) — explicit mark
-        watched/unwatched, sets `playedManually=true`.
-  - [ ] Add the missing **read** endpoints: `GET /api/v1/me/playback/:installmentId` and a list
-        form for "continue watching", visibility-checked like the existing `PUT`.
-  - [ ] Bulk endpoint for season/series-level "mark all watched/unwatched" (writes one row per
-        episode/movie in a transaction).
-- [ ] Contracts: `upsertPlaybackInputSchema` gets `durationSeconds`; new schemas for the
-      mark-played and bulk endpoints; regenerate client.
-- [ ] Web — player (`apps/web/src/routes/player.$installmentId.tsx` + player state hook): persist
-      `durationSeconds` alongside position on pause/exit/interval.
-- [ ] Web — surfaces that need a watched/unwatched affordance:
-  - [ ] Episode list rows and movie cards: a Jellyfin-style checkmark toggle.
-  - [ ] Season/series header: "mark season as watched" bulk action.
-  - [ ] Series-level progress badge = `watched episodes / total episodes` computed from
-        installment rows, not stored redundantly on `titles`.
-- [ ] Decide and hardcode the threshold (see Open Questions) as a single named constant shared by
-      API and any client-side display, not duplicated.
+- [x] Schema — extend `account_playback_states` rather than reintroduce a status enum:
+  - [x] `durationSeconds integer` (needed to compute a percentage; currently only
+        `positionSeconds` exists) — nullable: a torrent-backed stream, and every pre-Phase-B row,
+        may not have one.
+  - [x] `isPlayed boolean not null default false` — **renamed** from `completed` via a real SQL
+        `RENAME COLUMN` (not drop+add), so existing values carry forward as the starting
+        auto-computed state rather than being discarded.
+  - [x] `playedManually boolean not null default false` — so an auto-set flag never gets silently
+        clobbered by a later auto-recompute once the user has explicitly toggled it.
+  - [x] `playedAt timestamp` (nullable).
+  - [x] Migration: `packages/database/drizzle/0019_tough_zarek.sql`. **Not yet applied — run
+        `devenv shell -- pnpm db:migrate` yourself**, same as Phase A's 0018. This *is*
+        `docs/player-torrent-roadmap.md`'s Phase 2 "playback state read path" work, folded in here
+        rather than duplicated later (that other roadmap's `subtitle_offset_ms` addition is still
+        its own future migration, untouched).
+  - [x] Unplanned but load-bearing fix bundled into the same migration: `account_playback_states`'
+        unique key (`account_id, installment_id, episode_id`) is now `UNIQUE NULLS NOT DISTINCT`.
+        Every movie/special row has `episode_id = null`, and plain Postgres uniqueness treats two
+        NULLs as distinct — so every progress write for the same film was silently *inserting a
+        new row* instead of updating the one row a movie is supposed to have. Phase B's own
+        single-row `GET`/upsert endpoints depend on that not happening, so this was fixed here
+        rather than filed separately.
+- [x] API (`apps/api/src/features/social/routes.ts`):
+  - [x] `PUT /api/v1/me/playback` now accepts `durationSeconds`; the server computes `isPlayed`
+        via `nextIsPlayed()`/`AUTO_WATCHED_THRESHOLD` (`@arcadia/domain`) unless `playedManually`
+        is already set, in which case the stored value is kept as-is.
+  - [x] `PATCH /api/v1/me/playback/:installmentId/played` — explicit mark watched/unwatched
+        (`{ episodeId, isPlayed }` body), sets `playedManually=true`.
+  - [x] Read endpoints: `GET /api/v1/me/playback/:installmentId?episodeId=` (single row, or
+        `null`) and `GET /api/v1/me/playback` — with `?titleId=` for every row under one title
+        (drives the episode watched map/series badge below), or without it for "continue
+        watching" (in-progress, not-yet-played rows, newest first). Both visibility-checked the
+        same way as the existing `PUT`.
+  - [x] `PATCH /api/v1/titles/:titleId/playback/played` — bulk mark watched/unwatched, one row per
+        movie/episode in a single transaction; `{ installmentId: null, isPlayed }` marks the whole
+        title, `{ installmentId, isPlayed }` scopes to one season (or one movie).
+- [x] Contracts: `upsertPlaybackInputSchema` gets `durationSeconds` (its old `completed` field is
+      gone — the server derives `isPlayed`, callers never send it); new `accountPlaybackStateSchema`
+      (read shape), `markPlayedInputSchema`, `bulkMarkPlayedInputSchema`. `pnpm client:generate`
+      run and produces **no diff**: none of the social/library/playback routes are
+      `app.openapi()`-registered (same as every other endpoint in that file), so the generated
+      OpenAPI client was never going to reflect this shape either way — confirmed rather than
+      assumed.
+- [x] Web — player (`apps/web/src/features/library/player-page.tsx`): persists
+      `positionSeconds`/`durationSeconds` via `PUT /api/v1/me/playback` on pause, on leaving the
+      route, and on a 20-second interval while playing — held behind a ref (like the existing
+      `wakeControls` pattern in the same file) so the write path never re-triggers the
+      streaming-start effect. **Deliberately not done:** resuming from the saved position on open
+      (the read half) — not in this phase's own checklist line (only referenced in the schema note
+      above as "the same migration also covers it"); `GET /api/v1/me/playback/:installmentId`
+      exists and this is a trivial follow-up whenever it's wanted.
+- [x] Web — surfaces with a watched/unwatched affordance, in
+      `apps/web/src/features/platform/work-detail-page.tsx`'s episodes tab:
+  - [x] Episode list rows (`EpisodeCard`) get an independent checkmark toggle button, overlaid on
+        the existing disabled play affordance (episodes have no playable source yet — this tracks
+        watched state regardless); movie/season selector cards show a filled checkmark badge when
+        watched.
+  - [x] Season header: "وضع علامة الموسم كمُشاهَد" bulk action (and its movie equivalent, a
+        watched/unwatched toggle button next to the film's play button).
+  - [x] Series-level progress badge (`N من M تمّت مشاهدته`) shown in the episodes tab, computed on
+        each render from the fetched playback rows plus `structure.seasons`/`units` — a movie
+        counts as one trackable unit, a season's units are its episodes; nothing is stored on
+        `titles`. (Scope note: the equivalent "movie card" checkmark in `OverviewSection`'s
+        separate installment-poster scroller was left untouched to keep this diff to one
+        component; the episodes-tab selector strip already covers every movie/season.)
+- [x] Threshold hardcoded as `AUTO_WATCHED_THRESHOLD` in `packages/domain/src/playback.ts` (90%,
+      see Open Questions below), imported by both the API (`nextIsPlayed()`) and available to any
+      future client-side display — not duplicated.
 
 ## Phase C — Watch-button gating
 
@@ -188,12 +228,12 @@ progress data.
 
 ## Open questions to settle before Phase B starts
 
-| Question | Why it blocks |
-| --- | --- |
-| Auto-watched threshold: 90%, 95%, or configurable? | Named constant used by API + UI; pick one now, make configurable later if wanted. |
-| Keep the `collections` feature/table anywhere in the app, or delete it entirely with the dashboard tab? | Phase D scope — "add to collection" from a title page may or may not still exist. |
-| `completed` column on `account_playback_states`: rename to `isPlayed`, or add new columns alongside and deprecate `completed`? | Migration shape. |
-| Feed sidebar (Phase D) — global (all routes) or scoped to `/archive`'s panels only for v1? | Component API shape. |
+| Question | Why it blocks | Resolution |
+| --- | --- | --- |
+| Auto-watched threshold: 90%, 95%, or configurable? | Named constant used by API + UI; pick one now, make configurable later if wanted. | **Settled (Phase B): 90%,** hardcoded as `AUTO_WATCHED_THRESHOLD` in `packages/domain/src/playback.ts`. The product owner declined to pin an exact number when asked directly, so this is a default chosen to match Jellyfin/Plex/Trakt's own defaults, not a confirmed product decision — revisit here first if it ever needs to change or become per-account configurable. |
+| Keep the `collections` feature/table anywhere in the app, or delete it entirely with the dashboard tab? | Phase D scope — "add to collection" from a title page may or may not still exist. | Still open — Phase D. |
+| `completed` column on `account_playback_states`: rename to `isPlayed`, or add new columns alongside and deprecate `completed`? | Migration shape. | **Settled (Phase B): renamed**, via a real SQL `RENAME COLUMN` in `0019_tough_zarek.sql` (not drop-and-add), so pre-Phase-B values carry forward instead of being discarded. |
+| Feed sidebar (Phase D) — global (all routes) or scoped to `/archive`'s panels only for v1? | Component API shape. | Still open — Phase D. |
 
 ## Suggested order
 
