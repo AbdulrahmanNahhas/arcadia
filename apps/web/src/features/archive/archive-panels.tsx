@@ -43,7 +43,6 @@ import {
   clearHistory,
   createArchiveRequest,
   createCollection,
-  createSavedView,
   getArchiveRequests,
   getCalendar,
   getCollections,
@@ -53,7 +52,6 @@ import {
   getLibrary,
   getNotifications,
   getRecommendations,
-  getSavedViews,
   readNotification,
   respondRecommendation,
   toggleFollow,
@@ -62,13 +60,6 @@ import {
 
 const dateFormat = new Intl.DateTimeFormat("ar", { dateStyle: "medium" });
 const dateTimeFormat = new Intl.DateTimeFormat("ar", { dateStyle: "medium", timeStyle: "short" });
-const statusLabels = {
-  planned: "أخطط له",
-  watching: "أشاهده",
-  completed: "مكتمل",
-  paused: "متوقف",
-  dropped: "متروك",
-} as const;
 
 function PanelTitle({ title, description }: { title: string; description: string }) {
   return (
@@ -103,7 +94,7 @@ export function ArchiveOverview() {
   const notifications =
     useQuery({ queryKey: archiveKeys.notifications, queryFn: getNotifications }).data ?? [];
   const cards = [
-    ["في مكتبتي", library.length, BooksIcon, "حالاتك وتقييماتك"],
+    ["في مكتبتي", library.length, BooksIcon, "مفضلاتك وتقييماتك"],
     ["مجموعاتي", collections.length, FolderPlusIcon, "خاصة أو مشتركة"],
     [
       "إصدارات قادمة",
@@ -143,8 +134,8 @@ export function ArchiveOverview() {
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
           <QuickStat
-            label="قيد المشاهدة"
-            value={library.filter((item) => item.status === "watching").length}
+            label="مقيَّمة شخصيًا"
+            value={library.filter((item) => item.personalRating !== null).length}
           />
           <QuickStat label="في المفضلة" value={library.filter((item) => item.isFavorite).length} />
           <QuickStat
@@ -167,75 +158,12 @@ function QuickStat({ label, value }: { label: string; value: number }) {
 }
 
 export function LibraryPanel() {
-  const client = useQueryClient();
   const query = useQuery({ queryKey: archiveKeys.library, queryFn: getLibrary });
-  const views = useQuery({ queryKey: archiveKeys.views, queryFn: getSavedViews });
-  const [status, setStatus] = useState<string>("all");
-  const [viewName, setViewName] = useState("");
-  const createView = useMutation({
-    mutationFn: () =>
-      createSavedView({
-        name: viewName,
-        query: status === "all" ? {} : { status },
-        notifyNew: false,
-      }),
-    onSuccess: async () => {
-      setViewName("");
-      await client.invalidateQueries({ queryKey: archiveKeys.views });
-    },
-  });
   if (query.isLoading) return <Loading />;
-  const items = (query.data ?? []).filter((item) => status === "all" || item.status === status);
+  const items = query.data ?? [];
   return (
     <>
-      <PanelTitle title="مكتبتي" description="القائمة الشخصية والتقييمات والحالات في عرض واحد." />
-      <Card className="mb-5">
-        <CardContent className="flex flex-wrap items-end gap-3 p-4">
-          <Field className="min-w-44">
-            <FieldLabel>الحالة</FieldLabel>
-            <Select value={status} onValueChange={(value) => setStatus(value ?? "all")}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل الحالات</SelectItem>
-                {Object.entries(statusLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field className="min-w-48 flex-1">
-            <FieldLabel>اسم العرض المحفوظ</FieldLabel>
-            <Input
-              value={viewName}
-              onChange={(event) => setViewName(event.target.value)}
-              placeholder="مثلاً: أشاهدها الآن"
-            />
-          </Field>
-          <Button
-            variant="outline"
-            disabled={viewName.trim().length < 2 || createView.isPending}
-            onClick={() => createView.mutate()}
-          >
-            حفظ العرض
-          </Button>
-          {views.data?.map((view) => (
-            <Button
-              key={view.id}
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                setStatus(typeof view.query.status === "string" ? view.query.status : "all")
-              }
-            >
-              {view.name}
-            </Button>
-          ))}
-        </CardContent>
-      </Card>
+      <PanelTitle title="مكتبتي" description="المفضلة والتقييمات الشخصية في عرض واحد." />
       {items.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((item) => (
@@ -255,9 +183,6 @@ export function LibraryPanel() {
                   {item.title}
                 </h3>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {item.status ? (
-                    <Badge variant="secondary">{statusLabels[item.status]}</Badge>
-                  ) : null}
                   {item.isFavorite ? (
                     <Badge variant="outline">
                       <HeartIcon weight="fill" /> مفضلة
@@ -275,7 +200,7 @@ export function LibraryPanel() {
         </div>
       ) : (
         <Blank icon={<BooksIcon />} title="مكتبتك جاهزة">
-          أضف حالة مشاهدة أو مفضلة من أي صفحة عمل.
+          أضف مفضلة أو تقييمًا شخصيًا من أي صفحة عمل.
         </Blank>
       )}
     </>

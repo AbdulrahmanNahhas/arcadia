@@ -25,9 +25,7 @@ export async function getPlatformHome() {
   const [works, planets, library, familyActivity] = await Promise.all([
     allWorks(),
     planetsWithWorks(),
-    apiFetch<Array<{ titleId: string; status: string | null; isFavorite: boolean }>>(
-      "/api/v1/me/library",
-    ).catch(() => []),
+    apiFetch<Array<{ titleId: string; isFavorite: boolean }>>("/api/v1/me/library").catch(() => []),
     apiFetch<FamilyActivity[]>("/api/v1/family/activity").catch(() => []),
   ]);
   const rated = [...works]
@@ -35,9 +33,9 @@ export async function getPlatformHome() {
     .sort((a, b) => (b.calculatedRating ?? 0) - (a.calculatedRating ?? 0));
   return {
     watchRadar: selectHeroWorks(works, library),
-    continueExploring: library
-      .filter((item) => item.status === "watching")
-      .flatMap((item) => works.find((work) => work.id === item.titleId) ?? []),
+    // TODO(tracking): drive this from real playback progress once Phase B of
+    // docs/tracking-dashboard-i18n-roadmap.md lands — status-based "continue watching" is gone.
+    continueExploring: [] as Work[],
     highlyRated: rated.slice(0, 18),
     recentlyUpdated: [...works]
       .sort((left, right) => right.catalogUpdatedAt - left.catalogUpdatedAt)
@@ -52,10 +50,7 @@ export async function getAdminWatchRadar() {
   return selectHeroWorks(works, []);
 }
 
-function selectHeroWorks(
-  works: Work[],
-  library: Array<{ titleId: string; status: string | null; isFavorite: boolean }>,
-) {
+function selectHeroWorks(works: Work[], library: Array<{ titleId: string; isFavorite: boolean }>) {
   const stateById = new Map(library.map((item) => [item.titleId, item]));
   const day = Math.floor(Date.now() / 86_400_000);
   const stableNoise = (id: string) => {
@@ -73,14 +68,7 @@ function selectHeroWorks(
           : work.releaseStatus === "upcoming" || work.releaseStatus === "returning"
             ? 34
             : Math.max(0, (work.year ?? 0) - new Date().getFullYear() + 8) * 2;
-      const personalBoost =
-        state?.status === "watching"
-          ? 55
-          : state?.isFavorite
-            ? 16
-            : state?.status === "completed"
-              ? -20
-              : 0;
+      const personalBoost = state?.isFavorite ? 16 : 0;
       return {
         work,
         score:

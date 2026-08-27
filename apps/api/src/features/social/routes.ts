@@ -32,12 +32,9 @@ function state(row: Row | undefined) {
   if (!row) return null;
   return accountTitleStateSchema.parse({
     titleId: row.titleId,
-    status: row.status,
     isFavorite: row.isFavorite,
     personalRating: row.personalRating == null ? null : Number(row.personalRating),
     notes: row.notes,
-    startedAt: nullableIso(row.startedAt),
-    completedAt: nullableIso(row.completedAt),
     updatedAt: iso(row.updatedAt),
   });
 }
@@ -80,9 +77,8 @@ socialRoutes.get("/api/v1/me/library", async (context) => {
   const current = await currentFamilyAccount(context.req.raw.headers);
   if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
   const rows = await database().client`
-    select s.title_id as "titleId", s.status, s.is_favorite as "isFavorite",
-      s.personal_rating as "personalRating", s.notes, s.started_at as "startedAt",
-      s.completed_at as "completedAt", s.updated_at as "updatedAt",
+    select s.title_id as "titleId", s.is_favorite as "isFavorite",
+      s.personal_rating as "personalRating", s.notes, s.updated_at as "updatedAt",
       coalesce(t.title_ar, t.canonical_title) as title,
       (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
         where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath"
@@ -112,7 +108,6 @@ socialRoutes.put("/api/v1/me/library/:titleId", async (context) => {
     select * from account_title_states where account_id=${current.account.id} and title_id=${titleId}`;
   const input = parsed.data;
   const next = {
-    status: input.status !== undefined ? input.status : (existing?.status ?? null),
     isFavorite: input.isFavorite !== undefined ? input.isFavorite : Boolean(existing?.is_favorite),
     personalRating:
       input.personalRating !== undefined
@@ -120,21 +115,15 @@ socialRoutes.put("/api/v1/me/library/:titleId", async (context) => {
         : (existing?.personal_rating ?? null),
     notes: input.notes !== undefined ? input.notes : String(existing?.notes ?? ""),
   };
-  const now = new Date().toISOString();
-  const existingStartedAt = existing?.started_at ? iso(existing.started_at) : null;
   const [saved] = await database().client`insert into account_title_states
-    (account_id, title_id, status, is_favorite, personal_rating, notes, started_at, completed_at)
-    values (${current.account.id}, ${titleId}, ${next.status}, ${next.isFavorite},
-      ${next.personalRating}, ${next.notes},
-      ${next.status === "watching" ? now : existingStartedAt},
-      ${next.status === "completed" ? now : null})
-    on conflict (account_id, title_id) do update set status=excluded.status,
+    (account_id, title_id, is_favorite, personal_rating, notes)
+    values (${current.account.id}, ${titleId}, ${next.isFavorite},
+      ${next.personalRating}, ${next.notes})
+    on conflict (account_id, title_id) do update set
       is_favorite=excluded.is_favorite, personal_rating=excluded.personal_rating,
-      notes=excluded.notes, started_at=coalesce(account_title_states.started_at, excluded.started_at),
-      completed_at=excluded.completed_at, updated_at=now()
-    returning title_id as "titleId", status, is_favorite as "isFavorite",
-      personal_rating as "personalRating", notes, started_at as "startedAt",
-      completed_at as "completedAt", updated_at as "updatedAt"`;
+      notes=excluded.notes, updated_at=now()
+    returning title_id as "titleId", is_favorite as "isFavorite",
+      personal_rating as "personalRating", notes, updated_at as "updatedAt"`;
   return context.json(state(saved));
 });
 
@@ -168,9 +157,8 @@ socialRoutes.get("/api/v1/titles/:titleId/social", async (context) => {
   }
   const sql = database().client;
   const [states, reviews, comments] = await Promise.all([
-    sql`select title_id as "titleId", status, is_favorite as "isFavorite",
-      personal_rating as "personalRating", notes, started_at as "startedAt",
-      completed_at as "completedAt", updated_at as "updatedAt"
+    sql`select title_id as "titleId", is_favorite as "isFavorite",
+      personal_rating as "personalRating", notes, updated_at as "updatedAt"
       from account_title_states where account_id=${current.account.id} and title_id=${titleId}`,
     sql`select r.id, r.title_id as "titleId", r.rating, r.body,
       r.contains_spoilers as "containsSpoilers", r.created_at as "createdAt",
@@ -328,10 +316,9 @@ socialRoutes.get("/api/v1/family/activity", async (context) => {
       select c.id::text, 'comment', c.account_id, c.title_id, c.body,
         null::integer, c.created_at from title_comments c where c.moderation_status='published'
       union all
-      select concat(s.account_id, ':', s.title_id),
-        case when s.is_favorite then 'favorite' else 'status' end,
-        s.account_id, s.title_id, s.status::text, s.personal_rating, s.updated_at
-        from account_title_states s where s.is_favorite or s.status is not null
+      select concat(s.account_id, ':', s.title_id), 'favorite',
+        s.account_id, s.title_id, null::text, s.personal_rating, s.updated_at
+        from account_title_states s where s.is_favorite
     ) activity join accounts a on a.id=activity.account_id
     join titles t on t.id=activity.title_id where a.is_discoverable
     order by activity.created_at desc limit 60`;

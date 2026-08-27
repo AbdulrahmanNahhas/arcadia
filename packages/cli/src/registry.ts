@@ -344,8 +344,8 @@ export const resources: readonly Resource[] = [
   {
     name: "library",
     table: "account_title_states",
-    summary: "Per-account watch status for a title.",
-    listColumns: ["account_id", "title_id", "status", "rating", "updated_at"],
+    summary: "Per-account favorite/rating/notes for a title.",
+    listColumns: ["account_id", "title_id", "is_favorite", "personal_rating", "updated_at"],
     orderBy: "updated_at desc",
   },
   {

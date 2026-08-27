@@ -13,7 +13,7 @@ export function getTitleSocial(titleId: string) {
 
 export function updateTitleState(
   titleId: string,
-  input: Partial<Pick<AccountTitleState, "status" | "isFavorite" | "personalRating" | "notes">>,
+  input: Partial<Pick<AccountTitleState, "isFavorite" | "personalRating" | "notes">>,
 ) {
   return apiFetch<AccountTitleState>(`/api/v1/me/library/${titleId}`, {
     method: "PUT",

@@ -30,13 +30,6 @@ export const releaseStatusEnum = pgEnum("release_status", [
 export const entityKindEnum = pgEnum("entity_kind", ["person", "organization"]);
 export const accountKindEnum = pgEnum("account_kind", ["admin", "family", "personal"]);
 export const accountStatusEnum = pgEnum("account_status", ["invited", "active", "suspended"]);
-export const libraryStatusEnum = pgEnum("library_status", [
-  "planned",
-  "watching",
-  "completed",
-  "paused",
-  "dropped",
-]);
 export const moderationStatusEnum = pgEnum("moderation_status", ["published", "hidden"]);
 export const mediaAssetRoleEnum = pgEnum("media_asset_role", [
   "poster",
@@ -978,12 +971,9 @@ export const accountTitleStates = pgTable(
     titleId: uuid("title_id")
       .notNull()
       .references(() => titles.id, { onDelete: "cascade" }),
-    status: libraryStatusEnum("status"),
     isFavorite: boolean("is_favorite").notNull().default(false),
     personalRating: integer("personal_rating"),
     notes: text("notes").notNull().default(""),
-    startedAt: timestamp("started_at", { withTimezone: true }),
-    completedAt: timestamp("completed_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

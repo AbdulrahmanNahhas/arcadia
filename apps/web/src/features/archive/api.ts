@@ -19,7 +19,6 @@ export type LibraryEntry = {
   titleId: string;
   title: string;
   posterPath: string | null;
-  status: "planned" | "watching" | "completed" | "paused" | "dropped" | null;
   isFavorite: boolean;
   personalRating: number | null;
   notes: string;

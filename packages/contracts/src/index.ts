@@ -581,21 +581,11 @@ export const accountPolicyPreviewSchema = z.object({
   authenticationReady: z.literal(true),
 });
 
-export const libraryStatusSchema = z.enum([
-  "planned",
-  "watching",
-  "completed",
-  "paused",
-  "dropped",
-]);
 export const accountTitleStateSchema = z.object({
   titleId: z.string().uuid(),
-  status: libraryStatusSchema.nullable(),
   isFavorite: z.boolean(),
   personalRating: z.number().int().min(1).max(5).nullable(),
   notes: z.string().max(2000),
-  startedAt: z.string().nullable(),
-  completedAt: z.string().nullable(),
   updatedAt: z.string(),
 });
 export const titleReviewSchema = z.object({
@@ -622,7 +612,6 @@ export const titleCommentSchema = z.object({
 });
 export const socialReactionSchema = z.enum(["heart", "clap", "laugh", "wow", "think"]);
 export const upsertTitleStateInputSchema = z.object({
-  status: libraryStatusSchema.nullable().optional(),
   isFavorite: z.boolean().optional(),
   personalRating: z.number().int().min(1).max(5).nullable().optional(),
   notes: z.string().max(2000).optional(),
@@ -646,7 +635,7 @@ export const createCommentInputSchema = z.object({
 export const reactionInputSchema = z.object({ emoji: socialReactionSchema });
 export const familyActivitySchema = z.object({
   id: z.string(),
-  kind: z.enum(["review", "comment", "favorite", "status"]),
+  kind: z.enum(["review", "comment", "favorite"]),
   account: familyAccountSchema.pick({ id: true, displayName: true, avatarKey: true }),
   title: z.object({ id: z.string().uuid(), name: z.string(), posterPath: z.string().nullable() }),
   body: z.string().nullable(),
