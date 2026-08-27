@@ -57,7 +57,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { recordHistory } from "@/features/archive/api";
 import { WorkFamilyActions } from "@/features/archive/work-family-actions";
-import type { Entity, Work, WorkStructure } from "@/features/library/model";
+import type { Entity, Work, WorkSeasonDetail, WorkStructure } from "@/features/library/model";
 import { PlayFilmButton } from "@/features/library/play-button";
 import { scoreCriteria, scoreLabel, scoreWeights } from "@/features/library/scoring";
 import { useArabicTranslations } from "@/features/library/translations";
@@ -190,7 +190,7 @@ export function WorkDetailPage({
         work={work}
         planet={planet?.planet ?? null}
         audienceLabel={audienceLabel}
-        playableInstallmentId={soleFilmInstallmentId(structure)}
+        playableInstallment={soleFilmInstallment(structure)}
       />
 
       <Tabs
@@ -328,25 +328,27 @@ function youtubeEmbedUrl(url: string): string | null {
 /**
  * The hero's play button only means something when there is exactly one film to play. A franchise
  * or a series has no single "start here", so those keep jumping to the episodes list instead of
- * guessing which installment the family meant.
+ * guessing which installment the family meant. Returns the installment itself, not just its id,
+ * so the hero can pass its release/identifier fields into `PlayFilmButton`'s gating — whether that
+ * sole film is actually playable is a separate question from whether it's the sole one.
  */
-function soleFilmInstallmentId(structure: WorkStructure) {
+function soleFilmInstallment(structure: WorkStructure): WorkSeasonDetail | null {
   const films = structure.seasons.filter(
     (season) => season.installmentKind === "movie" || season.installmentKind === "special",
   );
-  return films.length === 1 ? (films[0]?.id ?? null) : null;
+  return films.length === 1 ? (films[0] ?? null) : null;
 }
 
 function WorkHero({
   work,
   planet,
   audienceLabel,
-  playableInstallmentId,
+  playableInstallment,
 }: {
   work: Work;
   planet: PlanetInfo;
   audienceLabel: string | null;
-  playableInstallmentId: string | null;
+  playableInstallment: WorkSeasonDetail | null;
 }) {
   const glow = planet?.primaryColor ?? "#7c8cf8";
   const heroAward =
@@ -469,13 +471,17 @@ function WorkHero({
             )}
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              {playableInstallmentId ? (
+              {playableInstallment ? (
                 <PlayFilmButton
                   size="lg"
                   className="px-4 font-semibold"
-                  installmentId={playableInstallmentId}
+                  installmentId={playableInstallment.id}
                   titleId={work.id}
                   label="ابدأ بالمشاهدة"
+                  releaseStatus={playableInstallment.releaseStatus}
+                  releaseAt={playableInstallment.releaseAt}
+                  imdbId={playableInstallment.imdbId}
+                  tmdbId={playableInstallment.tmdbId}
                 />
               ) : (
                 <Button
@@ -1035,7 +1041,15 @@ function EpisodesSection({
                 <p className="mt-4 line-clamp-3 leading-7 text-foreground/70">{selected.summary}</p>
               )}
               {isMovie && (
-                <PlayFilmButton className="mt-5" installmentId={selected.id} titleId={workId} />
+                <PlayFilmButton
+                  className="mt-5"
+                  installmentId={selected.id}
+                  titleId={workId}
+                  releaseStatus={selected.releaseStatus}
+                  releaseAt={selected.releaseAt}
+                  imdbId={selected.imdbId}
+                  tmdbId={selected.tmdbId}
+                />
               )}
             </div>
           </div>
