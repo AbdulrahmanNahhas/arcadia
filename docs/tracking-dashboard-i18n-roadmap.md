@@ -155,20 +155,51 @@ this is what "continue watching" / "up next" / series-progress badges are driven
 
 ## Phase C — Watch-button gating
 
+**Status:** Done (2026-08-27)
+
 **Goal:** the play button never leads to a guaranteed dead end.
 
-- [ ] `soleFilmInstallmentId()` (`work-detail-page.tsx`) and wherever else
-      `PlayFilmButton`/`playableInstallmentId` is computed: also require `releaseStatus !==
-      "announced"` (and a real release date not in the future) **and** the installment carries an
-      `imdbId` or `tmdbId`.
-- [ ] When gating fails, disable the button with a tooltip explaining why ("لم يُصدر بعد" / "لا
-      يتوفر معرّف تشغيل بعد"), consistent with how `PlayFilmButton` already handles the
-      non-desktop-shell case.
-- [ ] Apply the same rule to the episode-tab per-installment play affordances, not just the hero
-      button.
-- [ ] Regression test: a film with no `imdb_id`/`tmdb_id`, and one with `releaseStatus:
-      "announced"`, both render a disabled control, not a link into `/player/...` that 404s
-      server-side.
+- [x] `soleFilmInstallmentId()` renamed `soleFilmInstallment()` (`work-detail-page.tsx`) now
+      returns the installment itself, not just its id, and every `PlayFilmButton` call site
+      (hero, episode-tab) forwards `releaseStatus`/`releaseAt`/`imdbId`/`tmdbId` into it. The
+      gating rule itself lives in one place — `unplayableReason()` in
+      `apps/web/src/features/library/play-button.tsx` — and requires `releaseStatus !==
+      "announced"`, a non-null `releaseAt` that isn't in the future, **and** an `imdbId` or
+      `tmdbId`. `PlayFilmButton` calls it before the existing desktop-shell check, so an
+      unplayable installment is reported as such even inside the desktop app.
+- [x] Gating failures render a disabled `Button` inside the existing `Tooltip` composition
+      ("لم يُصدر بعد" for unreleased/no-date/future-date/announced, "لا يتوفر معرّف تشغيل بعد"
+      for released-but-no-id), matching the pre-existing non-desktop-shell treatment exactly —
+      same component, just a different reason string. **Found and fixed while verifying with a
+      real hover in Playwright:** the pre-existing pattern used a native `disabled` attribute,
+      which makes Chromium (and the Button's own `disabled:pointer-events-none` class) drop all
+      pointer/focus events before they reach the `Tooltip`, so no disabled `PlayFilmButton` —
+      including the original non-desktop-shell one — could ever actually show its tooltip on
+      hover. Fixed by rendering with Base UI's `focusableWhenDisabled` (keeps a real,
+      event-receiving `<button>` with `aria-disabled` instead of native `disabled`; Base UI's own
+      click/keydown guards still block activation, so it stays exactly as inert) plus
+      `aria-disabled:opacity-50` styling, factored into one `DisabledPlayButton` helper used by
+      all three disabled reasons. Confirmed with a real (non-forced) Playwright hover against
+      fixture rows before removing the throwaway spec and fixture titles.
+- [x] Episode-tab per-installment card (`EpisodesSection`'s movie/special `PlayFilmButton`) routes
+      through the same `unplayableReason()`/`PlayFilmButton` gating — confirmed disabled with the
+      correct tooltip in the same manual Playwright pass.
+- [x] Regression test: `apps/web/src/features/library/play-button.test.ts` covers
+      `unplayableReason()` directly (the single source of truth both call sites read) — a film
+      with no `imdbId`/`tmdbId`, one with `releaseStatus: "announced"`, one with no/future
+      `releaseAt`, and the priority between reasons when more than one applies. No React
+      Testing Library/jsdom exists anywhere in this repo (`apps/web` has zero `.test.tsx` files),
+      so a full component-render regression test would have meant introducing that whole harness
+      for one test — out of proportion to this phase. Real DOM rendering (disabled control,
+      correct tooltip, zero `/player/...` links) for both required scenarios plus the
+      episode-tab card was hand-verified with a temporary Playwright spec against real catalog
+      rows created via `./bin/arcadia work apply`, then deleted once confirmed — not left in the
+      permanent suite. A later full run of the permanent `tests/smoke.spec.ts` in the same
+      session failed across the board (including the login step itself) because an unrelated
+      concurrent process on the shared machine had taken port 3000 out from under this worktree's
+      `pnpm dev` (confirmed via `curl` — the API on 3001 stayed healthy throughout); this was an
+      environment collision, not a code regression, and it postdates the passing targeted runs
+      above.
 
 ## Phase D — My Space (`/archive`) redesign
 
