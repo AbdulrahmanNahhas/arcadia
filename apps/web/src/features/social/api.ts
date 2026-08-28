@@ -82,6 +82,12 @@ export function getPlaybackForTitle(titleId: string) {
   return apiFetch<AccountPlaybackState[]>(`/api/v1/me/playback?titleId=${titleId}`);
 }
 
+/** One installment/episode's saved position — the read half of the player's resume feature. */
+export function getPlaybackForInstallment(installmentId: string, episodeId: string | null = null) {
+  const query = episodeId ? `?episodeId=${episodeId}` : "";
+  return apiFetch<AccountPlaybackState | null>(`/api/v1/me/playback/${installmentId}${query}`);
+}
+
 /** A progress tick (pause/exit/interval). The server derives `isPlayed`; this never sends it. */
 export function updatePlaybackProgress(input: UpsertPlaybackInput) {
   return apiFetch<{ id: string; updatedAt: string | null }>("/api/v1/me/playback", {

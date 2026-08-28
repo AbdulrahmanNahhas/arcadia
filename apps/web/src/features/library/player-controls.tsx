@@ -5,6 +5,7 @@ import {
   ArrowLeftIcon,
   BroadcastIcon,
   CheckIcon,
+  ClockCounterClockwiseIcon,
   ClosedCaptioningIcon,
   CornersInIcon,
   CornersOutIcon,
@@ -327,7 +328,8 @@ export type FeedbackEvent =
   | { kind: "play" }
   | { kind: "pause" }
   | { kind: "volume"; value: number; muted: boolean }
-  | { kind: "lock"; mode: UiLockMode };
+  | { kind: "lock"; mode: UiLockMode }
+  | { kind: "resume"; positionSeconds: number };
 
 /**
  * A large icon that flashes in the middle of the video and fades away — the same confirmation
@@ -361,6 +363,11 @@ export function CenterFeedback({ event, nonce }: { event: FeedbackEvent | null; 
             {event.muted ? "كتم" : `${event.value}%`}
           </span>
         )}
+        {event.kind === "resume" && (
+          <span className="font-mono text-xs tabular-nums text-white/70">
+            {formatTime(event.positionSeconds)}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -379,6 +386,8 @@ function FeedbackIcon({ event }: { event: FeedbackEvent }) {
       if (event.mode === "hidden") return <EyeSlashIcon size={28} />;
       if (event.mode === "visible") return <LockSimpleIcon size={28} />;
       return <LockSimpleOpenIcon size={28} />;
+    case "resume":
+      return <ClockCounterClockwiseIcon size={32} />;
     default:
       return null;
   }

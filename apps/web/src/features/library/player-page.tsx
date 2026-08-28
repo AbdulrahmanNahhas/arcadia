@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCurrentAccount } from "@/features/accounts/api";
-import { updatePlaybackProgress } from "@/features/social/api";
+import { getPlaybackForInstallment, updatePlaybackProgress } from "@/features/social/api";
 import {
   desktopPlayer,
   type PlayerEvent,
@@ -49,6 +49,10 @@ const VOLUME_STEP = 10;
  * Phase B; folds in `docs/player-torrent-roadmap.md`'s Phase 2 write side).
  */
 const PROGRESS_PERSIST_INTERVAL_MS = 20_000;
+/** Below this, resuming isn't worth it — just start from the beginning. */
+const RESUME_MIN_POSITION_SECONDS = 15;
+/** Within this many seconds of the end, treat it as finished rather than resuming mid-credits. */
+const RESUME_END_BUFFER_SECONDS = 30;
 /**
  * Everything the video surface must not cover. `data-video-overlay` marks the player's own
  * chrome; the two `data-slot` values are what the shared Popover and Tooltip primitives already
@@ -107,6 +111,13 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
    * the small cut-outs the controls occupy.
    */
   const wakeControls = useRef<() => void>(() => {});
+  /**
+   * The read half of Phase B's resume feature (`docs/tracking-dashboard-i18n-roadmap.md`):
+   * populated from `GET /api/v1/me/playback/:installmentId` while the stream is still resolving,
+   * consumed once on the first `fileLoaded` event, then cleared so a later candidate-failover
+   * reload (or the user's own seek) never re-applies it.
+   */
+  const resumePositionSeconds = useRef<number | null>(null);
   /**
    * Writes the current position/duration to `PUT /api/v1/me/playback`. Held in a ref (rather than
    * called directly) so the pause/exit call sites and the periodic-interval effect below don't
@@ -186,14 +197,21 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
             current === "error" ? current : event.buffering ? "buffering" : "playing",
           );
           break;
-        case "fileLoaded":
+        case "fileLoaded": {
           setHasPicture(true);
           setDuration(event.duration ?? 0);
           setStatus("playing");
           setAttempt(null);
           // A software-decode fallback is a visible warning, never a silent pass.
           setSoftwareDecode(!event.hardwareDecoder || event.hardwareDecoder === "no");
+          const resumeTo = resumePositionSeconds.current;
+          if (resumeTo !== null) {
+            resumePositionSeconds.current = null;
+            void desktopPlayer.seek(resumeTo).catch(() => undefined);
+            showFeedback({ kind: "resume", positionSeconds: resumeTo });
+          }
           break;
+        }
         case "resolving":
           setStatus("resolving");
           break;
@@ -216,7 +234,7 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
           break;
       }
     },
-    [fail],
+    [fail, showFeedback],
   );
 
   useEffect(() => {
@@ -230,6 +248,21 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
         });
         await desktopPlayer.init();
         if (cancelled) return;
+
+        // Fired in parallel with stream resolution below, not awaited: a single fast DB read
+        // that's essentially always done well before mpv reports the first frame, so it never
+        // delays start-up. Consumed once in `onEvent`'s `fileLoaded` case.
+        void getPlaybackForInstallment(installmentId)
+          .then((saved) => {
+            if (cancelled || !saved) return;
+            const withinResumeRange =
+              saved.positionSeconds > RESUME_MIN_POSITION_SECONDS &&
+              (saved.durationSeconds === null ||
+                saved.positionSeconds < saved.durationSeconds - RESUME_END_BUFFER_SECONDS);
+            if (withinResumeRange) resumePositionSeconds.current = saved.positionSeconds;
+            return;
+          })
+          .catch(() => undefined);
 
         setStatus("resolving");
         const source = await resolvePlayback(installmentId);

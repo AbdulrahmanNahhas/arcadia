@@ -1,8 +1,9 @@
 # Tracking Overhaul, Watch Gating, My Space Redesign & i18n Fixes
 
-> **Status:** Phases A and B done in code (2026-08-27); **neither phase's migration is applied yet
-> — run `devenv shell -- pnpm db:migrate` against your dev DB before relying on either (0018 for
-> Phase A, 0019 for Phase B).** · Last revised 2026-08-27
+> **Status:** Phases A, B, C done, migrations 0018/0019 applied to the dev DB. Phase E's
+> genre/tag/tone/audience/country translation bug (title page + catalog filters) is fixed and
+> verified live; the Tauri-only tashkeel rendering bug is still open. Phase D is in progress.
+> Last revised 2026-08-28
 > **Updating this doc:** tick checkboxes as tasks land; set each phase's status line to
 > `Done (YYYY-MM-DD)` when its goal is met.
 
@@ -131,10 +132,15 @@ this is what "continue watching" / "up next" / series-progress badges are driven
       `positionSeconds`/`durationSeconds` via `PUT /api/v1/me/playback` on pause, on leaving the
       route, and on a 20-second interval while playing — held behind a ref (like the existing
       `wakeControls` pattern in the same file) so the write path never re-triggers the
-      streaming-start effect. **Deliberately not done:** resuming from the saved position on open
-      (the read half) — not in this phase's own checklist line (only referenced in the schema note
-      above as "the same migration also covers it"); `GET /api/v1/me/playback/:installmentId`
-      exists and this is a trivial follow-up whenever it's wanted.
+      streaming-start effect.
+- [x] **Resume-on-open (the read half), closed out:** `getPlaybackForInstallment()`
+      (`features/social/api.ts`) fetches the saved row in parallel with stream resolution
+      (fire-and-forget — a single DB read that's always done before mpv reports a first frame);
+      consumed once on the first `fileLoaded` event via `desktopPlayer.seek()`, then cleared so a
+      candidate-failover reload or the viewer's own seek never re-applies it. Skipped when the
+      saved position is under 15 s or within 30 s of the known duration (nothing to resume).
+      Surfaced in the UI as a "متابعة من …" center-feedback badge (`FeedbackEvent`'s new `"resume"`
+      kind in `player-controls.tsx`), matching the existing play/pause/volume/lock cues.
 - [x] Web — surfaces with a watched/unwatched affordance, in
       `apps/web/src/features/platform/work-detail-page.tsx`'s episodes tab:
   - [x] Episode list rows (`EpisodeCard`) get an independent checkmark toggle button, overlaid on
@@ -228,13 +234,24 @@ progress data.
 
 ## Phase E — Arabic-first UI bugs
 
-- [ ] **Taxonomy labels on the title page / others:** reproduce live first — open the title page
-      and note exactly which genre/tag/tone shows wrong and what it shows instead of the Arabic
-      label (raw slug? English? blank?). `work-detail-page.tsx` calls `taxonomyLabel("genre"/"tag",
-      value)`, which checks a DB-backed map keyed `${vocabulary}:${slug}` before falling back to
-      `@arcadia/i18n`'s `vocabularyFallbackLabel` — the bug is likely a vocabulary-name mismatch
-      (singular vs. plural) or a slug missing from both the DB terms table and `taxonomy.ts`, not
-      a systemic Arabic/English toggle. Needs a concrete repro before a fix lands.
+- [x] **Taxonomy labels on the title page and the catalog filters — root-caused and fixed.**
+      Reproduced live (Playwright against the real dev DB/API): `server/compat.ts`'s
+      `controlledLabel()`/`labelFromSlug()`/`audience()` deliberately store the canonical
+      **English** label as `Work.genres`/`.tone`/`.tags`/`.audience`/`.country` (matching the
+      convention `work-card.tsx`, `work-table.tsx`, `catalog-grouping.ts`, and the admin editor
+      form already rely on) — not a slug. Two call sites fed those English-label values into
+      `useArabicTranslations()`'s `taxonomyLabel()`, which is a *different*, slug-keyed system
+      (correct for catalog facets that get real slugs from browse endpoints elsewhere, wrong
+      here): every lookup silently missed and fell back to the raw English text.
+  - [x] `work-detail-page.tsx`: added `catalogTermLabel()`, translating genre/tone/tag/audience/
+        country through the same English-label-keyed maps (`taxonomyLabels.*`, `tagLabelsAr`)
+        everything else uses, instead of the slug-keyed system.
+  - [x] `catalog-filters.tsx`: `getCatalogFacetValues()` reads facet values straight off
+        `Work.genres`/`.tone`/`.tags`/`.country` too, so `CatalogFilterSidebar`/`Sheet`'s
+        `labelFor()` had the identical bug. Fixed by extending the existing `fixedLabels` lookup
+        (already used for ages/audiences) with the same English-label-keyed maps.
+  - [x] Verified live on real catalog data: every genre/tone/tag/country chip on both the title
+        page and the catalog filter sidebar now renders in Arabic.
 - [ ] **Tashkeel/diacritics rendering broken only in Tauri:** WebKitGTK text-shaping issue
       introduced by the desktop migration, unrelated to the above. Investigate: the font stack for
       Arabic text (does it differ from the browser build?), whether a
