@@ -70,12 +70,6 @@ export const recommendationStatusEnum = pgEnum("recommendation_status", [
   "deferred",
   "dismissed",
 ]);
-export const archiveRequestStatusEnum = pgEnum("archive_request_status", [
-  "open",
-  "in_progress",
-  "resolved",
-  "rejected",
-]);
 export const jobStatusEnum = pgEnum("background_job_status", [
   "queued",
   "running",
@@ -1307,27 +1301,6 @@ export const familyEventVotes = pgTable(
       name: "family_event_votes_candidate_fk",
     }).onDelete("cascade"),
   ],
-);
-export const archiveRequests = pgTable(
-  "archive_requests",
-  {
-    ...id,
-    requestedByAccountId: uuid("requested_by_account_id")
-      .notNull()
-      .references(() => accounts.id, { onDelete: "cascade" }),
-    assignedToAccountId: uuid("assigned_to_account_id").references(() => accounts.id, {
-      onDelete: "set null",
-    }),
-    kind: text("kind").notNull(),
-    status: archiveRequestStatusEnum("status").notNull().default("open"),
-    title: text("title").notNull(),
-    body: text("body").notNull(),
-    targetType: text("target_type"),
-    targetId: text("target_id"),
-    resolution: text("resolution").notNull().default(""),
-    ...timestamps,
-  },
-  (t) => [index("archive_requests_queue_idx").on(t.status, t.createdAt)],
 );
 export const auditLogs = pgTable(
   "audit_logs",

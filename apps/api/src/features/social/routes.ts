@@ -2,6 +2,8 @@ import {
   accountPlaybackStateSchema,
   accountTitleStateSchema,
   bulkMarkPlayedInputSchema,
+  type ContinueWatchingItem,
+  continueWatchingResponseSchema,
   createCommentInputSchema,
   familyActivitySchema,
   markPlayedInputSchema,
@@ -13,6 +15,7 @@ import {
   upsertPlaybackInputSchema,
   upsertReviewInputSchema,
   upsertTitleStateInputSchema,
+  watchStatsSchema,
 } from "@arcadia/contracts";
 import { nextIsPlayed } from "@arcadia/domain";
 import { OpenAPIHono } from "@hono/zod-openapi";
@@ -57,6 +60,21 @@ function playbackState(row: Row) {
     playedAt: nullableIso(row.playedAt),
     updatedAt: iso(row.updatedAt),
   });
+}
+
+/** Shared row shape for both halves of `GET /api/v1/me/continue-watching`. */
+function continueWatchingItemFromRow(row: Row): ContinueWatchingItem {
+  return {
+    titleId: String(row.titleId),
+    title: String(row.title),
+    posterPath: row.posterPath == null ? null : String(row.posterPath),
+    installmentId: String(row.installmentId),
+    installmentTitle: String(row.installmentTitle),
+    episodeId: row.episodeId == null ? null : String(row.episodeId),
+    episodeLabel: row.episodeLabel == null ? null : String(row.episodeLabel),
+    positionSeconds: Number(row.positionSeconds),
+    durationSeconds: row.durationSeconds == null ? null : Number(row.durationSeconds),
+  };
 }
 
 function review(row: Row) {
@@ -343,6 +361,108 @@ socialRoutes.patch("/api/v1/titles/:titleId/playback/played", async (context) =>
   return context.json({ updated: targets.length });
 });
 
+/**
+ * "My Space" dashboard's continue-watching/up-next row.
+ *
+ * `inProgress` is the same pool the player would resume ("continue watching"): rows with real
+ * progress that aren't marked played yet, most recently touched first. `upNext` is the *next*
+ * unwatched trackable unit (a movie, or the earliest un-played episode of a season) for every
+ * title the account follows, skipping any title that already has an in-progress row of its own
+ * so the same title never appears in both lists at once.
+ */
+socialRoutes.get("/api/v1/me/continue-watching", async (context) => {
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
+  const accountId = current.account.id;
+  const sql = database().client;
+
+  const inProgressRows = await sql`
+    select s.installment_id as "installmentId", s.episode_id as "episodeId",
+      i.title_id as "titleId", coalesce(t.title_ar,t.canonical_title) as title,
+      i.title as "installmentTitle",
+      case when e.id is not null then coalesce(e.title, 'الحلقة ' || e.number::text) else null end as "episodeLabel",
+      s.position_seconds as "positionSeconds", s.duration_seconds as "durationSeconds",
+      (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+        where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath"
+    from account_playback_states s
+    join installments i on i.id = s.installment_id
+    join titles t on t.id = i.title_id
+    left join episodes e on e.id = s.episode_id
+    where s.account_id=${accountId} and not s.is_played and s.position_seconds > 0
+    order by s.updated_at desc limit 12`;
+
+  const upNextRows = await sql`
+    with candidates as (
+      select f.title_id, i.id as installment_id, i.position as i_pos,
+        null::uuid as episode_id, 0 as e_pos
+      from title_follows f
+      join installments i on i.title_id=f.title_id and i.kind in ('movie','special')
+      where f.account_id=${accountId}
+      union all
+      select f.title_id, i.id, i.position, e.id, e.position
+      from title_follows f
+      join installments i on i.title_id=f.title_id and i.kind='season'
+      join episodes e on e.installment_id=i.id
+      where f.account_id=${accountId}
+    )
+    select distinct on (c.title_id) c.title_id as "titleId",
+      coalesce(t.title_ar,t.canonical_title) as title,
+      c.installment_id as "installmentId", i.title as "installmentTitle",
+      c.episode_id as "episodeId",
+      case when e.id is not null then coalesce(e.title, 'الحلقة ' || e.number::text) else null end as "episodeLabel",
+      coalesce(s.position_seconds,0) as "positionSeconds", s.duration_seconds as "durationSeconds",
+      (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+        where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath"
+    from candidates c
+    join titles t on t.id=c.title_id
+    join installments i on i.id=c.installment_id
+    left join episodes e on e.id=c.episode_id
+    left join account_playback_states s on s.account_id=${accountId}
+      and s.installment_id=c.installment_id and s.episode_id is not distinct from c.episode_id
+    where coalesce(s.is_played,false)=false
+      and not exists (
+        select 1 from account_playback_states s2
+        join installments i2 on i2.id=s2.installment_id
+        where s2.account_id=${accountId} and i2.title_id=c.title_id
+          and not s2.is_played and s2.position_seconds > 0
+      )
+    order by c.title_id, c.i_pos, c.e_pos
+    limit 12`;
+
+  const allTitleIds = [...inProgressRows, ...upNextRows].map((row) => String(row.titleId));
+  const visible = await visibleTitleIdsForAccount(accountId, allTitleIds);
+  return context.json(
+    continueWatchingResponseSchema.parse({
+      inProgress: inProgressRows
+        .filter((row) => visible.has(String(row.titleId)))
+        .map(continueWatchingItemFromRow),
+      upNext: upNextRows
+        .filter((row) => visible.has(String(row.titleId)))
+        .map(continueWatchingItemFromRow),
+    }),
+  );
+});
+
+/** "My Space" overview stat tiles — real numbers driven by Phase B's playback data. */
+socialRoutes.get("/api/v1/me/watch-stats", async (context) => {
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
+  const [row] = await database().client`
+    select
+      count(*) filter (where not is_played and position_seconds > 0) as "inProgressCount",
+      count(*) filter (where is_played and played_at >= date_trunc('month', now())) as "watchedThisMonth",
+      coalesce(sum(least(position_seconds, coalesce(duration_seconds, position_seconds))), 0) / 3600.0
+        as "totalHoursWatched"
+    from account_playback_states where account_id=${current.account.id}`;
+  return context.json(
+    watchStatsSchema.parse({
+      inProgressCount: Number(row?.inProgressCount ?? 0),
+      watchedThisMonth: Number(row?.watchedThisMonth ?? 0),
+      totalHoursWatched: Number(row?.totalHoursWatched ?? 0),
+    }),
+  );
+});
+
 socialRoutes.get("/api/v1/titles/:titleId/social", async (context) => {
   const current = await currentFamilyAccount(context.req.raw.headers);
   if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
@@ -503,7 +623,18 @@ socialRoutes.get("/api/v1/family/activity", async (context) => {
   const rows = await database().client`
     select activity.id, activity.kind, activity.account_id, activity.title_id,
       activity.body, activity.rating, activity.created_at,
-      a.display_name, a.avatar_key, t.title_ar, t.canonical_title
+      a.display_name, a.avatar_key, t.title_ar, t.canonical_title,
+      (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+        where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as poster_path,
+      case activity.kind
+        when 'review' then coalesce((select json_object_agg(x.emoji, x.total) from
+          (select emoji, count(*)::int as total from review_reactions rr
+            where rr.review_id=activity.id::uuid group by emoji) x), '{}'::json)
+        when 'comment' then coalesce((select json_object_agg(x.emoji, x.total) from
+          (select emoji, count(*)::int as total from comment_reactions cr
+            where cr.comment_id=activity.id::uuid group by emoji) x), '{}'::json)
+        else '{}'::json
+      end as reactions
     from (
       select r.id::text, 'review' as kind, r.account_id, r.title_id, r.body,
         r.rating, r.created_at from title_reviews r where r.moderation_status='published'
@@ -537,10 +668,11 @@ socialRoutes.get("/api/v1/family/activity", async (context) => {
           title: {
             id: row.title_id,
             name: row.title_ar ?? row.canonical_title,
-            posterPath: null,
+            posterPath: row.poster_path,
           },
           body: row.body,
           rating: row.rating == null ? null : Number(row.rating),
+          reactions: row.reactions ?? {},
           createdAt: iso(row.created_at),
         }),
       ),

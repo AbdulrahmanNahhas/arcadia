@@ -57,14 +57,12 @@ test("family account opens a title without requesting admin data", async ({ page
 test("family archive hub exposes personal and shared tools", async ({ page }) => {
   await signIn(page, "family");
   await page.goto("/archive");
-  await expect(
-    page.getByRole("heading", { name: "المكتبة العائلية، من دون أن تفقد طابعها الشخصي" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "مساحتي" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "مكتبتي" })).toBeVisible();
   await page.getByRole("tab", { name: "التقويم" }).click();
   await expect(page.getByRole("heading", { name: "تقويم الإصدارات" })).toBeVisible();
-  await page.getByRole("tab", { name: "الطلبات" }).click();
-  await expect(page.getByText("طلب جديد", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "العائلة" }).click();
+  await expect(page.getByRole("heading", { name: "نشاط العائلة" })).toBeVisible();
 });
 
 test("title detail exposes Arabic editorial data, scores, family, and installments", async ({
@@ -250,7 +248,7 @@ test("admin overview reflects the v2 catalog pipeline", async ({ page }) => {
   await expect(page.getByText("جاهزية النشر", { exact: true })).toBeVisible();
 });
 
-test("admin archive operations combines quality, requests, and audit", async ({ page }) => {
+test("admin archive operations combines quality, jobs, and audit", async ({ page }) => {
   await page.goto("/admin/archive");
   await expect(page.getByRole("heading", { name: "غرفة عمليات الأرشيف" })).toBeVisible();
   await expect(page.getByText("جودة البيانات", { exact: true })).toBeVisible();
