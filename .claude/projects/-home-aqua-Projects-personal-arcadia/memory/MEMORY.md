@@ -1,0 +1,2 @@
+- [API/database tests need a TCP Postgres](api-tests-need-tcp-postgres.md) — devenv's socket-only Postgres is unreachable from postgres.js; spin up a disposable cluster.
+- [`pnpm check` baseline is red](arcadia-check-baseline-is-red.md) — 419 oxlint errors on committed code; diff against a HEAD worktree instead of expecting green.
