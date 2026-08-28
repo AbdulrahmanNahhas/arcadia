@@ -505,10 +505,10 @@ function VolumeControl({
           className="
             ltr!
             w-full
-            [&_[data-slot=slider-track]]:bg-muted
-            [&_[data-slot=slider-range]]:bg-foreground
-            [&_[data-slot=slider-thumb]]:border-border
-            [&_[data-slot=slider-thumb]]:bg-foreground
+            **:data-[slot=slider-track]:bg-muted
+            **:data-[slot=slider-range]:bg-foreground
+            **:data-[slot=slider-thumb]:border-border
+            **:data-[slot=slider-thumb]:bg-foreground
           "
         />
       </div>

@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCurrentAccount } from "@/features/accounts/api";
 import {
@@ -65,7 +66,7 @@ import { useWorkTableColumns, WorkTable, WorkTableColumnPicker } from "./compone
 
 type CatalogGridView = "poster" | "banner" | "logo";
 type CatalogView = CatalogGridView | "table";
-type CatalogDensity = "compact" | "balanced" | "large";
+type CatalogDensity = 1 | 2 | 3 | 4 | 5;
 type CatalogMode = "titles" | "installments";
 type CatalogSort =
   | "newest"
@@ -135,24 +136,27 @@ function sortWorks(works: Work[], sort: CatalogSort) {
     return sort === "newest" ? rightRelease - leftRelease : leftRelease - rightRelease;
   });
 }
-
-function gridClassName(view: CatalogGridView, density: CatalogDensity) {
+function gridClassName(view: CatalogGridView, density: CatalogDensity): string {
   if (view === "banner") {
-    if (density === "compact") {
-      return "grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
-    }
-    if (density === "large") {
-      return "grid-cols-1 gap-x-6 gap-y-10 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4";
-    }
-    return "grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5";
+    const bannerMap = {
+      1: "grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10", // Micro
+      2: "grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6", // Compact
+      3: "grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5", // Balanced
+      4: "grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4", // Large
+      5: "grid-cols-1 gap-8 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3", // Extra Large
+    } satisfies Record<CatalogDensity, string>;
+    return bannerMap[density] ?? bannerMap[3];
   }
-  if (density === "compact") {
-    return "grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8";
-  }
-  if (density === "large") {
-    return "grid-cols-2 gap-x-5 gap-y-9 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
-  }
-  return "grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7";
+
+  // Grid / Poster View
+  const gridMap = {
+    1: "grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12", // Micro Posters
+    2: "grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8", // Compact
+    3: "grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7", // Balanced
+    4: "grid-cols-2 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6", // Large
+    5: "grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5", // Extra Large
+  } satisfies Record<CatalogDensity, string>;
+  return gridMap[density] ?? gridMap[3];
 }
 
 function matchesQuery(work: Work, query: string) {
@@ -206,10 +210,7 @@ export function DatabasePage() {
   const [mode, setMode] = useState<CatalogMode>("titles");
   const [sort, setSort] = useState<CatalogSort>("newest");
   const [view, setView] = usePersistedState<CatalogView>("arcadia:browse:view", "poster");
-  const [density, setDensity] = usePersistedState<CatalogDensity>(
-    "arcadia:browse:density",
-    "balanced",
-  );
+  const [density, setDensity] = usePersistedState<CatalogDensity>("arcadia:browse:density", 3);
   const [groupBy, setGroupBy] = usePersistedState<CatalogGroupBy>(
     "arcadia:browse:group-by",
     "none",
@@ -393,20 +394,32 @@ export function DatabasePage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {view !== "table" ? (
-                <ToggleGroup
-                  value={[density]}
-                  multiple={false}
-                  variant="outline"
-                  size="sm"
-                  spacing={0}
-                  aria-label="حجم بطاقات الشبكة"
-                  disabled={!interactive}
-                  onValueChange={(values) => values[0] && setDensity(values[0] as CatalogDensity)}
-                >
-                  <ToggleGroupItem value="compact">صغير</ToggleGroupItem>
-                  <ToggleGroupItem value="balanced">متوسط</ToggleGroupItem>
-                  <ToggleGroupItem value="large">كبير</ToggleGroupItem>
-                </ToggleGroup>
+                <div className="flex items-center gap-2.5 min-w-40 max-w-50">
+                  <span className="text-xs text-muted-foreground select-none">كبير</span>
+                  <Slider
+                    value={[density]}
+                    min={1}
+                    max={5}
+                    step={1}
+                    disabled={!interactive}
+                    aria-label="حجم بطاقات الشبكة"
+                    onValueChange={(value) => {
+                      const next = Array.isArray(value) ? value[0] : value;
+                      // SAFETY: `min={1}`/`max={5}`/`step={1}` constrain the slider to the five
+                      // integer values `CatalogDensity` allows.
+                      setDensity(next as CatalogDensity);
+                    }}
+                    className="
+                      ltr!
+                      w-full
+                      **:data-[slot=slider-track]:bg-muted
+                      **:data-[slot=slider-range]:bg-foreground
+                      **:data-[slot=slider-thumb]:border-border
+                      **:data-[slot=slider-thumb]:bg-foreground
+                    "
+                  />
+                  <span className="text-xs text-muted-foreground select-none">صغير</span>
+                </div>
               ) : (
                 <WorkTableColumnPicker visible={tableColumns} onChange={setTableColumns} />
               )}
