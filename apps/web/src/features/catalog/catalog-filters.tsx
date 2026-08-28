@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { taxonomyLabels } from "@/features/library/model";
+import { tagLabelsAr, taxonomyLabels } from "@/features/library/model";
 import { scoreCriteria, scoreCriterionLabels } from "@/features/library/scoring";
 import { kindLabelsAr, useArabicTranslations } from "@/features/library/translations";
 import { cn } from "@/lib/utils";
@@ -47,6 +47,11 @@ type CatalogFiltersProps = {
   disabled?: boolean;
 };
 
+// Genre/tone/tag/country facet *values* come from `getCatalogFacetValues()`, which reads
+// straight off `Work.genres`/`.tone`/`.tags`/`.country` — and those hold the canonical
+// **English** label (see `catalogTermLabel` in `work-detail-page.tsx` for the full story), not a
+// slug. `taxonomyLabel(vocabulary, value)` below is the slug-keyed DB system and silently misses
+// these, falling back to the raw English text. Check the English-label-keyed maps first.
 const fixedLabels: Record<string, string> = {
   upcoming: "قادم",
   airing: "يعرض الآن",
@@ -70,6 +75,10 @@ const fixedLabels: Record<string, string> = {
   "Young Adult": "شباب",
   Adult: "بالغون",
   ...taxonomyLabels.ages,
+  ...taxonomyLabels.genres,
+  ...taxonomyLabels.tones,
+  ...taxonomyLabels.countries,
+  ...tagLabelsAr,
 };
 
 const facetVocabulary: Partial<Record<CatalogFacetKey, string>> = {
