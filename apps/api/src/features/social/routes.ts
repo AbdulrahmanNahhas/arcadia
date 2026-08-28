@@ -103,7 +103,9 @@ socialRoutes.get("/api/v1/me/library", async (context) => {
       (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
         where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath"
     from account_title_states s join titles t on t.id=s.title_id
-    where s.account_id=${current.account.id} order by s.updated_at desc`;
+    where s.account_id=${current.account.id}
+      and (s.is_favorite or s.personal_rating is not null or btrim(s.notes) <> '')
+    order by s.updated_at desc`;
   const visible = await visibleTitleIdsForAccount(
     current.account.id,
     rows.map((row) => String(row.titleId)),
