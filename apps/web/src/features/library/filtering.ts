@@ -36,8 +36,6 @@ export type FacetOptions = Record<FacetKey, FacetOption[]>;
 export type WorkFilterState = {
   kinds: WorkKind[];
   excludedKinds: WorkKind[];
-  statuses: Work["status"][];
-  excludedStatuses: Work["status"][];
   minRating: number;
   minScores: ScoreComponents;
   favoriteOnly: boolean;
@@ -88,21 +86,10 @@ export const kindLabels: Record<WorkKind, string> = {
   comic: "قصص مصورة",
 };
 
-export const personalStatuses: Work["status"][] = [
-  "saved",
-  "planned",
-  "in-progress",
-  "completed",
-  "paused",
-  "dropped",
-];
-
 export function createDefaultFilters(): WorkFilterState {
   return {
     kinds: [],
     excludedKinds: [],
-    statuses: [],
-    excludedStatuses: [],
     minRating: 0,
     minScores: {},
     favoriteOnly: false,
@@ -139,12 +126,6 @@ export function compareWorks(left: Work, right: Work, sort: Sort, direction: Sor
     comparison = (left.audience ?? "").localeCompare(right.audience ?? "", "en");
   } else if (sort === "kind") {
     comparison = kindLabels[left.kind].localeCompare(kindLabels[right.kind], "ar");
-  } else if (sort === "status") {
-    comparison = personalStatuses.indexOf(left.status) - personalStatuses.indexOf(right.status);
-  } else if (sort === "progress") {
-    comparison = progressRatio(left) - progressRatio(right);
-  } else if (sort === "trackedOn") {
-    comparison = (left.trackedOn ?? "").localeCompare(right.trackedOn ?? "");
   } else if ((scoreSorts as readonly string[]).includes(sort)) {
     const criterion = sort as (typeof scoreSorts)[number];
     comparison = compareOptionalNumber(
@@ -170,11 +151,6 @@ function compareOptionalNumber(
     return right === null || right === undefined ? 0 : direction === "asc" ? 1 : -1;
   if (right === null || right === undefined) return direction === "asc" ? -1 : 1;
   return left - right;
-}
-
-function progressRatio(work: Work) {
-  if (work.progressTotal && work.progressTotal > 0) return work.progress / work.progressTotal;
-  return work.status === "completed" ? 1 : work.progress > 0 ? 0.5 : 0;
 }
 
 const facetKeys = facetDefinitions.map(({ key }) => key);
@@ -274,8 +250,6 @@ export function workMatchesFilters(work: Work, filters: WorkFilterState) {
   if (filters.privateOnly ? !work.isPrivate : work.isPrivate) return false;
   if (filters.kinds.length && !filters.kinds.includes(work.kind)) return false;
   if (filters.excludedKinds.includes(work.kind)) return false;
-  if (filters.statuses.length && !filters.statuses.includes(work.status)) return false;
-  if (filters.excludedStatuses.includes(work.status)) return false;
   if ((work.calculatedRating ?? 0) < filters.minRating) return false;
   if (!matchesScoreFilters(work.scoreComponents, filters.minScores)) return false;
   if (filters.favoriteOnly && !work.favorite) return false;
@@ -320,8 +294,6 @@ export function countActiveFilters(filters: WorkFilterState) {
   return (
     filters.kinds.length +
     filters.excludedKinds.length +
-    filters.statuses.length +
-    filters.excludedStatuses.length +
     countFacetFilters(filters.facets) +
     Number(filters.minRating > 0) +
     Object.keys(filters.minScores).length +

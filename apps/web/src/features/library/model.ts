@@ -177,69 +177,11 @@ export function contributorRoleEntityType(
     : "person";
 }
 
-export const personalStatuses = [
-  "saved",
-  "planned",
-  "in-progress",
-  "completed",
-  "paused",
-  "dropped",
-] as const;
-
 export const genreSchema = z.enum(genres);
 export const toneSchema = z.enum(tones);
 export const audienceSchema = z.enum(audiences);
 export const countrySchema = z.enum(countries);
 export const contributorRoleSchema = z.enum(contributorRoles);
-export const personalStatusSchema = z.enum(personalStatuses);
-
-function isCalendarDate(value: string) {
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
-}
-
-export const dateOnlySchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "استخدم تاريخاً بصيغة YYYY-MM-DD.")
-  .refine(isCalendarDate, "استخدم تاريخاً صحيحاً.");
-
-export const trackingEntrySchema = z.object({
-  id: z.string(),
-  workId: z.string(),
-  progressBefore: z.number().int().min(0),
-  progress: z.number().int().min(0),
-  statusBefore: personalStatusSchema,
-  status: personalStatusSchema,
-  occurredOn: dateOnlySchema,
-  daySequence: z.number().int().min(0),
-  recordedAt: z.number().int(),
-});
-
-export const recordTrackingEntrySchema = trackingEntrySchema.pick({
-  workId: true,
-  progress: true,
-  status: true,
-  occurredOn: true,
-});
-
-export const trackingPageInputSchema = z.object({
-  limit: z.number().int().min(1).max(10_000).default(200),
-  cursor: z
-    .object({
-      occurredOn: dateOnlySchema,
-      daySequence: z.number().int().min(0),
-      id: z.string(),
-    })
-    .optional(),
-  workId: z.string().optional(),
-  statuses: z.array(personalStatusSchema).optional(),
-  dateFrom: dateOnlySchema.optional(),
-  dateTo: dateOnlySchema.optional(),
-});
-
-export type TrackingEntry = z.infer<typeof trackingEntrySchema>;
-export type RecordTrackingEntry = z.infer<typeof recordTrackingEntrySchema>;
-export type TrackingPageInput = z.infer<typeof trackingPageInputSchema>;
 
 export type Genre = z.infer<typeof genreSchema>;
 export type Tone = z.infer<typeof toneSchema>;
@@ -286,7 +228,6 @@ export const entitySchema = z.object({
       arabicTitle: z.string().nullable(),
       kind: workKindSchema,
       year: z.number().int().nullable(),
-      status: personalStatusSchema,
       releaseStatus: z.enum(["upcoming", "airing", "returning", "completed", "unknown"]),
       calculatedRating: z.number().min(0).max(10).nullable(),
       isSequelMovie: z.boolean(),
@@ -376,15 +317,9 @@ export const workSchema = z.object({
   chapterCount: z.number().int().min(0).nullable(),
   volumeCount: z.number().int().min(0).nullable(),
   routeCount: z.number().int().min(0).nullable(),
-  status: personalStatusSchema,
-  progress: z.number().min(0),
-  progressTotal: z.number().min(0).nullable(),
-  progressUnit: z.string(),
   calculatedRating: z.number().min(0).max(10).nullable(),
   scoreCoverage: z.object({ scored: z.number().int(), total: z.number().int() }).optional(),
   favorite: z.boolean(),
-  completedAt: z.number().int().nullable(),
-  trackedOn: dateOnlySchema.nullable(),
   summary: z.string(),
   tags: z.array(z.string()),
   genres: z.array(z.string()),
@@ -433,13 +368,6 @@ export const workSchema = z.object({
   awards: z.array(awardRecognitionSchema),
   releaseStart: z.string().nullable(),
   releaseEnd: z.string().nullable(),
-  watchDates: z
-    .object({
-      firstWatchedAt: z.string().nullable(),
-      lastWatchedAt: z.string().nullable(),
-      completedAt: z.string().nullable(),
-    })
-    .nullable(),
   country: z.array(countrySchema),
   sourceMaterial: z
     .object({
@@ -488,7 +416,7 @@ export type Work = z.infer<typeof workSchema>;
 
 export type StructuralProgress = {
   id: string;
-  status: Work["status"];
+  status: "saved" | "planned" | "in-progress" | "completed" | "paused" | "dropped";
   progress: number;
   completedAt: number | null;
   updatedAt: number;
@@ -606,12 +534,10 @@ export const createWorkSchema = workSchema
     title: true,
     kind: true,
     year: true,
-    status: true,
     isPrivate: true,
   })
   .extend({
     summary: z.string().default(""),
-    status: personalStatusSchema.default("saved"),
     isPrivate: z.boolean().default(false),
   });
 

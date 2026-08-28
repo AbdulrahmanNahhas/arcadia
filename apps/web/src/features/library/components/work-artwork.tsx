@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { kindLabels } from "../filtering";
 import type { Work } from "../model";
-import { progressUnitLabelAr } from "../translations";
 
 const paletteClasses: Record<string, string> = {
   ember: "from-orange-950 via-rose-900 to-amber-600",
@@ -12,18 +11,6 @@ const paletteClasses: Record<string, string> = {
   plum: "from-slate-950 via-violet-950 to-fuchsia-800",
   signal: "from-zinc-950 via-red-950 to-red-600",
 };
-
-export function progressText(work: Work) {
-  if (work.status === "completed" && !work.progressTotal) return "مكتمل";
-  if (!work.progressTotal) {
-    return work.progress ? `${work.progress} ${progressUnitLabelAr(work.progressUnit)}` : "لم يبدأ";
-  }
-  return `${work.progress} / ${work.progressTotal} ${progressUnitLabelAr(work.progressUnit)}`;
-}
-
-export function usesProgress(work: Work) {
-  return Boolean(work.progressUnit);
-}
 
 export function WorkArtwork({
   work,

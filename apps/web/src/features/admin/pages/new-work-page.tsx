@@ -25,10 +25,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { kindLabels, personalStatuses } from "@/features/library/filtering";
-import type { Genre, Work, WorkKind } from "@/features/library/model";
+import { kindLabels } from "@/features/library/filtering";
+import type { Genre, WorkKind } from "@/features/library/model";
 import { genreSchema, workKinds } from "@/features/library/model";
-import { statusLabelsAr } from "@/features/library/translations";
 import { addWorksBulk } from "@/server/library.functions";
 
 type AddMode = "guided" | "paste";
@@ -37,7 +36,6 @@ type NewWork = {
   title: string;
   kind: WorkKind;
   year: number | null;
-  status: Work["status"];
   isPrivate: boolean;
   summary: string;
   genres: Genre[];
@@ -56,10 +54,9 @@ const addModeItems = [
 ] as const;
 const mediaKinds = workKinds.filter((value) => ["movie", "series", "anime"].includes(value));
 const kindItems = mediaKinds.map((value) => ({ value, label: kindLabels[value] }));
-const statusItems = personalStatuses.map((value) => ({ value, label: statusLabelsAr[value] }));
 
-const pasteExample = `Frieren: Beyond Journey's End | anime | 2023 | planned | Adventure, Fantasy | Madhouse
-Pluto | anime | 2023 | completed | Mystery, Science Fiction | Studio M2`;
+const pasteExample = `Frieren: Beyond Journey's End | anime | 2023 | Adventure, Fantasy | Madhouse
+Pluto | anime | 2023 | Mystery, Science Fiction | Studio M2`;
 
 function parseList(value: string) {
   return [
@@ -82,7 +79,6 @@ function parsePastedWorks(value: string): ParseResult {
       title,
       rawKind = "anime",
       rawYear = "",
-      rawStatus = "saved",
       rawGenres = "",
       rawStudios = "",
       rawPrivate = "false",
@@ -92,10 +88,6 @@ function parsePastedWorks(value: string): ParseResult {
     // SAFETY: `Array#includes` does a plain equality check regardless of the argument's static
     // type, so a `rawKind` that isn't really a `WorkKind` correctly reports as absent.
     if (!mediaKinds.includes(rawKind as WorkKind)) lineErrors.push(`النوع «${rawKind}» غير معروف`);
-    // SAFETY: same as above — `personalStatuses.includes` is a plain equality check.
-    if (!personalStatuses.includes(rawStatus as Work["status"])) {
-      lineErrors.push(`الحالة «${rawStatus}» غير معروفة`);
-    }
     const isPrivate = ["true", "private", "خاص", "yes", "1"].includes(
       rawPrivate.toLocaleLowerCase(),
     );
@@ -113,13 +105,12 @@ function parsePastedWorks(value: string): ParseResult {
       errors.push(`السطر ${index + 1}: ${lineErrors.join("، ")}`);
       return;
     }
-    // SAFETY: the checks above already returned early unless `rawKind` is in `mediaKinds` and
-    // `rawStatus` is in `personalStatuses`, so both casts here are already validated.
+    // SAFETY: the check above already returned early unless `rawKind` is in `mediaKinds`, so
+    // this cast is already validated.
     works.push({
       title,
       kind: rawKind as WorkKind,
       year,
-      status: rawStatus as Work["status"],
       isPrivate,
       summary: "",
       genres,
@@ -137,7 +128,6 @@ export function AdminNewWorkPage() {
   const [mode, setMode] = useState<AddMode>("guided");
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<WorkKind>("movie");
-  const [status, setStatus] = useState<Work["status"]>("saved");
   const [year, setYear] = useState("");
   const [summary, setSummary] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
@@ -185,7 +175,6 @@ export function AdminNewWorkPage() {
             title: title.trim(),
             kind,
             year: year ? Number(year) : null,
-            status,
             isPrivate,
             summary: summary.trim(),
             genres: parsedGenres,
@@ -261,7 +250,7 @@ export function AdminNewWorkPage() {
                   aria-invalid={Boolean(formError && !title.trim())}
                 />
               </Field>
-              <div className="grid gap-5 sm:grid-cols-3">
+              <div className="grid gap-5 sm:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="new-work-kind">النوع</FieldLabel>
                   <Select
@@ -277,27 +266,6 @@ export function AdminNewWorkPage() {
                         {mediaKinds.map((item) => (
                           <SelectItem key={item} value={item}>
                             {kindLabels[item]}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="new-work-status">الحالة</FieldLabel>
-                  <Select
-                    items={statusItems}
-                    value={status}
-                    onValueChange={(value) => value && setStatus(value)}
-                  >
-                    <SelectTrigger id="new-work-status" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {personalStatuses.map((item) => (
-                          <SelectItem key={item} value={item}>
-                            {statusLabelsAr[item]}
                           </SelectItem>
                         ))}
                       </SelectGroup>
@@ -366,8 +334,8 @@ export function AdminNewWorkPage() {
                 <RowsPlusBottomIcon />
                 <AlertTitle>عمود واحد لكل قيمة</AlertTitle>
                 <AlertDescription>
-                  العنوان | النوع | السنة | الحالة | التصنيفات | الاستوديوهات | خاص (اختياري). افصل
-                  القيم داخل العمود بفواصل.
+                  العنوان | النوع | السنة | التصنيفات | الاستوديوهات | خاص (اختياري). افصل القيم
+                  داخل العمود بفواصل.
                 </AlertDescription>
               </Alert>
               <Field data-invalid={parsed.errors.length > 0}>
@@ -381,10 +349,7 @@ export function AdminNewWorkPage() {
                   spellCheck={false}
                   aria-invalid={parsed.errors.length > 0}
                 />
-                <FieldDescription>
-                  الأنواع المتاحة: {mediaKinds.join(", ")}. الحالات المتاحة:{" "}
-                  {personalStatuses.join(", ")}.
-                </FieldDescription>
+                <FieldDescription>الأنواع المتاحة: {mediaKinds.join(", ")}.</FieldDescription>
               </Field>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">

@@ -621,65 +621,6 @@ function RankedCard({
   );
 }
 
-function HorizontalRankCard({
-  title,
-  description,
-  data,
-  className,
-}: {
-  title: string;
-  description?: string;
-  data: Ranked[];
-  className?: string;
-}) {
-  const visible = data.slice(0, 10);
-  const max = Math.max(...visible.map((item) => item.value), 1);
-
-  return (
-    <ChartCard title={title} description={description} className={className}>
-      {visible.length ? (
-        <div className="flex flex-1 flex-col justify-center  gap-3">
-          {visible.map((item, index) => (
-            <div
-              key={item.key}
-              className="grid grid-cols-[2ch_minmax(0,1fr)_auto] items-center gap-3"
-            >
-              <span className="font-mono text-[10px] text-muted-foreground">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-
-              <div className="min-w-0">
-                <div className="mb-1.5 flex items-center justify-between gap-3">
-                  <span className="min-w-0 wrap-break-word text-sm">{item.labelAr}</span>
-
-                  <span className="shrink-0 font-mono text-xs font-semibold tabular-nums">
-                    {item.value.toLocaleString("ar")}
-                  </span>
-                </div>
-
-                <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary transition-[width] duration-500"
-                    style={{
-                      width: `${(item.value / max) * 100}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <span className="text-[10px] text-muted-foreground">
-                {Math.round((item.value / max) * 100)}٪
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <EmptyChart />
-      )}
-    </ChartCard>
-  );
-}
-
 function PlanetBarCard({
   title,
   description,

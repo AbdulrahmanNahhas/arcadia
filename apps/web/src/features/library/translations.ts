@@ -2,7 +2,7 @@ import { vocabularyFallbackLabel } from "@arcadia/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { getTaxonomyTerms } from "@/server/library.functions";
 import type { FacetKey } from "./filtering";
-import type { Work, WorkKind } from "./model";
+import type { WorkKind } from "./model";
 
 export const kindLabelsAr: Record<WorkKind, string> = {
   movie: "فيلم",
@@ -14,25 +14,6 @@ export const kindLabelsAr: Record<WorkKind, string> = {
   "visual-novel": "رواية مرئية",
   comic: "قصص مصورة",
 };
-
-export const statusLabelsAr: Record<Work["status"], string> = {
-  saved: "محفوظ",
-  planned: "مخطط له",
-  "in-progress": "قيد المتابعة",
-  completed: "مكتمل",
-  paused: "متوقف مؤقتاً",
-  dropped: "متروك",
-};
-
-export function progressUnitLabelAr(value: string) {
-  const labels: Record<string, string> = {
-    episode: "حلقة",
-    episodes: "حلقات",
-    hour: "ساعة",
-    hours: "ساعات",
-  };
-  return labels[value.trim().toLocaleLowerCase()] ?? value;
-}
 
 const valueLabelsAr: Readonly<Record<string, string>> = {
   upcoming: "قادم",

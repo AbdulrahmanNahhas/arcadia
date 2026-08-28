@@ -557,15 +557,6 @@ function DetailsMatrix({ works }: { works: Work[] }) {
     { label: "سنة الإصدار", value: (work) => (work.year ? String(work.year) : "—") },
     { label: "صنّاع العمل", value: (work) => work.creator || "—" },
     { label: "حالة الإصدار", value: (work) => work.releaseStatus },
-    {
-      label: "التقدّم",
-      value: (work) =>
-        work.progressTotal
-          ? `${work.progress} / ${work.progressTotal}`
-          : work.progress
-            ? String(work.progress)
-            : "لم يبدأ",
-    },
     { label: "الوسوم", value: (work) => work.genres.slice(0, 3).join(" · ") || "—" },
   ];
   return (
