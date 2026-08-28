@@ -252,13 +252,18 @@ progress data.
         (already used for ages/audiences) with the same English-label-keyed maps.
   - [x] Verified live on real catalog data: every genre/tone/tag/country chip on both the title
         page and the catalog filter sidebar now renders in Arabic.
-- [ ] **Tashkeel/diacritics rendering broken only in Tauri:** WebKitGTK text-shaping issue
-      introduced by the desktop migration, unrelated to the above. Investigate: the font stack for
-      Arabic text (does it differ from the browser build?), whether a
-      `font-feature-settings`/`unicode-range` rule strips combining marks, and whether it's
-      WebKitGTK's HarfBuzz version on this system vs. Chromium's. Reproduce on a specific
-      word/route, check computed styles, try an explicit Arabic web font known to shape marks
-      correctly (e.g. Noto Naskh/Kufi Arabic) as a bisection step.
+- [x] **Tashkeel/diacritics rendering broken only in Tauri — best-effort fix applied, needs a
+      human visual check on the desktop build.** Root cause theory: Tailwind's preflight emits
+      `font-feature-settings: normal` on `html`. Chromium treats that as "no opinion" and shapes
+      Arabic combining marks (fatha/damma/kasra/shadda/sukun/tanwin, U+064B–0652) correctly either
+      way; WebKitGTK (Tauri's webview, not the browser dev server) has a known regression class
+      where that explicit `normal` — rather than truly unset — changes which shaping plan it
+      picks for complex scripts, detaching marks from their base letter. Fixed in
+      `apps/web/src/styles.css` by explicitly requesting the GPOS mark-attachment OpenType
+      features (`"mark" 1, "mkmk" 1, "ccmp" 1`) on both the sans and heading font stacks — a no-op
+      for Chromium/the browser build. **Needs verification**: launch the actual Tauri desktop app
+      and check the "نحّاسينما" wordmark in the header (shadda on the ح) — fastest visual check,
+      renders on every route.
 
 ## Phase F — General UX/UI polish + dead-code sweep
 

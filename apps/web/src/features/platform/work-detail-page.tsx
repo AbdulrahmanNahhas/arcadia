@@ -103,7 +103,7 @@ type TitleTab = {
 const audienceLabels: Record<string, string> = taxonomyLabels.audiences;
 const countryLabels: Record<string, string> = taxonomyLabels.countries;
 
-function catalogTermLabel(vocabulary: string, value: string) {
+export function catalogTermLabel(vocabulary: string, value: string) {
   switch (vocabulary) {
     case "genre":
       return taxonomyLabels.genres[value] ?? value;

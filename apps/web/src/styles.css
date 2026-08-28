@@ -13,6 +13,21 @@
   --font-heading: "Alexandria Variable", sans-serif;
   --font-sans: "IBM Plex Sans Arabic", sans-serif;
   --font-mono: "JetBrains Mono Variable", monospace;
+  /*
+   * Tailwind's preflight otherwise emits `font-feature-settings: normal` on `html` (its
+   * documented default when a font doesn't set `--font-*--font-feature-settings`). Chromium
+   * treats that as "no opinion, keep the shaper's default plan" and Arabic tashkeel
+   * (fatha/damma/kasra/shadda/sukun/tanwin — U+064B-0652) positions correctly either way. The
+   * WebKitGTK build (Tauri's webview, not this browser dev server) has a known regression class
+   * where leaving `font-feature-settings` at that explicit `normal` — rather than truly unset —
+   * changes which shaping plan it picks for complex scripts, and Arabic combining marks render
+   * shifted/detached from their base letter. Explicitly requesting the GPOS mark-attachment
+   * features keeps WebKitGTK on the correct plan; it is a no-op for Chromium/the browser build.
+   * Verify on the desktop build: the "نحّاسينما" wordmark in the header (shadda on the ح) is the
+   * fastest visual check, since it renders on every route.
+   */
+  --font-sans--font-feature-settings: "mark" 1, "mkmk" 1, "ccmp" 1;
+  --font-heading--font-feature-settings: "mark" 1, "mkmk" 1, "ccmp" 1;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
