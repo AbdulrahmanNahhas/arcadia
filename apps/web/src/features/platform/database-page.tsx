@@ -9,6 +9,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ import { cn } from "@/lib/utils";
 import {
   getAdminPlatformCatalogInstallments,
   getAdminPlatformCatalogWorks,
+  getPlanets,
   getPlatformCatalogInstallments,
   getPlatformCatalogWorks,
 } from "@/server/platform.functions";
@@ -192,6 +194,14 @@ export function DatabasePage() {
     queryFn: getAdminPlatformCatalogInstallments,
     enabled: isAdmin,
   });
+  const { data: planets } = useSuspenseQuery({
+    queryKey: ["planets"],
+    queryFn: () => getPlanets(),
+  });
+  const planetsById = useMemo(
+    () => new Map(planets.map((planet) => [planet.id, planet])),
+    [planets],
+  );
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<CatalogMode>("titles");
   const [sort, setSort] = useState<CatalogSort>("newest");
@@ -226,8 +236,8 @@ export function DatabasePage() {
     [catalogWorks, filters, normalizedQuery, sort],
   );
   const groups = useMemo(
-    () => groupWorks(visibleWorks, groupBy, sort !== "oldest"),
-    [visibleWorks, groupBy, sort],
+    () => groupWorks(visibleWorks, groupBy, sort !== "oldest", planetsById),
+    [visibleWorks, groupBy, sort, planetsById],
   );
   const activeFilterCount = countCatalogFilters(filters);
   const resetFilters = () => setFilters(createCatalogFilters());
@@ -440,8 +450,26 @@ export function DatabasePage() {
                 {groups.map((group) => (
                   <section key={group.key}>
                     {group.label ? (
-                      <div className="mb-4 flex items-baseline gap-2">
-                        <h2 className="font-heading text-lg font-semibold">{group.label}</h2>
+                      <div className="mb-4 flex items-center gap-2">
+                        {group.color ? (
+                          <span
+                            className="size-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: group.color }}
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        {group.slug ? (
+                          <Link
+                            to="/planets/$planetSlug"
+                            params={{ planetSlug: group.slug }}
+                            className="flex items-center gap-1.5 font-heading text-lg font-semibold hover:underline"
+                          >
+                            {group.icon ? <span aria-hidden="true">{group.icon}</span> : null}
+                            {group.label}
+                          </Link>
+                        ) : (
+                          <h2 className="font-heading text-lg font-semibold">{group.label}</h2>
+                        )}
                         <Badge variant="outline">{group.works.length} نتيجة</Badge>
                       </div>
                     ) : null}

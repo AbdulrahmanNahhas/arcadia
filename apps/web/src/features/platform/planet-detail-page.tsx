@@ -1,22 +1,38 @@
 import { ArrowRightIcon, ImageIcon, ImageSquareIcon, PanoramaIcon } from "@phosphor-icons/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import type * as React from "react";
+import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useCurrentAccount } from "@/features/accounts/api";
 import type { Work } from "@/features/library/model";
-import { getPlanetDetail } from "@/server/platform.functions";
+import { getAdminPlanets, getPlanets } from "@/server/platform.functions";
 import { PlatformShell } from "./components/platform-shell";
 import { WorkCard } from "./components/work-card";
 
 type WorkView = "poster" | "banner" | "logo";
 type WorkSort = "newest" | "oldest" | "ranked";
+type Privacy = "public" | "all" | "private";
 
-const SORT_LABELS: Record<WorkSort, string> = {
+const SORT_LABELS = {
   ranked: "الأعلى تقييماً أولاً",
   oldest: "الأقدم إصداراً أولاً",
   newest: "الأحدث إصداراً أولاً",
-};
+} satisfies Record<WorkSort, string>;
+
+const PRIVACY_LABELS = {
+  public: "العامة",
+  private: "الخاصة",
+  all: "الكل",
+} satisfies Record<Privacy, string>;
 
 function releaseTimestamp(work: Work) {
   const exact = work.releaseStart ? Date.parse(`${work.releaseStart}T00:00:00Z`) : Number.NaN;
@@ -25,7 +41,7 @@ function releaseTimestamp(work: Work) {
 }
 
 function sortWorks(works: Work[], sort: WorkSort) {
-  return [...works].sort((left, right) => {
+  return works.toSorted((left, right) => {
     if (sort === "ranked") {
       return (
         (right.calculatedRating ?? -1) - (left.calculatedRating ?? -1) ||
@@ -42,11 +58,30 @@ function sortWorks(works: Work[], sort: WorkSort) {
 export function PlanetDetailPage({ slug }: { slug: string }) {
   const [view, setView] = useState<WorkView>("poster");
   const [sort, setSort] = useState<WorkSort>("newest");
+  const [privacy, setPrivacy] = useState<Privacy>("public");
 
-  const { data: planet } = useSuspenseQuery({
-    queryKey: ["planet", slug],
-    queryFn: () => getPlanetDetail({ data: { slug } }),
+  const { data: accountData } = useCurrentAccount();
+  const isAdmin = accountData?.account.role === "owner" || accountData?.account.role === "editor";
+
+  const { data: publicPlanets } = useSuspenseQuery({
+    queryKey: ["planets"],
+    queryFn: () => getPlanets(),
   });
+  // Admins see private works too — the public planets feed hard-excludes them, so this page
+  // re-fetches from the admin-only planets endpoint once we know the viewer can see them.
+  const { data: adminPlanets } = useQuery({
+    queryKey: ["planets", "admin"],
+    queryFn: () => getAdminPlanets(),
+    enabled: isAdmin,
+  });
+  const planets = isAdmin && adminPlanets ? adminPlanets : publicPlanets;
+  const planet = planets.find((item) => item.slug === slug) ?? null;
+
+  const visibleWorks = useMemo(() => {
+    return (planet?.works || []).filter(
+      (w) => privacy === "all" || (privacy === "private" ? w.isPrivate : !w.isPrivate),
+    );
+  }, [planet, privacy]);
 
   if (!planet) {
     return (
@@ -61,6 +96,9 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
       <section
         className="relative isolate overflow-hidden border-b border-white/10"
         style={
+          // SAFETY: `--planet-color`/`--planet-secondary` are CSS custom properties, which
+          // `CSSProperties` doesn't declare — the cast only widens `style` to accept the same
+          // underlying `Record<string, string>` these two extra keys need.
           {
             "--planet-color": planet.primaryColor,
             "--planet-secondary": planet.secondaryColor,
@@ -108,7 +146,7 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
                     color: planet.primaryColor,
                   }}
                 >
-                  {planet.nameEn && planet.nameEn}
+                  {planet.nameEn}
                   <span
                     className="size-1.5 animate-pulse rounded-full"
                     style={{ background: planet.primaryColor }}
@@ -128,9 +166,32 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
             </p>
           )}
 
+          {isAdmin && (
+            <div className="mt-8 flex flex-wrap items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger className="rounded-lg border border-border/70 bg-card/60 px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur-sm hover:bg-card">
+                  {PRIVACY_LABELS[privacy]}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => setPrivacy("public")}>
+                    {PRIVACY_LABELS.public}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPrivacy("all")}>
+                    {PRIVACY_LABELS.all}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPrivacy("private")}>
+                    {PRIVACY_LABELS.private}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Badge variant="outline">وضع المدير</Badge>
+            </div>
+          )}
+
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-6">
             <p className="text-xs text-muted-foreground sm:text-sm">
-              <span className="font-semibold text-foreground">{planet.workCount || 0}</span> عمل ·{" "}
+              <span className="font-semibold text-foreground">{visibleWorks.length}</span> عمل ·{" "}
               <span>{SORT_LABELS[sort]}</span>
             </p>
 
@@ -147,6 +208,8 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
                   spacing={0}
                   aria-label="طريقة عرض الأعمال"
                   onValueChange={(values) => {
+                    // SAFETY: the `ToggleGroupItem`s below only offer "poster"/"banner"/"logo" —
+                    // the same union as `WorkView` — so `values[0]` is one of them or undefined.
                     const next = values[0] as WorkView | undefined;
                     if (next) setView(next);
                   }}
@@ -177,6 +240,8 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
                   spacing={0}
                   aria-label="ترتيب الأعمال"
                   onValueChange={(values) => {
+                    // SAFETY: the `ToggleGroupItem`s below only offer "newest"/"oldest"/"ranked"
+                    // — the same union as `WorkSort` — so `values[0]` is one of them or undefined.
                     const next = values[0] as WorkSort | undefined;
                     if (next) setSort(next);
                   }}
@@ -200,7 +265,7 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
       </section>
 
       <div className="mx-auto max-w-400 px-5 pb-28 pt-10 sm:px-8">
-        {planet.works.length ? (
+        {visibleWorks.length ? (
           <div
             className={
               view === "banner"
@@ -208,7 +273,7 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
                 : "grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7"
             }
           >
-            {sortWorks(planet.works, sort).map((work) => (
+            {sortWorks(visibleWorks, sort).map((work) => (
               <WorkCard key={work.id} work={work} variant={view} />
             ))}
           </div>

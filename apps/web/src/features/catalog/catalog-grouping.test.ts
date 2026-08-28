@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Work } from "../library/model";
+import type { PlanetLite } from "./catalog-grouping";
 import { groupWorks } from "./catalog-grouping";
 
 function work(overrides: Partial<Work>): Work {
-  // SAFETY: groupWorks only reads kind/year/releaseStatus/audience/age off a work, so this
-  // partial fixture is complete for every test in this file despite not satisfying `Work` in full.
+  // SAFETY: groupWorks only reads kind/year/releaseStatus/audience/age/planetId off a work, so
+  // this partial fixture is complete for every test in this file despite not satisfying `Work`
+  // in full.
   return {
     id: "id",
     kind: "anime",
@@ -56,5 +58,46 @@ describe("groupWorks", () => {
     const groups = groupWorks(works, "kind");
     const movies = groups.find((group) => group.key === "movie");
     expect(movies?.works.map((item) => item.id)).toEqual(["a", "c"]);
+  });
+
+  it("orders planet groups by displayOrder, carries name/icon/color, and buckets unassigned works last", () => {
+    const planetsById = new Map<string, PlanetLite>([
+      [
+        "p2",
+        {
+          id: "p2",
+          slug: "second",
+          nameAr: "الثاني",
+          icon: "🪐",
+          primaryColor: "#222",
+          displayOrder: 1,
+        },
+      ],
+      [
+        "p1",
+        {
+          id: "p1",
+          slug: "first",
+          nameAr: "الأول",
+          icon: "🌍",
+          primaryColor: "#111",
+          displayOrder: 0,
+        },
+      ],
+    ]);
+    const works = [
+      work({ id: "a", planetId: "p2" }),
+      work({ id: "b", planetId: null }),
+      work({ id: "c", planetId: "p1" }),
+    ];
+    const groups = groupWorks(works, "planet", true, planetsById);
+    expect(groups.map((group) => group.key)).toEqual(["p1", "p2", "unknown"]);
+    expect(groups[0]).toMatchObject({
+      label: "الأول",
+      icon: "🌍",
+      color: "#111",
+      slug: "first",
+    });
+    expect(groups[2]).toMatchObject({ label: "بدون كوكب" });
   });
 });

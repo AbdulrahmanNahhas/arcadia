@@ -105,9 +105,6 @@ export async function getAdminPlatformCatalogInstallments() {
 export async function getAdminUnassignedPlanetWorks() {
   return (await allAdminWorks()).filter((work) => !work.planetId);
 }
-export async function getPlanetDetail({ data }: Data<{ slug: string }>) {
-  return (await planetsWithWorks()).find((planet) => planet.slug === data.slug) ?? null;
-}
 export async function getPlatformWorkDetail({ data }: Data<{ workId: string }>) {
   const [detail, works, planets] = await Promise.all([
     fullDetail(data.workId),

@@ -1,25 +1,60 @@
 import { ArrowLeftIcon, FilmStripIcon, PlanetIcon, PopcornIcon } from "@phosphor-icons/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useCurrentAccount } from "@/features/accounts/api";
 import { cn } from "@/lib/utils";
-import { getPlanets } from "@/server/platform.functions";
+import { getAdminPlanets, getPlanets } from "@/server/platform.functions";
 import { PlatformShell } from "./components/platform-shell";
 
+const PRIVACY_LABELS = {
+  public: "العامة",
+  private: "الخاصة",
+  all: "الكل",
+} satisfies Record<"public" | "private" | "all", string>;
+
 export function PlanetsPage() {
-  const { data: planets } = useSuspenseQuery({
+  const { data: accountData } = useCurrentAccount();
+  const isAdmin = accountData?.account.role === "owner" || accountData?.account.role === "editor";
+  const [privacy, setPrivacy] = useState<"public" | "all" | "private">("public");
+
+  const { data: publicPlanets } = useSuspenseQuery({
     queryKey: ["planets"],
     queryFn: () => getPlanets(),
   });
+  // Admins see private works too — the public planets feed hard-excludes them, so this page
+  // re-fetches from the admin-only planets endpoint once we know the viewer can see them.
+  const { data: adminPlanets } = useQuery({
+    queryKey: ["planets", "admin"],
+    queryFn: () => getAdminPlanets(),
+    enabled: isAdmin,
+  });
+  const planets = isAdmin && adminPlanets ? adminPlanets : publicPlanets;
+
+  const filteredPlanets = useMemo(() => {
+    return planets.map((p) => {
+      const works = (p.works || []).filter(
+        (w) => privacy === "all" || (privacy === "private" ? w.isPrivate : !w.isPrivate),
+      );
+      return { ...p, works, workCount: works.length };
+    });
+  }, [planets, privacy]);
 
   const sortedPlanets = useMemo(
-    () => [...planets].sort((a, b) => (b.workCount || 0) - (a.workCount || 0)),
-    [planets],
+    () => filteredPlanets.toSorted((a, b) => (b.workCount || 0) - (a.workCount || 0)),
+    [filteredPlanets],
   );
 
   const totalWorks = useMemo(
-    () => planets.reduce((acc, planet) => acc + (planet.workCount || 0), 0),
-    [planets],
+    () => filteredPlanets.reduce((acc, planet) => acc + (planet.workCount || 0), 0),
+    [filteredPlanets],
   );
 
   return (
@@ -58,6 +93,29 @@ export function PlanetsPage() {
                 الكواكب ليست مجرد تصنيفات، بل وجهات سينمائية تضم أفلامك، مسلسلاتك، وأعمال الأنمي
                 المفضلة. يكبر مدار كل كوكب بقدر ما يحتفظ به من أعمال.
               </p>
+
+              {isAdmin && (
+                <div className="mt-4 flex items-center gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="rounded-lg border border-border/70 bg-card/60 px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur-sm hover:bg-card">
+                      {PRIVACY_LABELS[privacy]}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => setPrivacy("public")}>
+                        {PRIVACY_LABELS.public}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setPrivacy("all")}>
+                        {PRIVACY_LABELS.all}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setPrivacy("private")}>
+                        {PRIVACY_LABELS.private}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <Badge variant="outline">وضع المدير</Badge>
+                </div>
+              )}
             </div>
 
             {/* Stats */}
