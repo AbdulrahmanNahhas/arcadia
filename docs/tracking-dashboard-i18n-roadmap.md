@@ -1,9 +1,9 @@
 # Tracking Overhaul, Watch Gating, My Space Redesign & i18n Fixes
 
-> **Status:** Phases A, B, C done, migrations 0018/0019 applied to the dev DB. Phase E's
+> **Status:** Phases A, B, C, D done; migrations 0018/0019/0020 applied to the dev DB. Phase E's
 > genre/tag/tone/audience/country translation bug (title page + catalog filters) is fixed and
-> verified live; the Tauri-only tashkeel rendering bug is still open. Phase D is in progress.
-> Last revised 2026-08-28
+> verified live; the Tauri-only tashkeel fix is applied but still needs a human visual check on
+> the actual desktop build. Only Phase F (dead-code sweep) remains. Last revised 2026-08-28
 > **Updating this doc:** tick checkboxes as tasks land; set each phase's status line to
 > `Done (YYYY-MM-DD)` when its goal is met.
 
@@ -209,26 +209,39 @@ this is what "continue watching" / "up next" / series-progress badges are driven
 
 ## Phase D — My Space (`/archive`) redesign
 
+**Status:** Done (2026-08-28). Verified live (Playwright, real dev DB/API, both `admin` and
+`family` accounts) — dashboard renders, library cards work end to end (favorite/rate/remove),
+empty states render correctly. Migration 0020 (drop `archive_requests`) applied — table was empty
+(0 rows), no data lost.
+
 **Goal:** the family-archive hub becomes a real personal dashboard, built on Phase B's real
 progress data.
 
-- [ ] Remove the Collections tab/panel from the dashboard (confirm: keep or fully delete the
-      underlying `collections` feature/table used elsewhere, e.g. "add to collection" from a title
-      page — see Open Questions).
-- [ ] Overview: replace the "قيد المشاهدة" stat (Phase A removed its source) with real numbers
-      from Phase B — in-progress count, watched-this-month, total hours watched.
-- [ ] New **Continue watching / Up next** row: resume-in-progress titles + next unwatched episode
-      per followed series, driven by `account_playback_states`.
-- [ ] New **"scored by me"** view: everything with a `personalRating` set, sortable/filterable —
-      the piece that survives from the old Library panel once status is gone.
-- [ ] Favorites shelf: keep, restyle as a poster row instead of the current list+badge layout.
-- [ ] Family panel → **feed view** (AniList-style): recent comments, ratings, and
-      `comment_reactions` across the family's visible titles, newest first. Build it as a
-      component reusable as a sidebar (design it standalone from the start, mount it in the main
-      panel and as a sidebar slot elsewhere).
-- [ ] New **active torrents/downloads widget**: surfaces `stream_status` (progress/peers/rate) for
-      anything currently streaming, per Phase 1's Rust side — needs a Tauri command exposed to the
-      dashboard rather than only the player route.
+- [x] Removed the Collections tab from the dashboard. Kept the underlying `collections`
+      feature/table — still used from a title page's "add to collection" dialog
+      (`work-family-actions.tsx`), which now also supports creating a collection inline
+      (compensating for the dashboard's "manage from مساحتي" pointer going away).
+- [x] Overview: real numbers from Phase B — in-progress count, watched-this-month, watch hours,
+      upcoming releases, personally-rated count, favorites count.
+- [x] **Continue watching / Up next** row (`ContinueWatchingRow`/`ContinueWatchingCard`), driven
+      by `account_playback_states` via a new `GET /api/v1/me/continue-watching`.
+- [x] **مكتبتي (Library) redesigned**, closing the "unexplained cards" bug from this session:
+      `LibraryCard` gives every entry real favorite-toggle, editable star-rating, and remove
+      affordances (previously none existed) — filter tabs for الكل/المفضلة/تقييماتي.
+- [x] Favorites restyled as a poster shelf (`FavoritesShelf`).
+- [x] Family panel replaced with an AniList-style feed (`FamilyActivityFeed`: comments, ratings,
+      `comment_reactions`), exported standalone so it's mountable as a sidebar elsewhere later.
+- [x] **Active torrents/downloads widget** (`ActiveTransferWidget`): surfaces the Rust session's
+      `stream_status` (progress/peers/rate), guarded by `isDesktopShell()` so it degrades cleanly
+      in a browser.
+- [x] **طلباتي (Requests) removed entirely**: `RequestsPanel`, `archive_requests` table +
+      `archive_request_status` enum, the `/api/v1/archive-requests*` routes, the admin moderation
+      queue. Migration 0020 applied.
+- [x] **Release calendar investigated, confirmed already correct**: `GET /api/v1/calendar/releases`
+      already joins `installments` (not just `titles`) and already returns both `movie`- and
+      `season`-kind rows within its date window — a live DB check found 11 seasons + 9 movies in
+      the current window, and all 184 season installments have a non-null `release_date`. No fix
+      needed.
 - [ ] Visual pass: run this through the `frontend-design` skill once the data/widgets above exist
       — design against real content, not placeholders.
 
@@ -284,9 +297,9 @@ progress data.
 | Question | Why it blocks | Resolution |
 | --- | --- | --- |
 | Auto-watched threshold: 90%, 95%, or configurable? | Named constant used by API + UI; pick one now, make configurable later if wanted. | **Settled (Phase B): 90%,** hardcoded as `AUTO_WATCHED_THRESHOLD` in `packages/domain/src/playback.ts`. The product owner declined to pin an exact number when asked directly, so this is a default chosen to match Jellyfin/Plex/Trakt's own defaults, not a confirmed product decision — revisit here first if it ever needs to change or become per-account configurable. |
-| Keep the `collections` feature/table anywhere in the app, or delete it entirely with the dashboard tab? | Phase D scope — "add to collection" from a title page may or may not still exist. | Still open — Phase D. |
+| Keep the `collections` feature/table anywhere in the app, or delete it entirely with the dashboard tab? | Phase D scope — "add to collection" from a title page may or may not still exist. | **Settled (Phase D): kept.** Still used from a title page's "add to collection" dialog, which now also supports creating a collection inline — only the dashboard tab was removed. |
 | `completed` column on `account_playback_states`: rename to `isPlayed`, or add new columns alongside and deprecate `completed`? | Migration shape. | **Settled (Phase B): renamed**, via a real SQL `RENAME COLUMN` in `0019_tough_zarek.sql` (not drop-and-add), so pre-Phase-B values carry forward instead of being discarded. |
-| Feed sidebar (Phase D) — global (all routes) or scoped to `/archive`'s panels only for v1? | Component API shape. | Still open — Phase D. |
+| Feed sidebar (Phase D) — global (all routes) or scoped to `/archive`'s panels only for v1? | Component API shape. | **Settled (Phase D): scoped to `/archive` for v1**, but `FamilyActivityFeed` is exported as a standalone component (not entangled with the panel shell), so mounting it elsewhere later is additive, not a rewrite. |
 
 ## Suggested order
 
