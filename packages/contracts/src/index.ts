@@ -658,6 +658,34 @@ export const bulkMarkPlayedInputSchema = z.object({
   installmentId: z.string().uuid().nullable().default(null),
   isPlayed: z.boolean(),
 });
+/**
+ * One resumable unit for the "My Space" dashboard's continue-watching/up-next row: a movie
+ * (`episodeId: null`) or a single episode, enriched with the display fields the raw
+ * `account_playback_states` row doesn't carry (title, poster, episode label) so the dashboard
+ * doesn't need a second round trip per card.
+ */
+export const continueWatchingItemSchema = z.object({
+  titleId: z.string().uuid(),
+  title: z.string(),
+  posterPath: z.string().nullable(),
+  installmentId: z.string().uuid(),
+  installmentTitle: z.string(),
+  episodeId: z.string().uuid().nullable(),
+  episodeLabel: z.string().nullable(),
+  positionSeconds: z.number().int().min(0),
+  durationSeconds: z.number().int().min(0).nullable(),
+});
+export const continueWatchingResponseSchema = z.object({
+  /** In-progress rows (`positionSeconds > 0`, not played), most recently touched first. */
+  inProgress: z.array(continueWatchingItemSchema),
+  /** The next unwatched unit per followed title that has no in-progress row of its own. */
+  upNext: z.array(continueWatchingItemSchema),
+});
+export const watchStatsSchema = z.object({
+  inProgressCount: z.number().int().min(0),
+  watchedThisMonth: z.number().int().min(0),
+  totalHoursWatched: z.number().min(0),
+});
 export const upsertReviewInputSchema = z.object({
   rating: z.number().int().min(1).max(5),
   body: z.string().trim().max(1200).default(""),
@@ -676,6 +704,9 @@ export const familyActivitySchema = z.object({
   title: z.object({ id: z.string().uuid(), name: z.string(), posterPath: z.string().nullable() }),
   body: z.string().nullable(),
   rating: z.number().int().min(1).max(5).nullable(),
+  /** Emoji reaction counts (`review_reactions`/`comment_reactions`); empty for `favorite` rows,
+   * which are not reactable objects. */
+  reactions: z.record(z.string(), z.number().int().min(0)).default({}),
   createdAt: z.string(),
 });
 export const titleSocialSchema = z.object({
@@ -797,13 +828,6 @@ export const createAwardCategorySchema = z.object({
 });
 
 export const collectionVisibilitySchema = z.enum(["private", "family"]);
-export const archiveRequestKindSchema = z.enum([
-  "missing_work",
-  "correction",
-  "planet",
-  "metadata",
-]);
-export const archiveRequestStatusSchema = z.enum(["open", "in_progress", "resolved", "rejected"]);
 export const recommendationStatusSchema = z.enum(["pending", "accepted", "deferred", "dismissed"]);
 export const jobStatusSchema = z.enum(["queued", "running", "completed", "failed", "cancelled"]);
 
@@ -901,25 +925,6 @@ export const familyEventInputSchema = z.object({
   notes: z.string().trim().max(1000).default(""),
   scheduledFor: z.string().datetime().nullable().default(null),
   candidateTitleIds: z.array(z.string().uuid()).min(1).max(12),
-});
-export const archiveRequestSchema = z.object({
-  id: z.string().uuid(),
-  kind: archiveRequestKindSchema,
-  status: archiveRequestStatusSchema,
-  title: z.string(),
-  body: z.string(),
-  requester: familyAccountSchema.pick({ id: true, displayName: true, avatarKey: true }),
-  targetType: z.string().nullable(),
-  targetId: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-export const archiveRequestInputSchema = z.object({
-  kind: archiveRequestKindSchema,
-  title: z.string().trim().min(2).max(160),
-  body: z.string().trim().min(2).max(2000),
-  targetType: z.string().max(40).nullable().default(null),
-  targetId: z.string().max(100).nullable().default(null),
 });
 export const auditEntrySchema = z.object({
   id: z.string().uuid(),
@@ -1032,6 +1037,9 @@ export type UpsertPlaybackInput = z.infer<typeof upsertPlaybackInputSchema>;
 export type AccountPlaybackState = z.infer<typeof accountPlaybackStateSchema>;
 export type MarkPlayedInput = z.infer<typeof markPlayedInputSchema>;
 export type BulkMarkPlayedInput = z.infer<typeof bulkMarkPlayedInputSchema>;
+export type ContinueWatchingItem = z.infer<typeof continueWatchingItemSchema>;
+export type ContinueWatchingResponse = z.infer<typeof continueWatchingResponseSchema>;
+export type WatchStats = z.infer<typeof watchStatsSchema>;
 export type TitleReview = z.infer<typeof titleReviewSchema>;
 export type TitleComment = z.infer<typeof titleCommentSchema>;
 export type TitleSocial = z.infer<typeof titleSocialSchema>;
@@ -1051,7 +1059,6 @@ export type SavedView = z.infer<typeof savedViewSchema>;
 export type ViewHistoryItem = z.infer<typeof viewHistoryItemSchema>;
 export type FamilyRecommendation = z.infer<typeof familyRecommendationSchema>;
 export type FamilyEvent = z.infer<typeof familyEventSchema>;
-export type ArchiveRequest = z.infer<typeof archiveRequestSchema>;
 export type AuditEntry = z.infer<typeof auditEntrySchema>;
 export type EditorialRevision = z.infer<typeof editorialRevisionSchema>;
 export type BackgroundJob = z.infer<typeof backgroundJobSchema>;

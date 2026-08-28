@@ -1,9 +1,9 @@
 import type {
   ArchiveQuality,
-  ArchiveRequest,
   AuditEntry,
   BackgroundJob,
   Collection,
+  ContinueWatchingResponse,
   DuplicateCandidate,
   FamilyActivity,
   FamilyEvent,
@@ -12,6 +12,7 @@ import type {
   ReleaseCalendarItem,
   SavedView,
   ViewHistoryItem,
+  WatchStats,
 } from "@arcadia/contracts";
 import { apiFetch } from "@/lib/api";
 
@@ -35,8 +36,9 @@ export const archiveKeys = {
   activity: ["archive", "activity"] as const,
   recommendations: ["archive", "recommendations"] as const,
   events: ["archive", "events"] as const,
-  requests: ["archive", "requests"] as const,
   notifications: ["archive", "notifications"] as const,
+  continueWatching: ["archive", "continue-watching"] as const,
+  watchStats: ["archive", "watch-stats"] as const,
   admin: ["archive", "admin"] as const,
 };
 
@@ -112,19 +114,14 @@ export const voteForEventTitle = (eventId: string, titleId: string) =>
     method: "POST",
   });
 
-export const getArchiveRequests = () => apiFetch<ArchiveRequest[]>("/api/v1/archive/requests");
-export const createArchiveRequest = (input: {
-  kind: "missing_work" | "correction" | "planet" | "metadata";
-  title: string;
-  body: string;
-}) =>
-  apiFetch<{ id: string }>("/api/v1/archive/requests", {
-    method: "POST",
-    body: JSON.stringify({ ...input, targetType: null, targetId: null }),
-  });
 export const getNotifications = () => apiFetch<Notification[]>("/api/v1/me/notifications");
 export const readNotification = (id: string) =>
   apiFetch<{ read: true }>(`/api/v1/me/notifications/${id}/read`, { method: "PATCH" });
+
+/** "My Space" continue-watching/up-next row — see `docs/tracking-dashboard-i18n-roadmap.md` Phase D. */
+export const getContinueWatching = () =>
+  apiFetch<ContinueWatchingResponse>("/api/v1/me/continue-watching");
+export const getWatchStats = () => apiFetch<WatchStats>("/api/v1/me/watch-stats");
 
 export const getAdminQuality = () => apiFetch<ArchiveQuality[]>("/api/v1/admin/archive/quality");
 export const getAdminAudit = () => apiFetch<AuditEntry[]>("/api/v1/admin/archive/audit");
@@ -135,14 +132,6 @@ export const runAdminJob = (type: string) =>
   apiFetch<{ id: string }>("/api/v1/admin/archive/jobs", {
     method: "POST",
     body: JSON.stringify({ type, payload: {} }),
-  });
-export const updateArchiveRequest = (
-  id: string,
-  status: "open" | "in_progress" | "resolved" | "rejected",
-) =>
-  apiFetch<{ updated: true }>(`/api/v1/admin/archive/requests/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status, resolution: "" }),
   });
 export const updateTitleWorkflow = (
   titleId: string,

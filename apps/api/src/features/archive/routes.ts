@@ -1,7 +1,4 @@
 import {
-  archiveRequestInputSchema,
-  archiveRequestSchema,
-  archiveRequestStatusSchema,
   auditEntrySchema,
   backgroundJobSchema,
   collectionInputSchema,
@@ -230,12 +227,16 @@ archiveRoutes.post("/api/v1/collections/:collectionId/items", async (context) =>
 archiveRoutes.get("/api/v1/calendar/releases", async (context) => {
   const current = await requireAccount(context.req.raw.headers);
   if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
+  // No upper bound: a family archive's own catalog only ever has a handful of dated future
+  // installments (movies and show seasons alike), and a hard cutoff (previously +365 days) was
+  // silently dropping real, already-known release dates further out (some catalogued seasons and
+  // films carry dates into 2027–2029) rather than protecting against unbounded growth.
   const rows = await database().client`select i.id as "installmentId",t.id as "titleId",
     coalesce(t.title_ar,t.canonical_title) as title,i.title as "installmentTitle",i.kind,
     i.release_date as "releaseDate",(f.account_id is not null) as followed
     from installments i join titles t on t.id=i.title_id left join title_follows f
       on f.title_id=t.id and f.account_id=${current.account.id}
-    where i.release_date between current_date-interval '30 days' and current_date+interval '365 days'
+    where i.release_date >= current_date - interval '30 days'
     order by i.release_date`;
   const visible = await visibleTitleIdsForAccount(
     current.account.id,
@@ -383,53 +384,6 @@ archiveRoutes.post("/api/v1/family/events/:eventId/votes/:titleId", async (conte
     await database().client`insert into family_event_votes(event_id,title_id,account_id)
     values (${eventId},${titleId},${current.account.id})`;
   return context.json({ voted: !deleted.length });
-});
-
-archiveRoutes.get("/api/v1/archive/requests", async (context) => {
-  const current = await requireAccount(context.req.raw.headers);
-  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
-  const admin = current.account.role === "owner" || current.account.role === "editor";
-  const rows = await database()
-    .client`select r.id,r.kind,r.status,r.title,r.body,r.target_type as "targetType",
-    r.target_id as "targetId",r.created_at as "createdAt",r.updated_at as "updatedAt",
-    a.id as "requesterId",a.display_name as "requesterName",a.avatar_key as "requesterAvatar"
-    from archive_requests r join accounts a on a.id=r.requested_by_account_id
-    where ${admin} or r.requested_by_account_id=${current.account.id} order by r.created_at desc`;
-  return context.json(
-    rows.map((row) =>
-      archiveRequestSchema.parse({
-        ...row,
-        requester: accountSummary(row, "requester"),
-        createdAt: iso(row.createdAt),
-        updatedAt: iso(row.updatedAt),
-      }),
-    ),
-  );
-});
-
-archiveRoutes.post("/api/v1/archive/requests", async (context) => {
-  const current = await requireAccount(context.req.raw.headers);
-  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
-  const parsed = archiveRequestInputSchema.safeParse(await context.req.json());
-  if (!parsed.success) return context.json({ message: "الطلب غير صالح." }, 400);
-  const input = parsed.data;
-  const [row] = await database().client`insert into archive_requests
-    (requested_by_account_id,kind,title,body,target_type,target_id)
-    values (${current.account.id},${input.kind},${input.title},${input.body},${input.targetType},${input.targetId})
-    returning id`;
-  return context.json({ id: String(row?.id) }, 201);
-});
-
-archiveRoutes.patch("/api/v1/admin/archive/requests/:requestId", async (context) => {
-  const current = await requireEditor(context.req.raw.headers);
-  if (!current) return context.json({ message: "صلاحية التحرير مطلوبة." }, 403);
-  const body = (await context.req.json()) as { status?: string; resolution?: string };
-  const status = archiveRequestStatusSchema.safeParse(body.status);
-  if (!status.success) return context.json({ message: "الحالة غير صالحة." }, 400);
-  await database()
-    .client`update archive_requests set status=${status.data},resolution=${body.resolution ?? ""},
-    assigned_to_account_id=${current.account.id},updated_at=now() where id=${context.req.param("requestId")}`;
-  return context.json({ updated: true });
 });
 
 archiveRoutes.get("/api/v1/admin/archive/audit", async (context) => {

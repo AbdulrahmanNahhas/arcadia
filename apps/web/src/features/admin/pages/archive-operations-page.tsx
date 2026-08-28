@@ -1,12 +1,10 @@
 import {
   ArrowClockwiseIcon,
   CheckCircleIcon,
-  ClockIcon,
   DatabaseIcon,
   DownloadSimpleIcon,
   PulseIcon,
   ShieldCheckIcon,
-  WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -28,9 +26,7 @@ import {
   getAdminDuplicates,
   getAdminJobs,
   getAdminQuality,
-  getArchiveRequests,
   runAdminJob,
-  updateArchiveRequest,
   updateTitleWorkflow,
 } from "@/features/archive/api";
 import { apiBaseUrl } from "@/lib/api";
@@ -40,22 +36,16 @@ const dateTime = new Intl.DateTimeFormat("ar", { dateStyle: "medium", timeStyle:
 
 export function ArchiveOperationsPage() {
   const client = useQueryClient();
-  const [quality, audit, jobs, requests, duplicates] = useQueries({
+  const [quality, audit, jobs, duplicates] = useQueries({
     queries: [
       { queryKey: [...archiveKeys.admin, "quality"], queryFn: getAdminQuality },
       { queryKey: [...archiveKeys.admin, "audit"], queryFn: getAdminAudit },
       { queryKey: [...archiveKeys.admin, "jobs"], queryFn: getAdminJobs },
-      { queryKey: archiveKeys.requests, queryFn: getArchiveRequests },
       { queryKey: [...archiveKeys.admin, "duplicates"], queryFn: getAdminDuplicates },
     ],
   });
   const refreshAdmin = () => client.invalidateQueries({ queryKey: archiveKeys.admin });
   const jobMutation = useMutation({ mutationFn: runAdminJob, onSuccess: refreshAdmin });
-  const requestMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: "in_progress" | "resolved" | "rejected" }) =>
-      updateArchiveRequest(id, status),
-    onSuccess: () => client.invalidateQueries({ queryKey: archiveKeys.requests }),
-  });
   const workflowMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: "in_review" | "published" }) =>
       updateTitleWorkflow(id, status),
@@ -65,15 +55,13 @@ export function ArchiveOperationsPage() {
   const averageQuality = qualityRows.length
     ? Math.round(qualityRows.reduce((sum, row) => sum + row.score, 0) / qualityRows.length)
     : 100;
-  const openRequests = (requests.data ?? []).filter(
-    (item) => item.status === "open" || item.status === "in_progress",
-  );
+  const readyToPublish = qualityRows.filter((row) => !row.issues.length).length;
 
   return (
     <div className="flex min-w-0 flex-col gap-6 pb-10">
       <AdminPageHeader
         title="غرفة عمليات الأرشيف"
-        description="الجودة، سير النشر، طلبات العائلة، سجل التغييرات، والمهام الثقيلة في شاشة واحدة."
+        description="الجودة، سير النشر، سجل التغييرات، والمهام الثقيلة في شاشة واحدة."
       />
       <div className="space-y-6 px-5 sm:px-6">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -84,10 +72,10 @@ export function ArchiveOperationsPage() {
             detail={`${qualityRows.filter((row) => row.issues.length).length} عمل يحتاج عناية`}
           />
           <Metric
-            title="طلبات مفتوحة"
-            value={String(openRequests.length)}
-            icon={WarningCircleIcon}
-            detail="من أفراد العائلة"
+            title="جاهزة للنشر"
+            value={String(readyToPublish)}
+            icon={CheckCircleIcon}
+            detail="بلا نواقص مسجّلة"
           />
           <Metric
             title="آخر المهام"
@@ -222,83 +210,32 @@ export function ArchiveOperationsPage() {
           </Card>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>طلبات العائلة</CardTitle>
-              <CardDescription>حوّل الاقتراحات إلى قائمة عمل تحريرية مباشرة.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {openRequests.map((request) => (
-                <div key={request.id} className="rounded-2xl border p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <strong>{request.title}</strong>
-                      <p className="mt-1 text-sm text-muted-foreground">{request.body}</p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {request.requester.displayName}
-                      </p>
-                    </div>
-                    <Badge variant="outline">{request.status}</Badge>
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        requestMutation.mutate({ id: request.id, status: "in_progress" })
-                      }
-                    >
-                      <ClockIcon /> بدء
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => requestMutation.mutate({ id: request.id, status: "resolved" })}
-                    >
-                      <CheckCircleIcon /> حلّ
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => requestMutation.mutate({ id: request.id, status: "rejected" })}
-                    >
-                      رفض
-                    </Button>
-                  </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>سجل التدقيق</CardTitle>
+            <CardDescription>من غيّر ماذا ومتى، مع هدف التغيير.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-1 sm:grid-cols-2">
+            {audit.data?.slice(0, 16).map((entry) => (
+              <div key={entry.id} className="flex gap-3 border-b py-3 last:border-0">
+                <span className="mt-1 size-2 shrink-0 rounded-full bg-primary" />
+                <div>
+                  <p className="text-sm">
+                    <strong>{entry.actorName ?? "النظام"}</strong> · {entry.summary}
+                  </p>
+                  <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+                    {entry.action} · {dateTime.format(new Date(entry.createdAt))}
+                  </p>
                 </div>
-              ))}
-              {!openRequests.length ? (
-                <p className="py-8 text-center text-muted-foreground">لا توجد طلبات مفتوحة.</p>
-              ) : null}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>سجل التدقيق</CardTitle>
-              <CardDescription>من غيّر ماذا ومتى، مع هدف التغيير.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {audit.data?.slice(0, 15).map((entry) => (
-                <div key={entry.id} className="flex gap-3 border-b py-3 last:border-0">
-                  <span className="mt-1 size-2 shrink-0 rounded-full bg-primary" />
-                  <div>
-                    <p className="text-sm">
-                      <strong>{entry.actorName ?? "النظام"}</strong> · {entry.summary}
-                    </p>
-                    <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-                      {entry.action} · {dateTime.format(new Date(entry.createdAt))}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              {!audit.data?.length ? (
-                <p className="py-8 text-center text-muted-foreground">
-                  يبدأ السجل مع أول تغيير في سير العمل.
-                </p>
-              ) : null}
-            </CardContent>
-          </Card>
-        </div>
+              </div>
+            ))}
+            {!audit.data?.length ? (
+              <p className="col-span-full py-8 text-center text-muted-foreground">
+                يبدأ السجل مع أول تغيير في سير العمل.
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
       </div>
       {duplicates.data?.length ? (
         <Card>

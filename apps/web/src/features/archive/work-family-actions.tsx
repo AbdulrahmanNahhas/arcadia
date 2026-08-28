@@ -24,6 +24,7 @@ import { getFamilyAccounts, useCurrentAccount } from "@/features/accounts/api";
 import {
   addCollectionItem,
   archiveKeys,
+  createCollection,
   createFamilyEvent,
   createRecommendation,
   getCollections,
@@ -36,6 +37,7 @@ export function WorkFamilyActions({ titleId, title }: { titleId: string; title: 
   const [recipientId, setRecipientId] = useState("");
   const [reason, setReason] = useState("");
   const [collectionId, setCollectionId] = useState("");
+  const [newCollectionName, setNewCollectionName] = useState("");
   const [eventName, setEventName] = useState(`ليلة ${title}`);
   const [scheduledFor, setScheduledFor] = useState("");
   const client = useQueryClient();
@@ -49,6 +51,22 @@ export function WorkFamilyActions({ titleId, title }: { titleId: string; title: 
   const add = useMutation({
     mutationFn: () => addCollectionItem(collectionId, titleId),
     onSuccess: () => client.invalidateQueries({ queryKey: archiveKeys.collections }),
+  });
+  const createAndAdd = useMutation({
+    mutationFn: async () => {
+      const created = await createCollection({
+        name: newCollectionName,
+        description: "",
+        visibility: "private",
+        ranked: false,
+      });
+      await addCollectionItem(created.id, titleId);
+      return created;
+    },
+    onSuccess: async () => {
+      setNewCollectionName("");
+      await client.invalidateQueries({ queryKey: archiveKeys.collections });
+    },
   });
   const event = useMutation({
     mutationFn: () =>
@@ -125,30 +143,58 @@ export function WorkFamilyActions({ titleId, title }: { titleId: string; title: 
         <DialogContent>
           <DialogHeader>
             <DialogTitle>أضف العمل إلى مجموعة</DialogTitle>
-            <DialogDescription>
-              يمكنك إدارة المجموعات وإنشاء المزيد من صفحة «مساحتي».
-            </DialogDescription>
+            <DialogDescription>مجموعاتك الخاصة أو مجموعات العائلة المشتركة.</DialogDescription>
           </DialogHeader>
           <FieldGroup>
+            {collections.data?.length ? (
+              <>
+                <Field>
+                  <FieldLabel>المجموعة</FieldLabel>
+                  <Select
+                    value={collectionId}
+                    onValueChange={(value) => setCollectionId(value ?? "")}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="اختر مجموعة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {collections.data.map((collection) => (
+                        <SelectItem key={collection.id} value={collection.id}>
+                          {collection.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Button disabled={!collectionId || add.isPending} onClick={() => add.mutate()}>
+                  إضافة
+                </Button>
+                {add.isSuccess ? (
+                  <p className="text-sm text-emerald-500">أُضيف إلى المجموعة.</p>
+                ) : null}
+                <p className="text-center text-xs text-muted-foreground">أو أنشئ مجموعة جديدة</p>
+              </>
+            ) : null}
             <Field>
-              <FieldLabel>المجموعة</FieldLabel>
-              <Select value={collectionId} onValueChange={(value) => setCollectionId(value ?? "")}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="اختر مجموعة" />
-                </SelectTrigger>
-                <SelectContent>
-                  {collections.data?.map((collection) => (
-                    <SelectItem key={collection.id} value={collection.id}>
-                      {collection.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FieldLabel>
+                {collections.data?.length ? "اسم المجموعة الجديدة" : "اسم المجموعة"}
+              </FieldLabel>
+              <Input
+                value={newCollectionName}
+                onChange={(e) => setNewCollectionName(e.target.value)}
+                placeholder="مثال: أفلام العائلة المفضّلة"
+              />
             </Field>
-            <Button disabled={!collectionId || add.isPending} onClick={() => add.mutate()}>
-              إضافة
+            <Button
+              variant="outline"
+              disabled={newCollectionName.trim().length < 2 || createAndAdd.isPending}
+              onClick={() => createAndAdd.mutate()}
+            >
+              <FolderPlusIcon /> إنشاء المجموعة وإضافة العمل
             </Button>
-            {add.isSuccess ? <p className="text-sm text-emerald-500">أُضيف إلى المجموعة.</p> : null}
+            {createAndAdd.isSuccess ? (
+              <p className="text-sm text-emerald-500">أُنشئت المجموعة وأُضيف العمل إليها.</p>
+            ) : null}
           </FieldGroup>
         </DialogContent>
       </Dialog>
