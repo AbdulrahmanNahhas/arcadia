@@ -58,9 +58,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { recordHistory } from "@/features/archive/api";
 import { WorkFamilyActions } from "@/features/archive/work-family-actions";
 import type { Entity, Work, WorkSeasonDetail, WorkStructure } from "@/features/library/model";
+import { tagLabelsAr, taxonomyLabels } from "@/features/library/model";
 import { PlayFilmButton } from "@/features/library/play-button";
 import { scoreCriteria, scoreLabel, scoreWeights } from "@/features/library/scoring";
-import { useArabicTranslations } from "@/features/library/translations";
 import type { Recommendation, RiskAssessment } from "@/features/platform/model";
 import {
   bulkMarkPlayed,
@@ -88,6 +88,37 @@ type TitleTab = {
   summary: string;
   icon: typeof RowsIcon;
 };
+
+// `Work.genres`/`.tone`/`.tags`/`.audience`/`.country` (built by `server/compat.ts`'s
+// `controlledLabel`/`labelFromSlug`/`audience`) carry the canonical **English** label as their
+// value, not the underlying slug — matching the convention `work-card.tsx`, `work-table.tsx`,
+// `catalog-grouping.ts`, and the admin editor form already rely on. `taxonomyLabel` from
+// `useArabicTranslations` expects a slug (it's the DB-backed vocab system used by catalog
+// filters, which get real slugs from browse facets), so calling it with these English-label
+// values silently misses every lookup and falls back to the raw English text. Translate through
+// the same English-label-keyed maps everything else uses instead.
+// `taxonomyLabels.audiences`/`.countries` are narrow, literal-keyed objects (unlike `.genres`/
+// `.tones`, which are already `Record<string, string>` from `labelsFromTaxonomy`); widen them
+// once here so a plain `string` lookup type-checks the same way.
+const audienceLabels: Record<string, string> = taxonomyLabels.audiences;
+const countryLabels: Record<string, string> = taxonomyLabels.countries;
+
+function catalogTermLabel(vocabulary: string, value: string) {
+  switch (vocabulary) {
+    case "genre":
+      return taxonomyLabels.genres[value] ?? value;
+    case "tone":
+      return taxonomyLabels.tones[value] ?? value;
+    case "tag":
+      return tagLabelsAr[value] ?? value;
+    case "audience":
+      return audienceLabels[value] ?? value;
+    case "country":
+      return countryLabels[value] ?? value;
+    default:
+      return value;
+  }
+}
 
 export function WorkDetailPage({
   workId,
@@ -126,7 +157,6 @@ export function WorkDetailPage({
       bulkMarkPlayed(workId, input.installmentId, input.isPlayed),
     onSuccess: invalidatePlayback,
   });
-  const { taxonomyLabel } = useArabicTranslations();
   const [selectedInstallmentId, setSelectedInstallmentId] = useState(initialInstallmentId ?? "");
   const [activeTab, setActiveTab] = useState<TitleTabId>(
     initialInstallmentId ? "episodes" : "overview",
@@ -154,7 +184,7 @@ export function WorkDetailPage({
     const entity = entities.find((item) => item.id === credit.entityId);
     return entity?.entityType === "organization" ? [{ entity, credit }] : [];
   });
-  const audienceLabel = work.audience ? taxonomyLabel("audience", work.audience) : null;
+  const audienceLabel = work.audience ? catalogTermLabel("audience", work.audience) : null;
   const hasMedia = structure.seasons.length > 0;
   const hasCast = people.length > 0 || studios.length > 0;
 
@@ -302,7 +332,7 @@ export function WorkDetailPage({
                 work={work}
                 structure={structure}
                 risks={risks}
-                taxonomyLabel={taxonomyLabel}
+                taxonomyLabel={catalogTermLabel}
               />
             </TabsContent>
 
@@ -345,7 +375,7 @@ export function WorkDetailPage({
             )}
 
             <TabsContent value="details" className="mt-0 focus-visible:outline-none">
-              <WorkDetails work={work} structure={structure} taxonomyLabel={taxonomyLabel} />
+              <WorkDetails work={work} structure={structure} taxonomyLabel={catalogTermLabel} />
             </TabsContent>
           </main>
 
