@@ -6,7 +6,12 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!apps/web/src/routeTree.gen.ts", "!tools/oxlint/anti-slop/*"]
+    "includes": [
+      "**",
+      "!apps/web/src/routeTree.gen.ts",
+      "!tools/oxlint/anti-slop/*",
+      "!.agents/skills/install-anti-slop/assets/anti-slop/*"
+    ]
   },
   "formatter": {
     "indentStyle": "space",
