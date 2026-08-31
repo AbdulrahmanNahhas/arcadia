@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/arcadia
+  VITE_API_URL: http://127.0.0.1:3001
+  ARCADIA_MOCK_AUTH: "true"
+  ARCADIA_SEED_DEMO_ACCOUNTS: "true"
+  NODE_ENV: test
+
+jobs:
+  quality:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arcadia
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.11.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      # Only the Rust checks below need these; the rest of `pnpm check`/`test`/`build` is
+      # pure Node and does not touch src-tauri (it is outside the pnpm workspace on purpose).
+      - name: Install Tauri/libmpv system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libmpv-dev libssl-dev libxdo-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run database migrations
+        run: pnpm db:migrate
+
+      # oxlint/Biome carry pre-existing debt from before this workflow existed (tracked
+      # separately) — informational for now so it does not block an otherwise-green PR. Typecheck,
+      # tests, the Rust checks, and the production build are the real gates.
+      - name: Lint (informational)
+        continue-on-error: true
+        run: pnpm lint:oxlint && pnpm exec biome check .
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Rust format + clippy
+        run: pnpm check:rust
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
