@@ -100,4 +100,27 @@ describe("groupWorks", () => {
     });
     expect(groups[2]).toMatchObject({ label: "بدون كوكب" });
   });
+
+  it("orders theology risk groups from safest to riskiest, with Arabic labels and a color per level", () => {
+    const works = [
+      work({ id: "a", riskProfile: { sexuality: "none", behavioral: "none", theology: "high" } }),
+      work({ id: "b", riskProfile: null }),
+      work({ id: "c", riskProfile: { sexuality: "none", behavioral: "none", theology: "none" } }),
+      work({
+        id: "d",
+        riskProfile: { sexuality: "none", behavioral: "none", theology: "medium" },
+      }),
+      work({ id: "e", riskProfile: { sexuality: "none", behavioral: "none", theology: "low" } }),
+    ];
+    const groups = groupWorks(works, "theologyRisk");
+    expect(groups.map((group) => group.key)).toEqual(["none", "low", "medium", "high", "unknown"]);
+    expect(groups.map((group) => group.label)).toEqual([
+      "لا يوجد",
+      "منخفض",
+      "متوسط",
+      "مرتفع",
+      "غير معروف",
+    ]);
+    expect(new Set(groups.map((group) => group.color)).size).toBe(groups.length);
+  });
 });

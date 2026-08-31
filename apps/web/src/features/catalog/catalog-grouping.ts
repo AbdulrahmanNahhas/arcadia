@@ -10,7 +10,8 @@ export type CatalogGroupBy =
   | "age"
   | "kind"
   | "releaseStatus"
-  | "planet";
+  | "planet"
+  | "theologyRisk";
 
 export type PlanetLite = Pick<
   Planet,
@@ -30,6 +31,7 @@ export const catalogGroupByOptions: Array<{ value: CatalogGroupBy; label: string
   { value: "none", label: "بلا تجميع" },
   { value: "year", label: "سنة الإصدار" },
   { value: "kind", label: "النوع" },
+  { value: "theologyRisk", label: "الخطر العقدي" },
   { value: "releaseStatus", label: "حالة العرض" },
   { value: "audience", label: "الجمهور" },
   { value: "age", label: "الفئة العمرية" },
@@ -54,6 +56,24 @@ const audienceOrder = ["General", "Teen", "Young Adult", "Adult", unknownKey];
 const ageOrder = [...ageValues, unknownKey];
 const kindOrder = [...workKinds];
 
+// Safest first, same framing as audienceOrder above.
+const theologyRiskOrder = ["none", "low", "medium", "high", unknownKey];
+const theologyRiskLabelsAr: Record<(typeof theologyRiskOrder)[number], string> = {
+  none: "لا يوجد",
+  low: "منخفض",
+  medium: "متوسط",
+  high: "مرتفع",
+  unknown: unknownLabel,
+};
+// Green-to-red risk scale, echoing the destructive/warning hues used elsewhere for severity.
+const theologyRiskColors: Record<(typeof theologyRiskOrder)[number], string> = {
+  none: "oklch(0.72 0.19 149)",
+  low: "oklch(0.8 0.16 99)",
+  medium: "oklch(0.7 0.19 51)",
+  high: "oklch(0.64 0.22 27)",
+  unknown: "oklch(0.7 0 0)",
+};
+
 type GroupIdentity = { key: string; label: string; icon?: string; color?: string; slug?: string };
 
 function groupIdentity(
@@ -75,6 +95,10 @@ function groupIdentity(
     const key = work.audience ?? unknownKey;
     return { key, label: work.audience ? taxonomyLabels.audiences[work.audience] : unknownLabel };
   }
+  if (groupBy === "theologyRisk") {
+    const key = work.riskProfile?.theology ?? unknownKey;
+    return { key, label: theologyRiskLabelsAr[key], color: theologyRiskColors[key] };
+  }
   if (groupBy === "planet") {
     const planet = work.planetId ? planetsById?.get(work.planetId) : undefined;
     if (!planet) return { key: unknownKey, label: "بدون كوكب" };
@@ -94,6 +118,7 @@ function groupOrder(groupBy: Exclude<CatalogGroupBy, "none" | "year" | "planet">
   if (groupBy === "kind") return kindOrder;
   if (groupBy === "releaseStatus") return releaseStatusOrder;
   if (groupBy === "audience") return audienceOrder;
+  if (groupBy === "theologyRisk") return theologyRiskOrder;
   return ageOrder;
 }
 
