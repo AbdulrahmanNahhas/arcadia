@@ -24,6 +24,9 @@ pub enum PlayerError {
   /// The local stream server could not bind or is not running.
   #[error("stream server unavailable: {0}")]
   StreamServer(String),
+  /// A downloaded subtitle file could not be written to the cache directory.
+  #[error("subtitle file unavailable: {0}")]
+  SubtitleUnavailable(String),
 }
 
 impl PlayerError {

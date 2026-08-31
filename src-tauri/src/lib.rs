@@ -171,6 +171,38 @@ async fn player_get_property(
   state.engine().await?.get_property(&name)
 }
 
+/// Writes a downloaded subtitle to the cache directory and loads it (roadmap Phase 2). The
+/// caller (`getInstallmentSubtitles`/the subtitle menu) already did the authenticated fetch
+/// against the API's OpenSubtitles proxy — this command's whole job is turning those bytes into a
+/// path `sub-add` can open, since libmpv's subtitle loader takes a filesystem path, not a byte
+/// buffer, and the video plane's own local-HTTP-URL trick doesn't apply to something this small.
+#[tauri::command]
+async fn player_load_subtitle(
+  app: tauri::AppHandle,
+  state: State<'_, Arc<AppState>>,
+  bytes: Vec<u8>,
+  filename: String,
+) -> PlayerResult<()> {
+  let dir = app
+    .path()
+    .app_cache_dir()
+    .map_err(|error| PlayerError::SubtitleUnavailable(error.to_string()))?
+    .join("subtitles");
+  std::fs::create_dir_all(&dir)
+    .map_err(|error| PlayerError::SubtitleUnavailable(error.to_string()))?;
+  // Strips any path components the caller's filename might carry, so this can never write
+  // outside the subtitle cache directory.
+  let safe_name = std::path::Path::new(&filename)
+    .file_name()
+    .map(|name| name.to_string_lossy().into_owned())
+    .filter(|name| !name.is_empty())
+    .unwrap_or_else(|| "subtitle.srt".to_string());
+  let path = dir.join(safe_name);
+  std::fs::write(&path, &bytes)
+    .map_err(|error| PlayerError::SubtitleUnavailable(error.to_string()))?;
+  state.engine().await?.load_subtitle(&path.to_string_lossy())
+}
+
 /// Stops playback *and* the transfer. Called on route exit as well as on window close, so leaving
 /// the player screen does not leave a torrent running in the background.
 #[tauri::command]
@@ -252,6 +284,7 @@ pub fn run() {
       player_set_volume,
       player_set_property,
       player_get_property,
+      player_load_subtitle,
       player_stop,
     ])
     .setup({

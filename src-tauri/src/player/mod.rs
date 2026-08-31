@@ -258,6 +258,17 @@ impl MpvEngine {
       .map_err(PlayerError::mpv)
   }
 
+  /// Loads and selects an external subtitle file (roadmap Phase 2). `sub-add` is a libmpv
+  /// *command*, not a property, so it cannot ride `set_property` — this is the one command the
+  /// player surface needs beyond the handful `set_property`/`get_property` already cover, so it
+  /// gets its own method rather than a generic command passthrough.
+  pub fn load_subtitle(&self, path: &str) -> PlayerResult<()> {
+    self
+      .mpv
+      .command("sub-add", &[path, "select"])
+      .map_err(PlayerError::mpv)
+  }
+
   pub fn stop(&self) -> PlayerResult<()> {
     self.mpv.command("stop", &[]).map_err(PlayerError::mpv)
   }
