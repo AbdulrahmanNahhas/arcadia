@@ -24,10 +24,14 @@ const METADATA_TIMEOUT: Duration = Duration::from_secs(30);
 /// How long a resolved torrent gets to find a peer and move a byte. Past this it is dead and the
 /// caller should fail over to the next ranked candidate.
 const FIRST_BYTE_TIMEOUT: Duration = Duration::from_secs(20);
-/// Streaming still writes fetched pieces to disk, so the cache is capped and pruned on startup.
-/// Without this, "streams by default, downloads only on request" quietly stops being true.
-const DEFAULT_CACHE_BUDGET_BYTES: u64 = 20 * 1024 * 1024 * 1024;
 const PEER_LIMIT: usize = 64;
+/// Resolves the roadmap's "seeding posture" open question: this is a family archive, not a
+/// tracker mirror, and streamed data is deleted the moment playback stops (see `stop_stream`) —
+/// there is nothing left on disk afterward to seed *from* even if uploading stayed on. Uploading
+/// only ever competed with the family's own downstream bandwidth while a film was mid-stream, for
+/// a benefit (ratio on a private tracker, if the family addon's indexers care) that doesn't apply
+/// here. Flip to `false` if that changes; it is the only line this decision touches.
+const DISABLE_UPLOAD: bool = true;
 
 /// One candidate as the API ranked it (see `packages/contracts/src/playback.ts`). Only the fields
 /// the transfer layer needs cross the IPC boundary.
@@ -78,7 +82,7 @@ pub struct TorrentEngine {
 
 impl TorrentEngine {
   pub async fn start(cache_dir: PathBuf) -> PlayerResult<Self> {
-    prune_cache_dir(&cache_dir, DEFAULT_CACHE_BUDGET_BYTES);
+    clear_cache_dir(&cache_dir);
     std::fs::create_dir_all(&cache_dir)
       .map_err(|error| PlayerError::TorrentRejected(error.to_string()))?;
 
@@ -89,6 +93,7 @@ impl TorrentEngine {
         folder: Some(cache_dir.join("session")),
       }),
       peer_limit: Some(PEER_LIMIT),
+      disable_upload: DISABLE_UPLOAD,
       ..Default::default()
     };
     let session = Session::new_with_opts(cache_dir.clone(), options)
@@ -245,7 +250,13 @@ impl TorrentEngine {
     }
   }
 
-  /// Torn down on `CloseRequested`, on `ExitRequested`, and again from `Drop` as the backstop.
+  /// Torn down on `CloseRequested` and on `ExitRequested` (`lib.rs`). There is deliberately no
+  /// `Drop` backstop here — librqbit's own `delete()` is genuinely async (it pauses the torrent,
+  /// touches its persistence database, and only then removes files), so replicating it
+  /// synchronously inside `Drop` would mean either reimplementing that sequence by hand or risking
+  /// a `block_on` panic if the engine is ever dropped from inside an async context. A crash or a
+  /// force-kill that skips both graceful paths is instead caught by `clear_cache_dir` at the next
+  /// normal startup — see its own comment for why an unconditional wipe there is safe.
   pub async fn shutdown(&self) {
     self.stop_stream().await;
     self.session.stop().await;
@@ -266,39 +277,30 @@ fn largest_file_index(handle: &ManagedTorrentHandle) -> Option<usize> {
     .flatten()
 }
 
-/// Startup-time LRU eviction. Streaming writes every fetched piece to disk, and without a cap the
-/// cache dir grows until the disk is full.
-fn prune_cache_dir(cache_dir: &PathBuf, budget: u64) {
-  let Ok(entries) = std::fs::read_dir(cache_dir) else {
-    return;
-  };
-  let mut files: Vec<(std::path::PathBuf, u64, std::time::SystemTime)> = entries
-    .filter_map(|entry| {
-      let entry = entry.ok()?;
-      let metadata = entry.metadata().ok()?;
-      if !metadata.is_file() {
-        return None;
-      }
-      Some((
-        entry.path(),
-        metadata.len(),
-        metadata.accessed().or_else(|_| metadata.modified()).ok()?,
-      ))
-    })
-    .collect();
-
-  let mut total: u64 = files.iter().map(|(_, size, _)| size).sum();
-  if total <= budget {
-    return;
-  }
-  files.sort_by_key(|(_, _, accessed)| *accessed);
-  for (path, size, _) in files {
-    if total <= budget {
-      break;
+/// Startup-time full wipe of the streaming cache — the crash/force-kill backstop `shutdown`'s own
+/// comment points to.
+///
+/// Everything under this directory is disposable streaming data by construction: `stop_stream`
+/// deletes a torrent's files the moment it stops, only one stream is ever active at a time (Phase
+/// 1's design), and nothing today promotes a stream into a kept download — that is Phase 3, and
+/// Phase 3's own design puts kept downloads under `app_data_dir()` instead, a different directory
+/// with different lifetime/backup expectations (see the roadmap's "Download-to-local" phase). So
+/// unlike a real cache, there is no partial state here worth preserving between launches: a prior
+/// LRU-eviction scheme that only trimmed down to a byte budget (and only ever looked at flat
+/// files, silently leaving an orphaned multi-file torrent's *directory* behind) left exactly the
+/// crash-artifact gap this function exists to close. An unconditional `remove_dir_all` closes it
+/// completely instead of merely bounding it — `create_dir_all` right after this call always
+/// starts the session from a genuinely empty directory.
+fn clear_cache_dir(cache_dir: &PathBuf) {
+  match std::fs::remove_dir_all(cache_dir) {
+    Ok(()) => log::info!("cleared the stream cache at {}", cache_dir.display()),
+    // NotFound just means there was nothing left over from a previous run — the common case.
+    Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+      log::warn!(
+        "could not clear the stream cache at {}: {error}",
+        cache_dir.display()
+      );
     }
-    if std::fs::remove_file(&path).is_ok() {
-      total = total.saturating_sub(size);
-      log::info!("evicted {} from the stream cache", path.display());
-    }
+    Err(_) => {}
   }
 }

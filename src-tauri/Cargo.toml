@@ -27,7 +27,7 @@ tauri-plugin-log = "2"
 # Playback and transfer (see docs/player-torrent-roadmap.md). librqbit downloads sequentially by
 # default and re-prioritises pieces on seek; libmpv2 is the maintained binding to the libmpv the
 # Nix/Fedora runtime provides.
-librqbit = "9"
+librqbit = { version = "9", features = ["disable-upload"] }
 libmpv2 = "6"
 # Types only — the async runtime is Tauri's own (`tauri::async_runtime` *is* tokio). Standing up
 # a second multi-thread runtime would mean two thread pools competing for cores during playback.
