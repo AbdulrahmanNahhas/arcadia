@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { app } from "../../app";
 import { database } from "../../database";
 import { clearStreamCache } from "../../integrations/torrent-source";
@@ -20,6 +20,7 @@ const fixture = readFileSync(
 const suffix = randomUUID().slice(0, 8);
 const titleIds: string[] = [];
 const installments: Record<string, string> = {};
+const episodes: Record<string, string> = {};
 
 async function makeTitle(input: {
   key: string;
@@ -82,6 +83,36 @@ beforeAll(async () => {
     isPrivate: true,
     films: [{ kind: "movie", imdbId: "tt0109830" }],
   });
+
+  // A season resolves through the title's IMDb id (seasons never carry their own) plus an
+  // episode's number — one integer-numbered episode, one fractional (a half-numbered special).
+  await makeTitle({ key: "series", imdbId: "tt0903747", films: [{ kind: "season" }] });
+  const sql = database().client;
+  const [wholeEpisode] = await sql`
+    insert into episodes (installment_id, number, position, title)
+    values (${installments["series:0"] ?? ""}, 1, 0, 'Pilot')
+    returning id`;
+  episodes.whole = String(wholeEpisode?.id);
+  const [halfEpisode] = await sql`
+    insert into episodes (installment_id, number, position, title)
+    values (${installments["series:0"] ?? ""}, 1.5, 1, 'Special')
+    returning id`;
+  episodes.half = String(halfEpisode?.id);
+
+  // Regression fixture for the real-catalog bug: a second season's Stremio season number is its
+  // rank among season-kind siblings, never its raw `position`. Two interspersed movies (position
+  // 3 vs. rank 2) make that distinction unambiguous — one interspersed movie would leave the two
+  // schemes numerically equal by coincidence.
+  await makeTitle({
+    key: "multi-season",
+    imdbId: "tt0475784",
+    films: [{ kind: "movie" }, { kind: "season" }, { kind: "movie" }, { kind: "season" }],
+  });
+  const [secondSeasonEpisode] = await sql`
+    insert into episodes (installment_id, number, position, title)
+    values (${installments["multi-season:3"] ?? ""}, 6, 5, 'Episode 6')
+    returning id`;
+  episodes.secondSeason = String(secondSeasonEpisode?.id);
 });
 
 afterAll(async () => {
@@ -90,14 +121,23 @@ afterAll(async () => {
   await sql.end();
 });
 
+// A developer's own `.env` may legitimately set a real ARCADIA_STREAM_ADDON_URL — cleared before
+// every test too, not just after, so "no source configured" stays deterministic regardless of
+// what's loaded into the process outside this suite's control.
+beforeEach(() => {
+  clearStreamCache();
+  delete process.env.ARCADIA_STREAM_ADDON_URL;
+  delete process.env.ARCADIA_STREAM_ALLOW_TMDB_IDS;
+});
 afterEach(() => {
   clearStreamCache();
   delete process.env.ARCADIA_STREAM_ADDON_URL;
   delete process.env.ARCADIA_STREAM_ALLOW_TMDB_IDS;
 });
 
-async function getStreams(installmentId: string) {
-  const response = await app.request(`/api/v1/installments/${installmentId}/streams`);
+async function getStreams(installmentId: string, episodeId?: string) {
+  const query = episodeId ? `?episodeId=${episodeId}` : "";
+  const response = await app.request(`/api/v1/installments/${installmentId}/streams${query}`);
   return { status: response.status, body: await response.json() };
 }
 
@@ -153,11 +193,74 @@ describe("installment stream discovery", () => {
     }
   });
 
-  it("refuses a season with its own code rather than pretending to search", async () => {
+  it("refuses a season with no episode selected", async () => {
     process.env.ARCADIA_STREAM_ADDON_URL = "https://addon.test";
     const { status, body } = await getStreams(installments["season:0"] ?? "");
     expect(status).toBe(400);
     expect(body.code).toBe("unsupported_kind");
+  });
+
+  it("resolves an episode through the title's IMDb id, season number, and episode number", async () => {
+    process.env.ARCADIA_STREAM_ADDON_URL = "https://addon.test";
+    const restore = stubAddon();
+    try {
+      const { status, body } = await getStreams(installments["series:0"] ?? "", episodes.whole);
+      expect(status).toBe(200);
+      // The only season under this title, so its rank among season-kind siblings is 1 — not its
+      // raw `position` (0).
+      expect(body.streamId).toBe("tt0903747:1:1");
+      expect(body.idSource).toBe("title.imdb");
+      expect(body.candidates.length).toBeGreaterThan(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it("refuses a fractional episode number — Stremio series ids need a plain integer", async () => {
+    process.env.ARCADIA_STREAM_ADDON_URL = "https://addon.test";
+    const { status, body } = await getStreams(installments["series:0"] ?? "", episodes.half);
+    expect(status).toBe(409);
+    expect(body.code).toBe("no_identifier");
+  });
+
+  it("numbers a season by its rank among season-kind siblings, not its raw position", async () => {
+    process.env.ARCADIA_STREAM_ADDON_URL = "https://addon.test";
+    const restore = stubAddon();
+    try {
+      // Movie, season, movie, season: the second season sits at position 3, but is only the 2nd
+      // season.
+      const { status, body } = await getStreams(
+        installments["multi-season:3"] ?? "",
+        episodes.secondSeason,
+      );
+      expect(status).toBe(200);
+      expect(body.streamId).toBe("tt0475784:2:6");
+    } finally {
+      restore();
+    }
+  });
+
+  it("404s an episode id that does not belong to the installment", async () => {
+    process.env.ARCADIA_STREAM_ADDON_URL = "https://addon.test";
+    const { status, body } = await getStreams(installments["series:0"] ?? "", randomUUID());
+    expect(status).toBe(404);
+    expect(body.code).toBe("not_found");
+  });
+
+  it("says the title has no identifier yet when a season's title carries none", async () => {
+    process.env.ARCADIA_STREAM_ADDON_URL = "https://addon.test";
+    await makeTitle({ key: "series-no-id", films: [{ kind: "season" }] });
+    const sql = database().client;
+    const [episode] = await sql`
+      insert into episodes (installment_id, number, position, title)
+      values (${installments["series-no-id:0"] ?? ""}, 1, 0, 'Pilot')
+      returning id`;
+    const { status, body } = await getStreams(
+      installments["series-no-id:0"] ?? "",
+      String(episode?.id),
+    );
+    expect(status).toBe(409);
+    expect(body.code).toBe("no_identifier");
   });
 
   it("says so when no stream source is configured at all", async () => {

@@ -320,6 +320,7 @@ export const episodes = pgTable(
     number: numeric("number", { precision: 8, scale: 2 }).notNull(),
     position: integer("position").notNull(),
     title: text("title"),
+    summary: text("summary").notNull().default(""),
     releaseDate: date("release_date"),
     runtimeMinutes: integer("runtime_minutes"),
     ...timestamps,
@@ -958,6 +959,8 @@ export const accountPlaybackStates = pgTable(
     playedManually: boolean("played_manually").notNull().default(false),
     /** When `isPlayed` last became true — auto or manual. Null while unwatched. */
     playedAt: timestamp("played_at", { withTimezone: true }),
+    /** Live `sub-delay` offset in milliseconds, restored alongside position on resume. */
+    subtitleOffsetMs: integer("subtitle_offset_ms"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

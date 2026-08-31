@@ -107,6 +107,7 @@ interface CommandArguments {
   player_set_volume: { volume: number };
   player_set_property: { name: string; value: string };
   player_get_property: { name: string };
+  player_load_subtitle: { bytes: number[]; filename: string };
   player_stop: never;
 }
 
@@ -146,8 +147,96 @@ export const desktopPlayer = {
     invoke<"player_set_property", void>("player_set_property", { name, value }),
   getProperty: (name: string) =>
     invoke<"player_get_property", string>("player_get_property", { name }),
+  /** `bytes` are the raw subtitle file contents — the caller already downloaded them through the
+   *  API's authenticated OpenSubtitles proxy; this only crosses them into a local file `sub-add`
+   *  can open. */
+  loadSubtitle: (bytes: Uint8Array, filename: string) =>
+    invoke<"player_load_subtitle", void>("player_load_subtitle", {
+      bytes: [...bytes],
+      filename,
+    }),
   stop: () => invoke<"player_stop", void>("player_stop"),
 };
+
+/** One entry from mpv's `track-list`, as enumerated by {@link listPlayerTracks}. */
+export interface PlayerTrack {
+  /** mpv's own track id — what `aid`/`sid` gets set to. */
+  id: string;
+  lang: string | null;
+  title: string | null;
+  selected: boolean;
+}
+
+/**
+ * `track-list` is node-typed and cannot ride `observe_property` (see `player/mod.rs`), but mpv
+ * also exposes it as individually-indexed scalar sub-properties — `track-list/count`, then
+ * `track-list/N/id`/`/type`/`/lang`/`/title`/`/selected` per index — every one reachable through
+ * the existing generic `getProperty` command, so this needs zero new Rust. Sequential rather than
+ * `Promise.all`'d across indices: track counts are small (a handful at most), and each `getProperty`
+ * call is already its own IPC round trip regardless.
+ */
+export async function listPlayerTracks(type: "audio" | "sub"): Promise<PlayerTrack[]> {
+  const countRaw = await desktopPlayer.getProperty("track-list/count").catch(() => "0");
+  const count = Number.parseInt(countRaw, 10) || 0;
+  const tracks: PlayerTrack[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const trackType = await desktopPlayer.getProperty(`track-list/${index}/type`).catch(() => "");
+    if (trackType !== type) continue;
+    const id = await desktopPlayer.getProperty(`track-list/${index}/id`).catch(() => "");
+    if (!id) continue;
+    const [lang, title, selected] = await Promise.all([
+      desktopPlayer.getProperty(`track-list/${index}/lang`).catch(() => ""),
+      desktopPlayer.getProperty(`track-list/${index}/title`).catch(() => ""),
+      desktopPlayer.getProperty(`track-list/${index}/selected`).catch(() => "no"),
+    ]);
+    tracks.push({ id, lang: lang || null, title: title || null, selected: selected === "yes" });
+  }
+  return tracks;
+}
+
+/**
+ * The only languages the family actually wants offered in the audio/subtitle menus, keyed by
+ * every code mpv/ffmpeg is known to report for them (ISO 639-1 and 639-2, both seen in the wild
+ * across different muxers) — a track in any other language exists in the file but is hidden from
+ * the menu entirely, not shown-and-disabled the way an `allowedAudio` restriction used to. That
+ * restriction was cut from this picker for exactly this bug: a language outside it stayed visibly
+ * "selected" (mpv itself may default to a Japanese dub, say) yet permanently unclickable, with no
+ * way back to it once switched away — this fixed set replaces it with an honest "not offered at
+ * all" instead.
+ */
+const AUDIO_TRACK_LANGUAGES: Record<string, string> = {
+  ar: "العربية",
+  ara: "العربية",
+  en: "الإنجليزية",
+  eng: "الإنجليزية",
+  ja: "اليابانية",
+  jpn: "اليابانية",
+  es: "الإسبانية",
+  spa: "الإسبانية",
+};
+
+/** Arabic and English only, per the same "don't show other options" rule as the audio menu. */
+const SUBTITLE_TRACK_LANGUAGES: Record<string, string> = {
+  ar: "العربية",
+  ara: "العربية",
+  en: "الإنجليزية",
+  eng: "الإنجليزية",
+};
+
+/**
+ * Filters `tracks` down to the curated language set for `kind`, attaching the Arabic label to
+ * show instead of the raw ISO code or (often absent/unhelpful) container title.
+ */
+export function knownLanguageTracks(
+  tracks: PlayerTrack[],
+  kind: "audio" | "sub",
+): Array<PlayerTrack & { label: string }> {
+  const languages = kind === "audio" ? AUDIO_TRACK_LANGUAGES : SUBTITLE_TRACK_LANGUAGES;
+  return tracks.flatMap((track) => {
+    const label = track.lang ? languages[track.lang.toLowerCase()] : undefined;
+    return label ? [{ ...track, label }] : [];
+  });
+}
 
 /** Fullscreen is a core Tauri API, so it is the one thing here that needs a capability entry. */
 export async function setFullscreen(fullscreen: boolean): Promise<void> {

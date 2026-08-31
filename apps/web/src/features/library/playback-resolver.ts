@@ -57,10 +57,16 @@ function isFailureCode(code: string): code is StreamErrorCode {
  * straight to the torrent source — but the shape is the chain, so Phase 3's local lookup and
  * Phase 5's Jellyfin lookup slot in ahead of it without touching any caller.
  */
-export async function resolvePlayback(installmentId: string): Promise<PlaybackSource> {
+export async function resolvePlayback(
+  installmentId: string,
+  episodeId?: string | null,
+): Promise<PlaybackSource> {
   let streams: InstallmentStreams;
   try {
-    streams = await apiFetch<InstallmentStreams>(`/api/v1/installments/${installmentId}/streams`);
+    const query = episodeId ? `?episodeId=${episodeId}` : "";
+    streams = await apiFetch<InstallmentStreams>(
+      `/api/v1/installments/${installmentId}/streams${query}`,
+    );
   } catch (error) {
     if (error instanceof ApiError && error.code && isFailureCode(error.code)) {
       // The API already writes the family-facing sentence; the local table is the fallback for a
@@ -84,8 +90,8 @@ export async function resolvePlayback(installmentId: string): Promise<PlaybackSo
 const messages = {
   not_found: "لم يُعثر على هذا الفيلم.",
   not_permitted: "هذا العمل خارج نطاق ملفك.",
-  no_identifier: "لا يحمل هذا الفيلم معرّف IMDb بعد، فتعذّر البحث عن مصادر تشغيله.",
-  unsupported_kind: "تشغيل المسلسلات غير متاح بعد — الأفلام فقط في الوقت الحالي.",
+  no_identifier: "تعذّر تحديد مصدر التشغيل — لا يحمل هذا العمل معرّف IMDb كافياً بعد.",
+  unsupported_kind: "لم يُحدَّد رقم الحلقة.",
   source_unavailable: "تعذّر الوصول إلى مصدر البث. حاول مرة أخرى بعد قليل.",
   source_not_configured: "لم يُضبط مصدر البث في هذا التثبيت.",
   no_streams: "لا توجد مصادر متاحة لهذا الفيلم حالياً.",

@@ -148,6 +148,13 @@
       "when": 1787908491173,
       "tag": "0020_normal_violations",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787989002219,
+      "tag": "0021_white_rhino",
+      "breakpoints": true
     }
   ]
 }

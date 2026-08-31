@@ -41,6 +41,7 @@ const work = {
   installmentId: null,
   episodeCount: 12,
   riskProfile: { sexuality: "low", behavioral: "medium", theology: "none" },
+  isPlayable: true,
 } as Work;
 
 describe("catalog filtering", () => {
@@ -137,6 +138,22 @@ describe("catalog filtering", () => {
     filters.facets.awardResults.include = ["nominee"];
     filters.facets.awardCategories.include = ["Best Animated Feature — Independent"];
     expect(workMatchesCatalogFilters(mixedAwardsWork, filters)).toBe(true);
+  });
+
+  it("filters by whether a work can actually resolve a stream", () => {
+    const unplayableWork = { ...work, id: "unplayable", isPlayable: false };
+    const options = buildCatalogFacetOptions([work, unplayableWork]);
+    expect(options.playableStates).toEqual(
+      expect.arrayContaining([
+        { value: "playable", count: 1 },
+        { value: "not-playable", count: 1 },
+      ]),
+    );
+
+    const filters = createCatalogFilters();
+    filters.facets.playableStates.include = ["playable"];
+    expect(workMatchesCatalogFilters(work, filters)).toBe(true);
+    expect(workMatchesCatalogFilters(unplayableWork, filters)).toBe(false);
   });
 
   it("defaults to public works and supports all/private admin visibility", () => {

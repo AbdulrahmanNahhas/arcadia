@@ -74,6 +74,7 @@ export type InstallmentJsonField =
 export type EpisodeJsonField =
   | "id"
   | "title"
+  | "summary"
   | "number"
   | "position"
   | "releaseDate"
@@ -142,6 +143,7 @@ export const STRUCTURE_PROJECTION_FIELDS: Array<ProjectionField> = [
   { key: "structure.installments.malId", label: "معرّف MyAnimeList للجزء", group: "معرّفات الجزء" },
   { key: "structure.installments.episodes.id", label: "معرّف الحلقة", group: "الحلقات" },
   { key: "structure.installments.episodes.title", label: "عنوان الحلقة", group: "الحلقات" },
+  { key: "structure.installments.episodes.summary", label: "ملخص الحلقة", group: "الحلقات" },
   { key: "structure.installments.episodes.number", label: "رقم الحلقة", group: "الحلقات" },
   { key: "structure.installments.episodes.position", label: "ترتيب الحلقة", group: "الحلقات" },
   { key: "structure.installments.episodes.releaseDate", label: "تاريخ الحلقة", group: "الحلقات" },
@@ -588,6 +590,7 @@ function projectedEpisode(
     else if (field === "releaseDate") output.releaseDate = dateString(episode.releaseAt);
     else if (field === "id") output.id = episode.id;
     else if (field === "title") output.title = episode.title;
+    else if (field === "summary") output.summary = episode.summary;
     else if (field === "position") output.position = episode.position;
     else output.runtimeMinutes = episode.runtimeMinutes;
   }
@@ -777,6 +780,7 @@ function mergeEpisodeProjection(
     id: original?.id,
     unitType: "episode" as const,
     title: original?.title ?? null,
+    summary: original?.summary ?? "",
     unitNumber: original?.unitNumber ?? null,
     position: original?.position ?? 0,
     runtimeMinutes: original?.runtimeMinutes ?? null,
@@ -799,6 +803,9 @@ function mergeEpisodeProjection(
     } else if (field === "title" && "title" in value) {
       // SAFETY: see loop comment above.
       merged.title = value.title as string | null;
+    } else if (field === "summary" && "summary" in value) {
+      // SAFETY: see loop comment above.
+      merged.summary = value.summary as string;
     } else if (field === "position" && "position" in value) {
       // SAFETY: see loop comment above.
       merged.position = value.position as number;

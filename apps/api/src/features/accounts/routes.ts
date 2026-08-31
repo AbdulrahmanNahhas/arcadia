@@ -23,7 +23,10 @@ type AccountRow = Record<string, unknown>;
 
 const defaultPreferences: AccountPreferences = {
   theme: "dark",
-  preferredAudio: ["ar"],
+  // Empty means "no configured preference" — the streams route's own ranking then falls back to
+  // its original default (an unlabeled/English-flagged release ranks first), rather than this
+  // default silently steering every fresh profile toward Arabic before anyone asked for that.
+  preferredAudio: [],
   allowedAudio: ["ar", "en"],
   subtitleMode: "allowed",
   canSwitchTracks: true,

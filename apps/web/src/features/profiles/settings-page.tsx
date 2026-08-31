@@ -186,6 +186,10 @@ export function SettingsPage() {
                   checked={draft.preferences.canSwitchTracks}
                   onChange={(value) => setPreference("canSwitchTracks", value)}
                 />
+                <PreferredAudioField
+                  value={draft.preferences.preferredAudio}
+                  onChange={(value) => setPreference("preferredAudio", value)}
+                />
                 <SwitchField
                   label="إخفاء الحرق"
                   description="تغطية نصوص المراجعات والتعليقات الموسومة بالحرق."
@@ -282,6 +286,68 @@ function SettingsCard({
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
+  );
+}
+
+/** English/Arabic/Spanish/Japanese — the same curated set the player's own audio-track picker
+ *  already limits itself to (`knownLanguageTracks` in `desktop-player.ts`). */
+const audioLanguageOptions = [
+  ["none", "بدون"],
+  ["en", "الإنجليزية"],
+  ["ar", "العربية"],
+  ["es", "الإسبانية"],
+  ["ja", "اليابانية"],
+] as const;
+
+/**
+ * Priority order for `preferredAudio` — read by the streams route to rank a torrent candidate
+ * whose detected language matches ahead of others (`languagePriorityScore` in
+ * `torrent-source.ts`). Doesn't gate anything: leaving it empty (the default for every new
+ * profile) just keeps today's plain English-first ranking; setting an order only nudges which
+ * candidate is *tried first* when more than one language is actually available; the family can
+ * always switch the embedded audio track manually from the player regardless of this setting.
+ */
+function PreferredAudioField({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (value: string[]) => void;
+}) {
+  const tiers = [value[0] ?? "none", value[1] ?? "none", value[2] ?? "none"];
+  const setTier = (index: number, language: string) => {
+    const next = [...tiers];
+    next[index] = language;
+    onChange(next.filter((item) => item !== "none"));
+  };
+  return (
+    <FieldSet>
+      <FieldLegend>ترتيب المسار الصوتي المفضّل</FieldLegend>
+      <FieldDescription>
+        يرتّب مصادر التشغيل عند توفر أكثر من لغة صوت — لا يمنع لغات أخرى ولا يبدّل الصوت تلقائياً داخل
+        الملف نفسه، فقط يفضّل أي مصدر يحمل إحدى هذه اللغات عند البحث عنه.
+      </FieldDescription>
+      <FieldGroup>
+        <PolicySelect
+          label="الأولوية الأولى"
+          value={tiers[0]}
+          options={audioLanguageOptions}
+          onChange={(next) => setTier(0, next)}
+        />
+        <PolicySelect
+          label="الأولوية الثانية"
+          value={tiers[1]}
+          options={audioLanguageOptions}
+          onChange={(next) => setTier(1, next)}
+        />
+        <PolicySelect
+          label="الأولوية الثالثة"
+          value={tiers[2]}
+          options={audioLanguageOptions}
+          onChange={(next) => setTier(2, next)}
+        />
+      </FieldGroup>
+    </FieldSet>
   );
 }
 

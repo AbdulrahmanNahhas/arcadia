@@ -55,7 +55,11 @@ async function relatedData(titleIds: string[]) {
     await Promise.all([
       sql`select i.*,
       (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.installment_id=i.id and maa.role='poster' and maa.is_primary limit 1) as poster_path,
-      (select count(*)::int from episodes e where e.installment_id=i.id) as episode_count
+      (select count(*)::int from episodes e where e.installment_id=i.id) as episode_count,
+      (select count(*) from installments sibling
+        where sibling.title_id=i.title_id and sibling.kind in ('movie','special')) as film_count,
+      exists(select 1 from episodes e where e.installment_id=i.id and e.number = floor(e.number))
+        as has_integer_episode
       from installments i where i.title_id in ${sql(titleIds)} order by i.position`,
       sql`select s.* from installment_scores s join installments i on i.id=s.installment_id where i.title_id in ${sql(titleIds)}`,
       sql`select x.title_id, v.id, v.slug from title_genres x join genres v on v.id=x.value_id where x.title_id in ${sql(titleIds)}`,
@@ -240,6 +244,13 @@ function summary(
   const ownScores = ownInstallments.map((item) =>
     scoreFrom(data.scores.find((score) => score.installment_id === item.id)),
   );
+  const ownInstallmentDetails = ownInstallments.map((item) =>
+    installment(
+      item,
+      row,
+      data.scores.find((score) => score.installment_id === item.id),
+    ),
+  );
   const planet = data.planets.find((item) => item.title_id === row.id);
   return {
     id: String(row.id),
@@ -288,13 +299,8 @@ function summary(
     score: { ...titleRating(ownScores), components: averageScoreComponents(ownScores) },
     classifications: [
       ...new Map(
-        ownInstallments.map((item) => {
-          const classification = installment(
-            item,
-            row,
-            data.scores.find((score) => score.installment_id === item.id),
-          ).classification;
-          return [JSON.stringify(classification), classification] as const;
+        ownInstallmentDetails.map((item) => {
+          return [JSON.stringify(item.classification), item.classification] as const;
         }),
       ).values(),
     ],
@@ -309,6 +315,7 @@ function summary(
         isPrimary: Boolean(item.is_primary),
       })),
     awards: data.awards.filter((item) => item.title_id === row.id).map(award),
+    isPlayable: ownInstallmentDetails.some((item) => item.isPlayable),
   };
 }
 
@@ -327,6 +334,28 @@ function installment(
     theology: row.theology_risk_override,
   };
   const score = scoreFrom(scoreRow);
+  // Mirrors the play buttons' own two gates (`unplayableReason`/`unplayableEpisodeReason` in
+  // `apps/web/.../play-button.tsx`) and the streams route's id-resolution rules
+  // (`resolveStreamId`/`resolveSeriesStreamId` in `app.ts`): released — "announced" never counts,
+  // neither does a release date still in the future, though a "completed" season is trusted on
+  // status alone since most seasons only carry a release date at the season level, not per
+  // episode — **and** id-resolvable (own id, or a sole-film title's; a season needs the title's id
+  // plus at least one integer-numbered episode, since a season never carries its own id and
+  // Torrentio's series ids have no slot for a fractional episode number).
+  const releaseDate = row.release_date ? new Date(String(row.release_date)) : null;
+  const releasedByDate =
+    row.status !== "announced" && releaseDate !== null && releaseDate <= new Date();
+  const hasReleased =
+    row.kind === "season" ? row.status === "completed" || releasedByDate : releasedByDate;
+  const isPlayable =
+    hasReleased &&
+    (row.kind === "season"
+      ? Boolean((title.imdb_id || title.tmdb_id) && row.has_integer_episode)
+      : Boolean(
+          row.imdb_id ||
+            row.tmdb_id ||
+            (Number(row.film_count) === 1 && (title.imdb_id || title.tmdb_id)),
+        ));
   return {
     id: String(row.id),
     titleId: String(row.title_id),
@@ -346,6 +375,7 @@ function installment(
     score: score as Installment["score"],
     rating: installmentRating(score),
     awards: awards.filter((item) => item.installment_id === row.id).map(award),
+    isPlayable,
     tmdbId: numeric(row.tmdb_id),
     imdbId: row.imdb_id ? String(row.imdb_id) : null,
     tvdbId: numeric(row.tvdb_id),
@@ -513,8 +543,12 @@ export async function titleDetail(
   }
   const installmentRows = await Promise.all(
     data.installments.map(async (item) => {
-      const episodeRows =
-        await sql`select id, number::float, position, title, release_date as "releaseDate", runtime_minutes as "runtimeMinutes" from episodes where installment_id=${item.id} order by position`;
+      const episodeRows = await sql`
+        select id, number::float, position, title, summary,
+          release_date as "releaseDate", runtime_minutes as "runtimeMinutes",
+          (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id
+            where maa.episode_id=e.id and maa.role='poster' and maa.is_primary limit 1) as poster_path
+        from episodes e where installment_id=${item.id} order by position`;
       return {
         ...installment(
           item,
@@ -527,8 +561,10 @@ export async function titleDetail(
           number: Number(episode.number),
           position: Number(episode.position),
           title: episode.title ? String(episode.title) : null,
+          summary: episode.summary ? String(episode.summary) : "",
           releaseDate: episode.releaseDate ? String(episode.releaseDate) : null,
           runtimeMinutes: numeric(episode.runtimeMinutes),
+          posterPath: episode.poster_path ? String(episode.poster_path) : null,
         })),
       };
     }),

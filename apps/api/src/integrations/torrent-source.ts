@@ -113,6 +113,9 @@ export function buildStreamUrl(input: {
   return `${input.baseUrl}${config}/stream/${input.type}/${input.id}.json`;
 }
 
+/** `candidates` are the addon's answer as parsed, **unranked** — every caller applies its own
+ *  `rankCandidates(candidates, preferredAudio)` on top, since two family members asking for the
+ *  same film with different audio preferences must see different orderings from one shared entry. */
 type CacheEntry = { expiresAt: number; candidates: StreamCandidate[] };
 const responseCache = new Map<string, CacheEntry>();
 
@@ -187,13 +190,18 @@ export const streamEnvelopeSchema = z.object({
 export async function fetchStreamCandidates(input: {
   type: "movie" | "series";
   id: string;
+  /** The requesting account's `preferred_audio`, in priority order — see `languagePriorityScore`.
+   *  Deliberately **not** part of the cache key: the cache holds the addon's raw, unranked
+   *  answer, and every account's own ranking is applied fresh on top of it, so two family members
+   *  with different preferences never see each other's ordering. */
+  preferredAudio?: readonly string[];
 }): Promise<StreamCandidate[] | null> {
   const config = readConfig();
   if (!config) return null;
 
   const cacheKey = `${config.baseUrl}|${config.configSegment}|${input.type}|${input.id}`;
   const cached = readCache(cacheKey);
-  if (cached) return cached;
+  if (cached) return rankCandidates(cached, input.preferredAudio ?? []);
 
   const url = buildStreamUrl({
     baseUrl: config.baseUrl,
@@ -213,9 +221,7 @@ export async function fetchStreamCandidates(input: {
       // down, blocked, or simply misconfigured. The host and status are enough to tell those
       // apart; the config segment is deliberately not logged, since it will carry a debrid key
       // once Phase 6 lands.
-      console.warn(
-        `stream source ${config.host} answered ${response.status} for ${input.id}`,
-      );
+      console.warn(`stream source ${config.host} answered ${response.status} for ${input.id}`);
       return null;
     }
     body = await response.json();
@@ -228,9 +234,9 @@ export async function fetchStreamCandidates(input: {
   const envelope = streamEnvelopeSchema.safeParse(body);
   if (!envelope.success) return null;
 
-  const candidates = rankCandidates(parseStreams(envelope.data.streams));
-  writeCache(cacheKey, candidates, config.cacheTtlMs);
-  return candidates;
+  const parsed = parseStreams(envelope.data.streams);
+  writeCache(cacheKey, parsed, config.cacheTtlMs);
+  return rankCandidates(parsed, input.preferredAudio ?? []);
 }
 
 /**
@@ -282,6 +288,7 @@ function parseStream(stream: RawStream): StreamCandidate | null {
     sizeBytes: parseSize(haystack),
     provider: parseProvider(haystack),
     isEnglish: looksEnglish(haystack),
+    languages: detectLanguages(haystack),
   };
 }
 
@@ -370,22 +377,93 @@ export function parseProvider(text: string): string | null {
   return match?.[1] ?? null;
 }
 
-const englishFlags = new Set(["🇬🇧", "🇺🇸", "🇦🇺", "🇨🇦", "🇮🇪", "🇳🇿"]);
-const nonEnglishWords =
-  /\b(arabic|russian|french|spanish|german|italian|hindi|tamil|telugu|japanese|korean|portuguese|turkish|polish|dutch|chinese|persian|farsi)\b/i;
-const englishWords = /\b(english|eng|multi|dual\s?audio)\b/i;
+/** Flag emoji → ISO 639-1 code, for every country flag Torrentio is known to prefix a release
+ *  with. Several codes have more than one flag (Arabic-speaking countries, Spanish-speaking
+ *  ones) — any of them is as good a signal as another. */
+const flagLanguages: Record<string, string> = {
+  "🇬🇧": "en",
+  "🇺🇸": "en",
+  "🇦🇺": "en",
+  "🇨🇦": "en",
+  "🇮🇪": "en",
+  "🇳🇿": "en",
+  "🇸🇦": "ar",
+  "🇦🇪": "ar",
+  "🇪🇬": "ar",
+  "🇮🇶": "ar",
+  "🇲🇦": "ar",
+  "🇶🇦": "ar",
+  "🇯🇵": "ja",
+  "🇪🇸": "es",
+  "🇲🇽": "es",
+  "🇦🇷": "es",
+  "🇷🇺": "ru",
+  "🇫🇷": "fr",
+  "🇩🇪": "de",
+  "🇮🇹": "it",
+  "🇮🇳": "hi",
+  "🇰🇷": "ko",
+  "🇵🇹": "pt",
+  "🇧🇷": "pt",
+  "🇹🇷": "tr",
+  "🇵🇱": "pl",
+  "🇳🇱": "nl",
+  "🇨🇳": "zh",
+  "🇮🇷": "fa",
+};
+
+/** Same language set as the flags above, reached through the addon's free-text words instead. */
+const wordLanguages: ReadonlyArray<{ pattern: RegExp; code: string }> = [
+  { pattern: /\b(english|eng)\b/i, code: "en" },
+  { pattern: /\barabic\b/i, code: "ar" },
+  { pattern: /\bjapanese\b/i, code: "ja" },
+  { pattern: /\bspanish\b/i, code: "es" },
+  { pattern: /\brussian\b/i, code: "ru" },
+  { pattern: /\bfrench\b/i, code: "fr" },
+  { pattern: /\bgerman\b/i, code: "de" },
+  { pattern: /\bitalian\b/i, code: "it" },
+  { pattern: /\bhindi\b/i, code: "hi" },
+  { pattern: /\btamil\b/i, code: "ta" },
+  { pattern: /\btelugu\b/i, code: "te" },
+  { pattern: /\bkorean\b/i, code: "ko" },
+  { pattern: /\bportuguese\b/i, code: "pt" },
+  { pattern: /\bturkish\b/i, code: "tr" },
+  { pattern: /\bpolish\b/i, code: "pl" },
+  { pattern: /\bdutch\b/i, code: "nl" },
+  { pattern: /\bchinese\b/i, code: "zh" },
+  { pattern: /\b(persian|farsi)\b/i, code: "fa" },
+];
+
+/** Named but not tied to one specific language — almost always includes an English track, so it
+ *  widens the "at least English" signal rather than naming a code of its own. */
+const multiAudioWords = /\bmulti\b|\bdual\s?audio\b/i;
 
 /**
- * The addon exposes no structured language field, so this reads flag emoji first (Torrentio
- * prefixes them for non-English audio) and falls back to language words. Absence of any signal
- * is treated as English: `language=` in the addon config is a *priority*, not a filter, so an
- * unannotated release is the default English one far more often than not.
+ * Every language this candidate's free-text name/description claims to carry, best-effort — the
+ * addon exposes no structured field, so this reads flag emoji first (Torrentio's own convention
+ * for prefixing non-English audio) and language words second. A release naming no language and no
+ * "multi"/"dual audio" defaults to English alone: `language=` in the addon config is a *priority*,
+ * not a filter, so an unannotated release is the default English one far more often than not.
  */
+export function detectLanguages(text: string): string[] {
+  const found = new Set<string>();
+  const flags = text.match(/[\u{1F1E6}-\u{1F1FF}]{2}/gu) ?? [];
+  for (const flag of flags) {
+    const code = flagLanguages[flag];
+    if (code) found.add(code);
+  }
+  for (const { pattern, code } of wordLanguages) {
+    if (pattern.test(text)) found.add(code);
+  }
+  if (multiAudioWords.test(text)) found.add("en");
+  if (found.size === 0) found.add("en");
+  return [...found];
+}
+
+/** Kept as a thin wrapper — `rankCandidates`'s default (no account preference recorded yet) still
+ *  reduces to this same English-first question. */
 export function looksEnglish(text: string): boolean {
-  const flags = text.match(/[\u{1F1E6}-\u{1F1FF}]{2}/gu);
-  if (flags?.length) return flags.some((flag) => englishFlags.has(flag));
-  if (englishWords.test(text)) return true;
-  return !nonEnglishWords.test(text);
+  return detectLanguages(text).includes("en");
 }
 
 function preferredHeight() {
@@ -406,14 +484,32 @@ function resolutionScore(height: number | null, preferred: number) {
 }
 
 /**
- * English → resolution → seeders → size, per the roadmap, with two guards in front of it:
+ * Lower is better. With no configured preference this reduces to the original rule — an
+ * English-carrying candidate (`languages.includes("en")`, true for the vast majority of
+ * unannotated releases per `detectLanguages`'s own default) outranks one that doesn't. With a
+ * preference recorded (`account_preferences.preferred_audio`, in priority order — e.g. `["en",
+ * "ar", "es"]`), a candidate ranks by the *earliest* preferred language it carries; one that
+ * carries none of them ranks after every candidate that carries at least one, but still ahead of
+ * nothing — resolution/seeders/size still get the final say among same-scored candidates.
+ */
+function languagePriorityScore(candidate: StreamCandidate, preferredAudio: readonly string[]) {
+  if (preferredAudio.length === 0) return candidate.languages.includes("en") ? 0 : 1;
+  const index = preferredAudio.findIndex((language) => candidate.languages.includes(language));
+  return index === -1 ? preferredAudio.length : index;
+}
+
+/**
+ * Language → resolution → seeders → size, per the roadmap, with two guards in front of it:
  * a `direct` (debrid) source beats every torrent because it needs no peers at all, and a source
  * the addon reports as having zero seeders sinks to the bottom whatever its resolution — it is
  * the one signal that reliably predicts "this will never reach first frame".
  *
  * Codec is deliberately never a ranking or filtering key: mpv decodes everything ffmpeg does.
  */
-export function rankCandidates(candidates: StreamCandidate[]): StreamCandidate[] {
+export function rankCandidates(
+  candidates: StreamCandidate[],
+  preferredAudio: readonly string[] = [],
+): StreamCandidate[] {
   const preferred = preferredHeight();
   // The spread already copies, so nothing is mutated; `toSorted` needs a newer lib target than
   // this package compiles against.
@@ -423,8 +519,9 @@ export function rankCandidates(candidates: StreamCandidate[]): StreamCandidate[]
     if (byDirect) return byDirect;
     const byAlive = isReachable(right) - isReachable(left);
     if (byAlive) return byAlive;
-    const byEnglish = Number(right.isEnglish) - Number(left.isEnglish);
-    if (byEnglish) return byEnglish;
+    const byLanguage =
+      languagePriorityScore(left, preferredAudio) - languagePriorityScore(right, preferredAudio);
+    if (byLanguage) return byLanguage;
     const byResolution =
       resolutionScore(right.height, preferred) - resolutionScore(left.height, preferred);
     if (byResolution) return byResolution;

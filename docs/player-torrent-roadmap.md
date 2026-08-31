@@ -3,7 +3,11 @@
 > **Status:** Phase 0 done (2026-08-25) · Phase 0.5 done (2026-08-25) · **Phase 1 playing
 > end-to-end on Linux/Niri (2026-08-26)** — a film streams from the addon and renders inside the
 > app window with working controls; the 10-film acceptance sample and CI packaging are still open ·
-> Next up: finish the Phase 1 acceptance run, then Phase 2 · Last revised 2026-08-26
+> **Phase 2 closed out (2026-08-29)** — TV/anime episode playback, subtitles (search, download,
+> embedded-track selection, offset), audio-track switching, and `subtitleOffsetMs` persistence, all
+> pending a real manual end-to-end pass once an OpenSubtitles key and a real family Torrentio addon
+> are available · Next up: Phase 3 (download-to-local), or the Phase 1 acceptance run/CI packaging
+> if that is still open · Last revised 2026-08-29
 > **Updating this doc:** tick checkboxes as tasks land; set each phase's status to
 > `Done (YYYY-MM-DD)` when its acceptance criteria pass.
 
@@ -318,10 +322,16 @@ delete from external_identities
 - [ ] Phase 0.5: `installments.id_source` + `id_confidence` (or a single
       `id_provenance jsonb`) so an automatically matched id is distinguishable from a
       human-confirmed one, and a bad batch can be re-run without clobbering manual corrections.
-- [ ] Phase 2: `account_playback_states.subtitle_offset_ms` (nullable int).
+- [x] Phase 2: `account_playback_states.subtitle_offset_ms` (nullable int) — done, migration
+      `0021_white_rhino`. Also added `episodes.summary` (not originally listed here) in the same
+      migration, same pattern as `installments.summary`.
 - [ ] Phase 3: `media_files.origin` (`'import' | 'torrent'`) + `media_files.torrent_info_hash`.
 - [ ] Phase 6: none — debrid keys belong in Tauri secure storage, not Postgres.
-- [ ] Not yet: `episodes` gets no id columns until TV playback is built.
+- [x] Resolved by Phase 2: TV playback is built, and `episodes` still gets no id columns — season
+      stream/subtitle resolution goes through the **title's** `imdb_id`/`tmdb_id` plus the
+      season's Stremio season number and the episode's `number`. That season number turned out to
+      need its own computation rather than reusing `position` verbatim — see the correction in
+      the Phase 2 section above.
 - [ ] Not yet: `kitsu_id` — only if the Phase 0.5 coverage report shows a meaningful anime-film
       residue that IMDb cannot resolve.
 
@@ -566,9 +576,12 @@ would have found. They are recorded because each one is a trap the next platform
       `ARCADIA_STREAM_ALLOW_TMDB_IDS` can be settled. Note the public `torrentio.strem.fun`
       Cloudflare-blocks VPN egress ranges outright — a 403 on every path, for browsers too — which
       is worth knowing before blaming the code.
-- [ ] **Packaging:** confirm in CI that the bundled artifact plays a file. `pnpm tauri build` still
-      does not produce a runnable bundle on NixOS (see README), so this needs the CI workflow that
-      does not exist yet.
+- [ ] **Packaging:** `.github/workflows/tauri-build.yml` now builds and uploads AppImage/deb/rpm
+      artifacts from a standard-distro (`ubuntu-latest`) runner, closing the "no CI workflow
+      exists yet" half of this item. `.github/workflows/ci.yml` also runs `pnpm check:rust` on
+      every push/PR. **Still open:** a GitHub-hosted runner has no display or GPU, so nothing yet
+      confirms the built artifact actually plays a file — that half stays a manual step on real
+      hardware (see the acceptance run above).
 
 ### Known limits of the current compositing approach
 
@@ -632,7 +645,10 @@ in order of preference:
       Note: only *scalar* properties are observed. libmpv2's `PropertyData` hits `unimplemented!()`
       on node-typed properties, so observing `demuxer-cache-state` or `track-list` would panic —
       the scalar equivalents carry everything Phase 1 needs. Phase 2 must read `track-list`
-      on demand rather than observing it.
+      on demand rather than observing it. **Confirmed and done in Phase 2**: `track-list` is
+      individually-indexed scalar sub-properties (`track-list/count`, then `/N/id`, `/type`,
+      `/lang`, `/title`, `/selected` per index), every one reachable through the existing
+      `player_get_property` — no new Rust needed, see `listPlayerTracks()` in `desktop-player.ts`.
 - [x] Coalesced into one `PlayerEvent` enum — one IPC hop per tick, not eight.
 - [x] Registered via `generate_handler!`; no capability entries needed for them. Only
       `core:window:allow-set-fullscreen` / `allow-is-fullscreen` were added to
@@ -662,10 +678,12 @@ in order of preference:
 - [x] **Disk policy decided:** `stop_stream` deletes the torrent's data (`delete_files: true`)
       unless it was promoted to a download, and the cache dir is LRU-pruned to a 20 GB budget on
       startup. Both constants live at the top of `src-tauri/src/torrent/mod.rs`.
-- [ ] **Seeding posture — still an open decision, and the one thing in Phase 1 nobody has chosen.** librqbit uploads while connected and nothing
-      currently stops it. `librqbit` has a `disable-upload` cargo feature and `SessionOptions`
-      exposes the flag behind it, so either answer is a small change; it is a bandwidth question
-      for the family, not a technical one. Note it in user-facing settings once decided.
+- [x] **Seeding posture — decided (2026-08-31): uploading is disabled.** `librqbit`'s
+      `disable-upload` cargo feature is enabled and `SessionOptions.disable_upload = true`
+      (`DISABLE_UPLOAD` constant, top of `src-tauri/src/torrent/mod.rs`). Streamed data is deleted
+      the moment playback stops, so there is nothing left to seed from afterward anyway; no
+      user-facing setting was added since there is no real trade-off to expose. Flip the constant
+      if that reasoning changes.
 
 ### 1.5 API — stream discovery
 
@@ -719,7 +737,8 @@ in order of preference:
       *stalled — no peers*.
 - [x] Error states for every failure code, plus "all candidates dead" and "mpv failed to init".
 - [x] `autoplay` honoured. `allowedAudio`/`canSwitchTracks` have nothing to gate yet — track
-      switching is Phase 2 — so they are wired at the preference read, not the UI.
+      switching is Phase 2 — so they are wired at the preference read, not the UI. **Phase 2**:
+      now gate the real `AudioTrackMenu`/`SubtitleMenu` popovers in `player-controls.tsx`.
 - [x] Placeholders wired: `تشغيل الفيلم` on the episodes tab, `ابدأ بالمشاهدة` in the hero (only
       when the title holds exactly one film; otherwise it still jumps to the episode list, since
       "start here" is meaningless for a franchise), the watch-radar tooltip reworded off Jellyfin,
@@ -741,50 +760,90 @@ in order of preference:
       means mpv holds its last frame forever, which otherwise sits over whatever the app shows
       next.
 
-# Phase 2 — Subtitles, tracks, resume
+# Phase 2 — Subtitles, tracks, resume, and TV/anime playback
 
-**Status:** Not started
-**Done when:** an English subtitle track can be fetched and rendered, offset adjusted live, and
-both the offset and playback position are restored on reopening the film.
+**Status:** Closed out 2026-08-29.
+**Done when:** an English or Arabic subtitle track can be found, downloaded and rendered, offset
+adjusted live, both the offset and playback position are restored on reopening the film or
+episode, embedded audio/subtitle tracks can be switched, and a TV/anime episode plays through the
+same Torrentio pipeline movies already used.
 
 mpv has libass built in, so subtitles are native — no WASM subtitle stack, no JS timing shim.
 
-### Playback state API — half of it already exists
+Resume-on-open and periodic progress persistence (the "Playback state API" work originally
+scoped here) landed **before** this phase, in the user's own self-directed watch-tracking work
+(commits `4e6dd11`…`51a023a`): `account_playback_states` has a full read+write API, the player
+already resumes a saved position, and "My Space" (مساحتي) surfaces continue-watching rows. This
+phase's playback-state work was therefore narrower than originally scoped: one additive column
+(`subtitle_offset_ms`) plus threading it through the existing read/write endpoints, not a new API.
 
-Correction to an earlier draft: `account_playback_states` **does** have a write endpoint.
-`PUT /api/v1/me/playback` lives at `apps/api/src/features/social/routes.ts:141`, validates against
-`upsertPlaybackInputSchema` (`packages/contracts/src/index.ts:619`), and already does the
-`canSeeTitle` visibility check. What is missing is the **read** path — nothing anywhere queries
-that table.
+### TV/anime playback (pulled forward from Deferred)
 
-`media_files`, `media_tracks`, `jellyfin_servers` and `jellyfin_items` genuinely have zero
-references outside `schema.ts` and `schema.integration.test.ts` — treat those four as unproven
-scaffolding.
+Series installments now play through the exact `{titleImdbId}:{season}:{episode}` Stremio
+convention movies already used, no addon-layer changes needed — Torrentio's `/stream/series/…`
+response is the identical JSON shape `parseStreams`/`rankCandidates` already handled.
 
-- [ ] Add the missing `GET` (`/api/v1/me/playback/:installmentId`, and a list form for a "continue
-      watching" row), visibility-checked the same way the `PUT` already is.
-- [ ] Extend `upsertPlaybackInputSchema` with `subtitleOffsetMs`; regenerate the client. Reuse the
-      existing endpoint — do not introduce a second, differently-shaped playback route.
-- [ ] Restore position on open; persist on pause, exit, and a periodic interval (throttled — this
-      is a DB write, not a telemetry stream).
-- [ ] Surface resume in the UI ("متابعة من …").
+- [x] `GET /api/v1/installments/{id}/streams` takes an optional `episodeId` query param; a season
+      with no `episodeId` still 400s (`unsupported_kind`, message updated), a fractional episode
+      number 409s (`no_identifier` — Torrentio has no slot for a half-numbered special), and
+      resolution always goes through the **title's** `imdb_id`/`tmdb_id` (a season never carries
+      its own, per Phase 0). **Correction after real-catalog testing**: `seasonNumber` is *not*
+      `installment.position` — `position` is the whole title's installment ordering (seasons and
+      movies interleaved), so a season after even one interspersed movie gets the wrong Stremio
+      season number under that scheme (confirmed live: Solo Leveling season 2, `position=1`,
+      played as season 1). `seasonNumber` is now the season's own 1-indexed rank among only its
+      season-kind siblings (`1 + count of season-kind siblings with a lower position`), computed
+      the same way in both the streams and subtitles routes.
+- [x] `episodes.summary` column (additive migration `0021_white_rhino`), threaded through the read
+      path (`repository.ts`), the admin structure-write route, the CLI's `work apply`/`work
+      export`, and the admin JSON-projection editor. `episode.posterPath` also added to the read
+      path — zero schema work, `media_asset_assignments.episode_id` was already there.
+- [x] Player threads `episodeId` through the search schema, `player-page.tsx`, and
+      `playback-resolver.ts`.
+- [x] Real per-episode play button (`PlayEpisodeButton`/`unplayableEpisodeReason` in
+      `play-button.tsx`) replacing the hardcoded-disabled `EpisodeCard` button; a season-level
+      "continue from episode N" / "بدء المشاهدة" / "إعادة المشاهدة" CTA computed client-side from
+      already-fetched playback data.
+- [x] My Space's continue-watching cards deep-link into `/player/$installmentId` instead of the
+      title page.
 
 ### Subtitles
 
-- [ ] OpenSubtitles integration — needs a free API key (ask when starting this phase) for their newer REST API (v1). Requires Api-Key and User-Agent headers; avoid the deprecated XML-RPC API.
-- [ ] Match by `behaviorHints.videoHash` + `videoSize` when the addon supplies them (the accurate
-      path); fall back to IMDb id + `filename`.
-- [ ] Download to a temp path and `sub-add` it.
-- [ ] Offset control bound to mpv's **`sub-delay`** property — +/- buttons and a typed seconds
-      field, applied live.
-- [ ] Persist per installment via `subtitle_offset_ms`.
-- [ ] Respect `subtitleMode: "off"`.
-- [ ] Styling controls via `sub-font-size`, `sub-pos`.
+- [x] `apps/api/src/integrations/opensubtitles.ts` — OpenSubtitles REST v1 (`Api-Key` +
+      `User-Agent` headers, not the deprecated XML-RPC API), best-effort like `torrent-source.ts`:
+      no `OPENSUBTITLES_API_KEY` behaves exactly like `source_not_configured`.
+- [x] Matches by `moviehash` (the accurate path — the same hash `behaviorHints.videoHash` already
+      carries) first, falls back to the title's IMDb id (or `parent_imdb_id` +
+      `season_number`/`episode_number` for an episode).
+- [x] `GET /api/v1/installments/{id}/subtitles` (search, ranked hash-match-first) and
+      `GET .../subtitles/{fileId}/download` (a separate route, since OpenSubtitles' download link
+      is a short-lived, quota-counted resource — only spent once a candidate is actually chosen).
+- [x] New Tauri command `player_load_subtitle` + `MpvEngine::load_subtitle` running the `sub-add`
+      *command* (not a property, so it couldn't ride the existing `set_property`) — takes bytes +
+      a filename, writes to the app cache dir, then `sub-add`s the local path. The frontend
+      downloads through the API's authenticated proxy first (never talks to OpenSubtitles
+      directly), same reasoning as the addon URL staying server-side.
+- [x] Offset control (+/- 100 ms buttons, live seconds readout) bound to `sub-delay` via the
+      already-generic `setProperty` — no new Rust needed for this part.
+- [x] Persisted via `subtitleOffsetMs` on `upsertPlaybackInputSchema`/`accountPlaybackStateSchema`
+      (nullable `subtitle_offset_ms` column, additive migration) and restored through the same
+      `getPlaybackForInstallment` call the position-resume already made.
+- [x] The subtitle menu doesn't render at all when the account's `subtitleMode` is `"off"`.
+- [ ] Styling controls (`sub-font-size`, `sub-pos`) — deferred, genuinely optional polish; would
+      cost zero new Rust (same generic `setProperty` path) whenever it's picked up.
 
 ### Tracks
 
-- [ ] Enumerate embedded audio/subtitle tracks from `track-list`.
-- [ ] Pickers writing `aid`/`sid`, gated on `canSwitchTracks`, constrained by `allowedAudio`.
+- [x] `listPlayerTracks()` in `desktop-player.ts` enumerates `track-list/count` then per-index
+      `track-list/N/id`/`/type`/`/lang`/`/title`/`/selected` — every one a plain scalar property
+      reachable through the existing generic `getProperty`, confirming the roadmap's original
+      assumption (`track-list` itself is node-typed and can't ride `observe_property`) needed zero
+      new Rust to work around.
+- [x] Embedded subtitle tracks are picked from inside the same "الترجمات" popover as the
+      OpenSubtitles search results (one menu, not two dead-feeling ends); embedded audio tracks
+      get their own "المسار الصوتي" popover. Both write `sid`/`aid` via the existing generic
+      `setProperty`.
+- [x] Audio picker gated on `canSwitchTracks`, tracks outside `allowedAudio` shown but disabled.
 
 ---
 
@@ -841,6 +900,65 @@ Because the video is a native surface inside our own window, PiP is a window-sta
 
 **Status:** Not started (not the primary source yet)
 
+**Catalog note (2026-08-29):** the user has decided the ~49 titles below — mostly older
+dubbed/classic children's anime and a few long-runners — should be **Jellyfin-only**: no torrent
+IMDb/TMDB id backfill effort should be spent on them, since they are expected to be served from
+the family's own Jellyfin library once this phase lands, not resolved through Torrentio. Recorded
+here rather than left only in chat so Phase 0.5-style backfill work and this phase both know to
+skip them:
+
+Aesop's Fables (`c8baa5ea-1710-4aec-b15d-5208ef40aae8`), Anne of Green Gables
+(`24a409c2-998e-46a1-ba0a-c38a9a752339`), Arabian Nights: Sinbad's Adventures
+(`f4b5a4c1-3bb6-409d-b6ef-c0391163c30b`), Babar (`b7649b4b-9def-43e9-a79b-e5b53c3483ac`), Baby &
+Me (`d99623d7-3f2e-4b7d-9bc3-39a089486743`), Belle and Sebastian
+(`314ab9e6-2d2c-4c0d-879b-1b29e08a0045`), Beyblade: Metal Fusion
+(`de4fb734-4b66-485f-bf06-0c7d6fb0671d`), Captain Tsubasa (`096acab5-7489-453d-aec2-9e43a4545d50`),
+Cocotama (`48488084-fb7f-40b9-8d2b-bb737963f17a`), Cookin' Idol Ai! Mai! Main!
+(`cf4e83cb-6043-4f59-ad25-774b7cb0437b`), Detective Conan / Case Closed
+(`4840dcee-ff6c-4928-a94e-8cd5df8ff8aa`), Don Chuck Story (`14118ae0-c3b9-4cde-bc03-756abf4729be`),
+Doraemon (2005) (`7a488b30-ee91-40d1-997f-babdf90dc3e7`), Dragon Quest: The Adventure of Dai
+(`434abafb-9780-43f9-bc91-045116331738`), Eon Kid / Iron Kid
+(`95848c30-981b-4351-a191-a607fa2dab23`), Fairy Tales of the World
+(`6ace250e-21e6-4eee-a74e-16ba3c39b558`), Future Boy Conan (`0410de35-536d-4906-a402-d977661dfa47`),
+Grimm's Fairy Tale Classics (`710865f5-a426-4336-9d23-301245213dca`), Haikyuu!!
+(`81099275-5496-4ac8-b0d7-e82b3d1aeeeb`), Hamtaro (`6375a3ff-94a5-4a84-84d8-50500d4df740`), Heidi,
+Girl of the Alps (`9ceaf29f-e8bb-4bab-89b3-f992e505c87b`), Hello Anne: Before Green Gables
+(`cec4fee8-134b-4412-9225-d6f352b8f6ab`), Inazuma Eleven (`1154237d-77be-4153-b195-f2156c8d4f4f`),
+LBX: Little Battlers eXperience (`74fac49f-e90b-41c0-b655-2334b1d585b7`), Les Misérables: Shoujo
+Cosette (`537cd6c8-3c4f-4cc0-85f6-123952b03a93`), Little Women II: Jo's Boys
+(`76c0a584-9eee-438e-a3f7-f371467cacdf`), Lucy-May of the Southern Rainbow
+(`eaf49135-ab76-44f4-abf8-e809d1690ca4`), Mama is a 4th Grader
+(`95d1fb66-bc4c-42d0-903e-f76248d2b030`), Maya the Bee (`6eab6fe1-4a9b-4d0e-8d36-b887c4722ea7`),
+Muka Muka Paradise (`9991f774-fe29-47a8-8449-3aebb67779c2`), Once Upon a Time... Life
+(`915bce4c-2ae6-4664-bcd4-eee7867baaa6`), Pipero's Adventures
+(`f0095a23-d6da-49e8-9485-e77bf6203555`), Princess Sara / Little Princess Sara
+(`da40457e-a75e-4aff-8daf-49729cc26581`), Remi, Nobody's Girl
+(`a61702f0-9e17-4642-9eb6-0a548a236664`), Robin Hood's Great Adventure
+(`30ddb323-9c7b-4bcb-949d-e606a9304114`), Romance of the Three Kingdoms
+(`a8d4cc64-2176-4781-83e1-6b697114f2b2`), Romeo and the Black Brothers
+(`b36c5e34-807f-449a-a274-ccc7726e1744`), Sonic X (`7130871c-ca7e-4a45-baaf-bebfe2a49aba`), Tales
+of Little Women (`76842f99-bf52-40a9-a4ee-dd5c1af64177`), The Adventures of Tom Sawyer
+(`1f9f7e15-fdac-491a-8003-b6209b8a0d58`), The Marshmallow Times
+(`4c266c72-8f87-4fc0-8363-16fe9fa6693f`), The Mysterious Cities of Gold
+(`cc81178f-922e-4867-89b5-0da1107b320d`), The Secret Garden (`c1108174-490e-4b73-bf5d-0b2a75dd38cf`),
+The Story of Pollyanna, Girl of Love (`703df859-8870-4fa8-aa7e-81b0db895add`), The Swiss Family
+Robinson: Flone of the Mysterious Island (`12a766e3-88ac-4f8e-b77c-325f5365509d`), The World's Most
+Famous Tales (`d0ba666a-c905-429e-b949-a5903e6132d2`), Trapp Family Story
+(`40e5c35f-ccfc-4566-8763-5b17a33e7538`), Treasure Island (`260dbec8-8a08-4956-be18-0cb94569909a`),
+UFO Robot Grendizer (`ab99a676-4502-49e5-8b33-028f2b3cfd71`).
+
+Separately, three titles were named as the **catalog completeness standard** other titles should be
+brought up to — full episode data (numbers, titles, summaries, release dates, posters), current
+schema: Vinland Saga (`e9c0fa70-c75f-416f-abf6-86460ea2cc0f`), Solo Leveling
+(`73d03ddb-9243-4ca4-8df7-567f2d7e49bf`), and Fullmetal Alchemist: Brotherhood
+(`be753361-5f10-4dd2-b5b3-b843c2eb5405`). Filling these three out, and improving the admin
+dashboard's episode editing UI to match the current schema (`summary`, `posterPath` per episode —
+see this Phase 2 section above), is tracked as follow-up work, not yet started. A TMDB-backed
+auto-fetch tool for episode titles/summaries was discussed as a possible later addition (TMDB's
+`/tv/{id}/season/{n}` endpoint returns per-episode name+overview for a free API key) but is
+explicitly out of scope for this pass — see Phase 2 §3's note above on why: the rest of the catalog
+is hand-curated, and a sync tool is a real feature of its own.
+
 - [ ] Server config UI + credential storage.
 - [ ] Adjust `jellyfin_servers`/`jellyfin_items` — unused scaffolding, expect changes.
 - [ ] Match installments to Jellyfin items via `ProviderIds.Tmdb`/`.Imdb` against the new columns.
@@ -893,10 +1011,10 @@ reference for the Activity/Surface wiring.
 
 # Deferred
 
-- TV/episode playback (`/stream/series/tt…:{season}:{episode}.json`) and id columns on `episodes`.
-  Note the catalog is **184 seasons to 110 movies** — TV is the larger half of the archive, so this
-  is deferred by sequencing, not by importance. Expect it immediately after Phase 2.
-- Multiple subtitle languages — Arabic subtitles are the obvious follow-up.
+- Subtitle styling controls (`sub-font-size`, `sub-pos`) — Phase 2 shipped everything else in its
+  Subtitles section; this one small UI addition (no new Rust) was left for later.
+- Multiple subtitle languages beyond the `ar,en` default `installments/{id}/subtitles` already
+  searches — a `languages` query param already exists, this is UI-only follow-up (a picker for it).
 - Source/quality picker UI beyond auto-pick-best (the API already returns the ranked list from
   Phase 1.5, so this is UI only).
 - `kitsu_id` for anime that Torrentio only resolves by Kitsu id — sized by the Phase 0.5 report.
@@ -913,5 +1031,5 @@ reference for the Activity/Surface wiring.
 | What confidence threshold separates "auto-accept" from "human confirms"? | Phase 0.5 | **Moot.** The bulk matcher was never built; every id was entered by hand. |
 | Seeding: stop when playback ends, or keep seeding? | Phase 1.4 | **Still open, and now the last blocker in Phase 1 that is a decision rather than a task.** librqbit uploads while connected and nothing stops it. `disable-upload` is a cargo feature with a matching `SessionOptions` flag, so either answer is a few lines. |
 | Streaming cache size cap, and where it lives. | Phase 1.4 | **Answered:** `app_cache_dir()/streams`, 20 GB, LRU-pruned on startup, and a stream's data is deleted when it stops unless promoted to a download. Constants at the top of `src-tauri/src/torrent/mod.rs` — change them there if 20 GB is wrong for the family's disk. |
-| OpenSubtitles API key — free tier, registered to which account? | Phase 2 | Still open. |
+| OpenSubtitles API key — free tier, registered to which account? | Phase 2 | **Still open** (not a blocker — the integration degrades to `source_not_configured` with no key, exactly like the addon URL). The code (`apps/api/src/integrations/opensubtitles.ts`) is done and tested against a stubbed response; what's missing is a real `OPENSUBTITLES_API_KEY` in the deployment's env and one real end-to-end download to confirm the REST v1 shape matches what was implemented from documentation. |
 | Is the play button gated on anything beyond title visibility? | Phase 1.6 | **Answered: yes, and it already is.** The endpoint filters through `visibleTitleIdsForAccount`, which applies the full `VisibilityPolicy` — audience, age, the three risk levels, and per-account title/tag/genre/entity/planet blocks. Playback inherits exactly the rules browsing has, and the hidden play button is not what enforces it. |

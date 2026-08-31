@@ -2240,6 +2240,7 @@ function editableStructure(structure: WorkStructure) {
       episodes: installment.units.map((episode) => ({
         id: episode.id,
         title: episode.title,
+        summary: episode.summary,
         number: episode.unitNumber,
         position: episode.position,
         releaseDate: structureDate(episode.releaseAt),
@@ -2325,6 +2326,7 @@ function parseEditableStructure(raw: string, workId: string): EditableWorkStruct
             id: value.id,
             unitType: "episode",
             title: value.title ?? null,
+            summary: value.summary ?? "",
             unitNumber: value.number ?? null,
             position: value.position,
             runtimeMinutes: value.runtimeMinutes ?? null,

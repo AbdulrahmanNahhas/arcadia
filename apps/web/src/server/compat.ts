@@ -182,6 +182,7 @@ export function titleToWork(title: TitleSummary | TitleDetail | AdminTitleDetail
     tvdbId: "tvdbId" in title ? title.tvdbId : null,
     anilistId: "anilistId" in title ? title.anilistId : null,
     malId: "malId" in title ? title.malId : null,
+    isPlayable: title.isPlayable,
     awards: title.awards,
     releaseStart: first?.releaseDate ?? null,
     releaseEnd: null,
@@ -232,39 +233,53 @@ function episodeUnit(
     seasonId: installment.id,
     unitType: "episode" as const,
     title: episode.title,
+    summary: episode.summary,
     unitNumber: episode.number,
     position: episode.position,
     runtimeMinutes: episode.runtimeMinutes,
     pageCount: null,
     releaseAt: episode.releaseDate ? new Date(episode.releaseDate).valueOf() : null,
+    posterPath: episode.posterPath,
+    // See `WorkUnitDetail.progress`'s doc comment: nothing populates this from real data.
     progress: null,
   };
 }
 
 export function detailToStructure(detail: TitleDetail): WorkStructure {
-  const seasons = detail.installments.map((item) => ({
-    id: item.id,
-    workId: detail.id,
-    title: item.title,
-    installmentKind: item.kind,
-    summary: item.summary,
-    releaseStatus: item.status,
-    rating: item.rating,
-    score: item.score,
-    seasonNumber: item.kind === "season" ? item.position : null,
-    position: item.position,
-    runtimeMinutes: item.runtimeMinutes,
-    unitCount: item.episodes?.length ?? (item.kind === "movie" ? 1 : 0),
-    releaseAt: item.releaseDate ? new Date(item.releaseDate).valueOf() : null,
-    posterPath: item.posterPath,
-    tmdbId: item.tmdbId,
-    imdbId: item.imdbId,
-    tvdbId: item.tvdbId,
-    anilistId: item.anilistId,
-    malId: item.malId,
-    progress: null,
-    units: (item.episodes ?? []).map((episode) => episodeUnit(detail.id, item, episode)),
-  }));
+  // The installment's raw `position` is its rank across *every* installment (seasons and movies
+  // interleaved), not a season number — a season after even one interspersed movie/special would
+  // display (and, before a matching API-side fix, resolve playback for) the wrong season
+  // otherwise. `seasonNumber` is the season's own 1-indexed rank among season-kind installments
+  // only; `detail.installments` is already position-ordered (see `repository.ts`), so a running
+  // counter over that order is enough.
+  let seasonRank = 0;
+  const seasons = detail.installments.map((item) => {
+    if (item.kind === "season") seasonRank += 1;
+    return {
+      id: item.id,
+      workId: detail.id,
+      title: item.title,
+      installmentKind: item.kind,
+      summary: item.summary,
+      releaseStatus: item.status,
+      rating: item.rating,
+      score: item.score,
+      seasonNumber: item.kind === "season" ? seasonRank : null,
+      position: item.position,
+      runtimeMinutes: item.runtimeMinutes,
+      unitCount: item.episodes?.length ?? (item.kind === "movie" ? 1 : 0),
+      releaseAt: item.releaseDate ? new Date(item.releaseDate).valueOf() : null,
+      posterPath: item.posterPath,
+      tmdbId: item.tmdbId,
+      imdbId: item.imdbId,
+      tvdbId: item.tvdbId,
+      anilistId: item.anilistId,
+      malId: item.malId,
+      // See `WorkUnitDetail.progress`'s doc comment: nothing populates this from real data.
+      progress: null,
+      units: (item.episodes ?? []).map((episode) => episodeUnit(detail.id, item, episode)),
+    };
+  });
   return {
     workId: detail.id,
     seasons,
@@ -351,6 +366,8 @@ function installmentWorks(items: Installment[], titles: TitleSummary[]) {
       tvdbId: item.tvdbId ?? title?.tvdbId ?? null,
       anilistId: item.anilistId ?? title?.anilistId ?? null,
       malId: item.malId ?? title?.malId ?? null,
+      // This specific installment's own playability, not the title's aggregate.
+      isPlayable: item.isPlayable,
       awards: [
         ...(title?.awards.filter((recognition) => recognition.installmentId === null) ?? []),
         ...item.awards,

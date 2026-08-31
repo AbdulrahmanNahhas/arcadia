@@ -20,6 +20,7 @@ export type CatalogFacetKey =
   | "ratingStates"
   | "warningStates"
   | "structureStates"
+  | "playableStates"
   | "sexualityRisks"
   | "behavioralRisks"
   | "theologyRisks";
@@ -54,6 +55,7 @@ export const catalogFacetKeys: CatalogFacetKey[] = [
   "ratingStates",
   "warningStates",
   "structureStates",
+  "playableStates",
   "sexualityRisks",
   "behavioralRisks",
   "theologyRisks",
@@ -122,6 +124,7 @@ export function getCatalogFacetValues(work: Work, key: CatalogFacetKey): string[
     if (!work.installmentId) return ["title"];
     return [work.episodeCount !== null ? "season" : "standalone"];
   }
+  if (key === "playableStates") return [work.isPlayable ? "playable" : "not-playable"];
   const dimension = key.replace("Risks", "") as keyof NonNullable<Work["riskProfile"]>;
   return [work.riskProfile?.[dimension] ?? "unknown"];
 }

@@ -140,7 +140,101 @@ export function PlayFilmButton({
     <Link
       to="/player/$installmentId" // TODO: CHANGE!!! to $installmentId
       params={{ installmentId }}
-      search={{ titleId }}
+      search={{ titleId, episodeId: null }}
+      className={cn(buttonVariants({ size }), className)}
+    >
+      <PlayIcon weight="fill" data-icon="inline-start" /> {label}
+    </Link>
+  );
+}
+
+/**
+ * The subset of an episode's fields the episode play button needs — mirrors
+ * {@link PlayableInstallment}, but the id check is against the **title's** IMDb/TMDB id, never
+ * the episode's own: a season/episode never carries its own catalog identifier (Phase 0's
+ * design), only the umbrella title does. `episodeNumber` also has to be a plain integer — the
+ * Stremio series id spec (`{imdbId}:{season}:{episode}`) has no slot for a fractional (half-
+ * numbered special) episode number.
+ */
+export interface PlayableEpisode {
+  releaseStatus?: "announced" | "airing" | "completed" | "unknown";
+  releaseAt?: number | null;
+  titleImdbId?: string | null;
+  titleTmdbId?: number | null;
+  episodeNumber: number | null;
+}
+
+export function unplayableEpisodeReason(episode: PlayableEpisode): string | null {
+  const releasedAt = episode.releaseAt ?? null;
+  // A season marked "completed" has, by definition, already fully aired — most catalogued
+  // seasons only carry a season-level release date, not one per episode, so requiring an
+  // individual `releaseAt` here would leave every episode of an otherwise-finished season stuck
+  // reading as unreleased. `releaseAt` still decides it for an "airing"/"unknown" season, where
+  // only some episodes are out yet.
+  const hasReleased =
+    episode.releaseStatus === "completed" ||
+    (episode.releaseStatus !== "announced" && releasedAt !== null && releasedAt <= Date.now());
+  if (!hasReleased) return "لم تُصدر بعد";
+  if (!episode.titleImdbId && !episode.titleTmdbId) return "لا يتوفر معرّف تشغيل بعد";
+  if (episode.episodeNumber === null || !Number.isInteger(episode.episodeNumber))
+    return "رقم حلقة غير صالح للتشغيل";
+  return null;
+}
+
+/**
+ * {@link PlayFilmButton}'s sibling for one TV/anime episode — same degrade-to-disabled shape,
+ * same desktop-shell gate, but checked against {@link unplayableEpisodeReason} and always carries
+ * an `episodeId` into the player.
+ */
+export function PlayEpisodeButton({
+  installmentId,
+  episodeId,
+  titleId,
+  label = "تشغيل الحلقة",
+  size = "default",
+  className,
+  releaseStatus,
+  releaseAt,
+  titleImdbId,
+  titleTmdbId,
+  episodeNumber,
+}: {
+  installmentId: string;
+  episodeId: string;
+  titleId: string;
+  label?: string;
+  size?: "default" | "sm" | "lg";
+  className?: string;
+} & PlayableEpisode) {
+  const desktop = useIsDesktopShell();
+  const reason = unplayableEpisodeReason({
+    releaseStatus,
+    releaseAt,
+    titleImdbId,
+    titleTmdbId,
+    episodeNumber,
+  });
+
+  if (reason) {
+    return <DisabledPlayButton size={size} className={className} label={label} reason={reason} />;
+  }
+
+  if (!desktop) {
+    return (
+      <DisabledPlayButton
+        size={size}
+        className={className}
+        label={label}
+        reason="متاح في تطبيق سطح المكتب"
+      />
+    );
+  }
+
+  return (
+    <Link
+      to="/player/$installmentId"
+      params={{ installmentId }}
+      search={{ titleId, episodeId }}
       className={cn(buttonVariants({ size }), className)}
     >
       <PlayIcon weight="fill" data-icon="inline-start" /> {label}

@@ -15,6 +15,7 @@ import {
   browseResponseSchema,
   healthSchema,
   installmentStreamsSchema,
+  installmentSubtitlesSchema,
   type mediaAssetSchema,
   streamErrorSchema,
   titleDetailSchema,
@@ -38,6 +39,11 @@ import {
   TitleWriteError,
 } from "./features/titles/write";
 import { searchArtwork } from "./integrations/artwork-search";
+import {
+  downloadSubtitleFile,
+  fetchSubtitleCandidates,
+  subtitleSourceConfigured,
+} from "./integrations/opensubtitles";
 import {
   fetchStreamCandidates,
   streamSourceConfigured,
@@ -153,6 +159,7 @@ const contributionRoleSlugs = new Set([
 ]);
 type AdminStructureUnit = Partial<{
   title: string | null;
+  summary: string;
   unitNumber: number;
   position: number;
   releaseAt: number;
@@ -219,6 +226,7 @@ const adminStructureSchema = z.object({
               id: z.string().optional(),
               unitType: z.literal("episode").default("episode"),
               title: z.string().nullable().optional(),
+              summary: z.string().default(""),
               unitNumber: z.number().positive().nullable().optional(),
               position: z.number().int().min(0),
               releaseAt: z.number().nullable().optional(),
@@ -412,7 +420,10 @@ app.openapi(detailRoute, async (context) => {
 const installmentStreamsRoute = createRoute({
   method: "get",
   path: "/api/v1/installments/{installmentId}/streams",
-  request: { params: z.object({ installmentId: z.string().uuid() }) },
+  request: {
+    params: z.object({ installmentId: z.string().uuid() }),
+    query: z.object({ episodeId: z.string().uuid().optional() }),
+  },
   responses: {
     200: {
       content: { "application/json": { schema: installmentStreamsSchema } },
@@ -446,11 +457,15 @@ const installmentStreamsRoute = createRoute({
 });
 app.openapi(installmentStreamsRoute, async (context) => {
   const { installmentId } = context.req.valid("param");
+  const { episodeId } = context.req.valid("query");
   const [row] = await database().client`
-    select i.title_id, i.kind, i.imdb_id, i.tmdb_id,
+    select i.title_id, i.kind, i.position, i.imdb_id, i.tmdb_id,
       t.imdb_id as title_imdb_id, t.tmdb_id as title_tmdb_id, t.is_private,
       (select count(*) from installments sibling
-        where sibling.title_id = i.title_id and sibling.kind in ('movie', 'special')) as film_count
+        where sibling.title_id = i.title_id and sibling.kind in ('movie', 'special')) as film_count,
+      (select count(*) from installments sibling
+        where sibling.title_id = i.title_id and sibling.kind = 'season'
+          and sibling.position < i.position) + 1 as season_number
     from installments i join titles t on t.id = i.title_id
     where i.id = ${installmentId}`;
 
@@ -477,12 +492,69 @@ app.openapi(installmentStreamsRoute, async (context) => {
   }
 
   if (row.kind === "season") {
+    if (!episodeId) {
+      return context.json(
+        { code: "unsupported_kind" as const, message: "لم يُحدَّد رقم الحلقة." },
+        400,
+      );
+    }
+
+    const [episode] = await database().client`
+      select number::float as number from episodes
+      where id = ${episodeId} and installment_id = ${installmentId}`;
+    if (!episode) {
+      return context.json({ code: "not_found" as const, message: "لم يُعثر على هذه الحلقة." }, 404);
+    }
+    if (!Number.isInteger(episode.number)) {
+      return context.json(
+        { code: "no_identifier" as const, message: "رقم حلقة غير صحيح لتحديد مصدر البث." },
+        409,
+      );
+    }
+
+    if (!streamSourceConfigured()) {
+      return context.json(
+        { code: "source_not_configured" as const, message: "لم يُضبط مصدر البث في هذا التثبيت." },
+        503,
+      );
+    }
+
+    const resolvedSeries = resolveSeriesStreamId({
+      titleImdbId: row.title_imdb_id ? String(row.title_imdb_id) : null,
+      titleTmdbId: positiveIntegerOrNull(row.title_tmdb_id ? String(row.title_tmdb_id) : null),
+    });
+    if (!resolvedSeries) {
+      return context.json(
+        {
+          code: "no_identifier" as const,
+          message: "لا يحمل هذا العنوان معرّف IMDb بعد، فتعذّر البحث عن مصادر تشغيله.",
+        },
+        409,
+      );
+    }
+
+    const seriesStreamId = `${resolvedSeries.id}:${Number(row.season_number)}:${episode.number}`;
+    const seriesCandidates = await fetchStreamCandidates({
+      type: "series",
+      id: seriesStreamId,
+      preferredAudio: current?.account.preferences.preferredAudio,
+    });
+    if (!seriesCandidates) {
+      return context.json(
+        { code: "source_unavailable" as const, message: "تعذّر الوصول إلى مصدر البث." },
+        502,
+      );
+    }
+
     return context.json(
       {
-        code: "unsupported_kind" as const,
-        message: "تشغيل المسلسلات غير متاح بعد — الأفلام فقط في الوقت الحالي.",
+        installmentId,
+        titleId,
+        streamId: seriesStreamId,
+        idSource: resolvedSeries.idSource,
+        candidates: seriesCandidates,
       },
-      400,
+      200,
     );
   }
 
@@ -510,7 +582,11 @@ app.openapi(installmentStreamsRoute, async (context) => {
     );
   }
 
-  const candidates = await fetchStreamCandidates({ type: "movie", id: resolved.streamId });
+  const candidates = await fetchStreamCandidates({
+    type: "movie",
+    id: resolved.streamId,
+    preferredAudio: current?.account.preferences.preferredAudio,
+  });
   if (!candidates) {
     return context.json(
       { code: "source_unavailable" as const, message: "تعذّر الوصول إلى مصدر البث." },
@@ -565,6 +641,227 @@ function resolveStreamId(ids: {
   }
   return null;
 }
+
+/**
+ * A season installment never carries its own `imdb_id`/`tmdb_id` (Phase 0's design), so series
+ * resolution has no installment-level fallback and no `filmCount` guard to worry about — it is
+ * always the title's id, unconditionally.
+ */
+function resolveSeriesStreamId(ids: { titleImdbId: string | null; titleTmdbId: number | null }) {
+  if (ids.titleImdbId) {
+    return { id: ids.titleImdbId, idSource: "title.imdb" as const };
+  }
+  if (tmdbStreamIdsAllowed() && ids.titleTmdbId) {
+    return { id: `tmdb:${ids.titleTmdbId}`, idSource: "title.tmdb" as const };
+  }
+  return null;
+}
+
+/**
+ * Subtitle discovery (roadmap Phase 2). Deliberately mirrors the streams route's shape — same
+ * visibility check, same season/episode resolution rules, same generic `streamErrorSchema` codes
+ * — but is a separate handler rather than a shared refactor of the already-covered streams route,
+ * to avoid touching its tested id-resolution paths in the same change that adds subtitles.
+ */
+const installmentSubtitlesRoute = createRoute({
+  method: "get",
+  path: "/api/v1/installments/{installmentId}/subtitles",
+  request: {
+    params: z.object({ installmentId: z.string().uuid() }),
+    query: z.object({
+      episodeId: z.string().uuid().optional(),
+      videoHash: z.string().optional(),
+      languages: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: installmentSubtitlesSchema } },
+      description: "Ranked subtitle candidates, best match first",
+    },
+    400: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "A season with no episode selected",
+    },
+    403: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "The account cannot see this title",
+    },
+    404: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "Installment (or episode) not found",
+    },
+    409: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "Neither a video hash nor an IMDb id is available to search by",
+    },
+    502: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "OpenSubtitles did not answer",
+    },
+    503: {
+      content: { "application/json": { schema: streamErrorSchema } },
+      description: "No subtitle source is configured in this deployment",
+    },
+  },
+});
+app.openapi(installmentSubtitlesRoute, async (context) => {
+  const { installmentId } = context.req.valid("param");
+  const { episodeId, videoHash, languages } = context.req.valid("query");
+  const [row] = await database().client`
+    select i.title_id, i.kind, i.position, i.imdb_id,
+      t.imdb_id as title_imdb_id, t.is_private,
+      (select count(*) from installments sibling
+        where sibling.title_id = i.title_id and sibling.kind in ('movie', 'special')) as film_count,
+      (select count(*) from installments sibling
+        where sibling.title_id = i.title_id and sibling.kind = 'season'
+          and sibling.position < i.position) + 1 as season_number
+    from installments i join titles t on t.id = i.title_id
+    where i.id = ${installmentId}`;
+
+  const session = await getAuthSession(context.req.raw.headers);
+  const isStaff = session?.user.role === "owner" || session?.user.role === "editor";
+  if (!row || (row.is_private && !isStaff)) {
+    return context.json({ code: "not_found" as const, message: "لم يُعثر على هذا العمل." }, 404);
+  }
+  const titleId = String(row.title_id);
+
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (current) {
+    const visible = await visibleTitleIdsForAccount(current.account.id, [titleId]);
+    if (!visible.has(titleId)) {
+      return context.json(
+        { code: "not_permitted" as const, message: "هذا العمل خارج نطاق ملفك." },
+        403,
+      );
+    }
+  }
+
+  let imdbId: string | null = null;
+  let season: number | null = null;
+  let episode: number | null = null;
+
+  if (row.kind === "season") {
+    if (!episodeId) {
+      return context.json(
+        { code: "unsupported_kind" as const, message: "لم يُحدَّد رقم الحلقة." },
+        400,
+      );
+    }
+    const [episodeRow] = await database().client`
+      select number::float as number from episodes
+      where id = ${episodeId} and installment_id = ${installmentId}`;
+    if (!episodeRow) {
+      return context.json({ code: "not_found" as const, message: "لم يُعثر على هذه الحلقة." }, 404);
+    }
+    imdbId = row.title_imdb_id ? String(row.title_imdb_id) : null;
+    season = Number(row.season_number);
+    episode = Number.isInteger(episodeRow.number) ? Number(episodeRow.number) : null;
+  } else {
+    const isOnlyFilm = Number(row.film_count) === 1;
+    imdbId = row.imdb_id
+      ? String(row.imdb_id)
+      : isOnlyFilm && row.title_imdb_id
+        ? String(row.title_imdb_id)
+        : null;
+  }
+
+  if (!videoHash && !imdbId) {
+    return context.json(
+      {
+        code: "no_identifier" as const,
+        message: "لا يحمل هذا العمل معرّف IMDb، ولا مصدر تشغيل نشط لمطابقة الترجمة به.",
+      },
+      409,
+    );
+  }
+
+  if (!subtitleSourceConfigured()) {
+    return context.json(
+      { code: "source_not_configured" as const, message: "لم يُضبط مصدر الترجمة في هذا التثبيت." },
+      503,
+    );
+  }
+
+  const candidates = await fetchSubtitleCandidates({
+    imdbId,
+    season,
+    episode,
+    videoHash: videoHash ?? null,
+    videoSize: null,
+    languages: languages ? languages.split(",").map((value: string) => value.trim()) : ["ar", "en"],
+  });
+  if (!candidates) {
+    return context.json(
+      { code: "source_unavailable" as const, message: "تعذّر الوصول إلى مصدر الترجمة." },
+      502,
+    );
+  }
+
+  return context.json({ installmentId, titleId, candidates }, 200);
+});
+
+/**
+ * Downloading is a separate route from search because OpenSubtitles' download link is a
+ * short-lived, quota-counted resource: fetching it only when a specific candidate is chosen keeps
+ * the search response cheap to render and never spends a download credit the family didn't ask
+ * for. The visibility check is repeated here — a restricted account should not be able to pull a
+ * subtitle file for an installment it cannot see just because it knows the id.
+ *
+ * A plain (non-OpenAPI-typed) route, like the other file-serving/binary responses in this file —
+ * `app.openapi()`'s response typing is built around JSON bodies, not a raw byte stream.
+ */
+app.get("/api/v1/installments/:installmentId/subtitles/:fileId/download", async (context) => {
+  const installmentId = context.req.param("installmentId");
+  const fileId = Number(context.req.param("fileId"));
+  if (!z.string().uuid().safeParse(installmentId).success || !Number.isInteger(fileId)) {
+    return context.json({ code: "not_found" as const, message: "لم يُعثر على هذا العمل." }, 404);
+  }
+  const [row] = await database().client`
+    select i.title_id, t.is_private from installments i join titles t on t.id = i.title_id
+    where i.id = ${installmentId}`;
+
+  const session = await getAuthSession(context.req.raw.headers);
+  const isStaff = session?.user.role === "owner" || session?.user.role === "editor";
+  if (!row || (row.is_private && !isStaff)) {
+    return context.json({ code: "not_found" as const, message: "لم يُعثر على هذا العمل." }, 404);
+  }
+  const titleId = String(row.title_id);
+
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (current) {
+    const visible = await visibleTitleIdsForAccount(current.account.id, [titleId]);
+    if (!visible.has(titleId)) {
+      return context.json(
+        { code: "not_permitted" as const, message: "هذا العمل خارج نطاق ملفك." },
+        403,
+      );
+    }
+  }
+
+  if (!subtitleSourceConfigured()) {
+    return context.json(
+      { code: "source_not_configured" as const, message: "لم يُضبط مصدر الترجمة في هذا التثبيت." },
+      503,
+    );
+  }
+
+  const file = await downloadSubtitleFile(fileId);
+  if (!file) {
+    return context.json(
+      { code: "source_unavailable" as const, message: "تعذّر تنزيل ملف الترجمة." },
+      502,
+    );
+  }
+
+  return new Response(Buffer.from(file.bytes), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/octet-stream",
+      "Content-Disposition": `attachment; filename="${file.fileName ?? `subtitle-${fileId}.srt`}"`,
+    },
+  });
+});
 
 const listSchema = z.array(z.record(z.string(), z.unknown()));
 for (const resource of ["planets", "people", "studios", "relationships"] as const) {
@@ -1522,8 +1819,9 @@ app.put("/api/v1/admin/titles/:titleId/structure", async (context) => {
             ${award.source_url}, ${award.notes}, ${award.position})`;
       for (const [unitIndex, unit] of units.entries())
         await transaction`
-        insert into episodes (installment_id, number, position, title, release_date, runtime_minutes)
+        insert into episodes (installment_id, number, position, title, summary, release_date, runtime_minutes)
         values (${installment.id}, ${unit.unitNumber ?? unitIndex + 1}, ${Number(unit.position ?? unitIndex + 1)}, ${unit.title ?? null},
+          ${unit.summary ?? ""},
           ${unit.releaseAt ? new Date(Number(unit.releaseAt)).toISOString().slice(0, 10) : null}, ${unit.runtimeMinutes ?? null})`;
     }
     if (!(input.seasons ?? []).length) {
@@ -1533,8 +1831,8 @@ app.put("/api/v1/admin/titles/:titleId/structure", async (context) => {
       if (!installment) throw new Error("Title not found");
       for (const [index, unit] of (input.ungroupedUnits ?? []).entries())
         await transaction`
-        insert into episodes (installment_id, number, position, title, runtime_minutes)
-        values (${installment.id}, ${unit.unitNumber ?? index + 1}, ${Number(unit.position ?? index + 1)}, ${unit.title ?? null}, ${unit.runtimeMinutes ?? null})`;
+        insert into episodes (installment_id, number, position, title, summary, runtime_minutes)
+        values (${installment.id}, ${unit.unitNumber ?? index + 1}, ${Number(unit.position ?? index + 1)}, ${unit.title ?? null}, ${unit.summary ?? ""}, ${unit.runtimeMinutes ?? null})`;
     }
   });
   await purgeUnreferencedMedia(previousMedia.map((row) => row.path as string));

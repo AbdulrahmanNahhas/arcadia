@@ -11,7 +11,6 @@ import {
   InfoIcon,
   PlayIcon,
   RowsIcon,
-  SparkleIcon,
   StarIcon,
   TelevisionIcon,
   TrophyIcon,
@@ -56,10 +55,15 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { recordHistory } from "@/features/archive/api";
-import { WorkFamilyActions } from "@/features/archive/work-family-actions";
-import type { Entity, Work, WorkSeasonDetail, WorkStructure } from "@/features/library/model";
+// import { WorkFamilyActions } from "@/features/archive/work-family-actions";
+import type { Entity, Work, WorkStructure } from "@/features/library/model";
 import { tagLabelsAr, taxonomyLabels } from "@/features/library/model";
-import { PlayFilmButton } from "@/features/library/play-button";
+import {
+  PlayEpisodeButton,
+  PlayFilmButton,
+  unplayableEpisodeReason,
+  unplayableReason,
+} from "@/features/library/play-button";
 import { scoreCriteria, scoreLabel, scoreWeights } from "@/features/library/scoring";
 import type { Recommendation, RiskAssessment } from "@/features/platform/model";
 import {
@@ -200,6 +204,9 @@ export function WorkDetailPage({
   const playedEpisodeIds = new Set(
     playback.flatMap((row) => (row.isPlayed && row.episodeId ? [row.episodeId] : [])),
   );
+  const heroTarget = heroPlaybackTarget(
+    heroTrackableUnits(structure, work.imdbId, work.tmdbId, playedInstallmentIds, playedEpisodeIds),
+  );
   const trackableUnitsBySeason = structure.seasons.map((season) => {
     const isMovie = season.installmentKind === "movie" || season.installmentKind === "special";
     return {
@@ -279,13 +286,13 @@ export function WorkDetailPage({
         work={work}
         planet={planet?.planet ?? null}
         audienceLabel={audienceLabel}
-        playableInstallment={soleFilmInstallment(structure)}
+        heroTarget={heroTarget}
       />
 
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as TitleTabId)}
-        className="mx-auto max-w-400 gap-0 px-5 pt-10 sm:px-8"
+        className="mx-auto max-w-400 gap-0 px-5 sm:px-8"
       >
         <div
           id="title-sections"
@@ -340,6 +347,8 @@ export function WorkDetailPage({
               <TabsContent value="episodes" className="mt-0 focus-visible:outline-none">
                 <EpisodesSection
                   workId={work.id}
+                  titleImdbId={work.imdbId}
+                  titleTmdbId={work.tmdbId}
                   structure={structure}
                   selectedId={selectedInstallmentId}
                   onSelectedIdChange={setSelectedInstallmentId}
@@ -425,30 +434,117 @@ function youtubeEmbedUrl(url: string): string | null {
   }
 }
 
+/** One playable-or-not unit the hero's "next thing to watch" resolver can point at. */
+type HeroUnit =
+  | {
+      kind: "movie";
+      installmentId: string;
+      unplayable: string | null;
+      watched: boolean;
+      releaseStatus?: "announced" | "airing" | "completed" | "unknown";
+      releaseAt: number | null;
+      imdbId: string | null;
+      tmdbId: number | null;
+    }
+  | {
+      kind: "episode";
+      installmentId: string;
+      episodeId: string;
+      number: number;
+      unplayable: string | null;
+      watched: boolean;
+      releaseStatus?: "announced" | "airing" | "completed" | "unknown";
+      releaseAt: number | null;
+    };
+
 /**
- * The hero's play button only means something when there is exactly one film to play. A franchise
- * or a series has no single "start here", so those keep jumping to the episodes list instead of
- * guessing which installment the family meant. Returns the installment itself, not just its id,
- * so the hero can pass its release/identifier fields into `PlayFilmButton`'s gating — whether that
- * sole film is actually playable is a separate question from whether it's the sole one.
+ * Every trackable unit across the whole work — every movie/special installment, and every episode
+ * of every season — in catalog order (installment position, then episode position). The flat list
+ * a franchise like Spy x Family (3 seasons + a standalone movie) needs so "what's next" can be
+ * answered across the *whole* work, not just within one season the way the Episodes tab's own CTA
+ * already works.
  */
-function soleFilmInstallment(structure: WorkStructure): WorkSeasonDetail | null {
-  const films = structure.seasons.filter(
-    (season) => season.installmentKind === "movie" || season.installmentKind === "special",
-  );
-  return films.length === 1 ? (films[0] ?? null) : null;
+function heroTrackableUnits(
+  structure: WorkStructure,
+  titleImdbId: string | null,
+  titleTmdbId: number | null,
+  playedInstallmentIds: Set<string>,
+  playedEpisodeIds: Set<string>,
+): HeroUnit[] {
+  return structure.seasons.flatMap((season): HeroUnit[] => {
+    const isMovie = season.installmentKind === "movie" || season.installmentKind === "special";
+    if (isMovie) {
+      return [
+        {
+          kind: "movie",
+          installmentId: season.id,
+          releaseStatus: season.releaseStatus,
+          releaseAt: season.releaseAt,
+          imdbId: season.imdbId ?? null,
+          tmdbId: season.tmdbId ?? null,
+          unplayable: unplayableReason({
+            releaseStatus: season.releaseStatus,
+            releaseAt: season.releaseAt,
+            imdbId: season.imdbId,
+            tmdbId: season.tmdbId,
+          }),
+          watched: playedInstallmentIds.has(season.id),
+        },
+      ];
+    }
+    return season.units.map((unit, index) => ({
+      kind: "episode",
+      installmentId: season.id,
+      episodeId: unit.id,
+      number: unit.unitNumber ?? index + 1,
+      releaseStatus: season.releaseStatus,
+      releaseAt: unit.releaseAt,
+      unplayable: unplayableEpisodeReason({
+        releaseStatus: season.releaseStatus,
+        releaseAt: unit.releaseAt,
+        titleImdbId,
+        titleTmdbId,
+        episodeNumber: unit.unitNumber,
+      }),
+      watched: playedEpisodeIds.has(unit.id),
+    }));
+  });
+}
+
+/**
+ * The hero's "next thing to watch": the first unwatched, playable unit in catalog order: episode
+ * 1 of season 1 for an unstarted series, the standalone movie for a work that's only a movie, "من
+ * الحلقة N" once partway through a season, and a "watch again" fallback once everything is done.
+ * `null` means nothing anywhere is playable yet, which keeps the hero's existing
+ * jump-to-episode-list fallback for that case.
+ */
+function heroPlaybackTarget(units: HeroUnit[]): { unit: HeroUnit; label: string } | null {
+  const playable = units.filter((unit) => unit.unplayable === null);
+  if (playable.length === 0) return null;
+  const firstUnwatched = playable.find((unit) => !unit.watched);
+  if (!firstUnwatched) {
+    const first = playable[0];
+    return first ? { unit: first, label: "إعادة المشاهدة" } : null;
+  }
+  const anyWatched = playable.some((unit) => unit.watched);
+  const label = !anyWatched
+    ? "بدء المشاهدة"
+    : firstUnwatched.kind === "episode"
+      ? `متابعة من الحلقة ${firstUnwatched.number}`
+      : "متابعة المشاهدة";
+  return { unit: firstUnwatched, label };
 }
 
 function WorkHero({
   work,
   planet,
   audienceLabel,
-  playableInstallment,
+  heroTarget,
 }: {
   work: Work;
   planet: PlanetInfo;
   audienceLabel: string | null;
-  playableInstallment: WorkSeasonDetail | null;
+  heroTarget: { unit: HeroUnit; label: string } | null;
 }) {
   const glow = planet?.primaryColor ?? "#7c8cf8";
   const heroAward =
@@ -477,7 +573,7 @@ function WorkHero({
 
   return (
     <>
-      <section className="relative isolate min-h-[92svh] overflow-hidden border-b bg-background">
+      <section className="relative isolate min-h-[92svh] overflow-hidden bg-background">
         {work.bannerPath || work.imagePath ? (
           <img
             src={work.bannerPath || work.imagePath || undefined}
@@ -571,17 +667,31 @@ function WorkHero({
             )}
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              {playableInstallment ? (
+              {heroTarget?.unit.kind === "movie" ? (
                 <PlayFilmButton
                   size="lg"
                   className="px-4 font-semibold"
-                  installmentId={playableInstallment.id}
+                  installmentId={heroTarget.unit.installmentId}
                   titleId={work.id}
-                  label="ابدأ بالمشاهدة"
-                  releaseStatus={playableInstallment.releaseStatus}
-                  releaseAt={playableInstallment.releaseAt}
-                  imdbId={playableInstallment.imdbId}
-                  tmdbId={playableInstallment.tmdbId}
+                  label={heroTarget.label}
+                  releaseStatus={heroTarget.unit.releaseStatus}
+                  releaseAt={heroTarget.unit.releaseAt}
+                  imdbId={heroTarget.unit.imdbId}
+                  tmdbId={heroTarget.unit.tmdbId}
+                />
+              ) : heroTarget?.unit.kind === "episode" ? (
+                <PlayEpisodeButton
+                  size="lg"
+                  className="px-4 font-semibold"
+                  installmentId={heroTarget.unit.installmentId}
+                  episodeId={heroTarget.unit.episodeId}
+                  titleId={work.id}
+                  label={heroTarget.label}
+                  releaseStatus={heroTarget.unit.releaseStatus}
+                  releaseAt={heroTarget.unit.releaseAt}
+                  titleImdbId={work.imdbId}
+                  titleTmdbId={work.tmdbId}
+                  episodeNumber={heroTarget.unit.number}
                 />
               ) : (
                 <Button
@@ -660,7 +770,9 @@ function WorkHero({
 
       {/* floating glass action row, overlapping the hero like Apple TV+'s "My List" bar —
           replaces the settings-card look with something that reads as part of the same scene */}
-      <section
+
+      {/* TODO: GET THIS BACK (With CHanges & Redesign)
+        <section
         id="family-progress"
         className={cn(
           "relative z-10 mx-auto -mt-14 max-w-400 px-5 sm:px-8",
@@ -688,7 +800,7 @@ function WorkHero({
             </div>
           )}
         </div>
-      </section>
+      </section>*/}
     </>
   );
 }
@@ -1041,10 +1153,39 @@ type EpisodePreview = {
   releaseAt: number | null;
   isPlaceholder: boolean;
   watched: boolean;
+  /** `null` means playable; otherwise the exact reason `EpisodeCard` shows in its tooltip. */
+  unplayableReason: string | null;
 };
+
+/**
+ * The season's "continue watching" CTA — computed client-side from data the page already fetched
+ * (`playedEpisodeIds`), no extra endpoint. Only ever targets a released, integer-numbered episode
+ * (mirrors {@link unplayableEpisodeReason}), since a fractional-numbered special or an unaired
+ * episode can't resolve a stream to begin with.
+ */
+function seasonContinueCta(episodes: EpisodePreview[]) {
+  if (episodes.length === 0) {
+    return { label: "لا توجد حلقات متاحة بعد", episodeId: null as string | null };
+  }
+  const playable = episodes.filter((episode) => episode.unplayableReason === null);
+  if (playable.length === 0) {
+    return { label: "لا توجد حلقات قابلة للتشغيل بعد", episodeId: null as string | null };
+  }
+  const firstUnwatched = playable.find((episode) => !episode.watched);
+  if (!firstUnwatched) {
+    return { label: "إعادة المشاهدة", episodeId: playable[0]?.id ?? null };
+  }
+  const anyWatched = playable.some((episode) => episode.watched);
+  return {
+    label: anyWatched ? `متابعة من الحلقة ${firstUnwatched.number}` : "بدء المشاهدة",
+    episodeId: firstUnwatched.id,
+  };
+}
 
 function EpisodesSection({
   workId,
+  titleImdbId,
+  titleTmdbId,
   structure,
   selectedId,
   onSelectedIdChange,
@@ -1055,6 +1196,8 @@ function EpisodesSection({
   onMarkSeasonPlayed,
 }: {
   workId: string;
+  titleImdbId: string | null;
+  titleTmdbId: number | null;
   structure: WorkStructure;
   selectedId: string;
   onSelectedIdChange: (id: string) => void;
@@ -1076,6 +1219,13 @@ function EpisodesSection({
     releaseAt: unit.releaseAt,
     isPlaceholder: false,
     watched: playedEpisodeIds.has(unit.id),
+    unplayableReason: unplayableEpisodeReason({
+      releaseStatus: selected?.releaseStatus,
+      releaseAt: unit.releaseAt,
+      titleImdbId,
+      titleTmdbId,
+      episodeNumber: unit.unitNumber,
+    }),
   }));
   const inlineLimit = expandedInline ? Math.min(episodes.length, 15) : 6;
   const visibleEpisodes = episodes.slice(0, inlineLimit);
@@ -1083,6 +1233,7 @@ function EpisodesSection({
   const requiresDialog = episodes.length > 15;
   const watchedEpisodeCount = episodes.filter((episode) => episode.watched).length;
   const seasonFullyWatched = episodes.length > 0 && watchedEpisodeCount === episodes.length;
+  const continueCta = seasonContinueCta(episodes);
 
   return (
     <div className="flex flex-col gap-4">
@@ -1199,18 +1350,44 @@ function EpisodesSection({
                     {playedInstallmentIds.has(selected.id) ? "تمّت مشاهدته" : "وضع علامة مُشاهَد"}
                   </Button>
                 ) : (
-                  episodes.length > 0 && (
-                    <Button
-                      variant="outline"
-                      onClick={() => onMarkSeasonPlayed(selected.id, !seasonFullyWatched)}
-                    >
-                      <CheckCircleIcon
-                        data-icon="inline-start"
-                        weight={seasonFullyWatched ? "fill" : "regular"}
+                  <>
+                    {continueCta.episodeId ? (
+                      <PlayEpisodeButton
+                        installmentId={selected.id}
+                        episodeId={continueCta.episodeId}
+                        titleId={workId}
+                        label={continueCta.label}
+                        releaseStatus={selected.releaseStatus}
+                        releaseAt={
+                          episodes.find((episode) => episode.id === continueCta.episodeId)
+                            ?.releaseAt ?? null
+                        }
+                        titleImdbId={titleImdbId}
+                        titleTmdbId={titleTmdbId}
+                        episodeNumber={
+                          episodes.find((episode) => episode.id === continueCta.episodeId)
+                            ?.number ?? null
+                        }
                       />
-                      {seasonFullyWatched ? "إلغاء علامة الموسم" : "وضع علامة الموسم كمُشاهَد"}
-                    </Button>
-                  )
+                    ) : (
+                      <Button variant="outline" disabled>
+                        <PlayIcon data-icon="inline-start" />
+                        {continueCta.label}
+                      </Button>
+                    )}
+                    {episodes.length > 0 && (
+                      <Button
+                        variant="outline"
+                        onClick={() => onMarkSeasonPlayed(selected.id, !seasonFullyWatched)}
+                      >
+                        <CheckCircleIcon
+                          data-icon="inline-start"
+                          weight={seasonFullyWatched ? "fill" : "regular"}
+                        />
+                        {seasonFullyWatched ? "إلغاء علامة الموسم" : "وضع علامة الموسم كمُشاهَد"}
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -1222,8 +1399,11 @@ function EpisodesSection({
         <div className="grid gap-x-4 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
           {visibleEpisodes.map((episode) => (
             <EpisodeCard
+              image={selected.posterPath}
               key={episode.id}
               episode={episode}
+              installmentId={selected?.id ?? ""}
+              titleId={workId}
               onTogglePlayed={() =>
                 onToggleEpisodePlayed(selected?.id ?? "", episode.id, !episode.watched)
               }
@@ -1268,8 +1448,11 @@ function EpisodesSection({
                   <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                     {episodes.map((episode) => (
                       <EpisodeCard
+                        image={selected.posterPath}
                         key={episode.id}
                         episode={episode}
+                        installmentId={selected?.id ?? ""}
+                        titleId={workId}
                         onTogglePlayed={() =>
                           onToggleEpisodePlayed(selected?.id ?? "", episode.id, !episode.watched)
                         }
@@ -1287,50 +1470,84 @@ function EpisodesSection({
 }
 
 function EpisodeCard({
+  image,
   episode,
+  installmentId,
+  titleId,
   onTogglePlayed,
   className,
 }: {
+  image: string | undefined | null;
   episode: EpisodePreview;
+  installmentId: string;
+  titleId: string;
   onTogglePlayed: () => void;
   className?: string;
 }) {
-  return (
-    <div className={cn("group relative flex min-w-0 flex-col rounded-xl", className)}>
-      <button
-        type="button"
-        disabled
-        title="يُفعّل عند ربط ملف وسائط بهذه الحلقة"
-        className="flex min-w-0 flex-col text-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed"
-        aria-label={`تشغيل الحلقة ${episode.number} — يُفعّل عند ربط ملف وسائط بهذه الحلقة`}
-      >
-        <div className="relative aspect-video overflow-hidden rounded-xl bg-muted ring-1 ring-border/10 transition group-hover:ring-primary/50">
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40">
-            <TelevisionIcon className="size-8" />
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center bg-background/0 opacity-0 transition group-hover:bg-background/65 group-hover:opacity-100">
-            <span className="flex size-11 items-center justify-center rounded-full bg-primary/60 text-primary-foreground">
-              <PlayIcon weight="fill" />
-            </span>
-          </div>
-          <span className="absolute top-2 inset-s-2 rounded-md bg-background/85 px-2 py-0.5 text-[11px] font-medium text-foreground">
-            {episode.number}
-          </span>
-          <span className="absolute bottom-2 inset-e-2 rounded bg-background/85 px-1.5 py-0.5 text-[10px] text-foreground">
-            {episode.runtimeMinutes ?? 24} د
+  const playable = episode.unplayableReason === null;
+  const content = (
+    <>
+      <div className="relative aspect-video overflow-hidden rounded-xl bg-muted ring-1 ring-border/10 transition group-hover:ring-primary/50">
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40">
+          {image ? (
+            <div className="flex size-full items-center justify-center">
+              <img src={image} alt="" className="size-full object-cover blur-lg" />
+              <TelevisionIcon className="size-11 text-muted-foreground absolute left-1/2 top-1/2 bg-accent rounded-lg p-2 -translate-y-1/2 -translate-x-1/2" />
+            </div>
+          ) : (
+            <div className="flex size-full items-center justify-center">
+              <TelevisionIcon className="size-8 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center bg-background/0 opacity-0 transition group-hover:bg-background/65 group-hover:opacity-100">
+          <span className="flex size-11 items-center justify-center rounded-lg bg-primary/75 backdrop-lg text-primary-foreground">
+            <PlayIcon weight="fill" />
           </span>
         </div>
-        <h4 className="mt-3 truncate font-heading text-sm font-semibold">{episode.title}</h4>
-        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-          {episode.isPlaceholder
-            ? "ستُضاف تفاصيل الحلقة من المصدر عند الربط."
-            : episode.releaseAt
-              ? "تاريخ الإصدار محفوظ"
-              : "تفاصيل الحلقة محفوظة في الكتالوج."}
-        </p>
-      </button>
-      {/* Independent of the disabled play affordance above: watched/unwatched is tracked whether
-          or not this episode has a media source linked yet. */}
+        <span className="absolute top-2 inset-s-2 rounded-md bg-background/85 px-2 py-0.5 text-[11px] font-medium text-foreground">
+          {episode.number}
+        </span>
+        <span className="absolute bottom-2 inset-e-2 rounded bg-background/85 px-1.5 py-0.5 text-[10px] text-foreground">
+          {episode.runtimeMinutes ?? 24} د
+        </span>
+      </div>
+      <h4 className="mt-3 truncate font-heading text-sm font-semibold">{episode.title}</h4>
+      <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+        {episode.isPlaceholder
+          ? "ستُضاف تفاصيل الحلقة من المصدر عند الربط."
+          : episode.releaseAt
+            ? "تاريخ الإصدار محفوظ"
+            : "تفاصيل الحلقة محفوظة في الكتالوج."}
+      </p>
+    </>
+  );
+
+  return (
+    <div className={cn("group relative flex min-w-0 flex-col rounded-xl", className)}>
+      {playable ? (
+        <Link
+          to="/player/$installmentId"
+          params={{ installmentId }}
+          search={{ titleId, episodeId: episode.id }}
+          className="flex min-w-0 flex-col text-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          aria-label={`تشغيل الحلقة ${episode.number}`}
+        >
+          {content}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          disabled
+          title={episode.unplayableReason ?? undefined}
+          className="flex min-w-0 flex-col text-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+          aria-label={`تشغيل الحلقة ${episode.number} — ${episode.unplayableReason}`}
+        >
+          {content}
+        </button>
+      )}
+      {/* Independent of the play affordance above: watched/unwatched is tracked whether or not
+          this episode can be played yet. */}
       <button
         type="button"
         onClick={onTogglePlayed}

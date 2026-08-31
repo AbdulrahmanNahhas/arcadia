@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   buildStreamUrl,
   clearStreamCache,
+  detectLanguages,
   encodeConfigSegment,
   fetchStreamCandidates,
   looksEnglish,
@@ -31,7 +32,10 @@ function byId(candidates: ReturnType<typeof parseStreams>, prefix: string) {
   return match;
 }
 
-afterEach(() => {
+// A developer's own `.env` may legitimately set a real ARCADIA_STREAM_ADDON_URL — cleared before
+// every test too, not just after, so "no addon configured" stays deterministic regardless of
+// what's loaded into the process outside this suite's control.
+function resetStreamEnv() {
   clearStreamCache();
   for (const key of [
     "ARCADIA_STREAM_ADDON_URL",
@@ -41,7 +45,9 @@ afterEach(() => {
   ]) {
     delete process.env[key];
   }
-});
+}
+beforeEach(resetStreamEnv);
+afterEach(resetStreamEnv);
 
 describe("environment handling", () => {
   it("strips the quotes devenv's dotenv leaves on a quoted .env value", () => {
@@ -136,6 +142,17 @@ describe("free-text field parsing", () => {
     expect(looksEnglish("The.Matrix.1999.1080p\n🇬🇧 👤 8000")).toBe(true);
     expect(looksEnglish("The.Matrix.1999.1080p.BluRay.x264-YTS")).toBe(true);
     expect(looksEnglish("The.Matrix.1999.1080p.MULTi.VFF")).toBe(true);
+  });
+
+  it("detects every language a release's flags/words name, not just English-or-not", () => {
+    expect(detectLanguages("The.Matrix.1999.1080p.BluRay.x264-YTS")).toEqual(["en"]);
+    expect(detectLanguages("Matritsa.1999.1080p.BDRip\n🇷🇺 👤 8000")).toEqual(["ru"]);
+    expect(detectLanguages("The.Matrix.1999.1080p Arabic Dubbed\n🇸🇦")).toEqual(["ar"]);
+    // Named alongside English, or "multi"/"dual audio" alone: both keep English in the list.
+    expect(detectLanguages("The.Matrix.1999.English.Arabic.Dual.Audio")).toEqual(
+      expect.arrayContaining(["en", "ar"]),
+    );
+    expect(detectLanguages("The.Matrix.1999.1080p.MULTi.VFF")).toEqual(["en"]);
   });
 
   it("keeps only usable tracker URLs and drops dht entries", () => {
@@ -250,6 +267,26 @@ describe("ranking", () => {
       candidate.id.slice(0, 4),
     );
     expect(forFourK.indexOf("bbbb")).toBeLessThan(forFourK.indexOf("aaaa"));
+  });
+
+  it("moves a candidate in the account's preferred language ahead of a plain English one", () => {
+    // "dddd" is the 🇷🇺 Russian-flagged candidate — ranked last among the healthy sources by
+    // default (English-first), but should jump ahead of the others once Russian is preferred.
+    const forRussian = rankCandidates(parseStreams(fixture.streams), ["ru"]).map((candidate) =>
+      candidate.id.slice(0, 4),
+    );
+    expect(forRussian.indexOf("dddd")).toBeLessThan(forRussian.indexOf("aaaa"));
+    // A direct/debrid source still needs no peers at all, so it still wins outright.
+    expect(forRussian[0]).toBe("dire");
+    // Zero seeders still sinks below everything fetchable, language preference or not.
+    expect(forRussian.at(-1)).toBe("eeee");
+  });
+
+  it("falls back to today's English-first default when no preference is configured", () => {
+    const withEmptyPreference = rankCandidates(parseStreams(fixture.streams), []).map((candidate) =>
+      candidate.id.slice(0, 4),
+    );
+    expect(withEmptyPreference).toEqual(order);
   });
 });
 

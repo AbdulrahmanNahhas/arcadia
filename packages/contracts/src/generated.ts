@@ -385,8 +385,10 @@ export interface paths {
                       number: number;
                       position: number;
                       title: string | null;
+                      summary: string;
                       releaseDate: string | null;
                       runtimeMinutes: number | null;
+                      posterPath: string | null;
                     }[];
                     tmdbId: number | null;
                     imdbId: string | null;
@@ -744,8 +746,10 @@ export interface paths {
                   number: number;
                   position: number;
                   title: string | null;
+                  summary: string;
                   releaseDate: string | null;
                   runtimeMinutes: number | null;
+                  posterPath: string | null;
                 }[];
                 tmdbId: number | null;
                 imdbId: string | null;
@@ -804,7 +808,9 @@ export interface paths {
     };
     get: {
       parameters: {
-        query?: never;
+        query?: {
+          episodeId?: string;
+        };
         header?: never;
         path: {
           installmentId: string;
@@ -949,6 +955,175 @@ export interface paths {
           };
         };
         /** @description No stream source is configured in this deployment */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @enum {string} */
+              code:
+                | "not_found"
+                | "not_permitted"
+                | "no_identifier"
+                | "unsupported_kind"
+                | "source_unavailable"
+                | "source_not_configured";
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/installments/{installmentId}/subtitles": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          episodeId?: string;
+          videoHash?: string;
+          languages?: string;
+        };
+        header?: never;
+        path: {
+          installmentId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Ranked subtitle candidates, best match first */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** Format: uuid */
+              installmentId: string;
+              /** Format: uuid */
+              titleId: string;
+              candidates: {
+                fileId: number;
+                fileName: string | null;
+                language: string;
+                release: string | null;
+                downloadCount: number | null;
+                /** @enum {string} */
+                matchedBy: "hash" | "imdb";
+              }[];
+            };
+          };
+        };
+        /** @description A season with no episode selected */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @enum {string} */
+              code:
+                | "not_found"
+                | "not_permitted"
+                | "no_identifier"
+                | "unsupported_kind"
+                | "source_unavailable"
+                | "source_not_configured";
+              message: string;
+            };
+          };
+        };
+        /** @description The account cannot see this title */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @enum {string} */
+              code:
+                | "not_found"
+                | "not_permitted"
+                | "no_identifier"
+                | "unsupported_kind"
+                | "source_unavailable"
+                | "source_not_configured";
+              message: string;
+            };
+          };
+        };
+        /** @description Installment (or episode) not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @enum {string} */
+              code:
+                | "not_found"
+                | "not_permitted"
+                | "no_identifier"
+                | "unsupported_kind"
+                | "source_unavailable"
+                | "source_not_configured";
+              message: string;
+            };
+          };
+        };
+        /** @description Neither a video hash nor an IMDb id is available to search by */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @enum {string} */
+              code:
+                | "not_found"
+                | "not_permitted"
+                | "no_identifier"
+                | "unsupported_kind"
+                | "source_unavailable"
+                | "source_not_configured";
+              message: string;
+            };
+          };
+        };
+        /** @description OpenSubtitles did not answer */
+        502: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @enum {string} */
+              code:
+                | "not_found"
+                | "not_permitted"
+                | "no_identifier"
+                | "unsupported_kind"
+                | "source_unavailable"
+                | "source_not_configured";
+              message: string;
+            };
+          };
+        };
+        /** @description No subtitle source is configured in this deployment */
         503: {
           headers: {
             [name: string]: unknown;

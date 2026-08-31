@@ -365,6 +365,11 @@ export const workSchema = z.object({
   tvdbId: z.number().int().positive().nullable().default(null),
   anilistId: z.number().int().positive().nullable().default(null),
   malId: z.number().int().positive().nullable().default(null),
+  /** Whether this work can actually resolve a stream today — see the matching note on
+   *  `installmentSchema.isPlayable` in `@arcadia/contracts`. For a title-mode `Work` this is true
+   *  when any installment is playable; for an installment-mode `Work` it's that one installment's
+   *  own value. */
+  isPlayable: z.boolean().default(false),
   awards: z.array(awardRecognitionSchema),
   releaseStart: z.string().nullable(),
   releaseEnd: z.string().nullable(),
@@ -428,11 +433,22 @@ export type WorkUnitDetail = {
   seasonId: string | null;
   unitType: "episode" | "chapter" | "volume";
   title: string | null;
+  summary: string;
   unitNumber: number | null;
   position: number;
   runtimeMinutes: number | null;
   pageCount: number | null;
   releaseAt: number | null;
+  posterPath: string | null;
+  /**
+   * Still read by the admin editor's `StructureSummary` completion chips
+   * (`features/admin/components/editor-form/index.tsx`), but nothing has populated it with a
+   * real value since the personal-status/progress-tracking cluster was removed (see `git log`
+   * `refactor(web): remove the dead personal-status/progress tracking cluster`) — every
+   * `WorkUnitDetail` built from real data (`server/compat.ts`) sets this to `null`, so those
+   * completion chips render unchecked today. Left in place rather than deleted, since it is a
+   * genuine (if currently starved) read, not dead code.
+   */
   progress: StructuralProgress | null;
 };
 
@@ -465,6 +481,7 @@ export type WorkSeasonDetail = {
   tvdbId?: number | null;
   anilistId?: number | null;
   malId?: number | null;
+  /** See the note on {@link WorkUnitDetail.progress} — always `null` from real data today. */
   progress: StructuralProgress | null;
   units: WorkUnitDetail[];
 };
@@ -481,6 +498,7 @@ export const editableWorkUnitSchema = z.object({
   id: z.string().min(1).optional(),
   unitType: z.literal("episode").default("episode"),
   title: z.string().nullable().default(null),
+  summary: z.string().default(""),
   unitNumber: z.number().nullable().default(null),
   position: z.number().int().min(0),
   runtimeMinutes: z.number().int().min(0).nullable().default(null),

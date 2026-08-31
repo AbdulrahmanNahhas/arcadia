@@ -310,7 +310,12 @@ function ContinueWatchingCard({
       ? Math.min(100, Math.round((item.positionSeconds / item.durationSeconds) * 100))
       : null;
   return (
-    <Link to="/titles/$titleId" params={{ titleId: item.titleId }} className="group w-36 shrink-0">
+    <Link
+      to="/player/$installmentId"
+      params={{ installmentId: item.installmentId }}
+      search={{ titleId: item.titleId, episodeId: item.episodeId }}
+      className="group w-36 shrink-0"
+    >
       <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-muted">
         {item.posterPath ? (
           <img

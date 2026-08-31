@@ -71,6 +71,12 @@ export const streamCandidateSchema = z.object({
    * free text — the addon exposes no structured language field — and the primary ranking key.
    */
   isEnglish: z.boolean(),
+  /** Every language `languages`-style detection found in the release's free text — flag emoji
+   *  and language words, ISO 639-1 codes (`"en"`, `"ar"`, `"es"`, `"ja"`, …). Best-effort and
+   *  frequently just `["en"]` by default (see `detectLanguages` in `torrent-source.ts`), since
+   *  the addon has no structured field to read this from — shown to the family as a badge so they
+   *  can pick a specific dub manually when auto-ranking doesn't happen to surface it first. */
+  languages: z.array(z.string()),
 });
 
 /** Which id the addon was queried with, so the UI can explain a miss precisely. */
@@ -102,7 +108,7 @@ export const streamErrorCodeSchema = z.enum([
   "not_permitted",
   /** Neither the installment nor its title carries an id the addon accepts. */
   "no_identifier",
-  /** A season — TV playback is deferred past Phase 2. */
+  /** A season resolved with no `episodeId` — playback needs one specific episode. */
   "unsupported_kind",
   /** The addon is unreachable, timed out, or answered with something unparseable. */
   "source_unavailable",
@@ -115,7 +121,32 @@ export const streamErrorSchema = z.object({
   message: z.string(),
 });
 
+/**
+ * One OpenSubtitles search result (roadmap Phase 2 "Subtitles"). `fileId` is what
+ * `POST /installments/{id}/subtitles/{fileId}/download` needs to fetch the actual file — the
+ * search response never carries the file itself, only enough to let the family pick a language.
+ */
+export const subtitleCandidateSchema = z.object({
+  fileId: z.number().int(),
+  fileName: z.string().nullable(),
+  /** ISO 639-1/2 code as OpenSubtitles reports it, e.g. `"en"`, `"ar"`. */
+  language: z.string(),
+  release: z.string().nullable(),
+  downloadCount: z.number().int().min(0).nullable(),
+  /** Whether this matched by `moviehash` (accurate) or only by IMDb id (best-effort). */
+  matchedBy: z.enum(["hash", "imdb"]),
+});
+
+export const installmentSubtitlesSchema = z.object({
+  installmentId: z.string().uuid(),
+  titleId: z.string().uuid(),
+  /** Ranked best-first: hash matches before id-only matches, then download count. */
+  candidates: z.array(subtitleCandidateSchema),
+});
+
 export type StreamCandidate = z.infer<typeof streamCandidateSchema>;
+export type SubtitleCandidate = z.infer<typeof subtitleCandidateSchema>;
+export type InstallmentSubtitles = z.infer<typeof installmentSubtitlesSchema>;
 export type StreamCandidateKind = z.infer<typeof streamCandidateKindSchema>;
 export type StreamQuality = z.infer<typeof streamQualitySchema>;
 export type StreamIdSource = z.infer<typeof streamIdSourceSchema>;

@@ -1,4 +1,4 @@
-import type { StreamCandidate } from "@arcadia/contracts";
+import type { StreamCandidate, SubtitleCandidate } from "@arcadia/contracts";
 import {
   ArrowClockwiseIcon,
   ArrowCounterClockwiseIcon,
@@ -15,9 +15,11 @@ import {
   GaugeIcon,
   LockSimpleIcon,
   LockSimpleOpenIcon,
+  MinusIcon,
   PauseIcon,
   PictureInPictureIcon,
   PlayIcon,
+  PlusIcon,
   SpeakerHighIcon,
   SpeakerLowIcon,
   SpeakerSlashIcon,
@@ -26,10 +28,18 @@ import {
   WaveformIcon,
 } from "@phosphor-icons/react";
 import type { ReactNode, RefObject } from "react";
+import { useEffect, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import {
+  desktopPlayer,
+  knownLanguageTracks,
+  listPlayerTracks,
+  type PlayerTrack,
+} from "./desktop-player";
+import { downloadInstallmentSubtitle, getInstallmentSubtitles } from "./subtitle-resolver";
 
 /**
  * The transport bar.
@@ -77,6 +87,13 @@ export interface PlayerControlsProps {
   onSetVolume: (volume: number) => void;
   onSetSpeed: (speed: number) => void;
   onToggleFullscreen: () => void;
+  installmentId: string;
+  episodeId: string | null;
+  /** Account preferences gating the subtitle/audio menus (roadmap Phase 2). */
+  subtitleMode: "off" | "allowed";
+  canSwitchTracks: boolean;
+  subtitleOffsetMs: number;
+  onSetSubtitleOffsetMs: (ms: number) => void;
 }
 
 export function PlayerControls({
@@ -104,7 +121,15 @@ export function PlayerControls({
   onSetVolume,
   onSetSpeed,
   onToggleFullscreen,
+  installmentId,
+  episodeId,
+  subtitleMode,
+  canSwitchTracks,
+  subtitleOffsetMs,
+  onSetSubtitleOffsetMs,
 }: PlayerControlsProps) {
+  const activeVideoHash =
+    candidates.find((candidate) => candidate.id === activeCandidateId)?.videoHash ?? null;
   return (
     <>
       {/* `rounded-full` on the wrapper, not just the button: the cut-out follows the *marked*
@@ -250,6 +275,12 @@ export function PlayerControls({
                     candidates={candidates}
                     activeCandidateId={activeCandidateId}
                     onSetSpeed={onSetSpeed}
+                    installmentId={installmentId}
+                    episodeId={episodeId}
+                    subtitleMode={subtitleMode}
+                    canSwitchTracks={canSwitchTracks}
+                    subtitleOffsetMs={subtitleOffsetMs}
+                    onSetSubtitleOffsetMs={onSetSubtitleOffsetMs}
                   />
                 </div>
               </div>
@@ -257,13 +288,17 @@ export function PlayerControls({
               {/* 2. Media & Features Pill (Tracks, Utilities, Casting) */}
               <div className="hidden h-11 items-center gap-1 rounded-full border border-white/15 bg-neutral-900 p-1 ring-1 ring-white/10 lg:flex">
                 {/* Media Tracks Group */}
-                <ComingSoon label="الترجمات" phase="تصل مع دعم الترجمات">
-                  <ClosedCaptioningIcon size={19} />
-                </ComingSoon>
+                {subtitleMode !== "off" && (
+                  <SubtitleMenu
+                    installmentId={installmentId}
+                    episodeId={episodeId}
+                    videoHash={activeVideoHash}
+                    offsetMs={subtitleOffsetMs}
+                    onSetOffsetMs={onSetSubtitleOffsetMs}
+                  />
+                )}
 
-                <ComingSoon label="المسار الصوتي" phase="تصل مع تبديل المسارات">
-                  <WaveformIcon size={19} />
-                </ComingSoon>
+                {canSwitchTracks && <AudioTrackMenu />}
 
                 {/* Subtle divider for extra utilities on XL screens */}
                 <div className="hidden h-4 w-px bg-white/15 xl:block mx-0.5" />
@@ -568,6 +603,30 @@ function SpeedMenu({ speed, onSetSpeed }: { speed: number; onSetSpeed: (speed: n
   );
 }
 
+/** Every code `detectLanguages` (`apps/api/.../torrent-source.ts`) can produce, labelled in
+ *  Arabic for the source picker's language badges — a superset of the audio/subtitle pickers'
+ *  own curated four, since a badge is just informational, not a menu the family picks from. */
+const SOURCE_LANGUAGE_LABELS: Record<string, string> = {
+  en: "الإنجليزية",
+  ar: "العربية",
+  ja: "اليابانية",
+  es: "الإسبانية",
+  ru: "الروسية",
+  fr: "الفرنسية",
+  de: "الألمانية",
+  it: "الإيطالية",
+  hi: "الهندية",
+  ta: "التاميلية",
+  te: "التيلوغوية",
+  ko: "الكورية",
+  pt: "البرتغالية",
+  tr: "التركية",
+  pl: "البولندية",
+  nl: "الهولندية",
+  zh: "الصينية",
+  fa: "الفارسية",
+};
+
 function SourceMenu({
   candidates,
   activeCandidateId,
@@ -626,6 +685,15 @@ function SourceMenu({
                       {candidate.quality}
                     </span>
 
+                    {candidate.languages.map((language) => (
+                      <span
+                        key={language}
+                        className="rounded bg-primary/15 px-1.5 py-0.5 text-primary"
+                      >
+                        {SOURCE_LANGUAGE_LABELS[language] ?? language}
+                      </span>
+                    ))}
+
                     {candidate.seeders !== null && (
                       <span className="text-muted-foreground">{candidate.seeders} مصدر</span>
                     )}
@@ -654,17 +722,265 @@ function SourceMenu({
   );
 }
 
+/** `sub-delay` moves in whole seconds at the edges of its range, but the family wants finer
+ *  control near zero — 100 ms steps read as "nudge", matching every other player's convention. */
+const SUBTITLE_OFFSET_STEP_MS = 100;
+
+/**
+ * Subtitles (roadmap Phase 2): embedded tracks from mpv's own `track-list`, OpenSubtitles search
+ * results to download, and the live `sub-delay` offset — all in one popover rather than three,
+ * since a family member reaching for "الترجمات" wants whichever of the three actually gets them a
+ * caption, not three separately-labelled dead ends.
+ */
+function SubtitleMenu({
+  installmentId,
+  episodeId,
+  videoHash,
+  offsetMs,
+  onSetOffsetMs,
+}: {
+  installmentId: string;
+  episodeId: string | null;
+  videoHash: string | null;
+  offsetMs: number;
+  onSetOffsetMs: (ms: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [tracks, setTracks] = useState<PlayerTrack[]>([]);
+  const [candidates, setCandidates] = useState<SubtitleCandidate[] | null>(null);
+  const [applyingFileId, setApplyingFileId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    void listPlayerTracks("sub").then(setTracks);
+    if (candidates !== null) return;
+    void getInstallmentSubtitles(installmentId, {
+      episodeId: episodeId ?? undefined,
+      videoHash: videoHash ?? undefined,
+    })
+      .then((result) => setCandidates(result.candidates))
+      .catch(() => setCandidates([]));
+  }, [open, installmentId, episodeId, videoHash, candidates]);
+
+  const applyCandidate = async (candidate: SubtitleCandidate) => {
+    setApplyingFileId(candidate.fileId);
+    try {
+      const file = await downloadInstallmentSubtitle(installmentId, candidate.fileId);
+      await desktopPlayer.loadSubtitle(file.bytes, candidate.fileName ?? file.filename);
+      setTracks(await listPlayerTracks("sub"));
+    } catch {
+      // Best-effort: the popover just stays as it was, nothing to load.
+    } finally {
+      setApplyingFileId(null);
+    }
+  };
+
+  // Re-reads the track list after every selection, not just on open: without this the checkmark
+  // freezes on whatever was selected when the popover last opened, which is what made switching
+  // *back* to a track look broken (the button still looked selected, or looked unselected, no
+  // matter what was actually playing).
+  const selectSubtitleTrack = async (id: string) => {
+    await desktopPlayer.setProperty("sid", id).catch(() => undefined);
+    setTracks(await listPlayerTracks("sub"));
+  };
+
+  const knownTracks = knownLanguageTracks(tracks, "sub");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <Tooltip>
+        <TooltipTrigger
+          render={<PopoverTrigger className={controlButtonClass} aria-label="الترجمات" />}
+        >
+          <ClosedCaptioningIcon size={19} />
+        </TooltipTrigger>
+        <TooltipContent>الترجمات</TooltipContent>
+      </Tooltip>
+
+      <PopoverContent dir="rtl" className="w-80 p-1.5" sideOffset={10}>
+        <div className="px-2 py-1.5">
+          <p className="text-xs font-medium text-muted-foreground">مسارات الترجمة في الملف</p>
+        </div>
+        <div className="space-y-0.5">
+          <button
+            type="button"
+            onClick={() => void selectSubtitleTrack("no")}
+            className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent/70"
+          >
+            <span>بلا ترجمة</span>
+            {tracks.every((track) => !track.selected) && (
+              <CheckIcon size={15} className="text-primary" />
+            )}
+          </button>
+          {knownTracks.length === 0 && tracks.length > 0 && (
+            <p className="px-3 py-2 text-xs text-muted-foreground">
+              لا توجد مسارات ترجمة عربية أو إنجليزية في هذا الملف.
+            </p>
+          )}
+          {knownTracks.map((track) => (
+            <button
+              key={track.id}
+              type="button"
+              onClick={() => void selectSubtitleTrack(track.id)}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent/70"
+            >
+              <span className="truncate">{track.label}</span>
+              {track.selected && <CheckIcon size={15} className="text-primary" />}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-1 border-t border-white/8 px-2 py-1.5">
+          <p className="text-xs font-medium text-muted-foreground">تنزيل ترجمة</p>
+        </div>
+        <div className="max-h-48 space-y-0.5 overflow-y-auto">
+          {candidates === null && (
+            <p className="px-3 py-2 text-xs text-muted-foreground">جارٍ البحث…</p>
+          )}
+          {candidates?.length === 0 && (
+            <p className="px-3 py-2 text-xs text-muted-foreground">
+              لا توجد ترجمات متاحة لهذا العمل.
+            </p>
+          )}
+          {candidates?.map((candidate) => (
+            <button
+              key={candidate.fileId}
+              type="button"
+              disabled={applyingFileId !== null}
+              onClick={() => void applyCandidate(candidate)}
+              className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-start text-sm transition-colors hover:bg-accent/70 disabled:opacity-50"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{candidate.fileName ?? candidate.language}</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {candidate.language} ·{" "}
+                  {candidate.matchedBy === "hash" ? "مطابقة دقيقة" : "مطابقة بالمعرّف"}
+                </span>
+              </span>
+              {applyingFileId === candidate.fileId && (
+                <span className="text-[11px] text-muted-foreground">جارٍ التنزيل…</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-1 flex items-center justify-between gap-2 border-t border-white/8 px-2 pt-2">
+          <span className="text-xs font-medium text-muted-foreground">توقيت الترجمة</span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label="تأخير الترجمة"
+              onClick={() => onSetOffsetMs(offsetMs - SUBTITLE_OFFSET_STEP_MS)}
+              className={cn(controlButtonClass, "size-7")}
+            >
+              <MinusIcon size={13} />
+            </button>
+            <span className="w-14 text-center font-mono text-xs tabular-nums">
+              {(offsetMs / 1000).toFixed(1)}s
+            </span>
+            <button
+              type="button"
+              aria-label="تقديم الترجمة"
+              onClick={() => onSetOffsetMs(offsetMs + SUBTITLE_OFFSET_STEP_MS)}
+              className={cn(controlButtonClass, "size-7")}
+            >
+              <PlusIcon size={13} />
+            </button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
+ * Embedded audio tracks (roadmap Phase 2's "Tracks"), narrowed to the curated language set (see
+ * {@link knownLanguageTracks}) — every track shown is clickable, none permanently disabled.
+ */
+function AudioTrackMenu() {
+  const [open, setOpen] = useState(false);
+  const [tracks, setTracks] = useState<PlayerTrack[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    void listPlayerTracks("audio").then(setTracks);
+  }, [open]);
+
+  const selectAudioTrack = async (id: string) => {
+    await desktopPlayer.setProperty("aid", id).catch(() => undefined);
+    setTracks(await listPlayerTracks("audio"));
+  };
+
+  const knownTracks = knownLanguageTracks(tracks, "audio");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <Tooltip>
+        <TooltipTrigger
+          render={<PopoverTrigger className={controlButtonClass} aria-label="المسار الصوتي" />}
+        >
+          <WaveformIcon size={19} />
+        </TooltipTrigger>
+        <TooltipContent>المسار الصوتي</TooltipContent>
+      </Tooltip>
+
+      <PopoverContent dir="rtl" className="w-64 p-1.5" sideOffset={10}>
+        <div className="px-2 py-1.5">
+          <p className="text-xs font-medium text-muted-foreground">المسارات الصوتية في الملف</p>
+        </div>
+        <div className="space-y-0.5">
+          {tracks.length === 0 && (
+            <p className="px-3 py-2 text-xs text-muted-foreground">
+              مسار صوتي واحد فقط في هذا الملف.
+            </p>
+          )}
+          {tracks.length > 0 && knownTracks.length === 0 && (
+            <p className="px-3 py-2 text-xs text-muted-foreground">
+              لا توجد مسارات صوتية بالعربية أو الإنجليزية أو اليابانية أو الإسبانية في هذا الملف.
+            </p>
+          )}
+          {knownTracks.map((track) => (
+            <button
+              key={track.id}
+              type="button"
+              onClick={() => void selectAudioTrack(track.id)}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent/70"
+            >
+              <span className="truncate">{track.label}</span>
+              {track.selected && <CheckIcon size={15} className="text-primary" />}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function MoreMenu({
   speed,
   candidates,
   activeCandidateId,
   onSetSpeed,
+  installmentId,
+  episodeId,
+  subtitleMode,
+  canSwitchTracks,
+  subtitleOffsetMs,
+  onSetSubtitleOffsetMs,
 }: {
   speed: number;
   candidates: StreamCandidate[];
   activeCandidateId: string | null;
   onSetSpeed: (speed: number) => void;
+  installmentId: string;
+  episodeId: string | null;
+  subtitleMode: "off" | "allowed";
+  canSwitchTracks: boolean;
+  subtitleOffsetMs: number;
+  onSetSubtitleOffsetMs: (ms: number) => void;
 }) {
+  const activeVideoHash =
+    candidates.find((candidate) => candidate.id === activeCandidateId)?.videoHash ?? null;
   return (
     <Popover>
       <Tooltip>
@@ -693,9 +1009,23 @@ function MoreMenu({
             <SourceMenu candidates={candidates} activeCandidateId={activeCandidateId} />
           </MobileMenuItem>
 
-          <MobileMenuItem icon={<ClosedCaptioningIcon size={18} />} label="الترجمات" disabled />
+          {subtitleMode !== "off" && (
+            <MobileMenuItem icon={<ClosedCaptioningIcon size={18} />} label="الترجمات">
+              <SubtitleMenu
+                installmentId={installmentId}
+                episodeId={episodeId}
+                videoHash={activeVideoHash}
+                offsetMs={subtitleOffsetMs}
+                onSetOffsetMs={onSetSubtitleOffsetMs}
+              />
+            </MobileMenuItem>
+          )}
 
-          <MobileMenuItem icon={<WaveformIcon size={18} />} label="المسار الصوتي" disabled />
+          {canSwitchTracks && (
+            <MobileMenuItem icon={<WaveformIcon size={18} />} label="المسار الصوتي">
+              <AudioTrackMenu />
+            </MobileMenuItem>
+          )}
 
           <MobileMenuItem
             icon={<DownloadSimpleIcon size={18} />}

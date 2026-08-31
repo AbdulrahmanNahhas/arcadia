@@ -61,7 +61,15 @@ const RESUME_END_BUFFER_SECONDS = 30;
 const OVERLAY_SELECTOR =
   '[data-video-overlay],[data-slot="popover-content"],[data-slot="tooltip-content"]';
 
-export function PlayerPage({ installmentId, titleId }: { installmentId: string; titleId: string }) {
+export function PlayerPage({
+  installmentId,
+  titleId,
+  episodeId,
+}: {
+  installmentId: string;
+  titleId: string;
+  episodeId: string | null;
+}) {
   const navigate = useNavigate();
   const desktop = useIsDesktopShell();
   const { data: account } = useCurrentAccount();
@@ -100,8 +108,15 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
   /**
    * The 4 Hz tick from Rust, plus when it arrived. `requestAnimationFrame` extrapolates between
    * ticks so the scrubber moves smoothly at display rate while React commits nothing at all.
+   *
+   * `paused: true` here — not `false` — is deliberate: it is the "no real tick has arrived yet"
+   * state, before mpv has ever reported anything. The paint loop below only extrapolates forward
+   * when `!paused`, so this keeps the clock frozen at `0:00` while a stream is still resolving or
+   * buffering instead of counting up from how long the player screen itself has been open (`at:
+   * 0` made the very first extrapolation `performance.now() - 0`, drifting the display by however
+   * many seconds had passed since navigation — indistinguishable from real playback progress).
    */
-  const tick = useRef({ position: 0, duration: 0, cacheSeconds: 0, paused: false, at: 0 });
+  const tick = useRef({ position: 0, duration: 0, cacheSeconds: 0, paused: true, at: 0 });
   const feedbackTimer = useRef(0);
   /**
    * Set by the auto-hide effect below to whatever "bring the controls back" currently means.
@@ -118,15 +133,14 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
    * reload (or the user's own seek) never re-applies it.
    */
   const resumePositionSeconds = useRef<number | null>(null);
+  /** Same idea as `resumePositionSeconds`, for the `sub-delay` offset saved on this row. */
+  const resumeSubtitleOffsetMs = useRef<number | null>(null);
+  const [subtitleOffsetMs, setSubtitleOffsetMsState] = useState(0);
   /**
    * Writes the current position/duration to `PUT /api/v1/me/playback`. Held in a ref (rather than
    * called directly) so the pause/exit call sites and the periodic-interval effect below don't
    * need `duration` in their own dependency arrays — the streaming-start effect in particular must
    * never restart because `duration` changed mid-playback.
-   *
-   * Every installment the player opens today is a movie/special (`episodeId: null`): TV episode
-   * playback is deferred past this phase (see the episode list's disabled state in
-   * `work-detail-page.tsx`), so there is no episode id to carry yet.
    */
   const persistProgress = useRef<() => void>(() => {});
   useEffect(() => {
@@ -136,12 +150,19 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
       const total = tick.current.duration || duration;
       void updatePlaybackProgress({
         installmentId,
-        episodeId: null,
+        episodeId,
         positionSeconds: position,
         durationSeconds: total > 0 ? Math.round(total) : null,
+        subtitleOffsetMs,
       }).catch(() => undefined);
     };
-  }, [installmentId, duration]);
+  }, [installmentId, episodeId, duration, subtitleOffsetMs]);
+
+  /** Applied live via `sub-delay`, and threaded into the next progress write above. */
+  const setSubtitleOffsetMs = useCallback((ms: number) => {
+    setSubtitleOffsetMsState(ms);
+    void desktopPlayer.setProperty("sub-delay", String(ms / 1000)).catch(() => undefined);
+  }, []);
 
   // Only the pre-first-frame states get the big centred panel: until mpv has a picture there is
   // nothing behind it to obscure. Mid-playback buffering is reported inside the bar instead.
@@ -210,6 +231,11 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
             void desktopPlayer.seek(resumeTo).catch(() => undefined);
             showFeedback({ kind: "resume", positionSeconds: resumeTo });
           }
+          const resumeOffset = resumeSubtitleOffsetMs.current;
+          if (resumeOffset !== null) {
+            resumeSubtitleOffsetMs.current = null;
+            setSubtitleOffsetMs(resumeOffset);
+          }
           break;
         }
         case "resolving":
@@ -234,7 +260,7 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
           break;
       }
     },
-    [fail, showFeedback],
+    [fail, showFeedback, setSubtitleOffsetMs],
   );
 
   useEffect(() => {
@@ -252,7 +278,7 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
         // Fired in parallel with stream resolution below, not awaited: a single fast DB read
         // that's essentially always done well before mpv reports the first frame, so it never
         // delays start-up. Consumed once in `onEvent`'s `fileLoaded` case.
-        void getPlaybackForInstallment(installmentId)
+        void getPlaybackForInstallment(installmentId, episodeId)
           .then((saved) => {
             if (cancelled || !saved) return;
             const withinResumeRange =
@@ -260,12 +286,15 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
               (saved.durationSeconds === null ||
                 saved.positionSeconds < saved.durationSeconds - RESUME_END_BUFFER_SECONDS);
             if (withinResumeRange) resumePositionSeconds.current = saved.positionSeconds;
+            if (saved.subtitleOffsetMs !== null) {
+              resumeSubtitleOffsetMs.current = saved.subtitleOffsetMs;
+            }
             return;
           })
           .catch(() => undefined);
 
         setStatus("resolving");
-        const source = await resolvePlayback(installmentId);
+        const source = await resolvePlayback(installmentId, episodeId);
         if (cancelled) return;
 
         setCandidates(source.streams.candidates);
@@ -308,7 +337,7 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
       // Leaving the route stops the transfer too — no torrent keeps running in the background.
       void desktopPlayer.stop().catch(() => undefined);
     };
-  }, [desktop, installmentId, onEvent, fail, preferences]);
+  }, [desktop, installmentId, episodeId, onEvent, fail, preferences]);
 
   // Periodic progress persistence, independent of the streaming-start effect above so a duration
   // update (which that ref absorbs, see its own effect) never restarts the stream.
@@ -674,6 +703,12 @@ export function PlayerPage({ installmentId, titleId }: { installmentId: string; 
           onSetVolume={(next) => void changeVolume(next)}
           onSetSpeed={(next) => void changeSpeed(next)}
           onToggleFullscreen={() => void toggleFullscreen()}
+          installmentId={installmentId}
+          episodeId={episodeId}
+          subtitleMode={preferences?.subtitleMode ?? "off"}
+          canSwitchTracks={preferences?.canSwitchTracks ?? false}
+          subtitleOffsetMs={subtitleOffsetMs}
+          onSetSubtitleOffsetMs={setSubtitleOffsetMs}
         />
       </div>
 

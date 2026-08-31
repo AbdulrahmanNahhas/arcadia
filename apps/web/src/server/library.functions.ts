@@ -421,6 +421,7 @@ export async function getAdminRecordBundles({ data }: Data<{ workIds: string[] }
                     id: unit.id,
                     unitType: "episode" as const,
                     title: unit.title,
+                    summary: unit.summary,
                     unitNumber: unit.unitNumber,
                     position: unit.position,
                     runtimeMinutes: unit.runtimeMinutes,

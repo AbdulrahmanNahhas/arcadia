@@ -68,6 +68,8 @@ const fixedLabels: Record<string, string> = {
   title: "عنوان كامل",
   season: "موسم",
   standalone: "فيلم أو إصدار مستقل",
+  playable: "قابل للتشغيل",
+  "not-playable": "غير قابل للتشغيل بعد",
   winner: "فائز",
   nominee: "مرشّح",
   General: "عام",
@@ -204,6 +206,17 @@ function CatalogFilterContent(props: CatalogFiltersProps) {
             <FacetList
               facet="structureStates"
               options={props.options.structureStates}
+              filters={props.filters}
+              onCycle={updateFacet}
+            />
+          </>
+        ) : null}
+        {props.options.playableStates.length > 1 ? (
+          <>
+            <FacetLabel>التشغيل</FacetLabel>
+            <FacetList
+              facet="playableStates"
+              options={props.options.playableStates}
               filters={props.filters}
               onCycle={updateFacet}
             />

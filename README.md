@@ -68,6 +68,17 @@ repo-root `.env` (git-ignored):
 | `ARCADIA_STREAM_PREFERRED_HEIGHT` | Preferred vertical resolution (default `1080`). Ranking prefers the best release at or below this and treats anything larger as a last resort — a 4K remux will not reach first frame quickly on a family connection. |
 | `ARCADIA_STREAM_ALLOW_TMDB_IDS` | `true` lets `tmdb:` ids be sent when no IMDb id exists. Off by default until the addon is confirmed to accept them: a deployment that does not returns an empty list, which looks like "no sources" rather than "wrong id". |
 
+### Subtitles
+
+Subtitle search/download goes through OpenSubtitles' REST v1 API, called from `apps/api` only —
+same reasoning as the addon URL above. A free key from
+[opensubtitles.com/en/consumers](https://www.opensubtitles.com/en/consumers) goes in `.env`:
+
+| Variable | Meaning |
+| --- | --- |
+| `OPENSUBTITLES_API_KEY` | Absent means the subtitle menu reports "no source configured"; playback itself is unaffected. |
+| `OPENSUBTITLES_USER_AGENT` | Optional, defaults to `Arcadia v2`. |
+
 The active database is PostgreSQL and its migration history lives only in
 `packages/database/drizzle/`. The single retained `data/arcadia.db` file is a read-only v1
 recovery/import source. To rebuild a v2 catalog from it:

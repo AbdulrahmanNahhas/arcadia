@@ -10,6 +10,8 @@ import { PlayerPage } from "@/features/library/player-page";
 const playerSearchSchema = z.object({
   /** Where the back button returns to. */
   titleId: z.string().uuid().catch(""),
+  /** Set for a TV/anime episode; absent (`null`) for a movie or special. */
+  episodeId: z.string().uuid().nullable().catch(null),
 });
 
 export const Route = createFileRoute("/player/$installmentId")({
@@ -19,6 +21,6 @@ export const Route = createFileRoute("/player/$installmentId")({
 
 function PlayerRoute() {
   const { installmentId } = Route.useParams();
-  const { titleId } = Route.useSearch();
-  return <PlayerPage installmentId={installmentId} titleId={titleId} />;
+  const { titleId, episodeId } = Route.useSearch();
+  return <PlayerPage installmentId={installmentId} titleId={titleId} episodeId={episodeId} />;
 }

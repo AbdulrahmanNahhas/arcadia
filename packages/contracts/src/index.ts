@@ -78,8 +78,10 @@ export const episodeSchema = z.object({
   number: z.number(),
   position: z.number().int(),
   title: z.string().nullable(),
+  summary: z.string(),
   releaseDate: z.string().nullable(),
   runtimeMinutes: z.number().int().nullable(),
+  posterPath: z.string().nullable(),
 });
 export const installmentSchema = z.object({
   id: z.string().uuid(),
@@ -99,6 +101,11 @@ export const installmentSchema = z.object({
   rating: z.number().nullable(),
   awards: z.array(awardRecognitionSchema),
   episodes: z.array(episodeSchema).optional(),
+  /** Whether this installment can actually resolve a stream today — the same id-availability
+   *  rules the player's `GET .../streams` route itself applies (own id, or a sole-film title's
+   *  id; a season additionally needs at least one integer-numbered episode). Independent of
+   *  release status — this is a cataloging-completeness signal, not a "is it out yet" one. */
+  isPlayable: z.boolean(),
   ...externalIdFieldsSchema.shape,
 });
 export const titleSummarySchema = z.object({
@@ -141,6 +148,9 @@ export const titleSummarySchema = z.object({
     }),
   ),
   awards: z.array(awardRecognitionSchema),
+  /** True when any of this title's installments is individually playable — see the matching note
+   *  on `installmentSchema.isPlayable`. */
+  isPlayable: z.boolean(),
 });
 export const titleDetailSchema = titleSummarySchema.extend({
   ...externalIdFieldsSchema.shape,
@@ -629,6 +639,10 @@ export const upsertPlaybackInputSchema = z.object({
   positionSeconds: z.number().int().min(0),
   /** Null until the player knows it (e.g. a torrent-backed stream still parsing the container). */
   durationSeconds: z.number().int().min(0).nullable().default(null),
+  /** The live `sub-delay` offset, in milliseconds — restored alongside position on resume. Not
+   *  sent means "leave whatever is already stored", so a plain progress tick never clobbers a
+   *  previously-set offset. */
+  subtitleOffsetMs: z.number().int().optional(),
 });
 /** One playback-progress row, as read back by the API. */
 export const accountPlaybackStateSchema = z.object({
@@ -641,6 +655,7 @@ export const accountPlaybackStateSchema = z.object({
   isPlayed: z.boolean(),
   playedManually: z.boolean(),
   playedAt: z.string().nullable(),
+  subtitleOffsetMs: z.number().int().nullable(),
   updatedAt: z.string(),
 });
 /** `PATCH /api/v1/me/playback/:installmentId/played` — an explicit watched/unwatched toggle. */

@@ -28,6 +28,7 @@ const episodeDocument = z.object({
   number: z.number().positive(),
   position: z.number().int().min(0).optional(),
   title: z.string().nullable().optional(),
+  summary: z.string().optional(),
   releaseDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -545,6 +546,7 @@ async function syncEpisodes(
       ["position", position],
     ]);
     if (document.title !== undefined) values.set("title", document.title);
+    if (document.summary !== undefined) values.set("summary", document.summary);
     if (document.releaseDate !== undefined) values.set("release_date", document.releaseDate);
     if (document.runtimeMinutes !== undefined)
       values.set("runtime_minutes", document.runtimeMinutes);
@@ -1080,6 +1082,7 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
         number: Number(episode.number),
         position: Number(episode.position),
         title: (episode.title as string | null) ?? null,
+        summary: String(episode.summary ?? ""),
         releaseDate: (episode.release_date as string | null) ?? null,
         runtimeMinutes: number(episode.runtime_minutes),
       })),

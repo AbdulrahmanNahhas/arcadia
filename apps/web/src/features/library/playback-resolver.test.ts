@@ -47,6 +47,7 @@ const candidate: InstallmentStreams["candidates"][number] = {
   sizeBytes: 2_000_000_000,
   provider: "YTS",
   isEnglish: true,
+  languages: ["en"],
 };
 
 afterEach(() => vi.unstubAllGlobals());

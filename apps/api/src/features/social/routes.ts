@@ -58,6 +58,7 @@ function playbackState(row: Row) {
     isPlayed: row.isPlayed,
     playedManually: row.playedManually,
     playedAt: nullableIso(row.playedAt),
+    subtitleOffsetMs: row.subtitleOffsetMs == null ? null : Number(row.subtitleOffsetMs),
     updatedAt: iso(row.updatedAt),
   });
 }
@@ -221,12 +222,15 @@ socialRoutes.put("/api/v1/me/playback", async (context) => {
   });
   const playedAt = isPlayed ? (wasPlayed ? existing?.played_at : new Date()) : null;
   const [saved] = await database().client`insert into account_playback_states
-    (account_id, installment_id, episode_id, position_seconds, duration_seconds, is_played, played_at)
+    (account_id, installment_id, episode_id, position_seconds, duration_seconds, is_played, played_at, subtitle_offset_ms)
     values (${current.account.id}, ${input.installmentId}, ${input.episodeId},
-      ${input.positionSeconds}, ${input.durationSeconds}, ${isPlayed}, ${playedAt})
+      ${input.positionSeconds}, ${input.durationSeconds}, ${isPlayed}, ${playedAt},
+      ${input.subtitleOffsetMs ?? null})
     on conflict (account_id, installment_id, episode_id) do update set
       position_seconds=excluded.position_seconds, duration_seconds=excluded.duration_seconds,
-      is_played=excluded.is_played, played_at=excluded.played_at, updated_at=now()
+      is_played=excluded.is_played, played_at=excluded.played_at,
+      subtitle_offset_ms=coalesce(excluded.subtitle_offset_ms, account_playback_states.subtitle_offset_ms),
+      updated_at=now()
     returning id, updated_at as "updatedAt"`;
   return context.json({ id: String(saved?.id), updatedAt: saved ? iso(saved.updatedAt) : null });
 });
@@ -249,7 +253,8 @@ socialRoutes.get("/api/v1/me/playback/:installmentId", async (context) => {
     select id, installment_id as "installmentId", episode_id as "episodeId",
       ${installment.title_id}::uuid as "titleId", position_seconds as "positionSeconds",
       duration_seconds as "durationSeconds", is_played as "isPlayed",
-      played_manually as "playedManually", played_at as "playedAt", updated_at as "updatedAt"
+      played_manually as "playedManually", played_at as "playedAt",
+      subtitle_offset_ms as "subtitleOffsetMs", updated_at as "updatedAt"
     from account_playback_states
     where account_id=${current.account.id} and installment_id=${installmentId}
       and episode_id is not distinct from ${episodeId}`;
@@ -275,7 +280,7 @@ socialRoutes.get("/api/v1/me/playback", async (context) => {
         i.title_id as "titleId", s.position_seconds as "positionSeconds",
         s.duration_seconds as "durationSeconds", s.is_played as "isPlayed",
         s.played_manually as "playedManually", s.played_at as "playedAt",
-        s.updated_at as "updatedAt"
+        s.subtitle_offset_ms as "subtitleOffsetMs", s.updated_at as "updatedAt"
       from account_playback_states s join installments i on i.id=s.installment_id
       where s.account_id=${current.account.id} and i.title_id=${titleId}`;
     return context.json(rows.map(playbackState));
@@ -285,7 +290,7 @@ socialRoutes.get("/api/v1/me/playback", async (context) => {
       i.title_id as "titleId", s.position_seconds as "positionSeconds",
       s.duration_seconds as "durationSeconds", s.is_played as "isPlayed",
       s.played_manually as "playedManually", s.played_at as "playedAt",
-      s.updated_at as "updatedAt"
+      s.subtitle_offset_ms as "subtitleOffsetMs", s.updated_at as "updatedAt"
     from account_playback_states s join installments i on i.id=s.installment_id
     where s.account_id=${current.account.id} and not s.is_played and s.position_seconds > 0
     order by s.updated_at desc limit 30`;
