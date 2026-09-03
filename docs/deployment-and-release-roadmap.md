@@ -4,10 +4,19 @@
 > chat discussion; treat it the same way as `player-torrent-roadmap.md` (tick items as they land).
 > **Scope for "real 1.0":** LAN-only. Remote access (Tailscale, etc.) and Phase 3's actual
 > offline-video download are explicitly deferred past this doc.
+> **§1 done (2026-09-03).** Both branches force-pushed to `origin` with clean history —
+> `git filter-repo` needed two passes (the monorepo restructure meant older commits recorded these
+> same files under a pre-`apps/web/` path, `public/media/...`, which the first pass's exact-path
+> filter missed). `.git` went from 298 MB to 8.5 MB. A full pre-rewrite backup of the repo sits at
+> `/home/aqua/Projects/personal/arcadia-backup-before-filter-repo` — safe to delete once you've
+> confirmed GitHub looks right.
 
-Confirmed before writing any of this: `origin` (`git@github.com:AbdulrahmanNahhas/arcadia.git`)
-exists but has **zero refs** — nothing has ever been pushed. That fact drives §1 and §5 below: any
-git-history cleanup done now has zero blast radius, since no one has a clone to reconcile with.
+`origin` (`git@github.com:AbdulrahmanNahhas/arcadia.git`) read as having zero refs when this doc
+was written; by the time §1 actually ran, both branches already existed there (their *original*
+pre-cleanup state — pushed by something outside this conversation). That forced a
+`git push --force-with-lease` to land the rewritten history, confirmed with the user first since
+it overwrites remote history. Low risk: private, single-owner repo, and overwriting was the entire
+point of doing this before anyone/anything else clones it.
 
 ---
 
@@ -25,21 +34,30 @@ currently ship *inside* the desktop app by accident of file layout, which is als
 why they already work offline in the Tauri app today. Moving them out fixes the git problem but
 means that offline property has to be rebuilt on purpose — see §4, which does exactly that.
 
-**Plan:**
+**Plan (done):**
 
-- [ ] Point `ARCADIA_MEDIA_ROOT` at a path outside the repo — locally, `data/media/uploads`
-      (matching the existing gitignored `data/` convention already used for the legacy SQLite
-      import); in Docker, a named volume.
-- [ ] Add a small static route in `apps/api` — `@hono/node-server/serve-static` mounted at
-      `/media/*`, root = `ARCADIA_PUBLIC_MEDIA_ROOT` — so media is served independently of the web
-      build.
-- [ ] Add one `resolveMediaUrl(path)` helper in the web app (prefixes the API's base URL) and swap
-      the handful of `<img src={x.posterPath}>` call sites (`archive-panels.tsx`, work cards, the
-      admin editor, etc.) to use it instead of the raw relative path.
-- [ ] `git rm -r --cached apps/web/public/media/uploads`, add it to `.gitignore`.
-- [ ] **Before the first push**, run `git filter-repo --path apps/web/public/media/uploads
-      --invert-paths` to strip the ~87 MB / 171 files already sitting in history. Free right now
-      (empty remote); a disruptive rewrite later once anyone has cloned it.
+- [x] Point `ARCADIA_MEDIA_ROOT` at a path outside the repo — `data/media/uploads` by default
+      (matching the existing gitignored `data/` convention), overridable for a Docker volume.
+      Turned out to be three folders, not one: `apps/web/public/media/{uploads,entities,library}`
+      plus two loose orphaned files (`orbital-archive.png`, `attack-on-titan-cover.jpg`, unreferenced
+      by any code or `media_assets` row) — `entities`/`library` were a separate, older bulk-import
+      path carrying the exact same kind of third-party artwork, just never routed through
+      `media-storage.ts`'s helpers. All of it moved to `data/media/`; only
+      `account-avatar-sprite.webp` stayed (a real static app asset, referenced by a literal path in
+      `login-page.tsx`/`account-avatar.tsx`, not a DB `*Path` field).
+- [x] Static route: `@hono/node-server/serve-static` mounted at `/media/*` in `apps/api/src/app.ts`,
+      root = `getPublicMediaDirectory()`, unauthenticated (matching the zero-auth behavior these
+      files already had as static Vite assets). Verified live — real file serves with correct
+      content-type, a missing file 404s, `../` traversal 404s rather than escaping the root.
+- [x] **No render call sites touched.** Instead of a `resolveMediaUrl()` helper at 15+ `<img src>`
+      call sites, `apps/web/src/lib/api.ts`'s `apiFetch`/`client` — confirmed the one choke point
+      every API call already passes through — rewrites any `*Path`-suffixed field pointing at
+      `/media/...` into an absolute `${apiBaseUrl}` URL right there. Covers browser and Tauri alike;
+      new `api.test.ts` pins the rewrite behavior.
+- [x] `git rm -r --cached` the three folders + two files, `data/media/*` already covered by
+      `.gitignore`. Two other hardcoded fallback paths found and fixed the same way:
+      `packages/database/src/prepare-media-backfill.ts` and `packages/cli/src/commands/media.ts`.
+- [x] `git filter-repo` (two passes — see the note above), then force-pushed. `.git`: 298 MB → 8.5 MB.
 
 **New tech considered and rejected, on purpose:**
 
@@ -145,11 +163,13 @@ first push — no copyright-redistribution or personal-data concern left in the 
 
 ## 6. Concrete order of operations before "real 1.0" (LAN-only)
 
-1. [ ] Decide a license (§5 — your call).
-2. [ ] Media migration: `ARCADIA_MEDIA_ROOT` outside the repo, API `/media` static route,
-   `resolveMediaUrl` in the web app, `git rm --cached` the tracked uploads, update `.gitignore`.
-3. [ ] `git filter-repo` to strip old media blobs from history — before the first push.
-4. [ ] Push to GitHub as public.
+1. [ ] Decide a license (§5 — your call, still open).
+2. [x] Media migration: `ARCADIA_MEDIA_ROOT` outside the repo, API `/media` static route,
+   the `apiFetch`/`client` rewrite in the web app, `git rm --cached` the tracked folders.
+3. [x] `git filter-repo` to strip old media blobs from history (two passes — see §1's note).
+4. [x] Pushed to GitHub (`git push --force-with-lease`, both branches). **Still manual:** flipping
+   the repo's actual visibility to public is a GitHub settings action this environment has no
+   `gh` auth to do — do that in the GitHub UI whenever ready (no code/git step needed).
 5. [ ] Docker Compose stack (db/api/web + volumes) + a "self-hosting" section in README.
 6. [ ] Runtime-configurable API URL (§3) so one build serves every device on the LAN.
 7. [ ] Offline catalog + image cache (§4).
