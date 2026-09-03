@@ -79,6 +79,15 @@ same reasoning as the addon URL above. A free key from
 | `OPENSUBTITLES_API_KEY` | Absent means the subtitle menu reports "no source configured"; playback itself is unaffected. |
 | `OPENSUBTITLES_USER_AGENT` | Optional, defaults to `Arcadia v2`. |
 
+### Media storage
+
+Uploaded and ingested poster/banner/logo artwork lives on disk under `data/media/` by
+default — outside the repo and outside `apps/web`, the same shape as a Jellyfin media
+directory — and is served by the API itself at `/media/*`, not shipped as part of the web
+build. `ARCADIA_MEDIA_ROOT` (and, if it should differ, `ARCADIA_PUBLIC_MEDIA_ROOT`) point it
+elsewhere — a Docker volume, a NAS mount, wherever the deployment keeps media. `data/media/` is
+git-ignored; nothing under it should ever be committed.
+
 The active database is PostgreSQL and its migration history lives only in
 `packages/database/drizzle/`. The single retained `data/arcadia.db` file is a read-only v1
 recovery/import source. To rebuild a v2 catalog from it:

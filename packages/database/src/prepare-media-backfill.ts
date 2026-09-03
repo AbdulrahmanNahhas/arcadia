@@ -30,7 +30,7 @@ const rows = legacy.has_paths
   select id, path from media_assets`;
 const uploadRoot = resolve(
   process.env.ARCADIA_MEDIA_ROOT ??
-    fileURLToPath(new URL("../../../apps/web/public/media/uploads", import.meta.url)),
+    fileURLToPath(new URL("../../../data/media/uploads", import.meta.url)),
 );
 const mediaRoot = resolve(uploadRoot, "..");
 

@@ -16,6 +16,31 @@ function resolveApiBaseUrl() {
 
 export const apiBaseUrl = resolveApiBaseUrl();
 
+/**
+ * Media (posters/banners/logos/profile photos) is served by the API from a directory outside the
+ * web build (see `apps/api/src/media-storage.ts`) rather than shipped inside `apps/web/public` —
+ * the API returns root-relative paths like `/media/uploads/...`, exactly as before, but a
+ * root-relative path only resolves correctly when the current page's own origin is the API's
+ * origin. That's true for a browser tab hitting the API directly, but never true inside the Tauri
+ * desktop app (its webview's origin is the bundled app, not the API), so every `*Path` field is
+ * rewritten to an absolute `${apiBaseUrl}` URL right here, the one place every API response
+ * already passes through — no render call site anywhere else needs to know this changed.
+ */
+export function rewriteMediaUrls<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => rewriteMediaUrls(item)) as T;
+  if (value && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
+      result[key] =
+        key.endsWith("Path") && typeof entryValue === "string" && entryValue.startsWith("/media/")
+          ? `${apiBaseUrl}${entryValue}`
+          : rewriteMediaUrls(entryValue);
+    }
+    return result as T;
+  }
+  return value;
+}
+
 async function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit) {
   return fetch(input, {
     ...init,
@@ -75,13 +100,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       body?.code,
     );
   }
-  return (await response.json()) as T;
+  return rewriteMediaUrls((await response.json()) as T);
 }
 
 export async function browseTitles(query: Record<string, string | number> = {}) {
   const { data, error } = await client.GET("/api/v1/titles", { params: { query } });
   if (error || !data) throw new Error("تعذّر تحميل الأرشيف من واجهة Arcadia.");
-  return data as BrowseResponse;
+  return rewriteMediaUrls(data as BrowseResponse);
 }
 
 export async function getTitle(titleId: string) {
@@ -90,7 +115,7 @@ export async function getTitle(titleId: string) {
   });
   if (response.status === 404) return null;
   if (error || !data) throw new Error("تعذّر تحميل تفاصيل العنوان.");
-  return data as TitleDetail;
+  return rewriteMediaUrls(data as TitleDetail);
 }
 
 export async function getPlanets() {

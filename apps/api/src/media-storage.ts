@@ -6,18 +6,28 @@ import { fileURLToPath } from "node:url";
 export const mediaKinds = ["poster", "banner", "logo", "profile"] as const;
 export type MediaKind = (typeof mediaKinds)[number];
 
+/**
+ * Defaults to a repo-root `data/media/uploads` — outside `apps/web/public`, and already covered
+ * by `.gitignore`'s existing `data/media/*` entry — rather than shipping inside the web build.
+ * Uploaded artwork is real family-curated content (and, for TMDB/Fanart-sourced posters, someone
+ * else's copyrighted art); it does not belong in git history, and a Docker deployment wants this
+ * on its own mountable volume anyway. `ARCADIA_MEDIA_ROOT` overrides it, matching how a real
+ * deployment (or a NAS-mounted directory, Jellyfin-style) would point it elsewhere.
+ */
 function getMediaDirectory() {
   return resolve(
     process.env.ARCADIA_MEDIA_ROOT ??
-      fileURLToPath(new URL("../../web/public/media/uploads", import.meta.url)),
+      fileURLToPath(new URL("../../../data/media/uploads", import.meta.url)),
   );
 }
-function getPublicMediaDirectory() {
+/** The directory `app.ts` serves at `/media/*` — one level up from the uploads subfolder, so
+ *  `/media/uploads/...` keeps resolving exactly as it did when this lived under `apps/web/public`. */
+export function getPublicMediaDirectory() {
   return resolve(
     process.env.ARCADIA_PUBLIC_MEDIA_ROOT ??
       (process.env.ARCADIA_MEDIA_ROOT
         ? dirname(getMediaDirectory())
-        : fileURLToPath(new URL("../../web/public/media", import.meta.url))),
+        : fileURLToPath(new URL("../../../data/media", import.meta.url))),
   );
 }
 

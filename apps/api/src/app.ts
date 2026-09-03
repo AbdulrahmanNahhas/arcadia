@@ -23,6 +23,7 @@ import {
   vocabularyNameSchema,
   vocabularyTermSchema,
 } from "@arcadia/contracts";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { auth, getAuthSession, isTestAuthBypass } from "./auth";
@@ -50,6 +51,7 @@ import {
   tmdbStreamIdsAllowed,
 } from "./integrations/torrent-source";
 import {
+  getPublicMediaDirectory,
   type mediaKinds,
   removeStoredMedia,
   storedMediaExists,
@@ -75,6 +77,20 @@ app.use(
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  }),
+);
+// Uploaded artwork now lives outside apps/web/public (see media-storage.ts) so it stays out of
+// git and can sit on its own Docker volume; the API serves it directly instead, unauthenticated —
+// posters are not sensitive, and this matches the zero-auth static-file behavior they already had
+// when Vite served them as part of the web build.
+app.use(
+  "/media/*",
+  serveStatic({
+    root: getPublicMediaDirectory(),
+    // The mount path itself (`/media`) is not part of the on-disk layout — getPublicMediaDirectory()
+    // *is* the `media` directory — so it has to be stripped before joining, or every request would
+    // look for a doubled .../media/media/... path.
+    rewriteRequestPath: (path) => path.replace(/^\/media/, ""),
   }),
 );
 app.on(["GET", "POST"], "/api/auth/*", (context) => {

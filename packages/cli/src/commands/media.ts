@@ -110,7 +110,7 @@ function detectMime(bytes: Buffer): DetectedImage {
 function mediaRoot(): string {
   return resolve(
     process.env.ARCADIA_MEDIA_ROOT ??
-      fileURLToPath(new URL("../../../../apps/web/public/media/uploads", import.meta.url)),
+      fileURLToPath(new URL("../../../../data/media/uploads", import.meta.url)),
   );
 }
 
