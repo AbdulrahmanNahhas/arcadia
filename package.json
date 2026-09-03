@@ -2,6 +2,7 @@
   "name": "arcadia",
   "version": "2.0.0",
   "description": "Arabic-first family media archive with a TanStack Start web app, Hono API, and PostgreSQL catalog.",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.11.0",

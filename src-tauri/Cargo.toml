@@ -3,7 +3,7 @@ name = "arcadia"
 version = "0.1.0"
 description = "Arcadia desktop shell — Arabic-first family media archive."
 authors = ["AbdulrahmanNahhas"]
-license = "UNLICENSED"
+license = "MIT"
 repository = ""
 # librqbit and libmpv2 both need a modern toolchain; the previous 1.77.2 floor will not build them.
 edition = "2024"
