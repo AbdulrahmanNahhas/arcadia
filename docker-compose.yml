@@ -1,0 +1,87 @@
+# Self-hosting stack for one family's own server (a home machine, a NAS, or the same box that
+# plays things — see docs/deployment-and-release-roadmap.md). LAN-only by design: nothing here
+# is exposed to the public internet. Configure via a repo-root .env (see .env.example).
+#
+#   docker compose run --rm migrate   # first time, and after every schema change
+#   docker compose up -d
+#
+# The desktop Tauri app is a separate build (see .github/workflows/tauri-build.yml) — this stack
+# only runs the API, the database, and a browsable (not playable — see the roadmap's browse/play
+# split) copy of the web app.
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: arcadia
+      POSTGRES_USER: arcadia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arcadia"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # One-off: `docker compose run --rm migrate`. Never runs as part of `up` — database changes stay
+  # explicit, matching how devenv is used (see CLAUDE.md's "Database and API safety").
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: build
+    command: pnpm --filter @arcadia/database db:migrate
+    environment:
+      DATABASE_URL: postgresql://arcadia:${POSTGRES_PASSWORD}@db/arcadia
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["tools"]
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3001
+      NODE_ENV: production
+      DATABASE_URL: postgresql://arcadia:${POSTGRES_PASSWORD}@db/arcadia
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env — generate one with `openssl rand -base64 32`}
+      ARCADIA_WEB_URL: ${ARCADIA_WEB_URL:?e.g. http://192.168.1.50:8080 — your server's LAN address and the web container's published port}
+      ARCADIA_MEDIA_ROOT: /data/media/uploads
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      TMDB_API_READ_ACCESS_KEY: ${TMDB_API_READ_ACCESS_KEY:-}
+      FANART_API_KEY: ${FANART_API_KEY:-}
+      ARCADIA_STREAM_ADDON_URL: ${ARCADIA_STREAM_ADDON_URL:-}
+      ARCADIA_STREAM_ADDON_CONFIG: ${ARCADIA_STREAM_ADDON_CONFIG:-}
+      ARCADIA_STREAM_ALLOW_TMDB_IDS: ${ARCADIA_STREAM_ALLOW_TMDB_IDS:-false}
+      OPENSUBTITLES_API_KEY: ${OPENSUBTITLES_API_KEY:-}
+    volumes:
+      - media_data:/data/media
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Baked in at build time — rebuild this image if the API's address ever changes (see
+        # docs/deployment-and-release-roadmap.md §3 for the runtime-configurable alternative).
+        VITE_API_URL: ${VITE_API_URL:?e.g. http://192.168.1.50:3001 — your server's LAN address and the api container's published port}
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  media_data:

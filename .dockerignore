@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+**/dist
+**/.tanstack
+**/.output
+**/.vinxi
+.git
+.devenv*
+.direnv
+data
+*.log
+src-tauri/target
