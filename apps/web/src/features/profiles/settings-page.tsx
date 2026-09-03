@@ -1,11 +1,17 @@
 import type { AccountPreferences, AvatarKey } from "@arcadia/contracts";
 import type { Classification } from "@arcadia/domain";
 import { ageOptions, ar, audienceOptions, avatarLabels, riskOptions } from "@arcadia/i18n";
-import { CheckCircleIcon, FloppyDiskIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, CheckCircleIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useIsDesktopShell } from "@/features/library/play-button";
+import {
+  checkForUpdate,
+  installUpdateAndRestart,
+  type UpdateCheckResult,
+} from "@/features/platform/updater";
 import {
   Field,
   FieldContent,
@@ -241,6 +247,9 @@ export function SettingsPage() {
                 onChange={(value) => setPreference("theme", value as "dark" | "light")}
               />
             </SettingsCard>
+            <div className="mt-6">
+              <UpdateCheckCard />
+            </div>
           </TabsContent>
         </Tabs>
         <div className="mt-6 flex items-center justify-end gap-3">
@@ -286,6 +295,79 @@ function SettingsCard({
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
+  );
+}
+
+/**
+ * Only ever renders inside the Tauri desktop shell — the updater plugin (and the whole notion of
+ * "install and restart") has no meaning for a browser tab. `useIsDesktopShell` keeps the first
+ * paint agreeing with the prerendered HTML (see its own doc comment in `play-button.tsx`), so this
+ * card simply isn't there yet on the very first render, then appears once the app confirms it's
+ * running inside Tauri.
+ */
+function UpdateCheckCard() {
+  const isDesktop = useIsDesktopShell();
+  const [result, setResult] = useState<UpdateCheckResult | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
+
+  if (!isDesktop) return null;
+
+  async function runCheck() {
+    setChecking(true);
+    setResult(await checkForUpdate());
+    setChecking(false);
+  }
+
+  async function runInstall() {
+    setInstalling(true);
+    setProgress(null);
+    try {
+      await installUpdateAndRestart(setProgress);
+    } catch (error) {
+      setResult({
+        status: "failed",
+        message: error instanceof Error ? error.message : "تعذّر تثبيت التحديث.",
+      });
+      setInstalling(false);
+    }
+    // On success the app restarts itself (relaunch()) before this ever resumes.
+  }
+
+  return (
+    <SettingsCard title="التحديثات" description="يتحقّق أركاديا من إصدار جديد عبر GitHub Releases.">
+      <div className="flex flex-col gap-3">
+        <Button variant="outline" onClick={runCheck} disabled={checking || installing}>
+          <ArrowClockwiseIcon
+            data-icon="inline-start"
+            className={checking ? "animate-spin" : undefined}
+          />
+          {checking ? "يتحقّق…" : "التحقق من التحديثات"}
+        </Button>
+        {result?.status === "upToDate" && (
+          <p className="text-sm text-muted-foreground">أركاديا محدّث لأحدث إصدار.</p>
+        )}
+        {result?.status === "failed" && (
+          <p className="text-sm text-destructive">{result.message}</p>
+        )}
+        {result?.status === "available" && (
+          <div className="flex flex-col gap-2 text-sm">
+            <p>
+              يتوفّر إصدار جديد: <span className="font-medium">{result.version}</span> (الحالي{" "}
+              {result.currentVersion})
+            </p>
+            <Button onClick={runInstall} disabled={installing}>
+              {installing
+                ? progress !== null
+                  ? `يُثبّت… ${progress}٪`
+                  : "يُثبّت…"
+                : "تثبيت التحديث وإعادة التشغيل"}
+            </Button>
+          </div>
+        )}
+      </div>
+    </SettingsCard>
   );
 }
 

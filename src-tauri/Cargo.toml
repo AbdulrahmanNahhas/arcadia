@@ -24,6 +24,10 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.5", features = [] }
 tauri-plugin-log = "2"
+# Checks GitHub Releases' generated latest.json (see .github/workflows/release.yml) and installs
+# a signed update; tauri-plugin-process restarts the app into the new version afterward.
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 # Playback and transfer (see docs/player-torrent-roadmap.md). librqbit downloads sequentially by
 # default and re-prioritises pieces on seek; libmpv2 is the maintained binding to the libmpv the
 # Nix/Fedora runtime provides.

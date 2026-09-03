@@ -26,6 +26,15 @@
       "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:*; media-src 'self' http://127.0.0.1:* blob:; img-src 'self' data: blob: http://127.0.0.1:* https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com"
     }
   },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/AbdulrahmanNahhas/arcadia/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdEOTgzOEU0NkRDOEYxRkMKUldUODhjaHQ1RGlZZmJlSnBJZUNOK3JDOFo1d242YmZvdHo4WVI1TG40RU4xNVQvazlxSkNUdUoK"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": ["appimage", "deb", "rpm"],
