@@ -30,3 +30,7 @@ devenv.local.yaml
 
 # direnv
 .direnv
+
+# Claude Code local/session state — machine- and session-specific, never project config
+.claude/settings.local.json
+.claude/projects/
