@@ -576,12 +576,15 @@ would have found. They are recorded because each one is a trap the next platform
       `ARCADIA_STREAM_ALLOW_TMDB_IDS` can be settled. Note the public `torrentio.strem.fun`
       Cloudflare-blocks VPN egress ranges outright — a 403 on every path, for browsers too — which
       is worth knowing before blaming the code.
-- [ ] **Packaging:** `.github/workflows/tauri-build.yml` now builds and uploads AppImage/deb/rpm
-      artifacts from a standard-distro (`ubuntu-latest`) runner, closing the "no CI workflow
-      exists yet" half of this item. `.github/workflows/ci.yml` also runs `pnpm check:rust` on
-      every push/PR. **Still open:** a GitHub-hosted runner has no display or GPU, so nothing yet
-      confirms the built artifact actually plays a file — that half stays a manual step on real
-      hardware (see the acceptance run above).
+- [ ] **Packaging:** `.github/workflows/release.yml` (superseding the earlier hand-rolled
+      `tauri-build.yml` — see `docs/deployment-and-release-roadmap.md` §5) builds, signs, and
+      publishes AppImage/deb/rpm artifacts plus the updater's `latest.json` from a standard-distro
+      (`ubuntu-latest`) runner on a pushed `v*` tag, closing the "no CI workflow exists yet" half
+      of this item. `.github/workflows/ci.yml` also runs `pnpm check:rust` on every push/PR.
+      **Still open:** a GitHub-hosted runner has no display or GPU, so nothing yet confirms the
+      built artifact actually plays a file — that half stays a manual step on real hardware (see
+      the acceptance run above), and no tag has actually been pushed through this workflow yet
+      (needs the one-time signing-key/`ARCADIA_API_URL` setup in README's "Releases and updates").
 
 ### Known limits of the current compositing approach
 

@@ -1,20 +1,33 @@
 # Arcadia
 
-Arcadia v2 is an Arabic-first, RTL-first family media archive. It models titles as umbrella
-records with seasons, films, specials, and episodes beneath them, then combines editorial
-scores, family-safety classifications, people, studios, planets, and relationships in one
-searchable catalog.
+A personal, educational project — my own family's private media archive and torrent-backed
+player, built to learn the stack (TanStack Start, Hono, Tauri, a real BitTorrent client embedded
+in Rust) as much as to actually use. It is **not** a general-purpose media manager: the catalog
+only ever holds what my family has actually chosen to watch and catalog by hand — editorial
+scores, Arabic content notes, family-safety classifications — never an attempt at a complete
+library of all movies or shows. Playback streams a torrent for the moment it's needed and expects
+a family's *own* private Torrentio-compatible addon (see "Playback source" below); nothing here
+hosts, indexes, or redistributes any media itself. Point it at your own server and your own
+catalog if you use it — it is Arabic-first and RTL-first because that is what this family reads.
+
+Arcadia v2 models titles as umbrella records with seasons, films, specials, and episodes
+beneath them, then combines editorial scores, family-safety classifications, people, studios,
+planets, and relationships in one searchable catalog.
+
+Licensed MIT (see `LICENSE`) — the code, not any catalog data or artwork you populate it with,
+none of which ships in this repository (see "Media storage" below).
 
 The project is a pnpm monorepo:
 
 ```text
 apps/api            Hono API and OpenAPI document
-apps/web            React 19 and TanStack Start client
+apps/web            React 19 and TanStack Start client (static SPA)
+src-tauri           Tauri desktop shell — the torrent/mpv player, Linux-first
+packages/cli        arcadia CLI, reads/writes the catalog straight against PostgreSQL
 packages/contracts  shared Zod schemas and generated API types
 packages/database   PostgreSQL schema, migrations, seed, and v1 importer
 packages/domain     taxonomy, classification, policy, and scoring rules
 packages/i18n       shared Arabic interface vocabulary and taxonomy labels
-scripts             repository command-line tools
 ```
 
 ## Development
@@ -140,8 +153,54 @@ detail page.
 binaries embed a `/nix/store/...` path as their ELF dynamic linker (`readelf -p .interp`) and
 can't execute on a non-NixOS machine at all, and Tauri's own AppImage step downloads a generic
 `linuxdeploy` binary that can't execute *on* NixOS either. `pnpm tauri build` therefore only
-produces something runnable in a GitHub Actions `ubuntu-latest` (or similar standard-distro)
-workflow — that's not yet set up. Locally, `pnpm tauri dev` is the supported way to run the app.
+produces something runnable on a real standard-distro machine — locally, `pnpm tauri dev` is the
+supported way to run the app; for an actual installable bundle, see "Releases and updates" below.
+
+### Releases and updates
+
+`.github/workflows/release.yml` builds the desktop bundle on `ubuntu-latest`, signs it, creates a
+GitHub Release, and uploads the AppImage/deb/rpm plus a `latest.json` manifest. It runs on a
+pushed `v*` tag, or manually (Actions → Release → Run workflow) against a tag that already exists.
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+One-time setup, done outside git:
+
+- Generate a signing keypair once (`pnpm tauri signer generate`), then add
+  `TAURI_SIGNING_PRIVATE_KEY` (and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if you set one) as repo
+  secrets — Settings → Secrets and variables → Actions. The public half already lives in
+  `src-tauri/tauri.conf.json`; **never commit the private half**.
+- Add `ARCADIA_API_URL` as a repo **variable** (not a secret — it's just a hostname) set to your
+  family server's real LAN/Tailscale address. The workflow bakes it into the build as
+  `VITE_API_URL` and widens the app's CSP for that origin — the checked-in CSP only allows
+  loopback, correct for local dev, wrong for a real deployment.
+
+The running app checks `tauri.conf.json`'s configured `plugins.updater.endpoints` (GitHub
+Releases' `latest.json`) from Settings → المظهر → التحديثات, and installs + restarts on confirm.
+A release must be published (not a draft, not a prerelease) for the updater to ever find it —
+`releaseDraft`/`prerelease` are both `false` in the workflow for exactly that reason.
+
+## Self-hosting (Docker)
+
+`docker-compose.yml` runs the database, the API, and a browsable (not playable — see "Playback
+source"; torrent playback is desktop-app-only) copy of the web app, for a family's own server —
+a home machine, a NAS, whatever stays on. LAN-only by design: nothing here is exposed to the
+public internet, and there's no reverse proxy or TLS included.
+
+```bash
+cp .env.example .env   # fill in POSTGRES_PASSWORD, BETTER_AUTH_SECRET, ARCADIA_WEB_URL, VITE_API_URL
+docker compose run --rm migrate   # first time, and after every schema change
+docker compose up -d
+```
+
+`ARCADIA_WEB_URL`/`VITE_API_URL` both need your server's actual LAN address (e.g.
+`http://192.168.1.50:8080` / `:3001`) — `VITE_API_URL` is baked into the web image at build time,
+so rebuild it (`docker compose build web`) if that address ever changes. The desktop Tauri app is
+a separate build entirely (see "Releases and updates" above) — this stack never plays anything
+itself, it only serves the catalog.
 
 ## API and CLI
 

@@ -143,40 +143,55 @@ untouched by this.
 
 ## 5. Public repo, releases, future `.apk`
 
-Confirmed workable now that media is coming out of git (§1) and history gets cleaned before the
-first push — no copyright-redistribution or personal-data concern left in the code itself.
+**Done (2026-09-03).** Repo is public, MIT-licensed (`LICENSE`, `Cargo.toml`, root
+`package.json`). `.github/workflows/tauri-build.yml` was replaced outright rather than extended —
+`tauri-apps/tauri-action` (the official action) builds, signs with the updater's minisign keypair,
+creates the GitHub Release, and generates `latest.json` in one step, which a hand-rolled
+`softprops/action-gh-release` addition would have had to reimplement piece by piece. Now
+`.github/workflows/release.yml`, tag-triggered (`v*`) or manual. See README's "Releases and
+updates" for the one-time secret/variable setup it depends on
+(`TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`, `ARCADIA_API_URL`).
 
-- [ ] **Pick an actual license before going public** — `src-tauri/Cargo.toml` currently says
-      `UNLICENSED`, which on a public repo reads as "all rights reserved, don't reuse this." That
-      may be exactly what's wanted, or not — a real decision, not one to default silently.
-- [ ] Extend the existing `tauri-build.yml` (already builds AppImage/deb/rpm) to attach those
-      artifacts to a GitHub Release on a `v*` tag push (`softprops/action-gh-release`, a few lines).
-- [ ] **Auto-update, revised now that public + Releases is on the table:** point
-      `tauri-plugin-updater` directly at the GitHub Releases manifest. The earlier "self-host a
-      tiny update manifest" idea only made sense under a private repo — moot now.
+- [x] License: MIT.
+- [x] Release workflow: build + sign + release + `latest.json`, in `release.yml`.
+- [x] **Auto-update:** `tauri-plugin-updater` + `tauri-plugin-process` wired end to end —
+      `tauri.conf.json`'s `plugins.updater` points at
+      `https://github.com/AbdulrahmanNahhas/arcadia/releases/latest/download/latest.json`, and a
+      small settings-page card (desktop-shell-only) checks, downloads, installs, and relaunches.
+      The self-hosted-manifest idea from the original draft of this section never ended up
+      necessary — GitHub Releases' own generated manifest was simpler once public was decided.
+- [x] **Found and fixed along the way:** the checked-in CSP (`connect-src`/`media-src`/`img-src`)
+      only allowed loopback origins — correct for local dev against `127.0.0.1`, but it would have
+      silently blocked every request once a real build pointed at a family server's LAN address.
+      `release.yml` widens it at build time via `TAURI_CONFIG` (merged over `tauri.conf.json` by
+      the Tauri CLI itself), computed from the same `ARCADIA_API_URL` that becomes `VITE_API_URL`.
 - [ ] Future Android (`.apk`): Phase 7 of `player-torrent-roadmap.md` already scopes this
-      (`pnpm tauri android init` + androidx.media3). Once it lands, the same release workflow
-      gains an Android build job uploading `.apk`/`.aab` alongside the Linux bundles — the
-      pipeline shape already fits it, nothing to prep now.
+      (`pnpm tauri android init` + androidx.media3). Once it lands, `release.yml` gains an Android
+      build job uploading `.apk`/`.aab` alongside the Linux bundles — the pipeline shape already
+      fits it, nothing to prep now.
 
 ---
 
 ## 6. Concrete order of operations before "real 1.0" (LAN-only)
 
-1. [ ] Decide a license (§5 — your call, still open).
+1. [x] Decide a license — MIT.
 2. [x] Media migration: `ARCADIA_MEDIA_ROOT` outside the repo, API `/media` static route,
    the `apiFetch`/`client` rewrite in the web app, `git rm --cached` the tracked folders.
 3. [x] `git filter-repo` to strip old media blobs from history (two passes — see §1's note).
-4. [x] Pushed to GitHub (`git push --force-with-lease`, both branches). **Still manual:** flipping
-   the repo's actual visibility to public is a GitHub settings action this environment has no
-   `gh` auth to do — do that in the GitHub UI whenever ready (no code/git step needed).
-5. [ ] Docker Compose stack (db/api/web + volumes) + a "self-hosting" section in README.
-6. [ ] Runtime-configurable API URL (§3) so one build serves every device on the LAN.
-7. [ ] Offline catalog + image cache (§4).
-8. [ ] Wire GitHub Releases into `tauri-build.yml`; tag `v0.1.0`.
-9. [ ] `tauri-plugin-updater` pointed at Releases.
+4. [x] Pushed to GitHub, and the repo is public.
+5. [x] Docker Compose stack (db/api/web + volumes) + a "Self-hosting (Docker)" section in README.
+   Not build-tested inside actual Docker/Podman — no container runtime is available in this
+   environment; `pnpm deploy --prod --legacy` (the piece `apps/api/Dockerfile` leans on) was
+   verified standalone instead — built, deployed, booted with production env vars, real `200` from
+   `/api/v1/health`. Run `docker compose build` as the first real check.
+6. [ ] Runtime-configurable API URL (§3) so one build serves every device on the LAN — still open.
+7. [ ] Offline catalog + image cache (§4) — still open.
+8. [x] GitHub Releases wired (`release.yml`, via `tauri-apps/tauri-action`) — see §5.
+9. [x] `tauri-plugin-updater` pointed at Releases — see §5.
 10. [ ] Install the release build on the Fedora TV box; run the still-outstanding Phase 1
     acceptance pass from `player-torrent-roadmap.md` (10-film sample, real hardware-decode
-    confirmation) — the first real-hardware milestone, same one flagged earlier.
+    confirmation) — the first real-hardware milestone, same one flagged earlier. Needs a real
+    tag pushed through `release.yml` first, which needs the signing-key/`ARCADIA_API_URL`
+    one-time setup (README's "Releases and updates") done by hand outside this environment.
 11. [ ] Phase 3 (download-to-local, real offline video) whenever ready — explicitly out of scope
     for this pass.

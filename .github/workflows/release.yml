@@ -1,0 +1,106 @@
+name: Release
+
+# Builds the desktop bundle on a real standard-distro runner (see tauri-action's own docs and
+# README's "Desktop (Tauri)" section for why this can't happen on NixOS), signs it with the
+# updater's private key, creates a GitHub Release, and uploads the AppImage/deb/rpm plus the
+# generated latest.json the Tauri updater plugin polls (see tauri.conf.json's plugins.updater and
+# apps/web/src/features/platform/updater.ts).
+#
+# One-time setup this workflow depends on, done outside git (see
+# docs/deployment-and-release-roadmap.md):
+#   - TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD — repo secrets, from the
+#     minisign keypair `pnpm tauri signer generate` produced. The public half already lives in
+#     tauri.conf.json; the private half must never be committed.
+#   - ARCADIA_API_URL — a repo *variable* (Settings → Secrets and variables → Actions →
+#     Variables), the family server's real LAN/Tailscale address. Not a secret — it's just a
+#     hostname — but the workflow needs it to build a working app.
+#
+# releaseDraft/prerelease must both stay false: GitHub's "latest release" (what the updater's
+# endpoint URL resolves to) skips drafts and prereleases entirely.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Version tag to release (e.g. v0.2.0) — must already exist.
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      VITE_API_URL: ${{ vars.ARCADIA_API_URL || 'http://127.0.0.1:3001' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.11.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install Tauri/libmpv/packaging system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libmpv-dev libssl-dev libxdo-dev rpm file
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Stamp the release version into tauri.conf.json
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const path = 'src-tauri/tauri.conf.json';
+            const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+            config.version = process.argv[1].replace(/^v/, '');
+            fs.writeFileSync(path, \`\${JSON.stringify(config, null, 2)}\n\`);
+          " "$TAG"
+
+      - name: Widen the CSP for the real API origin
+        # tauri.conf.json's checked-in CSP only allows loopback origins, correct for local dev
+        # against 127.0.0.1 — a real build talks to the family's own server over the LAN instead,
+        # so that origin has to be added at build time. TAURI_CONFIG is merged over
+        # tauri.conf.json by the Tauri CLI itself; nothing in the repo needs editing per release.
+        run: |
+          API_ORIGIN=$(node -e "console.log(new URL(process.env.VITE_API_URL).origin)")
+          CSP="default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:* $API_ORIGIN; media-src 'self' http://127.0.0.1:* blob: $API_ORIGIN; img-src 'self' data: blob: http://127.0.0.1:* https: $API_ORIGIN; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com"
+          CONFIG_JSON=$(node -e "console.log(JSON.stringify({app:{security:{csp: process.argv[1]}}}))" "$CSP")
+          {
+            echo "TAURI_CONFIG<<EOF_TAURI_CONFIG"
+            echo "$CONFIG_JSON"
+            echo "EOF_TAURI_CONFIG"
+          } >> "$GITHUB_ENV"
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ env.TAG }}
+          releaseName: "Arcadia ${{ env.TAG }}"
+          releaseBody: See the commit history for what changed since the last release.
+          releaseDraft: false
+          prerelease: false
+          args: --bundles appimage,deb,rpm
