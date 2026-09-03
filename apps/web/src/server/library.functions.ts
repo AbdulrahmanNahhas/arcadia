@@ -29,6 +29,7 @@ import {
   fullAdminDetail,
   fullDetail,
   searchAdminWorks as searchAdminWorksQuery,
+  titleToWork,
 } from "./compat";
 
 type Data<T> = { data: T };
@@ -306,6 +307,16 @@ export async function getAdminWorkStructure({ data }: Data<{ workId: string }>) 
   const detail = await fullAdminDetail(data.workId);
   return detailToStructure(detail);
 }
+/**
+ * The one title being edited, as a full `Work` — unlike `getAdminWorks()`'s bulk list (which is
+ * `TitleSummary`-shaped and never carries `tmdbId`/`imdbId`/`tvdbId`/`anilistId`/`malId` at the
+ * title level, only `titleDetail` does), this goes through `fullAdminDetail` so those fields are
+ * actually populated. The editor form must load its single target through this, not by picking
+ * the matching entry out of the bulk list.
+ */
+export async function getAdminWorkDetail({ data }: Data<{ workId: string }>) {
+  return titleToWork(await fullAdminDetail(data.workId));
+}
 export async function getWorkStructures({ data }: Data<{ workIds: string[] }>) {
   return Promise.all(data.workIds.map((workId) => getWorkStructure({ data: { workId } })));
 }
@@ -389,60 +400,69 @@ export async function getAdminRecordBundles({ data }: Data<{ workIds: string[] }
   const works = await allAdminWorks();
   const bundles = await Promise.all(
     data.workIds.flatMap((workId) => {
-      const work = works.find((item) => item.id === workId);
-      return work
+      const known = works.find((item) => item.id === workId);
+      // `fullAdminDetail` (not the `works` summary list above) is the source for `work`: the
+      // admin titles *list* endpoint's `TitleSummary` shape never carries the title's own
+      // tmdbId/imdbId/tvdbId/anilistId/malId (only `titleDetail` does — see
+      // `titleSummarySchema`/`titleDetailSchema` in packages/contracts). Building `work` from the
+      // summary silently showed those fields as null here regardless of what the database held,
+      // and a save from this editor could round-trip that null back over a real value.
+      return known
         ? [
             Promise.all([
-              getAdminWorkStructure({ data: { workId } }),
+              fullAdminDetail(workId),
               getTitleAwardRecognitions({ data: { titleId: workId } }),
-            ]).then(([structure, recognitions]) => ({
-              work,
-              structure: {
-                workId: structure.workId,
-                seasons: structure.seasons.map((season) => ({
-                  id: season.id,
-                  title: season.title,
-                  installmentKind: season.installmentKind ?? "season",
-                  summary: season.summary ?? "",
-                  releaseStatus: season.releaseStatus ?? "unknown",
-                  posterPath: season.posterPath ?? null,
-                  score: season.score,
-                  seasonNumber: season.seasonNumber,
-                  position: season.position,
-                  runtimeMinutes: season.runtimeMinutes,
-                  unitCount: season.unitCount,
-                  releaseAt: season.releaseAt,
-                  tmdbId: season.tmdbId ?? null,
-                  imdbId: season.imdbId ?? null,
-                  tvdbId: season.tvdbId ?? null,
-                  anilistId: season.anilistId ?? null,
-                  malId: season.malId ?? null,
-                  units: season.units.map((unit) => ({
-                    id: unit.id,
-                    unitType: "episode" as const,
-                    title: unit.title,
-                    summary: unit.summary,
-                    unitNumber: unit.unitNumber,
-                    position: unit.position,
-                    runtimeMinutes: unit.runtimeMinutes,
-                    releaseAt: unit.releaseAt,
+            ]).then(([detail, recognitions]) => {
+              const structure = detailToStructure(detail);
+              return {
+                work: titleToWork(detail),
+                structure: {
+                  workId: structure.workId,
+                  seasons: structure.seasons.map((season) => ({
+                    id: season.id,
+                    title: season.title,
+                    installmentKind: season.installmentKind ?? "season",
+                    summary: season.summary ?? "",
+                    releaseStatus: season.releaseStatus ?? "unknown",
+                    posterPath: season.posterPath ?? null,
+                    score: season.score,
+                    seasonNumber: season.seasonNumber,
+                    position: season.position,
+                    runtimeMinutes: season.runtimeMinutes,
+                    unitCount: season.unitCount,
+                    releaseAt: season.releaseAt,
+                    tmdbId: season.tmdbId ?? null,
+                    imdbId: season.imdbId ?? null,
+                    tvdbId: season.tvdbId ?? null,
+                    anilistId: season.anilistId ?? null,
+                    malId: season.malId ?? null,
+                    units: season.units.map((unit) => ({
+                      id: unit.id,
+                      unitType: "episode" as const,
+                      title: unit.title,
+                      summary: unit.summary,
+                      unitNumber: unit.unitNumber,
+                      position: unit.position,
+                      runtimeMinutes: unit.runtimeMinutes,
+                      releaseAt: unit.releaseAt,
+                    })),
                   })),
+                  ungroupedUnits: [],
+                } satisfies EditableWorkStructure,
+                awards: recognitions.map((recognition) => ({
+                  id: recognition.id,
+                  organizationId: recognition.organizationId ?? "",
+                  categoryId: recognition.categoryId ?? "",
+                  titleId: recognition.titleId,
+                  installmentId: recognition.installmentId,
+                  year: recognition.year,
+                  result: recognition.result,
+                  isFeatured: recognition.isFeatured,
+                  sourceUrl: recognition.sourceUrl,
+                  notes: recognition.notes,
                 })),
-                ungroupedUnits: [],
-              } satisfies EditableWorkStructure,
-              awards: recognitions.map((recognition) => ({
-                id: recognition.id,
-                organizationId: recognition.organizationId ?? "",
-                categoryId: recognition.categoryId ?? "",
-                titleId: recognition.titleId,
-                installmentId: recognition.installmentId,
-                year: recognition.year,
-                result: recognition.result,
-                isFeatured: recognition.isFeatured,
-                sourceUrl: recognition.sourceUrl,
-                notes: recognition.notes,
-              })),
-            })),
+              };
+            }),
           ]
         : [];
     }),

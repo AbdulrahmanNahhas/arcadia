@@ -4,6 +4,8 @@
     "autoAllowBashIfSandboxed": true
   },
   "permissions": {
-    "allow": ["WebSearch"]
+    "allow": [
+      "WebSearch"
+    ]
   }
 }

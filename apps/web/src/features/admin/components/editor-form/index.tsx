@@ -488,6 +488,15 @@ function WorkEditorFormFields({
     () => [...new Set(works.flatMap((candidate) => candidate.tags))].toSorted(),
     [works],
   );
+  // Movie-kind titles don't carry their own TMDB/IMDb id (one franchise can hold several films,
+  // each with a different id — see the hint text below) — the artwork search for the title's own
+  // poster/banner/logo uses its first film's id instead. Anime/TV titles are the opposite: the
+  // title itself is the one TMDB/AniList/… entry, so `draft.tmdbId` is used directly.
+  const firstMovieTmdbId =
+    structure?.seasons.find(
+      (season) => season.installmentKind === "movie" || season.installmentKind === "special",
+    )?.tmdbId ?? null;
+  const posterTmdbId = draft.kind === "anime" ? draft.tmdbId : firstMovieTmdbId;
 
   return (
     <form
@@ -1152,7 +1161,7 @@ function WorkEditorFormFields({
                 year={draft.year}
                 kind={draft.kind === "anime" ? "anime" : "movie"}
                 titleId={draft.id}
-                tmdbId={draft.tmdbId}
+                tmdbId={posterTmdbId}
                 anilistId={draft.anilistId}
                 value={draft.imagePath}
                 onChange={(imagePath) => setDraft({ ...draft, imagePath })}
@@ -1164,7 +1173,7 @@ function WorkEditorFormFields({
                 year={draft.year}
                 kind={draft.kind === "anime" ? "anime" : "movie"}
                 titleId={draft.id}
-                tmdbId={draft.tmdbId}
+                tmdbId={posterTmdbId}
                 anilistId={draft.anilistId}
                 value={draft.bannerPath}
                 onChange={(bannerPath) => setDraft({ ...draft, bannerPath })}
@@ -1176,7 +1185,7 @@ function WorkEditorFormFields({
                 year={draft.year}
                 kind={draft.kind === "anime" ? "anime" : "movie"}
                 titleId={draft.id}
-                tmdbId={draft.tmdbId}
+                tmdbId={posterTmdbId}
                 anilistId={draft.anilistId}
                 value={draft.logoPath}
                 onChange={(logoPath) => setDraft({ ...draft, logoPath })}
@@ -1352,7 +1361,7 @@ function ArtworkPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-0 overflow-hidden sm:max-w-3xl">
+      <DialogContent className="flex max-h-[85dvh] min-w-0 flex-col overflow-hidden sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>اختيار صورة</DialogTitle>
           <DialogDescription>
@@ -1366,8 +1375,9 @@ function ArtworkPickerDialog({
             // SAFETY: the only two TabsTrigger values below are "existing" and "external".
             setTab(next as typeof tab);
           }}
+          className="min-h-0 flex-1"
         >
-          <TabsList>
+          <TabsList className="shrink-0">
             <TabsTrigger value="existing">
               <ImageSquareIcon data-icon="inline-start" /> مستخدم من قبل
             </TabsTrigger>
@@ -1375,8 +1385,8 @@ function ArtworkPickerDialog({
               <GlobeIcon data-icon="inline-start" /> بحث خارجي
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="existing" className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
+          <TabsContent value="existing" className="flex min-h-0 flex-1 flex-col gap-3">
+            <div className="flex shrink-0 items-center gap-2">
               <MagnifyingGlassIcon />
               <Input
                 value={assetSearch}
@@ -1384,20 +1394,21 @@ function ArtworkPickerDialog({
                 placeholder="ابحث في الصور…"
               />
             </div>
-            <div className="grid max-h-[55dvh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-4">
+            <div className="-me-1 grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto pe-1 sm:grid-cols-3 lg:grid-cols-4">
               {assets.data?.items.map((asset) => (
                 <button
                   key={asset.id}
                   type="button"
-                  className="overflow-hidden rounded-xl border text-start focus-visible:outline-2 focus-visible:outline-ring"
+                  className="group overflow-hidden rounded-xl border text-start transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-ring"
                   onClick={() => onPickExisting(asset.path)}
                 >
                   <img
                     src={asset.path}
                     alt={asset.originalFilename}
+                    loading="lazy"
                     className={cn(
                       artworkAspectRatio(artworkRole),
-                      "w-full object-contain bg-muted",
+                      "w-full object-contain bg-muted transition-transform group-hover:scale-105",
                     )}
                   />
                   <span className="flex items-center justify-between gap-2 p-2 text-xs">
@@ -1408,16 +1419,16 @@ function ArtworkPickerDialog({
               ))}
             </div>
           </TabsContent>
-          <TabsContent value="external" className="flex flex-col gap-3">
+          <TabsContent value="external" className="flex min-h-0 flex-1 flex-col gap-3">
             {hasKnownId ? (
-              <Alert>
+              <Alert className="shrink-0">
                 <AlertDescription className="text-xs">
                   نتائج دقيقة عبر المعرّف المحفوظ ({knownTmdbId ? "TMDB" : "AniList"}) — لا حاجة
                   للبحث بالاسم.
                 </AlertDescription>
               </Alert>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <MagnifyingGlassIcon />
                 <Input
                   value={externalQuery}
@@ -1428,28 +1439,29 @@ function ArtworkPickerDialog({
               </div>
             )}
             {externalResults.isFetching ? (
-              <p className="text-xs text-muted-foreground">جارٍ البحث…</p>
+              <p className="shrink-0 text-xs text-muted-foreground">جارٍ البحث…</p>
             ) : externalResults.data && externalResults.data.candidates.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
+              <p className="shrink-0 text-xs text-muted-foreground">
                 لا توجد نتائج مطابقة. جرّب تعديل اسم البحث.
               </p>
             ) : null}
-            <div className="grid max-h-[55dvh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-4">
+            <div className="-me-1 grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto pe-1 sm:grid-cols-3 lg:grid-cols-4">
               {externalResults.data?.candidates.map((item) => {
                 const style = artworkProviderStyle[item.provider];
                 return (
                   <button
                     key={`${item.provider}:${item.externalId}:${item.downloadUrl}`}
                     type="button"
-                    className="overflow-hidden rounded-xl border text-start focus-visible:outline-2 focus-visible:outline-ring"
+                    className="group overflow-hidden rounded-xl border text-start transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-ring"
                     onClick={() => onPickExternal(item)}
                   >
                     <img
                       src={item.previewUrl}
                       alt={item.matchLabel}
+                      loading="lazy"
                       className={cn(
                         artworkAspectRatio(artworkRole),
-                        "w-full object-contain bg-muted",
+                        "w-full object-contain bg-muted transition-transform group-hover:scale-105",
                       )}
                     />
                     <span className="flex items-center justify-between gap-2 p-2 text-xs">
