@@ -10,6 +10,10 @@
 > filter missed). `.git` went from 298 MB to 8.5 MB. A full pre-rewrite backup of the repo sits at
 > `/home/aqua/Projects/personal/arcadia-backup-before-filter-repo` — safe to delete once you've
 > confirmed GitHub looks right.
+> **2026-09-04:** the two-device setup named concretely (§3.1/§3.2 — Fedora Silverblue as the only
+> server, a NixOS laptop as a thin client, AppImage as the one artifact both currently run), and §4
+> redefined from a generic view-history cache into an explicit per-title "save for offline"
+> feature. Next concrete milestone: **v0.1.0** (§6, item 10).
 
 `origin` (`git@github.com:AbdulrahmanNahhas/arcadia.git`) read as having zero refs when this doc
 was written; by the time §1 actually ran, both branches already existed there (their *original*
@@ -116,28 +120,104 @@ everywhere instead of a rebuild per device.
 
 - [ ] Runtime-configurable API base URL, with the current build-time value as the default.
 
+### 3.1 The concrete two-device setup (2026-09-04)
+
+Named explicitly because "any device" was still abstract until now:
+
+- **Fedora Atomic (Silverblue)** — the family PC. The *only* stateful machine: Postgres + the API
+  run here, in Podman (§2). Never runs a desktop build of its own unless it's also used to watch.
+- **NixOS laptop** — where Arcadia is developed, and also just a thin client at runtime: no
+  database, no API, nothing stateful. Installs the desktop app like any other device and points
+  it at the Silverblue box's address.
+
+Both machines are Linux, but *differently* enough that it changes which build artifact is useful:
+
+| Target | Fits Silverblue? | Fits NixOS? | Verdict |
+| --- | --- | --- | --- |
+| **AppImage** | Yes — no install step, no `rpm-ostree` layering needed | Yes — the one format that needs nothing NixOS-specific at all | **The one artifact both machines can run unmodified.** Already what `release.yml` builds. |
+| `.rpm` | Yes, natively (`dnf install` or `rpm-ostree install`, the latter needs a reboot) | No — NixOS has no `dpkg`/`rpm` as its package manager | Nice-to-have on the Silverblue box specifically (native menu entry, clean uninstall); irrelevant on the laptop. |
+| `.deb` | No | No | Not a target for either current machine. |
+| `.exe` / `.dmg` | N/A | N/A | Real future targets (`tauri-action` supports both) once Windows/macOS machines exist to test on. macOS additionally needs code-signing/notarization to avoid Gatekeeper friction — more setup than Linux, genuinely fine to defer. |
+
+**So: right now, download the AppImage on both machines.** One build, `chmod +x`, run — no
+distro-specific step on either side.
+
+### 3.2 "Download once, connect to the DB" — confirmed, and two *separate* update paths
+
+The desktop app never bundles a database or the API; it is a pure client. Install it once per
+device, point it at the Silverblue box's LAN address (baked in at build time today — §3's
+`VITE_API_URL` gap — but since every current device is on the same home network hitting the same
+address, one build already serves both machines without that gap being blocking).
+
+Updating the **app** and updating the **server** are unrelated mechanisms — don't conflate them:
+
+- **The desktop app** self-updates via the Tauri updater already wired (`tauri-plugin-updater` +
+  GitHub Releases' `latest.json`) — each installed copy, on whichever device, checks and updates
+  itself independently. Nothing to do with Podman or the server.
+- **The server** (Postgres + API, only ever on the Silverblue box) updates by deploying a new
+  container image — a start-simple, upgrade-later choice:
+  - **Now:** `git pull && podman compose up -d --build` by hand (or a small systemd timer running
+    it) — zero extra infrastructure.
+  - **Later, if that gets tedious:** `podman auto-update` — Fedora ships a
+    `podman-auto-update.timer` out of the box; label the containers, publish images to a registry
+    (GitHub Container Registry via a CI job), and Podman checks for a newer tag and redeploys on
+    its own. The idiomatic Podman-native answer, but it needs a registry-publish step in CI first
+    that doesn't exist yet — not worth building before the manual path has actually been felt as
+    annoying.
+
+**Docker/Podman's scope stays exactly §2 — server only.** The desktop app is never containerized:
+it needs direct display/GPU access for the video surface and hardware decode, which a container
+can't sensibly provide, and there is exactly one delivery mechanism for it (a native installer per
+platform), completely separate from the container delivery mechanism the server uses.
+
 ---
 
-## 4. New feature: offline catalog + images (not offline video)
+## 4. Save for offline (per-title metadata + images — not offline video)
 
-Scoped precisely to what was asked: browsing (titles, images, scores, episode lists) should keep
-working with no reachable server; playback still needs the live API + torrent path exactly as
-today. This is smaller and different from **Phase 3** in `player-torrent-roadmap.md`
-(download-to-local, which caches the actual video file for offline *playback*) — that phase is
-untouched by this.
+**Redefined 2026-09-04** from an earlier, vaguer "cache whatever was recently viewed" sketch into
+what was actually asked for: an explicit, per-title **save** action, not a generic cache.
 
-- [ ] Persist the TanStack Query cache (already the web app's data layer) via
-      `@tanstack/query-persist-client-core` + IndexedDB — survives reloads, serves the last-known
-      catalog the instant the network fails, refreshes quietly once reachable again.
-- [ ] Tauri desktop reuses the same code path — its webview supports IndexedDB fine, no separate
-      implementation needed.
-- [ ] Once media is served from the API (§1), add a cache-first fetch strategy for `/media/*` — a
-      service worker covers the browser (and turns the web app into an installable PWA, a free
-      win for phones with no native app yet); the Tauri app can rely on the same
-      Cache-Control-driven HTTP cache from the new API media route.
-- [ ] Small "غير متصل — آخر بيانات محفوظة" (offline — last saved data) indicator when serving from
-      cache instead of a live fetch. The play button's existing failure states already handle "no
-      reachable source" gracefully — nothing new needed there.
+- A user saves a title (a show or a film) from the desktop app. That fetches and persists, on
+  *that device*, just that title's metadata (description, scores, episode list, content warnings)
+  and its images (poster/banner/logo) — not the whole catalog, only what was explicitly saved.
+- With the server unreachable, opening the app still shows every saved title in full — poster,
+  description, scores — because that data now lives on the device itself, independent of any live
+  fetch.
+- **Playing** a saved title still needs a live connection exactly as today (the API resolves a
+  torrent, then the torrent itself needs peers) — saving is deliberately *not* a video download.
+- This is smaller than and independent of **Phase 3** in `player-torrent-roadmap.md`
+  (download-to-local, which fetches the actual video file for true offline *playback*) — saving
+  ten shows' metadata costs zero video bytes; downloading an episode is a separate action a user
+  takes per-episode, on top of having saved the show. See the disambiguation note Phase 3 now
+  carries.
+
+### Design
+
+- [ ] **Server:** a new `account_saved_titles` table (`account_id`, `title_id`, `saved_at`) —
+      small, additive, syncs the *fact* of having saved something across every device the account
+      uses, even though the cached bytes themselves stay local per device. `GET`/`POST`/`DELETE`
+      under `/api/v1/me/saved-titles` or similar, visibility-checked the same way every other
+      title read already is (`visibleTitleIdsForAccount`).
+- [ ] **Desktop persistence:** on save, fetch the title's detail payload and its poster/banner/logo
+      bytes, write them into the Tauri app's own storage (`app_data_dir()` — a *kept*, backed-up-
+      worthy directory, unlike the streaming cache's disposable `app_cache_dir()`). A small local
+      index (title id → detail JSON + image paths) is enough; no need for a local database engine.
+- [ ] **Offline read path:** the web app's data layer tries the live API first: on failure (not
+      merely slow — genuinely unreachable), fall back to the local saved-title store for any title
+      id that has one. A saved title renders fully offline; an unsaved one shows the existing
+      network-error state, unchanged.
+- [ ] **UI:** a "حفظ" (save) affordance on the title page and on catalog cards, a "المحفوظات"
+      (saved) library view that works with zero network, and a small "غير متصل — من المحفوظات"
+      (offline — from your saved copy) indicator when a title is rendering from the local store
+      instead of a live fetch.
+- [ ] Browser build: same save action, backed by IndexedDB instead of Tauri's filesystem API —
+      the same code path both platforms already share for other Tauri-guarded features
+      (`isDesktopShell()`-style branching at the storage layer only, not the UI).
+
+**Rejected for this design:** a generic "cache the last N titles you viewed" (TanStack Query
+persister) — it was the original sketch here, but it caches whatever you *happened* to browse, not
+what you *chose* to keep, which is a worse fit for "I want this show available even if I haven't
+opened it in a month." An explicit save is simpler to reason about and to build.
 
 ---
 
@@ -184,14 +264,18 @@ updates" for the one-time secret/variable setup it depends on
    environment; `pnpm deploy --prod --legacy` (the piece `apps/api/Dockerfile` leans on) was
    verified standalone instead — built, deployed, booted with production env vars, real `200` from
    `/api/v1/health`. Run `docker compose build` as the first real check.
-6. [ ] Runtime-configurable API URL (§3) so one build serves every device on the LAN — still open.
-7. [ ] Offline catalog + image cache (§4) — still open.
+6. [ ] Runtime-configurable API URL (§3) so one build serves every device on the LAN — still open,
+   not blocking (both current devices share one home network and one build).
+7. [ ] Save for offline — per-title metadata + images (§4, redefined 2026-09-04) — still open.
 8. [x] GitHub Releases wired (`release.yml`, via `tauri-apps/tauri-action`) — see §5.
 9. [x] `tauri-plugin-updater` pointed at Releases — see §5.
-10. [ ] Install the release build on the Fedora TV box; run the still-outstanding Phase 1
-    acceptance pass from `player-torrent-roadmap.md` (10-film sample, real hardware-decode
-    confirmation) — the first real-hardware milestone, same one flagged earlier. Needs a real
-    tag pushed through `release.yml` first, which needs the signing-key/`ARCADIA_API_URL`
-    one-time setup (README's "Releases and updates") done by hand outside this environment.
-11. [ ] Phase 3 (download-to-local, real offline video) whenever ready — explicitly out of scope
+10. [ ] **v0.1.0 release** — the actual milestone the rest of this list is building toward. Blocked
+    on the one-time setup only the repo owner can do (README's "Releases and updates"): generate
+    the signing keypair, add `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD` as repo secrets and
+    `ARCADIA_API_URL` as a repo variable, then `git tag v0.1.0 && git push origin v0.1.0`.
+11. [ ] Install the release build (the AppImage) on both the Silverblue box and the NixOS laptop;
+    run the still-outstanding Phase 1 acceptance pass from `player-torrent-roadmap.md` (10-film
+    sample, real hardware-decode confirmation) — the first real-hardware milestone, same one
+    flagged earlier.
+12. [ ] Phase 3 (download-to-local, real offline video) whenever ready — explicitly out of scope
     for this pass.

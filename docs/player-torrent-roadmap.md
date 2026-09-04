@@ -855,6 +855,15 @@ response is the identical JSON shape `parseStreams`/`rankCandidates` already han
 **Status:** Not started
 **Done when:** a downloaded film plays from disk with no network, and shows as available offline.
 
+**Not to be confused with "save for offline"** (`docs/deployment-and-release-roadmap.md` §4,
+scoped 2026-09-04) — that's a separate, smaller, independent feature: saving a title caches its
+*metadata and images* on-device (description, scores, episode list, poster/banner/logo) so it's
+browsable with no server reachable, at zero video cost. This phase is the other half: an actual
+video file on disk so a specific episode plays with zero network *at play time too*. A title can be
+saved without ever being downloaded, and (today) a title can be downloaded without having been
+explicitly "saved" first — the two states are independent, though the UI should probably imply one
+from the other once both exist.
+
 - [ ] "Download" switches that torrent from streaming to a full download (all pieces, all files if
       wanted).
 - [ ] On completion, move into a managed media folder.
