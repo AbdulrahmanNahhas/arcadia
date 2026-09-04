@@ -69,6 +69,13 @@ export const app = new OpenAPIHono();
 const trustedOrigins = new Set([
   process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:23100",
   "http://localhost:23100",
+  // A packaged Tauri app (not `tauri dev`, which really does load from the devUrl origin above)
+  // serves its frontend from this fixed origin regardless of any env var — confirmed against
+  // tauri::app::AssetResolver's own doc comment, not guessed. Without this, every request from
+  // an installed build gets silently CORS-rejected, which is exactly what "stuck on Loading…"
+  // during login looks like from the outside — the API never even sees the request as coming
+  // from an origin it's willing to answer.
+  "http://tauri.localhost",
 ]);
 app.use(
   "*",
