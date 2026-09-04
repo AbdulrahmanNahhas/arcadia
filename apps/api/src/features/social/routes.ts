@@ -43,6 +43,7 @@ function state(row: Row | undefined) {
     isFavorite: row.isFavorite,
     personalRating: row.personalRating == null ? null : Number(row.personalRating),
     notes: row.notes,
+    savedOffline: row.savedOffline,
     updatedAt: iso(row.updatedAt),
   });
 }
@@ -117,13 +118,14 @@ socialRoutes.get("/api/v1/me/library", async (context) => {
   if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
   const rows = await database().client`
     select s.title_id as "titleId", s.is_favorite as "isFavorite",
-      s.personal_rating as "personalRating", s.notes, s.updated_at as "updatedAt",
+      s.personal_rating as "personalRating", s.notes, s.saved_offline as "savedOffline",
+      s.updated_at as "updatedAt",
       coalesce(t.title_ar, t.canonical_title) as title,
       (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
         where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath"
     from account_title_states s join titles t on t.id=s.title_id
     where s.account_id=${current.account.id}
-      and (s.is_favorite or s.personal_rating is not null or btrim(s.notes) <> '')
+      and (s.is_favorite or s.personal_rating is not null or btrim(s.notes) <> '' or s.saved_offline)
     order by s.updated_at desc`;
   const visible = await visibleTitleIdsForAccount(
     current.account.id,
@@ -155,16 +157,21 @@ socialRoutes.put("/api/v1/me/library/:titleId", async (context) => {
         ? input.personalRating
         : (existing?.personal_rating ?? null),
     notes: input.notes !== undefined ? input.notes : String(existing?.notes ?? ""),
+    savedOffline:
+      input.savedOffline !== undefined
+        ? input.savedOffline
+        : Boolean(existing?.saved_offline),
   };
   const [saved] = await database().client`insert into account_title_states
-    (account_id, title_id, is_favorite, personal_rating, notes)
+    (account_id, title_id, is_favorite, personal_rating, notes, saved_offline)
     values (${current.account.id}, ${titleId}, ${next.isFavorite},
-      ${next.personalRating}, ${next.notes})
+      ${next.personalRating}, ${next.notes}, ${next.savedOffline})
     on conflict (account_id, title_id) do update set
       is_favorite=excluded.is_favorite, personal_rating=excluded.personal_rating,
-      notes=excluded.notes, updated_at=now()
+      notes=excluded.notes, saved_offline=excluded.saved_offline, updated_at=now()
     returning title_id as "titleId", is_favorite as "isFavorite",
-      personal_rating as "personalRating", notes, updated_at as "updatedAt"`;
+      personal_rating as "personalRating", notes, saved_offline as "savedOffline",
+      updated_at as "updatedAt"`;
   return context.json(state(saved));
 });
 
@@ -478,7 +485,8 @@ socialRoutes.get("/api/v1/titles/:titleId/social", async (context) => {
   const sql = database().client;
   const [states, reviews, comments] = await Promise.all([
     sql`select title_id as "titleId", is_favorite as "isFavorite",
-      personal_rating as "personalRating", notes, updated_at as "updatedAt"
+      personal_rating as "personalRating", notes, saved_offline as "savedOffline",
+      updated_at as "updatedAt"
       from account_title_states where account_id=${current.account.id} and title_id=${titleId}`,
     sql`select r.id, r.title_id as "titleId", r.rating, r.body,
       r.contains_spoilers as "containsSpoilers", r.created_at as "createdAt",

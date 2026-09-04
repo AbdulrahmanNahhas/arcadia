@@ -1,6 +1,7 @@
 import type { AwardRecognition } from "@arcadia/contracts";
 import {
   ArrowSquareOutIcon,
+  BookmarkSimpleIcon,
   ChartBarIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -64,6 +65,11 @@ import {
   unplayableEpisodeReason,
   unplayableReason,
 } from "@/features/library/play-button";
+import {
+  removeTitleOffline,
+  saveTitleOffline,
+  useIsOnline,
+} from "@/features/library/offline-store";
 import { scoreCriteria, scoreLabel, scoreWeights } from "@/features/library/scoring";
 import type { Recommendation, RiskAssessment } from "@/features/platform/model";
 import {
@@ -75,6 +81,7 @@ import {
   updateTitleState,
 } from "@/features/social/api";
 import { TitleSocialSection } from "@/features/social/title-social-section";
+import { getTitle } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { getEntities } from "@/server/library.functions";
 import { getPlatformWorkDetail } from "@/server/platform.functions";
@@ -563,6 +570,30 @@ function WorkHero({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: socialKeys.title(work.id) }),
   });
 
+  /**
+   * "Save for offline" (docs/deployment-and-release-roadmap.md §4) — independent of favoriting.
+   * Saving fetches this title's full detail payload (including images) and persists it to
+   * IndexedDB via offline-store.ts, so the title page still renders with no server reachable;
+   * unsaving clears that local copy. The account-level flag (`savedOffline`) is what a future
+   * pass could sync across an account's devices — see the roadmap note on why that isn't built
+   * yet — this mutation's own local caching already delivers the offline-browsing value on this
+   * device today.
+   */
+  const isOnline = useIsOnline();
+  const savedOffline = social.data?.state?.savedOffline ?? false;
+  const saveOfflineMutation = useMutation({
+    mutationFn: async (next: boolean) => {
+      if (next) {
+        const detail = await getTitle(work.id);
+        if (detail) await saveTitleOffline(detail);
+      } else {
+        await removeTitleOffline(work.id);
+      }
+      return updateTitleState(work.id, { savedOffline: next });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: socialKeys.title(work.id) }),
+  });
+
   // "trailer" is a reserved provider slug (see the editor form's external links field), not a
   // fuzzy match over provider/label text — that used to misfire on any link whose label happened
   // to mention a trailer-ish word for an unrelated reason.
@@ -633,6 +664,12 @@ function WorkHero({
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-foreground/80 sm:text-base">
+              {!isOnline && (
+                <span className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 font-semibold text-amber-500">
+                  <BookmarkSimpleIcon weight="fill" />
+                  غير متصل — من المحفوظات
+                </span>
+              )}
               {work.calculatedRating !== null && (
                 <span
                   className="flex items-center gap-1.5 rounded-md border px-2 py-1 font-semibold text-foreground"
@@ -760,6 +797,22 @@ function WorkHero({
                 )}
               >
                 <HeartIcon weight={isFavorite ? "fill" : "regular"} />
+              </Button>
+
+              <Button
+                size="icon-lg"
+                variant="outline"
+                aria-label={savedOffline ? "إزالة من المحفوظات" : "احفظ للمشاهدة دون اتصال"}
+                aria-pressed={savedOffline}
+                disabled={saveOfflineMutation.isPending}
+                onClick={() => saveOfflineMutation.mutate(!savedOffline)}
+                className={cn(
+                  "border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20",
+                  savedOffline &&
+                    "border-primary/60 bg-primary/25 text-primary hover:bg-primary/35",
+                )}
+              >
+                <BookmarkSimpleIcon weight={savedOffline ? "fill" : "regular"} />
               </Button>
             </div>
           </div>

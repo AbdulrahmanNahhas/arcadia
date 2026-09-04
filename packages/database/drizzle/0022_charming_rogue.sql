@@ -1,0 +1,1 @@
+ALTER TABLE "account_title_states" ADD COLUMN "saved_offline" boolean DEFAULT false NOT NULL;

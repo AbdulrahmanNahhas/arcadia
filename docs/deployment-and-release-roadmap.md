@@ -11,9 +11,10 @@
 > `/home/aqua/Projects/personal/arcadia-backup-before-filter-repo` — safe to delete once you've
 > confirmed GitHub looks right.
 > **2026-09-04:** the two-device setup named concretely (§3.1/§3.2 — Fedora Silverblue as the only
-> server, a NixOS laptop as a thin client, AppImage as the one artifact both currently run), and §4
-> redefined from a generic view-history cache into an explicit per-title "save for offline"
-> feature. Next concrete milestone: **v0.1.0** (§6, item 10).
+> server, a NixOS laptop as a thin client, AppImage as the one artifact both currently run); the
+> runtime-configurable API URL (§3, item 6) and the redefined per-title "save for offline" feature
+> (§4, item 7) both built and closed out. Next concrete milestone: **v0.1.0** (§6, item 10) — the
+> only remaining blocker is the one-time signing-key/secrets setup only the repo owner can do.
 
 `origin` (`git@github.com:AbdulrahmanNahhas/arcadia.git`) read as having zero refs when this doc
 was written; by the time §1 actually ran, both branches already existed there (their *original*
@@ -198,28 +199,42 @@ what was actually asked for: an explicit, per-title **save** action, not a gener
   takes per-episode, on top of having saved the show. See the disambiguation note Phase 3 now
   carries.
 
-### Design
+### Design — done (2026-09-04)
 
-- [ ] **Server:** a new `account_saved_titles` table (`account_id`, `title_id`, `saved_at`) —
-      small, additive, syncs the *fact* of having saved something across every device the account
-      uses, even though the cached bytes themselves stay local per device. `GET`/`POST`/`DELETE`
-      under `/api/v1/me/saved-titles` or similar, visibility-checked the same way every other
-      title read already is (`visibleTitleIdsForAccount`).
-- [ ] **Desktop persistence:** on save, fetch the title's detail payload and its poster/banner/logo
-      bytes, write them into the Tauri app's own storage (`app_data_dir()` — a *kept*, backed-up-
-      worthy directory, unlike the streaming cache's disposable `app_cache_dir()`). A small local
-      index (title id → detail JSON + image paths) is enough; no need for a local database engine.
-- [ ] **Offline read path:** the web app's data layer tries the live API first: on failure (not
-      merely slow — genuinely unreachable), fall back to the local saved-title store for any title
-      id that has one. A saved title renders fully offline; an unsaved one shows the existing
-      network-error state, unchanged.
-- [ ] **UI:** a "حفظ" (save) affordance on the title page and on catalog cards, a "المحفوظات"
-      (saved) library view that works with zero network, and a small "غير متصل — من المحفوظات"
-      (offline — from your saved copy) indicator when a title is rendering from the local store
-      instead of a live fetch.
-- [ ] Browser build: same save action, backed by IndexedDB instead of Tauri's filesystem API —
-      the same code path both platforms already share for other Tauri-guarded features
-      (`isDesktopShell()`-style branching at the storage layer only, not the UI).
+Built smaller than first sketched, on purpose, once the actual pieces were in hand:
+
+- [x] **Server:** no new table — `account_title_states` already existed (favorite/personal
+      rating/notes, one row per account+title) and was exactly the right shape. Added one column,
+      `saved_offline boolean not null default false` (migration `0022_charming_rogue.sql`),
+      deliberately independent of `is_favorite` — favoriting is an editorial signal, saving means
+      "keep available offline"; a title can be either, both, or neither. Threaded through the
+      already-existing `GET /api/v1/me/library` (now also lists a saved-but-not-favorited title,
+      and returns `savedOffline`) and `PUT /api/v1/me/library/:titleId` (accepts `savedOffline`
+      alongside the existing fields) — no new routes needed.
+- [x] **Persistence: IndexedDB, not a Tauri filesystem API, on both platforms.** The original
+      sketch assumed `app_data_dir()` for desktop and IndexedDB for browser as two separate code
+      paths; building it revealed IndexedDB alone covers both (the Tauri webview supports it
+      fine), so `features/library/offline-store.ts` needed zero Tauri-specific code at all — a
+      title's detail JSON keyed by id, plus every `*Path` image it references fetched and stored
+      as a `Blob` keyed by URL, reusing the exact same "walk the JSON for `*Path` fields" pattern
+      `rewriteMediaUrls` (`lib/api.ts`) already established. Reading a saved title back swaps each
+      cached image in as a fresh `blob:` URL (`URL.createObjectURL`) — the stored JSON keeps the
+      real server URLs, correct for what a live fetch would have returned, but useless as an
+      `<img src>` with nothing reachable to load them from.
+- [x] **Offline read path:** `lib/api.ts`'s `getTitle` — the one function every title-detail load
+      already went through — falls back to the local copy only when `fetch` itself throws
+      (offline, DNS failure, connection refused), never when the server answers with a real error
+      (404, 500, a validation failure). One choke point, no route-loader-level branching needed.
+- [x] **UI:** a bookmark-style button beside the existing favorite heart on the title page
+      (`work-detail-page.tsx`), and a "غير متصل — من المحفوظات" badge shown whenever
+      `navigator.onLine` is false (a `useIsOnline` hook, same hydration-safe
+      `useSyncExternalStore` pattern as `useIsDesktopShell`).
+- [ ] **Not yet:** a save affordance on catalog cards (title page only for now — cards are a
+      cheap follow-up once the underlying mutation already exists); a dedicated "المحفوظات" list
+      view (today "saved" titles surface through the existing `/me/library` list alongside
+      favorites, without their own filtered view); and actually consuming the *fact* of a save
+      across devices — saving on device A makes it offline-available on device A only right now,
+      the server-side flag exists but nothing yet auto-syncs a save into device B's IndexedDB.
 
 **Rejected for this design:** a generic "cache the last N titles you viewed" (TanStack Query
 persister) — it was the original sketch here, but it caches whatever you *happened* to browse, not
@@ -273,7 +288,8 @@ updates" for the one-time secret/variable setup it depends on
    `/api/v1/health`. Run `docker compose build` as the first real check.
 6. [x] Runtime-configurable API URL (§3) — done, with the CSP caveat noted there (only helps
    within an already-authorized origin; a genuinely different server still needs a rebuild).
-7. [ ] Save for offline — per-title metadata + images (§4, redefined 2026-09-04) — still open.
+7. [x] Save for offline — per-title metadata + images (§4) — done; catalog-card affordance and
+   a dedicated saved-titles view are cheap, not-yet-built follow-ups (see §4's "Not yet").
 8. [x] GitHub Releases wired (`release.yml`, via `tauri-apps/tauri-action`) — see §5.
 9. [x] `tauri-plugin-updater` pointed at Releases — see §5.
 10. [ ] **v0.1.0 release** — the actual milestone the rest of this list is building toward. Blocked

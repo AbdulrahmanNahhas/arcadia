@@ -159,13 +159,33 @@ export async function browseTitles(query: Record<string, string | number> = {}) 
   return rewriteMediaUrls(data as BrowseResponse);
 }
 
+/**
+ * A genuinely unreachable server (no network, or the family server itself is down) falls back to
+ * whatever this title's own "save for offline" copy holds (see
+ * `features/library/offline-store.ts`) rather than surfacing an error — exactly the point of that
+ * feature. A *reachable* server answering with a real error (404, 500, a validation failure)
+ * still throws normally; only `fetch` itself throwing (offline, DNS failure, connection refused)
+ * counts as "unreachable" here.
+ */
+async function fetchTitleOrThrow(titleId: string) {
+  return client.GET("/api/v1/titles/{titleId}", { params: { path: { titleId } } });
+}
+
 export async function getTitle(titleId: string) {
-  const { data, error, response } = await client.GET("/api/v1/titles/{titleId}", {
-    params: { path: { titleId } },
-  });
-  if (response.status === 404) return null;
-  if (error || !data) throw new Error("تعذّر تحميل تفاصيل العنوان.");
-  return rewriteMediaUrls(data as TitleDetail);
+  let result: Awaited<ReturnType<typeof fetchTitleOrThrow>>;
+  try {
+    result = await fetchTitleOrThrow(titleId);
+  } catch (cause) {
+    // fetch itself threw — offline, DNS failure, connection refused. A reachable server
+    // answering with a real error (404, 500, a validation failure) never reaches this branch.
+    const { getOfflineTitle } = await import("@/features/library/offline-store");
+    const offline = await getOfflineTitle(titleId);
+    if (offline) return offline;
+    throw cause;
+  }
+  if (result.response.status === 404) return null;
+  if (result.error || !result.data) throw new Error("تعذّر تحميل تفاصيل العنوان.");
+  return rewriteMediaUrls(result.data as TitleDetail);
 }
 
 export async function getPlanets() {

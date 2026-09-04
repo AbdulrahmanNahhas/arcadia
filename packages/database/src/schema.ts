@@ -998,6 +998,15 @@ export const accountTitleStates = pgTable(
     isFavorite: boolean("is_favorite").notNull().default(false),
     personalRating: integer("personal_rating"),
     notes: text("notes").notNull().default(""),
+    /**
+     * "Save for offline" (docs/deployment-and-release-roadmap.md §4) — deliberately independent
+     * of `isFavorite`: favoriting is an editorial "I like this" signal, saving means "keep this
+     * title's metadata and images available on my device even with no server reachable." A title
+     * can be one, the other, both, or neither. This column only records the *fact* of having
+     * saved something, so it syncs across an account's devices; the actual cached bytes (detail
+     * JSON, poster/banner/logo) live client-side per device (IndexedDB), never here.
+     */
+    savedOffline: boolean("saved_offline").notNull().default(false),
     ...timestamps,
   },
   (t) => [

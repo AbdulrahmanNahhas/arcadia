@@ -596,6 +596,9 @@ export const accountTitleStateSchema = z.object({
   isFavorite: z.boolean(),
   personalRating: z.number().int().min(1).max(5).nullable(),
   notes: z.string().max(2000),
+  /** "Save for offline" — see the column's own doc comment in schema.ts. Independent of
+   *  `isFavorite`. */
+  savedOffline: z.boolean(),
   updatedAt: z.string(),
 });
 export const titleReviewSchema = z.object({
@@ -625,6 +628,7 @@ export const upsertTitleStateInputSchema = z.object({
   isFavorite: z.boolean().optional(),
   personalRating: z.number().int().min(1).max(5).nullable().optional(),
   notes: z.string().max(2000).optional(),
+  savedOffline: z.boolean().optional(),
 });
 /**
  * `PUT /api/v1/me/playback` — a progress tick from the player (pause/exit/interval). `isPlayed`

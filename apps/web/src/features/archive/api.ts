@@ -23,6 +23,7 @@ export type LibraryEntry = {
   isFavorite: boolean;
   personalRating: number | null;
   notes: string;
+  savedOffline: boolean;
   updatedAt: string;
 };
 
