@@ -18,9 +18,12 @@ function authSecret() {
 export const auth = betterAuth({
   appName: "Arcadia",
   basePath: "/api/auth",
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://127.0.0.1:3001",
+  baseURL: process.env.BETTER_AUTH_URL ?? "http://127.0.0.1:23101",
   secret: authSecret(),
-  trustedOrigins: [process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:3000", "http://localhost:3000"],
+  trustedOrigins: [
+    process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:23100",
+    "http://localhost:23100",
+  ],
   database: drizzleAdapter(database().db, {
     provider: "pg",
     schema: { user, session, account, verification },

@@ -481,7 +481,7 @@ accountRoutes.post("/api/v1/admin/invites", async (context) => {
     values (${tokenHash}, ${parsed.data.displayName}, ${parsed.data.username.toLowerCase()},
       ${parsed.data.kind}, ${parsed.data.role}, ${parsed.data.avatarKey},
       ${parsed.data.capabilities}, ${current.account.id}, ${expiresAt.toISOString()}) returning id`;
-  const webUrl = process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:3000";
+  const webUrl = process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:23100";
   return context.json(
     { id: String(invite?.id), token, inviteUrl: `${webUrl}/invite/${token}`, expiresAt },
     201,

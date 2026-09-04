@@ -10,8 +10,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/arcadia
-  VITE_API_URL: http://127.0.0.1:3001
+  DATABASE_URL: postgresql://postgres:postgres@localhost:23102/arcadia
+  VITE_API_URL: http://127.0.0.1:23101
   ARCADIA_MOCK_AUTH: "true"
   ARCADIA_SEED_DEMO_ACCOUNTS: "true"
   NODE_ENV: test
@@ -28,7 +28,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: arcadia
         ports:
-          - 5432:5432
+          - 23102:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 5s

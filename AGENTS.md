@@ -27,7 +27,7 @@ packages/cli         `arcadia` agent-facing CLI over the PostgreSQL catalog
 The project targets Node.js 26 and expects the Nix/devenv environment (`devenv shell -- <cmd>`,
 or work inside a shell already entered with `devenv shell`).
 
-- `devenv up` — start PostgreSQL, the API on port 3001, and the Tauri desktop app (which starts
+- `devenv up` — start PostgreSQL, the API on port 23101, and the Tauri desktop app (which starts
   its own `apps/web` dev server as part of `tauri dev`; see "Desktop (Tauri)" in README.md).
 - `pnpm dev` — run API + web dev servers in parallel in a browser, without devenv's Postgres or
   the desktop shell.
@@ -96,7 +96,7 @@ classification, and the Arabic `contentWarnings`/`analysisNotes` conventions).
 ## Environment
 
 `devenv.nix` supplies `DATABASE_URL` (`postgresql://127.0.0.1/arcadia`), `VITE_API_URL`
-(`http://127.0.0.1:3001`), `ARCADIA_MOCK_AUTH=true`, and `ARCADIA_SEED_DEMO_ACCOUNTS=true` for
+(`http://127.0.0.1:23101`), `ARCADIA_MOCK_AUTH=true`, and `ARCADIA_SEED_DEMO_ACCOUNTS=true` for
 local dev. Browser routes use real cookie-backed Better Auth sessions; the test-only identity
 bypass (`isTestAuthBypass()` in `apps/api/src/auth.ts`) is only honored when both
 `NODE_ENV=test` and `ARCADIA_MOCK_AUTH=true` — never weaken this guard. Set a unique

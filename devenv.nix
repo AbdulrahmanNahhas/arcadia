@@ -20,14 +20,21 @@
   # it directly (apps/api/src/env.ts) so the same code path works outside devenv (CI, prod).
   dotenv.enable = true;
 
+  # Pinned to a high, uncommon port on purpose — 5432/3000/3001 are so widely used by other dev
+  # tools that leaving them at defaults invites exactly the collision this pin avoids on a family
+  # server that will end up running more than just Arcadia. Also fixes a real flakiness this
+  # project hit once: with no explicit port, devenv's postgres landed on 5432 in one session and
+  # 5433 in the next (a leftover from a devenv version bump), and nothing here noticed until a
+  # `pnpm test` run couldn't connect.
   services.postgres = {
     enable = true;
     initialDatabases = [ { name = "arcadia"; } ];
     listen_addresses = "127.0.0.1";
+    port = 23102;
   };
 
-  env.DATABASE_URL = "postgresql://127.0.0.1/arcadia";
-  env.VITE_API_URL = "http://127.0.0.1:3001";
+  env.DATABASE_URL = "postgresql://127.0.0.1:23102/arcadia";
+  env.VITE_API_URL = "http://127.0.0.1:23101";
   env.ARCADIA_MOCK_AUTH = "true";
   env.ARCADIA_SEED_DEMO_ACCOUNTS = "true";
   # The GDK_BACKEND=x11 fix for WebKitGTK's Wayland DPI bug lives in src-tauri/src/main.rs (not
@@ -88,7 +95,7 @@
   processes.api.exec = "pnpm --filter @arcadia/api dev";
   # Runs the Tauri desktop shell, which starts its own apps/web dev server as part of `tauri dev`
   # (see tauri.conf.json's beforeDevCommand) — don't also define a processes.web here, it would
-  # race the same vite dev server on port 3000.
+  # race the same vite dev server on port 23100.
   processes.tauri.exec = "pnpm tauri dev";
 
   enterShell = ''

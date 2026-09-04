@@ -25,7 +25,7 @@ function readApiUrlOverride(): string | null {
 
 function resolveApiBaseUrl() {
   const configured =
-    readApiUrlOverride() || import.meta.env.VITE_API_URL || "http://127.0.0.1:3001";
+    readApiUrlOverride() || import.meta.env.VITE_API_URL || "http://127.0.0.1:23101";
   if (typeof window === "undefined") return configured;
 
   const url = new URL(configured);
@@ -39,7 +39,7 @@ function resolveApiBaseUrl() {
 export const apiBaseUrl = resolveApiBaseUrl();
 
 /** The build-time default, for a settings UI to show what "reset" would fall back to. */
-export const apiBaseUrlDefault = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:3001";
+export const apiBaseUrlDefault = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:23101";
 
 /**
  * Persists (or, given `null`, clears) the API URL override and restarts the app so every

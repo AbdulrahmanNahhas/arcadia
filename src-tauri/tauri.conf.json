@@ -5,7 +5,7 @@
   "identifier": "com.arcadia.desktop",
   "build": {
     "frontendDist": "../apps/web/dist/client",
-    "devUrl": "http://127.0.0.1:3000",
+    "devUrl": "http://127.0.0.1:23100",
     "beforeDevCommand": "pnpm --filter @arcadia/web dev",
     "beforeBuildCommand": "pnpm --filter @arcadia/web build"
   },

@@ -46,11 +46,11 @@ services:
       dockerfile: apps/api/Dockerfile
     environment:
       HOST: 0.0.0.0
-      PORT: 3001
+      PORT: 23101
       NODE_ENV: production
       DATABASE_URL: postgresql://arcadia:${POSTGRES_PASSWORD}@db/arcadia
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env — generate one with `openssl rand -base64 32`}
-      ARCADIA_WEB_URL: ${ARCADIA_WEB_URL:?e.g. http://192.168.1.50:8080 — your server's LAN address and the web container's published port}
+      ARCADIA_WEB_URL: ${ARCADIA_WEB_URL:?e.g. http://192.168.1.50:23180 — your server's LAN address and the web container's published port}
       ARCADIA_MEDIA_ROOT: /data/media/uploads
       TMDB_API_KEY: ${TMDB_API_KEY:-}
       TMDB_API_READ_ACCESS_KEY: ${TMDB_API_READ_ACCESS_KEY:-}
@@ -62,7 +62,7 @@ services:
     volumes:
       - media_data:/data/media
     ports:
-      - "3001:3001"
+      - "23101:23101"
     depends_on:
       db:
         condition: service_healthy
@@ -75,9 +75,9 @@ services:
       args:
         # Baked in at build time — rebuild this image if the API's address ever changes (see
         # docs/deployment-and-release-roadmap.md §3 for the runtime-configurable alternative).
-        VITE_API_URL: ${VITE_API_URL:?e.g. http://192.168.1.50:3001 — your server's LAN address and the api container's published port}
+        VITE_API_URL: ${VITE_API_URL:?e.g. http://192.168.1.50:23101 — your server's LAN address and the api container's published port}
     ports:
-      - "8080:80"
+      - "23180:80"
     depends_on:
       - api
     restart: unless-stopped

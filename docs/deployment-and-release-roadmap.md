@@ -113,6 +113,28 @@ work day-to-day:
   can browse the catalog but the play button stays disabled there until Phase 7 (Android). Nothing
   here changes that.
 
+### 3.3 Ports moved off the defaults (2026-09-04)
+
+Web dev/Tauri `devUrl` 3000, API 3001, Postgres (implicit default) 5432, and Docker's published
+web port 8080 all moved to explicit, uncommon numbers — **23100** (web), **23101** (API),
+**23102** (Postgres), **23180** (Docker web) — everywhere they're referenced (`devenv.nix`,
+`tauri.conf.json`, `docker-compose.yml`, `.env.example`, both CI workflows, `playwright.config.ts`,
+README/CLAUDE.md/AGENTS.md, and the CORS/auth/invite-link fallbacks in `apps/api` that had their
+own separate `3000` defaults). Two real reasons, not just tidiness:
+
+- A family server ends up running more than just Arcadia over time; 3000/3001/5432/8080 are
+  exactly the ports other self-hosted things default to, so collisions were a when-not-if.
+- **Fixes a real bug this session hit**, not a hypothetical one: with no explicit Postgres port,
+  devenv's postgres landed on 5432 in one session and 5433 in the next (a leftover from a devenv
+  version bump) — silent until a `pnpm test` run couldn't connect. `services.postgres.port` in
+  `devenv.nix` pins it for good.
+
+Chosen deliberately **below** 32768 — Linux's default ephemeral port range
+(`net.ipv4.ip_local_port_range`, typically `32768–60999`) is where the kernel hands out ports for
+*outgoing* connections; a persistent listening service sitting inside that range risks a rare bind
+collision with some unrelated outgoing connection on the same box. 23100–23180 sits safely below it
+and well above the well-known-ports range.
+
 **Real gap worth closing regardless of Docker:** `VITE_API_URL` is a Vite build-time env var today,
 so every device needs its own build if the server's address ever changes. For "any device on the
 LAN," a small runtime-configurable API-URL setting (read once at app start, stored via Tauri's

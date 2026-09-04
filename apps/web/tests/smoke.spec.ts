@@ -69,7 +69,7 @@ test("title detail exposes Arabic editorial data, scores, family, and installmen
   page,
 }) => {
   const response = await page.request.get(
-    "http://127.0.0.1:3001/api/v1/titles?mode=titles&limit=1",
+    "http://127.0.0.1:23101/api/v1/titles?mode=titles&limit=1",
   );
   const catalog = (await response.json()) as {
     items: Array<{ id: string; titleAr: string | null; canonicalTitle: string }>;
@@ -93,18 +93,18 @@ test("title detail exposes Arabic editorial data, scores, family, and installmen
 
 test("title review can be deleted from its review card", async ({ page }) => {
   const response = await page.request.get(
-    "http://127.0.0.1:3001/api/v1/titles?mode=titles&limit=1",
+    "http://127.0.0.1:23101/api/v1/titles?mode=titles&limit=1",
   );
   const catalog = (await response.json()) as { items: Array<{ id: string }> };
   const title = catalog.items[0];
   expect(title).toBeDefined();
   if (!title) return;
 
-  const me = (await (await page.request.get("http://127.0.0.1:3001/api/v1/me")).json()) as {
+  const me = (await (await page.request.get("http://127.0.0.1:23101/api/v1/me")).json()) as {
     account: { id: string };
   };
   const originalSocial = (await (
-    await page.request.get(`http://127.0.0.1:3001/api/v1/titles/${title.id}/social`)
+    await page.request.get(`http://127.0.0.1:23101/api/v1/titles/${title.id}/social`)
   ).json()) as {
     reviews: Array<{
       author: { id: string };
@@ -116,7 +116,7 @@ test("title review can be deleted from its review card", async ({ page }) => {
   const originalReview = originalSocial.reviews.find((item) => item.author.id === me.account.id);
   const temporaryBody = "مراجعة مؤقتة لاختبار الحذف من البطاقة.";
 
-  await page.request.put(`http://127.0.0.1:3001/api/v1/titles/${title.id}/review`, {
+  await page.request.put(`http://127.0.0.1:23101/api/v1/titles/${title.id}/review`, {
     data: { rating: 4, body: temporaryBody, containsSpoilers: false },
   });
 
@@ -136,7 +136,7 @@ test("title review can be deleted from its review card", async ({ page }) => {
     await expect(reviewCard).toHaveCount(0);
   } finally {
     if (originalReview) {
-      await page.request.put(`http://127.0.0.1:3001/api/v1/titles/${title.id}/review`, {
+      await page.request.put(`http://127.0.0.1:23101/api/v1/titles/${title.id}/review`, {
         data: {
           rating: originalReview.rating,
           body: originalReview.body,
@@ -144,7 +144,7 @@ test("title review can be deleted from its review card", async ({ page }) => {
         },
       });
     } else {
-      await page.request.delete(`http://127.0.0.1:3001/api/v1/titles/${title.id}/review`);
+      await page.request.delete(`http://127.0.0.1:23101/api/v1/titles/${title.id}/review`);
     }
   }
 });

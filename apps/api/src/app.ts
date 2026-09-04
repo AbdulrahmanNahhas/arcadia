@@ -67,8 +67,8 @@ import {
 
 export const app = new OpenAPIHono();
 const trustedOrigins = new Set([
-  process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:3000",
-  "http://localhost:3000",
+  process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:23100",
+  "http://localhost:23100",
 ]);
 app.use(
   "*",

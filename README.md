@@ -33,7 +33,7 @@ packages/i18n       shared Arabic interface vocabulary and taxonomy labels
 ## Development
 
 Arcadia targets Node.js 26. Enter the reproducible Nix environment and start PostgreSQL, the API
-on port 3001, and the Tauri desktop app (see "Desktop (Tauri)" below):
+on port 23101, and the Tauri desktop app (see "Desktop (Tauri)" below):
 
 ```bash
 devenv up
@@ -197,14 +197,14 @@ docker compose up -d
 ```
 
 `ARCADIA_WEB_URL`/`VITE_API_URL` both need your server's actual LAN address (e.g.
-`http://192.168.1.50:8080` / `:3001`) — `VITE_API_URL` is baked into the web image at build time,
+`http://192.168.1.50:23180` / `:23101`) — `VITE_API_URL` is baked into the web image at build time,
 so rebuild it (`docker compose build web`) if that address ever changes. The desktop Tauri app is
 a separate build entirely (see "Releases and updates" above) — this stack never plays anything
 itself, it only serves the catalog.
 
 ## API and CLI
 
-OpenAPI is available at `http://127.0.0.1:3001/openapi.json`.
+OpenAPI is available at `http://127.0.0.1:23101/openapi.json`.
 
 `./bin/arcadia` reads and edits the catalog directly against PostgreSQL (no API server needed):
 
