@@ -1,5 +1,13 @@
 import { ar } from "@arcadia/i18n";
-import { ArrowLeftIcon, LockKeyIcon, UsersThreeIcon } from "@phosphor-icons/react";
+import {
+  ArrowLeftIcon,
+  CheckCircleIcon,
+  GearSixIcon,
+  LockKeyIcon,
+  UsersThreeIcon,
+  WarningCircleIcon,
+  WifiHighIcon,
+} from "@phosphor-icons/react";
 import { useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -7,7 +15,135 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useIsDesktopShell } from "@/features/library/play-button";
+import { apiBaseUrl, apiBaseUrlDefault, setApiUrlOverride } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
+
+/** `AbortSignal.timeout` keeps a wrong/unreachable address from hanging the test forever — the
+ *  exact failure mode this whole panel exists to get out of. */
+async function pingServer(url: string): Promise<boolean> {
+  try {
+    const origin = new URL(url).origin;
+    const response = await fetch(`${origin}/api/v1/health`, { signal: AbortSignal.timeout(4000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reachable *before* login on purpose. The equivalent setting in Settings (المظهر → عنوان
+ * الخادم) is useless for exactly the situation that needs it most: a release built pointing at
+ * the wrong server address, with no way to log in and therefore no way to reach Settings at all
+ * to fix it. Same desktop-shell gating, same override mechanism (`setApiUrlOverride`) — just
+ * reachable from the one screen that doesn't require already being logged in.
+ */
+function ServerAddressPanel({
+  open,
+  setOpen,
+}: {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
+  const isDesktop = useIsDesktopShell();
+  const [value, setValue] = useState(apiBaseUrl);
+  const [error, setError] = useState<string | null>(null);
+  const [restarting, setRestarting] = useState(false);
+  const [testState, setTestState] = useState<"idle" | "testing" | "ok" | "failed">("idle");
+
+  if (!isDesktop) return null;
+
+  async function test() {
+    setTestState("testing");
+    setTestState((await pingServer(value)) ? "ok" : "failed");
+  }
+
+  async function apply() {
+    setError(null);
+    setRestarting(true);
+    try {
+      new URL(value); // throws on garbage input before setApiUrlOverride ever gets to it
+      await setApiUrlOverride(value);
+      // Relaunches the app on success — this only resumes running if that failed.
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "عنوان الخادم غير صالح.");
+      setRestarting(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+      >
+        <GearSixIcon /> لا يعمل الدخول؟ إعداد الخادم ({apiBaseUrl})
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-4 flex flex-col gap-3 rounded-lg border border-border/70 bg-card/50 p-4">
+      <div className="flex items-center gap-1.5 text-sm font-medium">
+        <WifiHighIcon /> عنوان خادم أركاديا
+      </div>
+      <p className="text-xs text-muted-foreground">
+        عنوان جهاز العائلة الذي يستضيف قاعدة البيانات وواجهة أركاديا، مثل{" "}
+        <span dir="ltr">http://192.168.1.50:23101</span>.
+      </p>
+      <Field>
+        <Input
+          dir="ltr"
+          value={value}
+          onChange={(event) => {
+            setValue(event.target.value);
+            setTestState("idle");
+          }}
+        />
+      </Field>
+      {testState === "ok" && (
+        <p className="flex items-center gap-1.5 text-xs text-emerald-500">
+          <CheckCircleIcon weight="fill" /> الخادم يستجيب على هذا العنوان.
+        </p>
+      )}
+      {testState === "failed" && (
+        <p className="flex items-center gap-1.5 text-xs text-destructive">
+          <WarningCircleIcon weight="fill" /> تعذّر الوصول إلى هذا العنوان — تحقّق من الشبكة والمنفذ.
+        </p>
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={test}
+          disabled={testState === "testing" || restarting}
+        >
+          {testState === "testing" ? "يختبر…" : "اختبار الاتصال"}
+        </Button>
+        <Button type="button" size="sm" onClick={apply} disabled={restarting}>
+          {restarting ? "يعيد التشغيل…" : "حفظ وإعادة التشغيل"}
+        </Button>
+        {value !== apiBaseUrlDefault && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setValue(apiBaseUrlDefault);
+              setTestState("idle");
+            }}
+            disabled={restarting}
+          >
+            إعادة الضبط الافتراضي
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function LoginPage() {
   const search = useSearch({ strict: false }) as { next?: string };
@@ -16,6 +152,7 @@ export function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [interactive, setInteractive] = useState(false);
+  const [serverPanelOpen, setServerPanelOpen] = useState(false);
 
   useEffect(() => setInteractive(true), []);
 
@@ -23,13 +160,24 @@ export function LoginPage() {
     event.preventDefault();
     setPending(true);
     setMessage(null);
-    const result = await authClient.signIn.username({ username, password, rememberMe: true });
-    setPending(false);
-    if (result.error) {
-      setMessage(ar.auth.invalidCredentials);
-      return;
+    try {
+      const result = await authClient.signIn.username({ username, password, rememberMe: true });
+      if (result.error) {
+        setMessage(ar.auth.invalidCredentials);
+        return;
+      }
+      window.location.assign(search.next?.startsWith("/") ? search.next : "/");
+    } catch {
+      // The request never reached (or never returned from) the server at all — offline, wrong
+      // address, or the address genuinely refuses the connection. Distinct from a *reachable*
+      // server rejecting bad credentials, which resolves `result.error` above instead of
+      // throwing. Opening the panel here is the whole point of building it: this is exactly the
+      // moment "stuck on Loading forever with no way to fix it" used to happen.
+      setMessage("تعذّر الوصول إلى الخادم. تحقّق من عنوان الخادم أدناه.");
+      setServerPanelOpen(true);
+    } finally {
+      setPending(false);
     }
-    window.location.assign(search.next?.startsWith("/") ? search.next : "/");
   }
 
   return (
@@ -63,7 +211,7 @@ export function LoginPage() {
               <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <UsersThreeIcon size={22} weight="duotone" />
               </div>
-              <CardTitle className="font-heading auth.titletext-2xl">{ar.auth.title}</CardTitle>
+              <CardTitle className="font-heading text-2xl">{ar.auth.title}</CardTitle>
               <CardDescription>
                 استخدم الحساب الذي أنشأه مدير العائلة أو رابط الدعوة.
               </CardDescription>
@@ -118,6 +266,7 @@ export function LoginPage() {
                   </Button>
                 </FieldGroup>
               </form>
+              <ServerAddressPanel open={serverPanelOpen} setOpen={setServerPanelOpen} />
             </CardContent>
           </Card>
         </div>

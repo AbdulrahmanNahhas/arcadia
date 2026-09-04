@@ -26,6 +26,7 @@ import {
 import { serveStatic } from "@hono/node-server/serve-static";
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
+import { logger } from "hono/logger";
 import { auth, getAuthSession, isTestAuthBypass } from "./auth";
 import { database, databaseReady } from "./database";
 import { accountRoutes, currentFamilyAccount } from "./features/accounts/routes";
@@ -66,6 +67,10 @@ import {
 } from "./repository";
 
 export const app = new OpenAPIHono();
+// Genuinely useful for a self-hosted family server generally, not just this diagnosis — there
+// was no request logging of any kind before this, so a silently-rejected request (a CORS
+// mismatch, an unreachable origin) was indistinguishable from one that never left the client.
+app.use("*", logger());
 const trustedOrigins = new Set([
   process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:23100",
   "http://localhost:23100",
