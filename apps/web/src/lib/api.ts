@@ -2,8 +2,30 @@ import type { BrowseResponse, TitleDetail } from "@arcadia/contracts";
 import type { paths } from "@arcadia/contracts/openapi";
 import createClient from "openapi-fetch";
 
+/** Same `localStorage` key convention `settings-page.tsx` already uses for the theme
+ *  preference (`arcadia:theme`) — no new persistence mechanism needed for one string. */
+const apiUrlOverrideKey = "arcadia:apiUrl";
+
+/**
+ * Lets one desktop build serve any device on the LAN without a rebuild per server address (see
+ * `docs/deployment-and-release-roadmap.md` §3). `VITE_API_URL` is baked in at build time — fine
+ * as a default, wrong as the *only* option once the family's server address can differ from the
+ * one a given build was compiled against. Read once at module load, same as the build-time value
+ * always was; changing it takes a restart to apply (`setApiUrlOverride` below relaunches the app),
+ * simpler than threading a reactive base URL through every consumer of the `apiBaseUrl` constant.
+ */
+function readApiUrlOverride(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(apiUrlOverrideKey);
+  } catch {
+    return null;
+  }
+}
+
 function resolveApiBaseUrl() {
-  const configured = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:3001";
+  const configured =
+    readApiUrlOverride() || import.meta.env.VITE_API_URL || "http://127.0.0.1:3001";
   if (typeof window === "undefined") return configured;
 
   const url = new URL(configured);
@@ -15,6 +37,34 @@ function resolveApiBaseUrl() {
 }
 
 export const apiBaseUrl = resolveApiBaseUrl();
+
+/** The build-time default, for a settings UI to show what "reset" would fall back to. */
+export const apiBaseUrlDefault = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:3001";
+
+/**
+ * Persists (or, given `null`, clears) the API URL override and restarts the app so every
+ * already-initialized consumer of `apiBaseUrl` picks it up — reachable only from the desktop
+ * shell's settings UI, guarded by `isDesktopShell()` the same way every other Tauri-only entry
+ * point in this codebase is.
+ *
+ * **Known limitation:** the packaged app's CSP (`connect-src`/`media-src`/`img-src`) is widened
+ * for exactly one origin at *build* time (`release.yml`, from the `ARCADIA_API_URL` repo
+ * variable) — plus loopback, always allowed for local dev. Overriding to that same origin (or to
+ * loopback) works; overriding to a genuinely different, not-yet-authorized origin will still get
+ * silently CSP-blocked, because a webview's CSP can't be loosened at runtime. This setting is for
+ * "the server's address changed, same deployment" (a new LAN IP, a typo) — pointing a build at a
+ * *different family's* server still needs that server's origin baked in at release time.
+ */
+export async function setApiUrlOverride(url: string | null) {
+  if (url) {
+    new URL(url); // throws on garbage input before it ever reaches localStorage
+    window.localStorage.setItem(apiUrlOverrideKey, url);
+  } else {
+    window.localStorage.removeItem(apiUrlOverrideKey);
+  }
+  const { relaunch } = await import("@tauri-apps/plugin-process");
+  await relaunch();
+}
 
 /**
  * Media (posters/banners/logos/profile photos) is served by the API from a directory outside the

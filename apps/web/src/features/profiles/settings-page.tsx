@@ -6,12 +6,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useIsDesktopShell } from "@/features/library/play-button";
 import {
   checkForUpdate,
   installUpdateAndRestart,
   type UpdateCheckResult,
 } from "@/features/platform/updater";
+import { apiBaseUrl, apiBaseUrlDefault, setApiUrlOverride } from "@/lib/api";
 import {
   Field,
   FieldContent,
@@ -248,6 +250,9 @@ export function SettingsPage() {
               />
             </SettingsCard>
             <div className="mt-6">
+              <ServerUrlCard />
+            </div>
+            <div className="mt-6">
               <UpdateCheckCard />
             </div>
           </TabsContent>
@@ -295,6 +300,68 @@ function SettingsCard({
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
+  );
+}
+
+/**
+ * Lets one desktop build point at any server on the LAN without a rebuild (see
+ * docs/deployment-and-release-roadmap.md §3) — `VITE_API_URL` is a sensible default, not the only
+ * option once a family's server address can differ from what a given build was compiled against.
+ * Desktop-shell-only, same reasoning as `UpdateCheckCard` below: a browser tab's API origin is
+ * whatever served it, not something a page control can meaningfully redirect.
+ */
+function ServerUrlCard() {
+  const isDesktop = useIsDesktopShell();
+  const [value, setValue] = useState(apiBaseUrl);
+  const [error, setError] = useState<string | null>(null);
+  const [restarting, setRestarting] = useState(false);
+
+  if (!isDesktop) return null;
+
+  async function apply(url: string | null) {
+    setError(null);
+    setRestarting(true);
+    try {
+      await setApiUrlOverride(url);
+      // setApiUrlOverride relaunches the app on success — this only resumes if that failed.
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "عنوان الخادم غير صالح.");
+      setRestarting(false);
+    }
+  }
+
+  return (
+    <SettingsCard
+      title="عنوان الخادم"
+      description="عنوان جهاز العائلة الذي يستضيف قاعدة البيانات وواجهة أركاديا. يتطلب إعادة تشغيل التطبيق، ويعمل فقط إذا كان هذا العنوان مصرّحاً به مسبقاً في هذه النسخة."
+    >
+      <div className="flex flex-col gap-3">
+        <Input
+          dir="ltr"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          placeholder={apiBaseUrlDefault}
+        />
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => apply(value)} disabled={restarting}>
+            {restarting ? "يعيد التشغيل…" : "حفظ وإعادة التشغيل"}
+          </Button>
+          {apiBaseUrl !== apiBaseUrlDefault && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setValue(apiBaseUrlDefault);
+                apply(null);
+              }}
+              disabled={restarting}
+            >
+              إعادة الضبط الافتراضي
+            </Button>
+          )}
+        </div>
+      </div>
+    </SettingsCard>
   );
 }
 

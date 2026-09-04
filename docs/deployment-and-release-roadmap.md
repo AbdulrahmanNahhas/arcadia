@@ -118,7 +118,14 @@ LAN," a small runtime-configurable API-URL setting (read once at app start, stor
 store plugin or `localStorage`, falling back to the build-time value) means one build works
 everywhere instead of a rebuild per device.
 
-- [ ] Runtime-configurable API base URL, with the current build-time value as the default.
+- [x] Runtime-configurable API base URL — a "عنوان الخادم" field in Settings (desktop-shell-only),
+      backed by `localStorage` (same convention the theme preference already uses), applied via an
+      app restart. **Real limitation, not fully solved:** the packaged app's CSP is widened for
+      exactly one origin at *build* time (`release.yml`, from `ARCADIA_API_URL`) plus loopback —
+      overriding to that same origin or to loopback works, overriding to a genuinely different,
+      not-yet-authorized origin still gets silently CSP-blocked, since a webview's CSP can't be
+      loosened at runtime. This setting covers "the server's address changed" (a new LAN IP), not
+      "point this build at an unrelated server" — that still needs a rebuild.
 
 ### 3.1 The concrete two-device setup (2026-09-04)
 
@@ -264,8 +271,8 @@ updates" for the one-time secret/variable setup it depends on
    environment; `pnpm deploy --prod --legacy` (the piece `apps/api/Dockerfile` leans on) was
    verified standalone instead — built, deployed, booted with production env vars, real `200` from
    `/api/v1/health`. Run `docker compose build` as the first real check.
-6. [ ] Runtime-configurable API URL (§3) so one build serves every device on the LAN — still open,
-   not blocking (both current devices share one home network and one build).
+6. [x] Runtime-configurable API URL (§3) — done, with the CSP caveat noted there (only helps
+   within an already-authorized origin; a genuinely different server still needs a rebuild).
 7. [ ] Save for offline — per-title metadata + images (§4, redefined 2026-09-04) — still open.
 8. [x] GitHub Releases wired (`release.yml`, via `tauri-apps/tauri-action`) — see §5.
 9. [x] `tauri-plugin-updater` pointed at Releases — see §5.
