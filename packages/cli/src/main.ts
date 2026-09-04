@@ -70,7 +70,7 @@ async function run(args: ParsedArgs, mode: OutputMode): Promise<CommandResult> {
       select (select count(*)::int from titles) as titles, now()::text as now`;
     return {
       ok: true,
-      database: process.env.DATABASE_URL ?? "postgresql://127.0.0.1/arcadia",
+      database: process.env.DATABASE_URL ?? "postgresql://127.0.0.1:23102/arcadia",
       ...row,
     };
   }

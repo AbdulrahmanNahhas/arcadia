@@ -9,7 +9,7 @@ let client: Sql | undefined;
 
 export function openDatabase(): Sql {
   if (client) return client;
-  const url = process.env.DATABASE_URL ?? "postgresql://127.0.0.1/arcadia";
+  const url = process.env.DATABASE_URL ?? "postgresql://127.0.0.1:23102/arcadia";
   client = postgres(url, {
     max: 4,
     onnotice: () => {},

@@ -5,5 +5,5 @@
 # Only DATABASE_URL is required, so this works from any shell.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export DATABASE_URL="${DATABASE_URL:-postgresql://127.0.0.1/arcadia}"
+export DATABASE_URL="${DATABASE_URL:-postgresql://127.0.0.1:23102/arcadia}"
 exec "$root/node_modules/.bin/tsx" "$root/packages/cli/src/main.ts" "$@"
