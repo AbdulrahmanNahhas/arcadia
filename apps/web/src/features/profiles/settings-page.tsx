@@ -1,19 +1,20 @@
 import type { AccountPreferences, AvatarKey } from "@arcadia/contracts";
 import type { Classification } from "@arcadia/domain";
 import { ageOptions, ar, audienceOptions, avatarLabels, riskOptions } from "@arcadia/i18n";
-import { ArrowClockwiseIcon, CheckCircleIcon, FloppyDiskIcon } from "@phosphor-icons/react";
+import {
+  ArrowCounterClockwiseIcon,
+  BellIcon,
+  CheckCircleIcon,
+  FilmSlateIcon,
+  FloppyDiskIcon,
+  PaletteIcon,
+  ShieldCheckIcon,
+  UserCircleIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { useIsDesktopShell } from "@/features/library/play-button";
-import {
-  checkForUpdate,
-  installUpdateAndRestart,
-  type UpdateCheckResult,
-} from "@/features/platform/updater";
-import { apiBaseUrl, apiBaseUrlDefault, setApiUrlOverride } from "@/lib/api";
 import {
   Field,
   FieldContent,
@@ -23,6 +24,7 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -31,14 +33,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { AccountAvatar } from "@/features/accounts/account-avatar";
 import { accountKeys, updateCurrentAccount, useCurrentAccount } from "@/features/accounts/api";
 import { PlatformShell } from "@/features/platform/components/platform-shell";
 import { cn } from "@/lib/utils";
 
 type SettingsDraft = {
+  displayName: string;
+  bio: string;
   avatarKey: AvatarKey;
   preferences: AccountPreferences;
   contentPolicy: Classification;
@@ -56,6 +62,8 @@ export function SettingsPage() {
   useEffect(() => {
     if (account) {
       setDraft({
+        displayName: account.displayName,
+        bio: account.bio,
         avatarKey: account.avatarKey,
         preferences: account.preferences,
         contentPolicy: account.contentPolicy,
@@ -77,12 +85,28 @@ export function SettingsPage() {
   if (!account || !draft) {
     return (
       <PlatformShell>
-        <div className="mx-auto max-w-4xl px-5 py-32 text-muted-foreground">
-          جارٍ تحميل إعداداتك…
-        </div>
+        <section className="mx-auto max-w-5xl px-5 pb-28 pt-14">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="mt-4 h-4 w-full max-w-lg" />
+          <Skeleton className="mt-8 h-11 w-full rounded-full" />
+          <Skeleton className="mt-6 h-80 w-full rounded-3xl" />
+        </section>
       </PlatformShell>
     );
   }
+
+  // Comparing against the account the server last confirmed is what makes the save bar honest:
+  // it appears only when something would actually change, and disappears again if the family
+  // undoes an edit by hand rather than staying armed for the rest of the visit.
+  const pristine: SettingsDraft = {
+    displayName: account.displayName,
+    bio: account.bio,
+    avatarKey: account.avatarKey,
+    preferences: account.preferences,
+    contentPolicy: account.contentPolicy,
+  };
+  const dirty = JSON.stringify(draft) !== JSON.stringify(pristine);
+  const nameTooShort = draft.displayName.trim().length < 2;
 
   const setPolicy = <K extends keyof Classification>(key: K, value: Classification[K]) =>
     setDraft((current) =>
@@ -98,48 +122,130 @@ export function SettingsPage() {
 
   return (
     <PlatformShell>
-      <section className="mx-auto max-w-4xl px-5 pb-28 pt-20">
-        <p className="text-xs font-semibold tracking-[0.18em] text-primary">
-          حساب {account.displayName}
-        </p>
-        <h1 className="mt-3 font-heading text-4xl font-semibold">إعدادات المدار</h1>
-        <p className="mt-3 text-muted-foreground">
-          تُحفظ تفضيلاتك في حسابك وتنتقل معك بين الأجهزة. تطبّق أركاديا دائماً الحد الأكثر أماناً.
-        </p>
-        <Tabs defaultValue="profile" className="mt-10">
-          <TabsList>
-            <TabsTrigger value="profile">الحساب</TabsTrigger>
-            <TabsTrigger value="content">المحتوى</TabsTrigger>
-            <TabsTrigger value="playback">المشاهدة</TabsTrigger>
-            <TabsTrigger value="notifications">التنبيهات</TabsTrigger>
-            <TabsTrigger value="appearance">المظهر</TabsTrigger>
+      <section className="mx-auto max-w-5xl px-5 pb-28 pt-14">
+        <header className="flex items-start gap-4">
+          <AccountAvatar
+            avatarKey={draft.avatarKey}
+            label={`صورة ${draft.displayName}`}
+            className="hidden size-16 shrink-0 ring-2 ring-primary/20 sm:block"
+          />
+          <div className="min-w-0">
+            <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
+              الإعدادات
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+              تُحفظ تفضيلاتك في حسابك وتنتقل معك بين الأجهزة. تطبّق أركاديا دائماً الحد الأكثر أماناً
+              بين إعدادك وقواعد العائلة.
+            </p>
+          </div>
+        </header>
+
+        <Tabs defaultValue="profile" className="mt-8">
+          <TabsList className="w-full max-w-full justify-start overflow-x-auto">
+            <TabsTrigger value="profile">
+              <UserCircleIcon data-icon="inline-start" weight="duotone" />
+              الحساب
+            </TabsTrigger>
+            <TabsTrigger value="content">
+              <ShieldCheckIcon data-icon="inline-start" weight="duotone" />
+              المحتوى
+            </TabsTrigger>
+            <TabsTrigger value="playback">
+              <FilmSlateIcon data-icon="inline-start" weight="duotone" />
+              المشاهدة
+            </TabsTrigger>
+            <TabsTrigger value="notifications">
+              <BellIcon data-icon="inline-start" weight="duotone" />
+              التنبيهات
+            </TabsTrigger>
+            <TabsTrigger value="appearance">
+              <PaletteIcon data-icon="inline-start" weight="duotone" />
+              المظهر
+            </TabsTrigger>
           </TabsList>
-          <TabsContent value="profile" className="pt-5">
-            <SettingsCard title="صورتك في العائلة" description="اختر واحدة من هويات أركاديا الخمس.">
-              <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-                {avatarKeys.map((avatarKey) => (
-                  <button
-                    key={avatarKey}
-                    type="button"
-                    onClick={() => setDraft((current) => current && { ...current, avatarKey })}
-                    className={cn(
-                      "rounded-2xl border p-3 outline-none transition hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50",
-                      draft.avatarKey === avatarKey && "border-primary bg-primary/8",
+
+          <TabsContent value="profile" className="pt-6">
+            <SettingsSection
+              icon={<UserCircleIcon size={19} weight="duotone" />}
+              title="هويتك في العائلة"
+              description="الاسم والنبذة والصورة التي يراها بقية أفراد العائلة."
+            >
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="display-name">الاسم الظاهر</FieldLabel>
+                  <Input
+                    id="display-name"
+                    value={draft.displayName}
+                    maxLength={80}
+                    aria-invalid={nameTooShort}
+                    onChange={(event) =>
+                      setDraft(
+                        (current) => current && { ...current, displayName: event.target.value },
+                      )
+                    }
+                  />
+                  <FieldDescription>
+                    {nameTooShort ? (
+                      <span className="text-destructive">حرفان على الأقل.</span>
+                    ) : (
+                      "الاسم الذي يظهر على مراجعاتك ونشاطك."
                     )}
-                  >
-                    <AccountAvatar
-                      avatarKey={avatarKey}
-                      label={avatarLabels[avatarKey]}
-                      className="mx-auto size-16"
-                    />
-                    <span className="mt-2 block text-xs">{avatarLabels[avatarKey]}</span>
-                  </button>
-                ))}
+                  </FieldDescription>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="bio">نبذة عنك</FieldLabel>
+                  <Textarea
+                    id="bio"
+                    rows={3}
+                    value={draft.bio}
+                    maxLength={280}
+                    placeholder="ما الذي تحب مشاهدته؟"
+                    onChange={(event) =>
+                      setDraft((current) => current && { ...current, bio: event.target.value })
+                    }
+                  />
+                  <FieldDescription>{draft.bio.length}/280 حرف.</FieldDescription>
+                </Field>
+              </FieldGroup>
+            </SettingsSection>
+
+            <SettingsSection
+              className="mt-6"
+              icon={<PaletteIcon size={19} weight="duotone" />}
+              title="صورتك"
+              description="اختر واحدة من هويات أركاديا الخمس."
+            >
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+                {avatarKeys.map((avatarKey) => {
+                  const selected = draft.avatarKey === avatarKey;
+                  return (
+                    <button
+                      key={avatarKey}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setDraft((current) => current && { ...current, avatarKey })}
+                      className={cn(
+                        "rounded-2xl border p-3 outline-none transition hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50",
+                        selected ? "border-primary bg-primary/8" : "border-border/60",
+                      )}
+                    >
+                      <AccountAvatar
+                        avatarKey={avatarKey}
+                        label={avatarLabels[avatarKey]}
+                        className="mx-auto size-16"
+                      />
+                      <span className="mt-2 block text-xs">{avatarLabels[avatarKey]}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </SettingsCard>
+            </SettingsSection>
           </TabsContent>
-          <TabsContent value="content" className="pt-5">
-            <SettingsCard
+
+          <TabsContent value="content" className="pt-6">
+            <SettingsSection
+              icon={<ShieldCheckIcon size={19} weight="duotone" />}
               title="حدود المحتوى التي تختارها"
               description="يمكنك جعل تجربتك أكثر تحفظاً. قواعد العائلة الوقائية تعمل تلقائياً ولا تكشف تفاصيلها."
             >
@@ -177,10 +283,15 @@ export function SettingsPage() {
                   </FieldGroup>
                 </FieldSet>
               </FieldGroup>
-            </SettingsCard>
+            </SettingsSection>
           </TabsContent>
-          <TabsContent value="playback" className="pt-5">
-            <SettingsCard title="الصوت والمشاهدة" description="تفضيلات جاهزة لملفات الوسائط لاحقاً.">
+
+          <TabsContent value="playback" className="pt-6">
+            <SettingsSection
+              icon={<FilmSlateIcon size={19} weight="duotone" />}
+              title="الصوت والمشاهدة"
+              description="كيف يتصرّف المشغّل، وأي مصادر يفضّلها عند توفّر أكثر من خيار."
+            >
               <FieldGroup>
                 <SwitchField
                   label="التشغيل التلقائي"
@@ -217,10 +328,15 @@ export function SettingsPage() {
                   }
                 />
               </FieldGroup>
-            </SettingsCard>
+            </SettingsSection>
           </TabsContent>
-          <TabsContent value="notifications" className="pt-5">
-            <SettingsCard title="تنبيهات العائلة" description="اختر ما يستحق الوصول إلى صندوقك.">
+
+          <TabsContent value="notifications" className="pt-6">
+            <SettingsSection
+              icon={<BellIcon size={19} weight="duotone" />}
+              title="تنبيهات العائلة"
+              description="اختر ما يستحق الوصول إلى صندوقك."
+            >
               <FieldGroup>
                 <SwitchField
                   label="نشاط العائلة"
@@ -235,206 +351,138 @@ export function SettingsPage() {
                   onChange={(value) => setPreference("notifyReplies", value)}
                 />
               </FieldGroup>
-            </SettingsCard>
+            </SettingsSection>
           </TabsContent>
-          <TabsContent value="appearance" className="pt-5">
-            <SettingsCard title="المظهر" description="ظلام سينمائي أو ضوء هادئ.">
-              <PolicySelect
-                label="السمة"
-                value={draft.preferences.theme}
-                options={[
-                  ["dark", "داكن"],
-                  ["light", "فاتح"],
-                ]}
-                onChange={(value) => setPreference("theme", value as "dark" | "light")}
-              />
-            </SettingsCard>
-            <div className="mt-6">
-              <ServerUrlCard />
-            </div>
-            <div className="mt-6">
-              <UpdateCheckCard />
-            </div>
+
+          <TabsContent value="appearance" className="pt-6">
+            <SettingsSection
+              icon={<PaletteIcon size={19} weight="duotone" />}
+              title="المظهر"
+              description="ظلام سينمائي أو ضوء هادئ."
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(
+                  [
+                    ["dark", "داكن", "مناسب لغرفة المشاهدة."],
+                    ["light", "فاتح", "أوضح في الإضاءة العالية."],
+                  ] as const
+                ).map(([theme, label, hint]) => {
+                  const selected = draft.preferences.theme === theme;
+                  return (
+                    <button
+                      key={theme}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setPreference("theme", theme)}
+                      className={cn(
+                        "rounded-2xl border p-4 text-start outline-none transition hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50",
+                        selected ? "border-primary bg-primary/8" : "border-border/60",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "h-14 w-full rounded-lg border",
+                          theme === "dark"
+                            ? "border-white/10 bg-neutral-900"
+                            : "border-black/10 bg-neutral-100",
+                        )}
+                      />
+                      <p className="mt-3 flex items-center gap-2 text-sm font-medium">
+                        {label}
+                        {selected && (
+                          <CheckCircleIcon size={15} weight="fill" className="text-primary" />
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </SettingsSection>
           </TabsContent>
         </Tabs>
-        <div className="mt-6 flex items-center justify-end gap-3">
-          {saved ? (
-            <span className="flex items-center gap-2 text-sm text-emerald-500">
-              <CheckCircleIcon /> حُفظت الإعدادات
-            </span>
-          ) : null}
-          <Button
-            onClick={() => {
-              setSaved(false);
-              mutation.mutate({
-                avatarKey: draft.avatarKey,
-                preferences: draft.preferences,
-                contentPolicy: draft.contentPolicy,
-              });
-            }}
-            disabled={mutation.isPending}
-          >
-            <FloppyDiskIcon data-icon="inline-start" />
-            {mutation.isPending ? ar.common.loading : ar.common.save}
-          </Button>
-        </div>
+
+        {/* Only ever in the way when there is something to save. */}
+        {dirty && (
+          <div className="sticky bottom-4 z-20 mt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card/95 p-3 shadow-lg backdrop-blur-md">
+              <p className="ps-2 text-sm text-muted-foreground">لديك تغييرات غير محفوظة.</p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDraft(pristine)}
+                  disabled={mutation.isPending}
+                >
+                  <ArrowCounterClockwiseIcon data-icon="inline-start" />
+                  تراجع
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={mutation.isPending || nameTooShort}
+                  onClick={() => {
+                    setSaved(false);
+                    mutation.mutate({
+                      displayName: draft.displayName.trim(),
+                      bio: draft.bio.trim(),
+                      avatarKey: draft.avatarKey,
+                      preferences: draft.preferences,
+                      contentPolicy: draft.contentPolicy,
+                    });
+                  }}
+                >
+                  <FloppyDiskIcon data-icon="inline-start" />
+                  {mutation.isPending ? ar.common.loading : ar.common.save}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {mutation.isError && (
+          <p className="mt-4 flex items-center gap-2 text-sm text-destructive">
+            <WarningCircleIcon size={16} weight="fill" />
+            {mutation.error instanceof Error ? mutation.error.message : "تعذّر حفظ الإعدادات."}
+          </p>
+        )}
+
+        {saved && !dirty && (
+          <p className="mt-4 flex items-center gap-2 text-sm text-emerald-500" aria-live="polite">
+            <CheckCircleIcon size={16} weight="fill" />
+            حُفظت الإعدادات
+          </p>
+        )}
       </section>
     </PlatformShell>
   );
 }
 
-function SettingsCard({
+function SettingsSection({
+  icon,
   title,
   description,
+  className,
   children,
 }: {
+  icon: React.ReactNode;
   title: string;
   description: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
-
-/**
- * Lets one desktop build point at any server on the LAN without a rebuild (see
- * docs/deployment-and-release-roadmap.md §3) — `VITE_API_URL` is a sensible default, not the only
- * option once a family's server address can differ from what a given build was compiled against.
- * Desktop-shell-only, same reasoning as `UpdateCheckCard` below: a browser tab's API origin is
- * whatever served it, not something a page control can meaningfully redirect.
- */
-function ServerUrlCard() {
-  const isDesktop = useIsDesktopShell();
-  const [value, setValue] = useState(apiBaseUrl);
-  const [error, setError] = useState<string | null>(null);
-  const [restarting, setRestarting] = useState(false);
-
-  if (!isDesktop) return null;
-
-  async function apply(url: string | null) {
-    setError(null);
-    setRestarting(true);
-    try {
-      await setApiUrlOverride(url);
-      // setApiUrlOverride relaunches the app on success — this only resumes if that failed.
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "عنوان الخادم غير صالح.");
-      setRestarting(false);
-    }
-  }
-
-  return (
-    <SettingsCard
-      title="عنوان الخادم"
-      description="عنوان جهاز العائلة الذي يستضيف قاعدة البيانات وواجهة أركاديا. يتطلب إعادة تشغيل التطبيق، ويعمل فقط إذا كان هذا العنوان مصرّحاً به مسبقاً في هذه النسخة."
-    >
-      <div className="flex flex-col gap-3">
-        <Input
-          dir="ltr"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          placeholder={apiBaseUrlDefault}
-        />
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => apply(value)} disabled={restarting}>
-            {restarting ? "يعيد التشغيل…" : "حفظ وإعادة التشغيل"}
-          </Button>
-          {apiBaseUrl !== apiBaseUrlDefault && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setValue(apiBaseUrlDefault);
-                apply(null);
-              }}
-              disabled={restarting}
-            >
-              إعادة الضبط الافتراضي
-            </Button>
-          )}
+    <div className={cn("rounded-3xl border border-border/60 bg-card/40 p-6", className)}>
+      <div className="flex items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-heading text-lg font-semibold">{title}</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
         </div>
       </div>
-    </SettingsCard>
-  );
-}
-
-/**
- * Only ever renders inside the Tauri desktop shell — the updater plugin (and the whole notion of
- * "install and restart") has no meaning for a browser tab. `useIsDesktopShell` keeps the first
- * paint agreeing with the prerendered HTML (see its own doc comment in `play-button.tsx`), so this
- * card simply isn't there yet on the very first render, then appears once the app confirms it's
- * running inside Tauri.
- */
-function UpdateCheckCard() {
-  const isDesktop = useIsDesktopShell();
-  const [result, setResult] = useState<UpdateCheckResult | null>(null);
-  const [checking, setChecking] = useState(false);
-  const [installing, setInstalling] = useState(false);
-  const [progress, setProgress] = useState<number | null>(null);
-
-  if (!isDesktop) return null;
-
-  async function runCheck() {
-    setChecking(true);
-    setResult(await checkForUpdate());
-    setChecking(false);
-  }
-
-  async function runInstall() {
-    setInstalling(true);
-    setProgress(null);
-    try {
-      await installUpdateAndRestart(setProgress);
-    } catch (error) {
-      setResult({
-        status: "failed",
-        message: error instanceof Error ? error.message : "تعذّر تثبيت التحديث.",
-      });
-      setInstalling(false);
-    }
-    // On success the app restarts itself (relaunch()) before this ever resumes.
-  }
-
-  return (
-    <SettingsCard title="التحديثات" description="يتحقّق أركاديا من إصدار جديد عبر GitHub Releases.">
-      <div className="flex flex-col gap-3">
-        <Button variant="outline" onClick={runCheck} disabled={checking || installing}>
-          <ArrowClockwiseIcon
-            data-icon="inline-start"
-            className={checking ? "animate-spin" : undefined}
-          />
-          {checking ? "يتحقّق…" : "التحقق من التحديثات"}
-        </Button>
-        {result?.status === "upToDate" && (
-          <p className="text-sm text-muted-foreground">أركاديا محدّث لأحدث إصدار.</p>
-        )}
-        {result?.status === "failed" && (
-          <p className="text-sm text-destructive">{result.message}</p>
-        )}
-        {result?.status === "available" && (
-          <div className="flex flex-col gap-2 text-sm">
-            <p>
-              يتوفّر إصدار جديد: <span className="font-medium">{result.version}</span> (الحالي{" "}
-              {result.currentVersion})
-            </p>
-            <Button onClick={runInstall} disabled={installing}>
-              {installing
-                ? progress !== null
-                  ? `يُثبّت… ${progress}٪`
-                  : "يُثبّت…"
-                : "تثبيت التحديث وإعادة التشغيل"}
-            </Button>
-          </div>
-        )}
-      </div>
-    </SettingsCard>
+      <div className="mt-6">{children}</div>
+    </div>
   );
 }
 
