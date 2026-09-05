@@ -23,9 +23,11 @@ export const auth = betterAuth({
   trustedOrigins: [
     process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:23100",
     "http://localhost:23100",
-    // See the matching comment in app.ts's CORS trustedOrigins — a packaged Tauri app always
-    // serves from this fixed origin, independent of any env var.
+    // See the matching comment in app.ts's CORS trustedOrigins — a packaged Tauri app serves
+    // from a platform-dependent fixed origin, and Linux uses the tauri:// custom scheme.
+    "tauri://localhost",
     "http://tauri.localhost",
+    "https://tauri.localhost",
   ],
   database: drizzleAdapter(database().db, {
     provider: "pg",

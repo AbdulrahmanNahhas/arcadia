@@ -74,18 +74,24 @@ app.use("*", logger());
 const trustedOrigins = new Set([
   process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:23100",
   "http://localhost:23100",
-  // A packaged Tauri app (not `tauri dev`, which really does load from the devUrl origin above)
-  // serves its frontend from this fixed origin regardless of any env var — confirmed against
-  // tauri::app::AssetResolver's own doc comment, not guessed. Without this, every request from
-  // an installed build gets silently CORS-rejected, which is exactly what "stuck on Loading…"
-  // during login looks like from the outside — the API never even sees the request as coming
-  // from an origin it's willing to answer.
+  // A packaged Tauri app (not `tauri dev`, which really loads from the devUrl origin above)
+  // serves its frontend from a fixed origin that differs by platform, per
+  // AppManager::tauri_protocol_url in tauri 2.11.5: Windows and Android get
+  // `http(s)://tauri.localhost`, and every other target — including the Linux build this
+  // project actually ships — gets the `tauri://localhost` custom scheme. Both are listed
+  // because the origin is not configurable; without the matching one, every request from an
+  // installed build is silently CORS-rejected.
+  "tauri://localhost",
   "http://tauri.localhost",
+  "https://tauri.localhost",
 ]);
 app.use(
   "*",
   cors({
-    origin: (origin) => (trustedOrigins.has(origin) ? origin : [...trustedOrigins][0]),
+    // Returning null omits Access-Control-Allow-Origin entirely, which is what an untrusted
+    // origin should get. Echoing back some *other* trusted origin instead (what this used to do)
+    // is the same rejection to the browser but reads like a working CORS setup when debugging.
+    origin: (origin) => (trustedOrigins.has(origin) ? origin : null),
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

@@ -33,6 +33,11 @@
     port = 23102;
   };
 
+  # The API has to answer on the LAN, not just loopback: the desktop app is the whole point of
+  # this project and it runs as a packaged build (on this machine or another one on the network)
+  # that reaches the server by its LAN address. server.ts defaults to 127.0.0.1 so a bare
+  # `node dist/server.js` stays closed by default; dev opens it deliberately.
+  env.HOST = "0.0.0.0";
   env.DATABASE_URL = "postgresql://127.0.0.1:23102/arcadia";
   env.VITE_API_URL = "http://127.0.0.1:23101";
   env.ARCADIA_MOCK_AUTH = "true";
