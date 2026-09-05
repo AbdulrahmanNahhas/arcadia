@@ -1,7 +1,7 @@
 import { account, session, user, verification } from "@arcadia/database";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
-import { username } from "better-auth/plugins";
+import { bearer, username } from "better-auth/plugins";
 import { database } from "./database";
 
 const developmentSecret = "arcadia-development-secret-change-before-production-2026";
@@ -53,6 +53,14 @@ export const auth = betterAuth({
       maxUsernameLength: 30,
       usernameValidator: (value) => /^[a-zA-Z0-9_]+$/.test(value),
     }),
+    // The desktop app cannot authenticate with cookies at all. Its page origin is
+    // `http://tauri.localhost` (packaged) or `http://127.0.0.1:23100` (tauri dev), while the API
+    // answers on the server's LAN address — different sites, so the browser accepts the session
+    // cookie and then refuses to send it back on every subsequent request. `SameSite=None` would
+    // fix that but requires `Secure`, and a family server on a LAN speaks plain HTTP with no
+    // certificate to offer. A bearer token carries the session in a header instead, where no
+    // same-site rule applies. Cookies still work unchanged for same-origin browser use.
+    bearer(),
   ],
   advanced: {
     cookiePrefix: "arcadia",

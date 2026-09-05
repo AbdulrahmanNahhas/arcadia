@@ -11,7 +11,7 @@ const apiUrlOverrideKey = "arcadia:apiUrl";
  * `docs/deployment-and-release-roadmap.md` §3). `VITE_API_URL` is baked in at build time — fine
  * as a default, wrong as the *only* option once the family's server address can differ from the
  * one a given build was compiled against. Read once at module load, same as the build-time value
- * always was; changing it takes a restart to apply (`setApiUrlOverride` below relaunches the app),
+ * always was; changing it takes a reload to apply (`setApiUrlOverride` below reloads the page),
  * simpler than threading a reactive base URL through every consumer of the `apiBaseUrl` constant.
  */
 function readApiUrlOverride(): string | null {
@@ -42,18 +42,15 @@ export const apiBaseUrl = resolveApiBaseUrl();
 export const apiBaseUrlDefault = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:23101";
 
 /**
- * Persists (or, given `null`, clears) the API URL override and restarts the app so every
- * already-initialized consumer of `apiBaseUrl` picks it up — reachable only from the desktop
- * shell's settings UI, guarded by `isDesktopShell()` the same way every other Tauri-only entry
- * point in this codebase is.
+ * Persists (or, given `null`, clears) the API URL override and reloads the page so every
+ * already-initialized consumer of `apiBaseUrl` picks it up.
  *
- * **Known limitation:** the packaged app's CSP (`connect-src`/`media-src`/`img-src`) is widened
- * for exactly one origin at *build* time (`release.yml`, from the `ARCADIA_API_URL` repo
- * variable) — plus loopback, always allowed for local dev. Overriding to that same origin (or to
- * loopback) works; overriding to a genuinely different, not-yet-authorized origin will still get
- * silently CSP-blocked, because a webview's CSP can't be loosened at runtime. This setting is for
- * "the server's address changed, same deployment" (a new LAN IP, a typo) — pointing a build at a
- * *different family's* server still needs that server's origin baked in at release time.
+ * Deliberately a page reload rather than `@tauri-apps/plugin-process`'s `relaunch()`, which this
+ * used to call: `relaunch()` restarts the *app binary*, and under `tauri dev` the CLI treats the
+ * app exiting as the end of the session and tears down the vite dev server it spawned — so the
+ * relaunched window loads `devUrl` with nothing listening behind it and dies on "Connection
+ * refused". A reload re-executes the module graph in the same process, which is all that's
+ * actually needed here, since `apiBaseUrl` is resolved once at module load from `localStorage`.
  */
 export async function setApiUrlOverride(url: string | null) {
   if (url) {
@@ -62,8 +59,7 @@ export async function setApiUrlOverride(url: string | null) {
   } else {
     window.localStorage.removeItem(apiUrlOverrideKey);
   }
-  const { relaunch } = await import("@tauri-apps/plugin-process");
-  await relaunch();
+  window.location.reload();
 }
 
 /**
@@ -91,11 +87,74 @@ export function rewriteMediaUrls<T>(value: T): T {
   return value;
 }
 
+/**
+ * The desktop app's session token, kept alongside the API URL override it depends on.
+ *
+ * The session cookie the API sets is unusable from the desktop shell: its page origin
+ * (`http://tauri.localhost`, or `http://127.0.0.1:23100` under `tauri dev`) is a different *site*
+ * from the server's LAN address, so a `SameSite=Lax` cookie is accepted and then never sent back.
+ * `SameSite=None` would require `Secure`, and a LAN server has no certificate. Better Auth's
+ * bearer plugin (see the API's `auth.ts`) hands back the same session in a header instead, which
+ * no same-site rule applies to — so the token is what actually keeps the family logged in.
+ */
+const sessionTokenKey = "arcadia:sessionToken";
+
+export function readSessionToken(): string | null {
+  try {
+    return globalThis.localStorage?.getItem(sessionTokenKey) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function setSessionToken(token: string | null) {
+  try {
+    if (token) globalThis.localStorage?.setItem(sessionTokenKey, token);
+    else globalThis.localStorage?.removeItem(sessionTokenKey);
+  } catch {
+    // A webview with storage disabled still works for one session; it just won't stay signed in.
+  }
+}
+
+/**
+ * Checks whether an address actually answers as an Arcadia server, and reports *why* it didn't.
+ * Shared by the login screen's recovery panel and the settings page, which are the two places the
+ * family can be pointed at the wrong machine — "it didn't work" is not enough to act on there: a
+ * refused connection (wrong address or port), a timeout (a firewall dropping packets), and a
+ * server that answers with the wrong status all need different fixes.
+ */
+export async function pingServer(
+  url: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  try {
+    const origin = new URL(url).origin;
+    const response = await fetch(`${origin}/api/v1/health`, {
+      signal: AbortSignal.timeout(4000),
+    });
+
+    if (!response.ok) return { ok: false, reason: `الخادم ردّ برمز ${response.status}` };
+    return { ok: true };
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === "TimeoutError") {
+      return { ok: false, reason: "انتهت المهلة دون رد — غالبًا جدار حماية يحجب المنفذ." };
+    }
+    return { ok: false, reason: cause instanceof Error ? cause.message : "خطأ غير معروف" };
+  }
+}
+
+/** Adds the bearer token when there is one, leaving cookie auth untouched when there isn't. */
+function withSessionToken(init?: HeadersInit) {
+  const headers = new Headers(init);
+  const token = readSessionToken();
+  if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
+  return headers;
+}
+
 async function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit) {
   return fetch(input, {
     ...init,
     credentials: "include",
-    headers: new Headers(init?.headers),
+    headers: withSessionToken(init?.headers),
   });
 }
 
@@ -135,7 +194,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
     credentials: "include",
-    headers: new Headers({ "Content-Type": "application/json", ...init?.headers }),
+    headers: withSessionToken({ "Content-Type": "application/json", ...init?.headers }),
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as {

@@ -89,6 +89,10 @@ app.use(
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    // Better Auth's bearer plugin returns the session token in this header on sign-in. A
+    // cross-origin response only lets JavaScript read headers named here, so without it the
+    // desktop app would get a token it is structurally unable to see (see auth.ts's bearer()).
+    exposeHeaders: ["set-auth-token"],
   }),
 );
 // Uploaded artwork now lives outside apps/web/public (see media-storage.ts) so it stays out of
@@ -383,15 +387,24 @@ const healthRoute = createRoute({
       content: { "application/json": { schema: healthSchema } },
       description: "API and database readiness",
     },
+    503: {
+      content: { "application/json": { schema: healthSchema } },
+      description:
+        "API is up but the database is not — this must be a non-2xx, or every plain fetch().ok " +
+        "reachability check (the login screen's server-address panel, pingServer in lib/api.ts) " +
+        "reports a broken deployment as healthy just because the process answered HTTP at all.",
+    },
   },
 });
-app.openapi(healthRoute, async (context) =>
-  context.json({
-    status: (await databaseReady()) ? "ok" : "degraded",
-    database: (await databaseReady()) ? "ready" : "unavailable",
+app.openapi(healthRoute, async (context) => {
+  const ready = await databaseReady();
+  const body = {
+    status: ready ? "ok" : "degraded",
+    database: ready ? "ready" : "unavailable",
     version: "v2",
-  }),
-);
+  } as const;
+  return context.json(body, ready ? 200 : 503);
+});
 
 const browseRoute = createRoute({
   method: "get",
