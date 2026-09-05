@@ -1,3 +1,11 @@
 inputs:
   nixpkgs:
     url: github:cachix/devenv-nixpkgs/rolling
+
+# Fail loudly when a pinned port is taken instead of silently allocating the next one.
+# devenv bakes the resolved port into the generated setup-postgres script, but env.DATABASE_URL
+# in devenv.nix stays the literal 23102 — so a silent bump to 23103 leaves the API pointed at a
+# port nothing is listening on, and every request fails with a database-unavailable 503 that
+# looks nothing like a port problem. This cost hours of misdiagnosis; an error at startup is
+# vastly cheaper than that. Override for a one-off run with `devenv up --no-strict-ports`.
+strict_ports: true
