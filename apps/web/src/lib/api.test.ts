@@ -20,6 +20,13 @@ describe("rewriteMediaUrls", () => {
     });
   });
 
+  it("rewrites the media library's canonical asset path", () => {
+    expect(rewriteMediaUrls({ id: "asset-id", path: "/media/uploads/posters/x.jpg" })).toEqual({
+      id: "asset-id",
+      path: `${apiBaseUrl}/media/uploads/posters/x.jpg`,
+    });
+  });
+
   it("leaves a field that already carries an absolute URL alone", () => {
     const value = { imagePath: "https://cdn.example.com/poster.jpg" };
     expect(rewriteMediaUrls(value)).toEqual(value);

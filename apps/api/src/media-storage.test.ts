@@ -2,7 +2,12 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { removeStoredMedia, storedMediaExists, storeMedia } from "./media-storage";
+import {
+  normalizeStoredMediaPath,
+  removeStoredMedia,
+  storedMediaExists,
+  storeMedia,
+} from "./media-storage";
 
 const tinyPng = Buffer.from([
   137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1,
@@ -14,6 +19,20 @@ afterEach(() => {
 });
 
 describe("media storage", () => {
+  it("normalizes an API-qualified display URL to its stored media path", () => {
+    expect(
+      normalizeStoredMediaPath(
+        "http://127.0.0.1:23101/media/uploads/posters/example.jpg?cache=ignored",
+      ),
+    ).toBe("/media/uploads/posters/example.jpg");
+    expect(normalizeStoredMediaPath("/media/library/example.jpg")).toBe(
+      "/media/library/example.jpg",
+    );
+    expect(normalizeStoredMediaPath("https://images.example.com/poster.jpg")).toBe(
+      "https://images.example.com/poster.jpg",
+    );
+  });
+
   it("stores an image in its media folder with a safe, descriptive name", async () => {
     const root = await mkdtemp(join(tmpdir(), "arcadia-media-"));
     process.env.ARCADIA_MEDIA_ROOT = root;

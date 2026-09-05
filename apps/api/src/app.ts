@@ -54,6 +54,7 @@ import {
 import {
   getPublicMediaDirectory,
   type mediaKinds,
+  normalizeStoredMediaPath,
   removeStoredMedia,
   storedMediaExists,
   storeMedia,
@@ -346,14 +347,20 @@ async function assignMediaPath(
   } as const;
   const [ownerKey, ownerId] = ownerEntries[0] as [keyof typeof ownerColumns, string];
   const ownerColumn = ownerColumns[ownerKey];
+  const storedPath = normalizeStoredMediaPath(path);
+  // Resolve a replacement before removing the current assignment. Besides producing a clearer
+  // validation boundary, this prevents an invalid/qualified display URL from deleting good media
+  // and then failing to insert its replacement.
+  const asset = storedPath
+    ? (await sql`select id from media_assets where path=${storedPath}`)[0]
+    : undefined;
+  if (storedPath && !asset) throw new Error("The selected media asset is not registered");
   const previous = isPrimary
     ? await sql`select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id where x.${sql(ownerColumn)}=${ownerId} and x.role=${role} and x.is_primary`
     : [];
   if (isPrimary)
     await sql`delete from media_asset_assignments where ${sql(ownerColumn)}=${ownerId} and role=${role} and is_primary`;
-  if (path) {
-    const [asset] = await sql`select id from media_assets where path=${path}`;
-    if (!asset) throw new Error("The selected media asset is not registered");
+  if (asset) {
     await sql`insert into media_asset_assignments (asset_id, role, ${sql(ownerColumn)}, is_primary)
       values (${asset.id}, ${role}, ${ownerId}, ${isPrimary}) on conflict do nothing`;
   }

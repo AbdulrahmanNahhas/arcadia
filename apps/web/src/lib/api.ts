@@ -68,9 +68,14 @@ export async function setApiUrlOverride(url: string | null) {
  * the API returns root-relative paths like `/media/uploads/...`, exactly as before, but a
  * root-relative path only resolves correctly when the current page's own origin is the API's
  * origin. That's true for a browser tab hitting the API directly, but never true inside the Tauri
- * desktop app (its webview's origin is the bundled app, not the API), so every `*Path` field is
+ * desktop app (its webview's origin is the bundled app, not the API), so media path fields are
  * rewritten to an absolute `${apiBaseUrl}` URL right here, the one place every API response
  * already passes through — no render call site anywhere else needs to know this changed.
+ *
+ * Most catalog projections call the field `imagePath`, `posterPath`, etc. The media library's
+ * canonical asset record deliberately calls it just `path`, however, so that field must follow
+ * the same rule. Missing it made every media-library and existing-asset-picker thumbnail request
+ * the web origin after media moved out of the web build.
  */
 export function rewriteMediaUrls<T>(value: T): T {
   if (Array.isArray(value)) return value.map((item) => rewriteMediaUrls(item)) as T;
@@ -78,7 +83,9 @@ export function rewriteMediaUrls<T>(value: T): T {
     const result: Record<string, unknown> = {};
     for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
       result[key] =
-        key.endsWith("Path") && typeof entryValue === "string" && entryValue.startsWith("/media/")
+        (key.endsWith("Path") || key === "path") &&
+        typeof entryValue === "string" &&
+        entryValue.startsWith("/media/")
           ? `${apiBaseUrl}${entryValue}`
           : rewriteMediaUrls(entryValue);
     }

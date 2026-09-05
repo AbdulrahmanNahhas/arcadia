@@ -31,6 +31,22 @@ export function getPublicMediaDirectory() {
   );
 }
 
+/**
+ * Converts the absolute display URL returned to a browser back to the canonical path stored in
+ * `media_assets`. Admin records can round-trip through the JSON editor after the web client has
+ * qualified `/media/...` against the API origin; persistence must never treat that qualification
+ * as a different asset.
+ */
+export function normalizeStoredMediaPath(value: string | null | undefined) {
+  if (!value || value.startsWith("/media/")) return value ?? null;
+  try {
+    const url = new URL(value);
+    return url.pathname.startsWith("/media/") ? url.pathname : value;
+  } catch {
+    return value;
+  }
+}
+
 function resolvePublicMediaPath(publicPath: string) {
   if (!publicPath.startsWith("/media/")) return null;
   const root = getPublicMediaDirectory();
