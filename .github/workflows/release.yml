@@ -77,20 +77,13 @@ jobs:
             fs.writeFileSync(path, \`\${JSON.stringify(config, null, 2)}\n\`);
           " "$TAG"
 
-      - name: Widen the CSP for the real API origin
-        # tauri.conf.json's checked-in CSP only allows loopback origins, correct for local dev
-        # against 127.0.0.1 — a real build talks to the family's own server over the LAN instead,
-        # so that origin has to be added at build time. TAURI_CONFIG is merged over
-        # tauri.conf.json by the Tauri CLI itself; nothing in the repo needs editing per release.
-        run: |
-          API_ORIGIN=$(node -e "console.log(new URL(process.env.VITE_API_URL).origin)")
-          CSP="default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:* $API_ORIGIN; media-src 'self' http://127.0.0.1:* blob: $API_ORIGIN; img-src 'self' data: blob: http://127.0.0.1:* https: $API_ORIGIN; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com"
-          CONFIG_JSON=$(node -e "console.log(JSON.stringify({app:{security:{csp: process.argv[1]}}}))" "$CSP")
-          {
-            echo "TAURI_CONFIG<<EOF_TAURI_CONFIG"
-            echo "$CONFIG_JSON"
-            echo "EOF_TAURI_CONFIG"
-          } >> "$GITHUB_ENV"
+      # tauri.conf.json's checked-in CSP now allows any http:/https: origin for
+      # connect-src/media-src/img-src (script-src stays 'self'), specifically so the family can
+      # point one build at a different LAN address later from the settings page without a
+      # rebuild — a webview's CSP can't be loosened at runtime, so a build-time-only allowlist
+      # (this step used to inject exactly one origin via TAURI_CONFIG, overriding the checked-in
+      # CSP entirely) would silently break that feature the moment anyone used it. Nothing to
+      # widen per release anymore.
 
       - uses: tauri-apps/tauri-action@v0
         env:
