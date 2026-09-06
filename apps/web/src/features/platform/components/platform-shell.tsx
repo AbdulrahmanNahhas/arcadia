@@ -44,6 +44,7 @@ export function PlatformShell({
         انتقل إلى المحتوى
       </a>
       <header
+        data-platform-header
         className={cn(
           "sticky top-0 z-40 backdrop-blur-0",
           !immersive && "bg-background/72 mx-0 backdrop-blur-lg border-t-0",

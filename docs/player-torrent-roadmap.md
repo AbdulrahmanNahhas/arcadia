@@ -1,13 +1,12 @@
 # Local Player & Torrent Streaming — Guide & Roadmap
 
-> **Status:** Phase 0 done (2026-08-25) · Phase 0.5 done (2026-08-25) · **Phase 1 playing
-> end-to-end on Linux/Niri (2026-08-26)** — a film streams from the addon and renders inside the
-> app window with working controls; the 10-film acceptance sample and CI packaging are still open ·
+> **Status:** Phase 0 done (2026-08-25) · Phase 0.5 done (2026-08-25) · **Phase 1 acceptance
+> confirmed on the family setup** — films and episodes stream and play end-to-end with working
+> controls, subtitles, and hardware decode ·
 > **Phase 2 closed out (2026-08-29)** — TV/anime episode playback, subtitles (search, download,
-> embedded-track selection, offset), audio-track switching, and `subtitleOffsetMs` persistence, all
-> pending a real manual end-to-end pass once an OpenSubtitles key and a real family Torrentio addon
-> are available · Next up: Phase 3 (download-to-local), or the Phase 1 acceptance run/CI packaging
-> if that is still open · Last revised 2026-08-29
+> embedded-track selection, offset), audio-track switching, and `subtitleOffsetMs` persistence,
+> confirmed in the family setup · Next player milestone: Phase 3 (download-to-local); signed release
+> packaging remains independently open · Last revised 2026-09-04
 > **Updating this doc:** tick checkboxes as tasks land; set each phase's status to
 > `Done (YYYY-MM-DD)` when its acceptance criteria pass.
 
@@ -561,18 +560,18 @@ would have found. They are recorded because each one is a trap the next platform
    rectangles the interface occupies, measured live from the DOM, so the webview shows through
    the holes and the picture is never cropped or resized.
 
-### Acceptance run — what is left
+### Acceptance run
 
 - [x] **1.2 checkpoint:** a film renders inside the window with the React overlay on top, on
       Niri/Wayland via XWayland.
-- [ ] Confirm `hwdec-current` reports a real decoder on this machine. The plumbing is in (a
-      software fallback logs a warning and raises a "بالمعالج" chip in the bar); what has not been
-      done is *reading* it on a machine with a known GPU.
-- [ ] **1.4 checkpoint:** the Sintel/Big Buck Bunny magnet as a checked-in fixture; seek mid-file;
+- [x] Confirm `hwdec-current` reports a real decoder on this machine. The plumbing is in (a
+      software fallback logs a warning and raises a "بالمعالج" chip in the bar); it was verified
+      on a machine with a known GPU.
+- [x] **1.4 checkpoint:** the Sintel/Big Buck Bunny magnet as a checked-in fixture; seek mid-file;
       confirm killing the window mid-stream leaves no orphaned session and no growing cache dir.
-- [ ] **The 10-film sample** picked at random, with first-frame times recorded rather than
+- [x] **The 10-film sample** picked at random, with first-frame times recorded rather than
       estimated. This is the actual bar for calling Phase 1 done.
-- [ ] **Addon fixture** (`tt…` vs `tmdb:…`) recorded from the family deployment, so
+- [x] **Addon fixture** (`tt…` vs `tmdb:…`) recorded from the family deployment, so
       `ARCADIA_STREAM_ALLOW_TMDB_IDS` can be settled. Note the public `torrentio.strem.fun`
       Cloudflare-blocks VPN egress ranges outright — a 403 on every path, for browsers too — which
       is worth knowing before blaming the code.

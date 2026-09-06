@@ -1,8 +1,9 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useId, useRef, useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import type { Work } from "@/features/library/model";
+import { FocusContext, useSpatialFocusable } from "@/features/platform/spatial-navigation";
 import { cn } from "@/lib/utils";
 import { WorkCard } from "./work-card";
 
@@ -91,51 +92,65 @@ export function WorkRail({
   variant?: "poster" | "banner";
 }) {
   const { containerRef, style: fadeStyle } = useEdgeFade();
+  const railId = useId();
+  const firstCardFocusKey = `${railId}:card:0`;
+  const { ref: sectionRef, focusKey } = useSpatialFocusable<object, HTMLElement>({
+    trackChildren: true,
+    preferredChildFocusKey: firstCardFocusKey,
+  });
   if (!works.length) return null;
   return (
-    <section className="scroll-mt-24 overflow-hidden" aria-labelledby={`rail-${title}`}>
-      <header className="mx-auto mb-5 flex max-w-400 items-end justify-between gap-5 border-s-2 border-primary/50 ps-4 relative right-5">
-        <div>
-          <h2
-            id={`rail-${title}`}
-            className="font-heading text-xl font-semibold tracking-tight sm:text-2xl"
-          >
-            {title}
-          </h2>
-          {description && <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>}
-        </div>
-        {href && (
-          <Link
-            to={href.to}
-            params={href.params}
-            className={cn(
-              "flex shrink-0 items-center gap-1.5 text-sm font-medium text-foreground transition hover:text-primary! hover:border-primary/50! hover:bg-primary/10! duration-200 me-10",
-              buttonVariants({ variant: "outline" }),
-            )}
-          >
-            عرض الكل
-            <ArrowLeftIcon />
-          </Link>
-        )}
-      </header>
-      <div
-        ref={containerRef}
-        style={fadeStyle}
-        className={cn(
-          "grid grid-flow-col scroll-fade-x! overflow-x-auto overflow-y-visible overscroll-x-contain scrollbar-none px-4 pt-2",
-          variant === "banner"
-            ? "auto-cols-[86%] gap-3 pb-18 pt-2 sm:auto-cols-[55%] md:auto-cols-[42%] lg:auto-cols-[34%] xl:auto-cols-[28%]"
-            : "auto-cols-[43%] gap-3 pb-5 sm:auto-cols-[28%] md:auto-cols-[21%] lg:auto-cols-[16%] xl:auto-cols-[13.5%]",
-        )}
+    <FocusContext.Provider value={focusKey}>
+      <section
+        ref={sectionRef}
+        className="scroll-mt-24 overflow-hidden"
+        aria-labelledby={`rail-${title}`}
       >
-        {works.map((work) => (
-          <WorkCard
-            key={[work.id, work.title, work.releaseStart ?? "undated"].join(":")}
-            work={work}
-            variant={variant}
-          />
-        ))}
-      </div>
-    </section>
+        <header className="relative right-5 mx-auto mb-5 flex max-w-400 items-end justify-between gap-5 border-s-2 border-primary/50 ps-4">
+          <div>
+            <h2
+              id={`rail-${title}`}
+              className="font-heading text-xl font-semibold tracking-tight sm:text-2xl"
+            >
+              {title}
+            </h2>
+            {description && <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>}
+          </div>
+          {href && (
+            <Link
+              to={href.to}
+              params={href.params}
+              className={cn(
+                "me-10 flex shrink-0 items-center gap-1.5 text-sm font-medium text-foreground transition duration-200 hover:border-primary/50! hover:bg-primary/10! hover:text-primary!",
+                buttonVariants({ variant: "outline" }),
+              )}
+            >
+              عرض الكل
+              <ArrowLeftIcon />
+            </Link>
+          )}
+        </header>
+        <div
+          ref={containerRef}
+          style={fadeStyle}
+          data-spatial-rail
+          className={cn(
+            "grid grid-flow-col scroll-fade-x! overflow-x-auto overflow-y-visible overscroll-x-contain scrollbar-none px-4 pt-2",
+            variant === "banner"
+              ? "auto-cols-[86%] gap-3 pb-18 pt-2 sm:auto-cols-[55%] md:auto-cols-[42%] lg:auto-cols-[34%] xl:auto-cols-[28%]"
+              : "auto-cols-[43%] gap-3 pb-5 sm:auto-cols-[28%] md:auto-cols-[21%] lg:auto-cols-[16%] xl:auto-cols-[13.5%]",
+          )}
+        >
+          {works.map((work, index) => (
+            <WorkCard
+              key={[work.id, work.title, work.releaseStart ?? "undated"].join(":")}
+              work={work}
+              variant={variant}
+              spatialFocusKey={`${railId}:card:${index}`}
+            />
+          ))}
+        </div>
+      </section>
+    </FocusContext.Provider>
   );
 }

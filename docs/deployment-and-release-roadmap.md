@@ -4,6 +4,11 @@
 > chat discussion; treat it the same way as `player-torrent-roadmap.md` (tick items as they land).
 > **Scope for "real 1.0":** LAN-only. Remote access (Tailscale, etc.) and Phase 3's actual
 > offline-video download are explicitly deferred past this doc.
+> **v0.2 UI direction:** the Linux Tauri D-pad baseline is implemented and accepted with known
+> imperfections. Its completed offline-library UX, remaining TV/remote-control tuning, and
+> acceptance checks live in [`v0.2-roadmap.md`](./v0.2-roadmap.md); Android should reuse that React
+> navigation layer and add native key translation only where its WebView does not emit standard
+> keyboard events.
 > **§1 done (2026-09-03).** Both branches force-pushed to `origin` with clean history —
 > `git filter-repo` needed two passes (the monorepo restructure meant older commits recorded these
 > same files under a pre-`apps/web/` path, `public/media/...`, which the first pass's exact-path

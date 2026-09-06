@@ -1,6 +1,7 @@
 import type { ContinueWatchingItem, FamilyActivity } from "@arcadia/contracts";
 import {
   BellIcon,
+  BookmarkSimpleIcon,
   BooksIcon,
   CalendarBlankIcon,
   CheckCircleIcon,
@@ -35,6 +36,7 @@ import {
   type TransferProgress,
 } from "@/features/library/desktop-player";
 import { useIsDesktopShell } from "@/features/library/play-button";
+import { syncTitleOfflineCache } from "@/features/library/saved-offline";
 import { toggleReaction, updateTitleState } from "@/features/social/api";
 import { cn } from "@/lib/utils";
 import {
@@ -142,8 +144,12 @@ function RatingStars({
 function LibraryCard({ item }: { item: LibraryEntry }) {
   const client = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (input: Parameters<typeof updateTitleState>[1]) =>
-      updateTitleState(item.titleId, input),
+    mutationFn: async (input: Parameters<typeof updateTitleState>[1]) => {
+      if (input.savedOffline !== undefined) {
+        await syncTitleOfflineCache(item.titleId, input.savedOffline);
+      }
+      return updateTitleState(item.titleId, input);
+    },
     onSuccess: () => client.invalidateQueries({ queryKey: archiveKeys.library }),
   });
   return (
@@ -165,10 +171,29 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
           <p className="mt-2 text-xs text-muted-foreground">
             حُدّثت {dateFormat.format(new Date(item.updatedAt))}
           </p>
+          {item.savedOffline ? (
+            <Badge variant="secondary" className="mt-3 gap-1">
+              <BookmarkSimpleIcon weight="fill" />
+              محفوظ دون اتصال
+            </Badge>
+          ) : null}
         </div>
       </Link>
       <div className="flex items-center justify-between gap-2 border-t px-3 py-2.5">
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            aria-label={item.savedOffline ? "إزالة الحفظ دون اتصال" : "حفظ دون اتصال"}
+            aria-pressed={item.savedOffline}
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate({ savedOffline: !item.savedOffline })}
+            className={cn(
+              "rounded-full p-1 transition",
+              item.savedOffline ? "text-primary" : "text-muted-foreground hover:text-primary",
+            )}
+          >
+            <BookmarkSimpleIcon weight={item.savedOffline ? "fill" : "regular"} />
+          </button>
           <button
             type="button"
             aria-label={item.isFavorite ? "إزالة من المفضلة" : "أضف إلى المفضلة"}
@@ -192,7 +217,14 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
           type="button"
           aria-label="إزالة من مكتبتي"
           disabled={mutation.isPending}
-          onClick={() => mutation.mutate({ isFavorite: false, personalRating: null, notes: "" })}
+          onClick={() =>
+            mutation.mutate({
+              isFavorite: false,
+              personalRating: null,
+              notes: "",
+              savedOffline: false,
+            })
+          }
           className="rounded-full p-1 text-muted-foreground transition hover:text-destructive"
         >
           <TrashIcon />
@@ -204,6 +236,7 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
 
 const libraryFilters = [
   ["all", "الكل"],
+  ["saved", "المحفوظات"],
   ["favorites", "المفضلة"],
   ["rated", "تقييماتي"],
 ] as const;
@@ -215,19 +248,21 @@ export function LibraryPanel() {
   if (query.isLoading) return <Loading />;
   const items = query.data ?? [];
   const filtered =
-    filter === "favorites"
-      ? items.filter((item) => item.isFavorite)
-      : filter === "rated"
-        ? items
-            .filter((item) => item.personalRating !== null)
-            .toSorted((a, b) => (b.personalRating ?? 0) - (a.personalRating ?? 0))
-        : items;
+    filter === "saved"
+      ? items.filter((item) => item.savedOffline)
+      : filter === "favorites"
+        ? items.filter((item) => item.isFavorite)
+        : filter === "rated"
+          ? items
+              .filter((item) => item.personalRating !== null)
+              .toSorted((a, b) => (b.personalRating ?? 0) - (a.personalRating ?? 0))
+          : items;
   return (
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <PanelTitle
           title="مكتبتي"
-          description="المفضلة والتقييمات الشخصية، قابلة للتعديل من البطاقة مباشرة."
+          description="المحفوظات والمفضلة والتقييمات. الحفظ هنا يحتفظ ببيانات العمل وصوره، وليس ملف الفيديو."
         />
         <div className="flex gap-1 rounded-full border bg-card p-1">
           {libraryFilters.map(([value, label]) => (
@@ -256,7 +291,9 @@ export function LibraryPanel() {
         </div>
       ) : (
         <Blank icon={<BooksIcon />} title={items.length ? "لا نتائج لهذا الفلتر" : "مكتبتك جاهزة"}>
-          {items.length ? "جرّب فلترًا آخر من الأعلى." : "أضف مفضلة أو تقييمًا شخصيًا من أي صفحة عمل."}
+          {items.length
+            ? "جرّب فلترًا آخر من الأعلى."
+            : "احفظ عملاً أو أضفه إلى المفضلة أو قيّمه من صفحته."}
         </Blank>
       )}
     </>

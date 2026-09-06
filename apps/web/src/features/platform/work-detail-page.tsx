@@ -55,21 +55,18 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { recordHistory } from "@/features/archive/api";
+import { archiveKeys, recordHistory } from "@/features/archive/api";
 // import { WorkFamilyActions } from "@/features/archive/work-family-actions";
 import type { Entity, Work, WorkStructure } from "@/features/library/model";
 import { tagLabelsAr, taxonomyLabels } from "@/features/library/model";
+import { useIsOnline } from "@/features/library/offline-store";
 import {
   PlayEpisodeButton,
   PlayFilmButton,
   unplayableEpisodeReason,
   unplayableReason,
 } from "@/features/library/play-button";
-import {
-  removeTitleOffline,
-  saveTitleOffline,
-  useIsOnline,
-} from "@/features/library/offline-store";
+import { setTitleSavedOffline } from "@/features/library/saved-offline";
 import { scoreCriteria, scoreLabel, scoreWeights } from "@/features/library/scoring";
 import type { Recommendation, RiskAssessment } from "@/features/platform/model";
 import {
@@ -81,7 +78,6 @@ import {
   updateTitleState,
 } from "@/features/social/api";
 import { TitleSocialSection } from "@/features/social/title-social-section";
-import { getTitle } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { getEntities } from "@/server/library.functions";
 import { getPlatformWorkDetail } from "@/server/platform.functions";
@@ -582,16 +578,11 @@ function WorkHero({
   const isOnline = useIsOnline();
   const savedOffline = social.data?.state?.savedOffline ?? false;
   const saveOfflineMutation = useMutation({
-    mutationFn: async (next: boolean) => {
-      if (next) {
-        const detail = await getTitle(work.id);
-        if (detail) await saveTitleOffline(detail);
-      } else {
-        await removeTitleOffline(work.id);
-      }
-      return updateTitleState(work.id, { savedOffline: next });
+    mutationFn: (next: boolean) => setTitleSavedOffline(work.id, next),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: socialKeys.title(work.id) });
+      void queryClient.invalidateQueries({ queryKey: archiveKeys.library });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: socialKeys.title(work.id) }),
   });
 
   // "trailer" is a reserved provider slug (see the editor form's external links field), not a

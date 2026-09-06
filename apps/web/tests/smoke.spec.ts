@@ -19,6 +19,110 @@ async function signIn(
 
 test.beforeEach(async ({ page }) => signIn(page));
 
+test("home navigation reaches the hero, planets, and RTL work rails", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("[data-spatial-rail]").first()).toBeVisible();
+
+  const focusedTarget = page.locator('[data-focused="true"]');
+  await expect(focusedTarget).toHaveCount(1);
+  await expect(focusedTarget).toBeInViewport();
+  await expect(focusedTarget).toBeAttached();
+  await expect(focusedTarget).toHaveAttribute("href", /\/titles\/.+/);
+
+  await page.keyboard.press("ArrowDown");
+  await expect(focusedTarget).toHaveRole("button");
+  await page.keyboard.press("ArrowDown");
+  const focusedPlanet = page.locator('a[data-spatial-auto="true"][data-focused="true"]');
+  await expect(focusedPlanet).toHaveAttribute("href", /\/planets\/.+/);
+  await expect(focusedPlanet).toBeInViewport();
+
+  await page.keyboard.press("ArrowDown");
+  const focusedCard = page.locator('[data-spatial-rail] a[data-focused="true"]');
+  await expect(focusedCard).toHaveCount(1);
+  await expect(focusedCard).toBeInViewport();
+  await expect(page.getByRole("link", { name: "عرض الكل" }).first()).toHaveAttribute(
+    "data-spatial-auto",
+    "true",
+  );
+  const focusedRail = focusedCard.locator("xpath=ancestor::*[@data-spatial-rail]");
+  await expect(focusedCard).toHaveAttribute(
+    "href",
+    await focusedRail.locator('a[href^="/titles/"]').first().getAttribute("href"),
+  );
+  const firstHref = await focusedCard.getAttribute("href");
+
+  await page.keyboard.press("ArrowLeft");
+  await expect(focusedCard).toHaveCount(1);
+  await expect(focusedCard).toBeInViewport();
+  expect(await focusedCard.getAttribute("href")).not.toBe(firstHref);
+
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/titles\//);
+});
+
+test("planet and entity directories expose their cards to arrow navigation", async ({ page }) => {
+  await page.goto("/planets");
+  const firstPlanetHref = await page
+    .locator('#main-content a[href^="/planets/"]')
+    .first()
+    .getAttribute("href");
+  const focusedPlanet = page.locator(
+    '#main-content a[href^="/planets/"][data-spatial-auto="true"][data-focused="true"]',
+  );
+  await expect(focusedPlanet).toHaveCount(1);
+  await expect(focusedPlanet).toBeInViewport();
+  await expect(focusedPlanet).toHaveAttribute("href", firstPlanetHref ?? "");
+
+  await page.goto("/studios");
+  const focusedDirectoryControl = page.locator(
+    '#main-content [data-spatial-auto="true"][data-focused="true"]',
+  );
+  await expect(focusedDirectoryControl).toHaveCount(1);
+  await expect(focusedDirectoryControl).toBeInViewport();
+
+  await page.goto("/people");
+  await expect(focusedDirectoryControl).toHaveCount(1);
+  await expect(focusedDirectoryControl).toBeInViewport();
+
+  await page.goto("/compare");
+  const focusedCompareControl = page.locator(
+    '#main-content [data-spatial-auto="true"][data-focused="true"]',
+  );
+  await expect(focusedCompareControl).toHaveCount(1);
+  await expect(focusedCompareControl).toBeInViewport();
+});
+
+test("browse and title actions receive focus before their work cards", async ({ page }) => {
+  await page.goto("/browse");
+  const focusedBrowseControl = page.locator(
+    '#main-content [data-spatial-auto="true"][data-focused="true"]',
+  );
+  await expect(focusedBrowseControl).toHaveCount(1);
+  await expect(focusedBrowseControl).toBeInViewport();
+  await expect(focusedBrowseControl).not.toHaveAttribute("href", /\/titles\/.+/);
+
+  const response = await page.request.get(
+    "http://127.0.0.1:23101/api/v1/titles?mode=titles&limit=1",
+  );
+  // SAFETY: this test calls Arcadia's typed catalog endpoint and only reads the documented fields.
+  const catalog = (await response.json()) as { items: Array<{ id: string }> };
+  const title = catalog.items[0];
+  expect(title).toBeDefined();
+  if (!title) return;
+
+  await page.goto(`/titles/${title.id}`);
+  const focusedTitleAction = page.locator(
+    '#main-content [data-spatial-auto="true"][data-focused="true"]',
+  );
+  await expect(focusedTitleAction).toHaveCount(1);
+  await expect(focusedTitleAction).toBeInViewport();
+  await expect(page.locator('#main-content [data-spatial-auto="true"]')).not.toHaveCount(0);
+  await expect(
+    page.locator('#main-content [data-spatial-managed][data-focused="true"]'),
+  ).toHaveCount(0);
+});
+
 test("home watch radar handles pinned works without banner artwork", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");

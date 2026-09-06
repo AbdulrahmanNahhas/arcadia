@@ -1,6 +1,7 @@
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthBoundary } from "@/features/accounts/auth-boundary";
+import { SpatialNavigationRoot } from "@/features/platform/spatial-navigation";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -32,9 +33,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="dark">
-        <TooltipProvider>
-          <AuthBoundary>{children}</AuthBoundary>
-        </TooltipProvider>
+        <SpatialNavigationRoot>
+          <TooltipProvider>
+            <AuthBoundary>{children}</AuthBoundary>
+          </TooltipProvider>
+        </SpatialNavigationRoot>
         <Scripts />
       </body>
     </html>

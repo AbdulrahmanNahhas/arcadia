@@ -1,4 +1,5 @@
 import {
+  BookmarkSimpleIcon,
   BookOpenIcon,
   FilmSlateIcon,
   GameControllerIcon,
@@ -7,14 +8,17 @@ import {
   StarIcon,
   TelevisionSimpleIcon,
 } from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
+import { archiveKeys, getLibrary } from "@/features/archive/api";
 import { taxonomyLabels, type Work } from "@/features/library/model";
+import { setTitleSavedOffline } from "@/features/library/saved-offline";
+import { revealSpatialTarget, useSpatialFocusable } from "@/features/platform/spatial-navigation";
 import { cn } from "@/lib/utils";
 
 const EASE = "ease-[cubic-bezier(0.16,1,0.3,1)]";
 
-export const kindLabel: Record<Work["kind"], string> = {
+export const kindLabel = {
   movie: "فيلم",
   series: "مسلسل",
   anime: "أنمي",
@@ -23,9 +27,9 @@ export const kindLabel: Record<Work["kind"], string> = {
   manga: "مانغا",
   "visual-novel": "رواية مرئية",
   comic: "قصص مصوّرة",
-};
+} satisfies Record<Work["kind"], string>;
 
-const kindIcon: Record<Work["kind"], typeof StarIcon> = {
+const kindIcon = {
   movie: FilmSlateIcon,
   series: TelevisionSimpleIcon,
   anime: SparkleIcon,
@@ -34,7 +38,7 @@ const kindIcon: Record<Work["kind"], typeof StarIcon> = {
   manga: BookOpenIcon,
   comic: BookOpenIcon,
   "visual-novel": BookOpenIcon,
-};
+} satisfies Record<Work["kind"], typeof StarIcon>;
 
 /** Splits a work into what to show as the eyebrow vs. the headline title. */
 function getTitleInfo(work: Work) {
@@ -52,6 +56,18 @@ function getDurationText(work: Work) {
   return null;
 }
 
+function useWorkCardSpatialNavigation(work: Work, focusKey?: string) {
+  return useSpatialFocusable<object, HTMLAnchorElement>({
+    focusKey,
+    accessibilityLabel: work.arabicTitle || work.installmentTitle || work.title,
+    onEnterPress: () => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLAnchorElement) activeElement.click();
+    },
+    onFocus: ({ node }) => revealSpatialTarget(node),
+  });
+}
+
 /* ----------------------------------------------------------------------- */
 /* Shared building blocks                                                   */
 /* ----------------------------------------------------------------------- */
@@ -62,7 +78,7 @@ function Pill({ className, ...props }: React.ComponentProps<"span">) {
     <span
       data-slot="pill"
       className={cn(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white ring-1 ring-white/15 backdrop-blur-md",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-medium text-white ring-1 ring-white/15",
         className,
       )}
       {...props}
@@ -165,7 +181,11 @@ function TopBadges({ work, mode = "always" }: { work: Work; mode?: "always" | "h
       className={cn(
         "pointer-events-none absolute inset-x-2.5 top-2.5 z-10 flex items-center justify-between",
         mode === "hover" &&
-          cn("opacity-0 transition-opacity duration-400", EASE, "group-hover/card:opacity-100"),
+          cn(
+            "opacity-0 transition-opacity duration-200 motion-reduce:transition-none",
+            EASE,
+            "group-hover/card:opacity-100 group-data-[focused=true]/card:opacity-100",
+          ),
       )}
     >
       {audienceLabel ? <Pill>{audienceLabel}</Pill> : <span />}
@@ -187,9 +207,9 @@ function HoverScrim() {
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-500",
+        "pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-200 motion-reduce:transition-none",
         EASE,
-        "group-hover/card:bg-black/35",
+        "group-hover/card:bg-black/35 group-data-[focused=true]/card:bg-black/35",
       )}
     />
   );
@@ -205,18 +225,18 @@ function PlayGlyph({
 }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-      <Button
-        variant={"outline"}
+      <div
+        aria-hidden="true"
         className={cn(
           circleClassName,
-          "bg-background/40  backdrop-blur-lg border-2 flex scale-50 items-center justify-center rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.35)]",
-          "transition-all duration-500",
+          "flex scale-75 items-center justify-center rounded-full border-2 border-white/70 bg-black/55 text-white shadow-lg",
+          "opacity-0 transition-[transform,opacity] duration-200 motion-reduce:transition-none",
           EASE,
-          "opacity-0 group-hover/card:scale-100 group-hover/card:opacity-100",
+          "group-hover/card:scale-100 group-hover/card:opacity-100 group-data-[focused=true]/card:scale-100 group-data-[focused=true]/card:opacity-100",
         )}
       >
         <PlayIcon weight="fill" className={cn(iconClassName, "translate-x-0")} />
-      </Button>
+      </div>
     </div>
   );
 }
@@ -238,16 +258,28 @@ function FallbackArt({ title, compact = false }: { title: string; compact?: bool
 /* Variants                                                                  */
 /* ----------------------------------------------------------------------- */
 
-function PosterCard({ work, className }: { work: Work; className?: string }) {
+function PosterCard({
+  work,
+  className,
+  spatialFocusKey,
+}: {
+  work: Work;
+  className?: string;
+  spatialFocusKey?: string;
+}) {
   const { displayTitle, parentTitle } = getTitleInfo(work);
+  const { ref, focused } = useWorkCardSpatialNavigation(work, spatialFocusKey);
 
   return (
     <Link
+      ref={ref}
       to="/titles/$titleId"
       params={{ titleId: work.id }}
+      data-spatial-managed
+      data-focused={focused || undefined}
       className={cn(
         "group/card block max-w-100 min-w-0 rounded-2xl outline-none",
-        "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+        "focus-visible:outline-none",
         className,
       )}
     >
@@ -255,9 +287,10 @@ function PosterCard({ work, className }: { work: Work; className?: string }) {
         <div
           className={cn(
             "relative aspect-2/3 transform-gpu overflow-hidden rounded-2xl bg-muted shadow-md shadow-black/20 ring-1 ring-white/10",
-            "transition-all duration-500",
+            "transition-[transform,box-shadow] duration-200 motion-reduce:transform-none motion-reduce:transition-none",
             EASE,
-            "group-hover/card:-translate-y-1 group-hover/card:scale-[1.03] group-hover/card:shadow-2xl group-hover/card:shadow-black/40 group-hover/card:ring-white/25",
+            "group-hover/card:-translate-y-1 group-hover/card:scale-[1.02]",
+            "group-data-[focused=true]/card:-translate-y-1 group-data-[focused=true]/card:scale-[1.025] group-data-[focused=true]/card:ring-[3px] group-data-[focused=true]/card:ring-primary group-data-[focused=true]/card:shadow-xl",
           )}
         >
           {work.imagePath ? (
@@ -266,11 +299,7 @@ function PosterCard({ work, className }: { work: Work; className?: string }) {
               alt=""
               loading="lazy"
               decoding="async"
-              className={cn(
-                "size-full object-cover transition-transform duration-700",
-                EASE,
-                "group-hover/card:scale-110",
-              )}
+              className="size-full object-cover"
             />
           ) : (
             <FallbackArt title={displayTitle} />
@@ -284,7 +313,7 @@ function PosterCard({ work, className }: { work: Work; className?: string }) {
           <TitleBlock
             parentTitle={parentTitle}
             title={displayTitle}
-            titleClassName="group-hover/card:text-primary"
+            titleClassName="group-hover/card:text-primary group-data-[focused=true]/card:text-primary"
           />
           <MetaRow work={work} className="text-muted-foreground" showStudio={false} />
         </div>
@@ -293,17 +322,29 @@ function PosterCard({ work, className }: { work: Work; className?: string }) {
   );
 }
 
-function BannerCard({ work, className }: { work: Work; className?: string }) {
+function BannerCard({
+  work,
+  className,
+  spatialFocusKey,
+}: {
+  work: Work;
+  className?: string;
+  spatialFocusKey?: string;
+}) {
   const { displayTitle, parentTitle } = getTitleInfo(work);
   const artwork = work.bannerPath || work.imagePath;
+  const { ref, focused } = useWorkCardSpatialNavigation(work, spatialFocusKey);
 
   return (
     <Link
+      ref={ref}
       to="/titles/$titleId"
       params={{ titleId: work.id }}
+      data-spatial-managed
+      data-focused={focused || undefined}
       className={cn(
         "group/card block min-w-0 snap-start rounded-2xl outline-none",
-        "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+        "focus-visible:outline-none",
         className,
       )}
     >
@@ -314,9 +355,10 @@ function BannerCard({ work, className }: { work: Work; className?: string }) {
         <div
           className={cn(
             "relative aspect-video transform-gpu overflow-hidden rounded-2xl bg-muted shadow-md shadow-black/20 ring-1 ring-white/10",
-            "transition-all duration-500",
+            "transition-[transform,box-shadow] duration-200 motion-reduce:transform-none motion-reduce:transition-none",
             EASE,
-            "group-hover/card:-translate-y-1 group-hover/card:scale-[1.02] group-hover/card:shadow-2xl group-hover/card:shadow-black/40 group-hover/card:ring-white/25",
+            "group-hover/card:-translate-y-1 group-hover/card:scale-[1.015]",
+            "group-data-[focused=true]/card:-translate-y-1 group-data-[focused=true]/card:scale-[1.02] group-data-[focused=true]/card:ring-[3px] group-data-[focused=true]/card:ring-primary group-data-[focused=true]/card:shadow-xl",
           )}
         >
           {artwork ? (
@@ -325,11 +367,7 @@ function BannerCard({ work, className }: { work: Work; className?: string }) {
               alt=""
               loading="lazy"
               decoding="async"
-              className={cn(
-                "size-full object-cover transition-transform duration-700",
-                EASE,
-                "group-hover/card:scale-110",
-              )}
+              className="size-full object-cover"
             />
           ) : (
             <FallbackArt title={displayTitle} />
@@ -344,7 +382,7 @@ function BannerCard({ work, className }: { work: Work; className?: string }) {
           <TitleBlock
             parentTitle={parentTitle}
             title={displayTitle}
-            titleClassName="group-hover/card:text-primary"
+            titleClassName="group-hover/card:text-primary group-data-[focused=true]/card:text-primary"
           />
           <MetaRow work={work} className="text-muted-foreground" />
         </div>
@@ -353,17 +391,29 @@ function BannerCard({ work, className }: { work: Work; className?: string }) {
   );
 }
 
-function LogoCard({ work, className }: { work: Work; className?: string }) {
+function LogoCard({
+  work,
+  className,
+  spatialFocusKey,
+}: {
+  work: Work;
+  className?: string;
+  spatialFocusKey?: string;
+}) {
   const { displayTitle, parentTitle } = getTitleInfo(work);
   const artwork = work.logoPath || work.imagePath;
+  const { ref, focused } = useWorkCardSpatialNavigation(work, spatialFocusKey);
 
   return (
     <Link
+      ref={ref}
       to="/titles/$titleId"
       params={{ titleId: work.id }}
+      data-spatial-managed
+      data-focused={focused || undefined}
       className={cn(
         "group/card block min-w-0 rounded-xl outline-none",
-        "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+        "focus-visible:outline-none",
         className,
       )}
     >
@@ -371,9 +421,10 @@ function LogoCard({ work, className }: { work: Work; className?: string }) {
         <div
           className={cn(
             "relative aspect-square transform-gpu overflow-hidden rounded-xl bg-muted ring-1 ring-white/10",
-            "transition-all duration-500",
+            "transition-[transform,box-shadow] duration-200 motion-reduce:transform-none motion-reduce:transition-none",
             EASE,
-            "group-hover/card:-translate-y-1 group-hover/card:scale-105 group-hover/card:ring-white/25",
+            "group-hover/card:-translate-y-1 group-hover/card:scale-[1.025]",
+            "group-data-[focused=true]/card:-translate-y-1 group-data-[focused=true]/card:scale-[1.035] group-data-[focused=true]/card:ring-[3px] group-data-[focused=true]/card:ring-primary group-data-[focused=true]/card:shadow-xl",
           )}
         >
           {artwork ? (
@@ -413,16 +464,56 @@ function LogoCard({ work, className }: { work: Work; className?: string }) {
 /* Public API                                                                */
 /* ----------------------------------------------------------------------- */
 
+function SaveOfflineButton({ workId }: { workId: string }) {
+  const queryClient = useQueryClient();
+  const library = useQuery({ queryKey: archiveKeys.library, queryFn: getLibrary });
+  const savedOffline =
+    library.data?.some((item) => item.titleId === workId && item.savedOffline) ?? false;
+  const mutation = useMutation({
+    mutationFn: (next: boolean) => setTitleSavedOffline(workId, next),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: archiveKeys.library }),
+  });
+
+  return (
+    <button
+      type="button"
+      aria-label={savedOffline ? "إزالة الحفظ دون اتصال" : "حفظ دون اتصال"}
+      aria-pressed={savedOffline}
+      disabled={mutation.isPending}
+      onClick={() => mutation.mutate(!savedOffline)}
+      className={cn(
+        "absolute top-3 left-1/2 z-20 flex size-9 -translate-x-1/2 items-center justify-center rounded-full bg-background/90 text-foreground shadow-md ring-1 ring-border backdrop-blur-sm transition",
+        "opacity-0 hover:bg-primary hover:text-primary-foreground group-hover/work-card:opacity-100 group-focus-within/work-card:opacity-100",
+        savedOffline && "text-primary opacity-100",
+      )}
+    >
+      <BookmarkSimpleIcon weight={savedOffline ? "fill" : "regular"} />
+    </button>
+  );
+}
+
 export function WorkCard({
   work,
   className,
   variant = "poster",
+  spatialFocusKey,
 }: {
   work: Work;
   className?: string;
   variant?: "poster" | "banner" | "logo";
+  spatialFocusKey?: string;
 }) {
-  if (variant === "logo") return <LogoCard work={work} className={className} />;
-  if (variant === "banner") return <BannerCard work={work} className={className} />;
-  return <PosterCard work={work} className={className} />;
+  let card = <PosterCard work={work} className={className} spatialFocusKey={spatialFocusKey} />;
+  if (variant === "logo") {
+    card = <LogoCard work={work} className={className} spatialFocusKey={spatialFocusKey} />;
+  } else if (variant === "banner") {
+    card = <BannerCard work={work} className={className} spatialFocusKey={spatialFocusKey} />;
+  }
+
+  return (
+    <div className="group/work-card relative min-w-0">
+      {card}
+      <SaveOfflineButton workId={work.id} />
+    </div>
+  );
 }
