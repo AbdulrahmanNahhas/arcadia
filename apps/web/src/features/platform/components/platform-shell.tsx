@@ -37,12 +37,6 @@ export function PlatformShell({
   const isAdmin = account?.role === "owner" || account?.role === "editor";
   return (
     <div className="platform-surface min-h-svh ">
-      <a
-        href="#main-content"
-        className="fixed inset-s-4 top-2 z-100 -translate-y-20 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:translate-y-0"
-      >
-        انتقل إلى المحتوى
-      </a>
       <header
         data-platform-header
         className={cn(
@@ -53,13 +47,13 @@ export function PlatformShell({
         )}
       >
         <div className="mx-auto flex container! h-14 max-w-400 items-center gap-4 px-6 md:px-3 p-3!">
-          <Link to="/" className="me-2 flex shrink-0 items-center gap-2 font-heading font-semibold">
+          <span className="me-2 flex shrink-0 items-center gap-2 font-heading font-semibold">
             <span className="relative flex size-8 items-center justify-center rounded-full border border-primary/50 text-primary">
               <span className="size-2 rounded-full bg-primary" />
               <span className="absolute h-px w-10 -rotate-20 bg-primary/60" />
             </span>
             <span className=" text-lg block">نحّاسينما</span>
-          </Link>
+          </span>
 
           <nav className="hidden items-center gap-1 lg:flex" aria-label="التنقل الرئيسي">
             <NavLink to="/" active={pathname === "/"} icon={<HouseIcon />}>
