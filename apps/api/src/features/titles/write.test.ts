@@ -162,6 +162,37 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
     expect(aliases.map((row) => row.title)).toContain("An Alias");
   });
 
+  it("round-trips trivia in order and fully replaces it on update", async () => {
+    const title = `Trivia Roundtrip Test ${randomUUID()}`;
+    const response = await postTitle({
+      title,
+      summary: "x",
+      trivia: ["الأصل والقصة: قصة أصلية.", "المكان: مكان خيالي.", "حقيقة بارزة."],
+    });
+    expect(response.status).toBe(201);
+    const { id } = (await response.json()) as { id: string };
+    createdTitleIds.push(id);
+
+    const trivia = await database()
+      .client`select text from title_trivia where title_id=${id} order by position`;
+    expect(trivia.map((row) => row.text)).toEqual([
+      "الأصل والقصة: قصة أصلية.",
+      "المكان: مكان خيالي.",
+      "حقيقة بارزة.",
+    ]);
+
+    const updateResponse = await postTitle({
+      id,
+      title,
+      summary: "x",
+      trivia: ["حقيقة واحدة فقط."],
+    });
+    expect(updateResponse.status).toBe(200);
+    const updatedTrivia = await database()
+      .client`select text from title_trivia where title_id=${id} order by position`;
+    expect(updatedTrivia.map((row) => row.text)).toEqual(["حقيقة واحدة فقط."]);
+  });
+
   it("moves workflow status to approved and stamps a verifier via the legacy curation field", async () => {
     const title = `Curation Test ${randomUUID()}`;
     const response = await postTitle({

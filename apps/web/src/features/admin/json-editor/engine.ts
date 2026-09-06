@@ -23,6 +23,7 @@ export const TITLE_FIELD_MAP = {
   canonicalTitle: "title",
   titleAr: "arabicTitle",
   aliases: "aliases",
+  trivia: "trivia",
   summary: "summary",
   releaseYear: "year",
   isPrivate: "isPrivate",
@@ -91,6 +92,7 @@ export const TITLE_PROJECTION_FIELDS = {
   canonicalTitle: { label: "العنوان الأصلي", group: "هوية العنوان" },
   titleAr: { label: "العنوان العربي", group: "هوية العنوان" },
   aliases: { label: "العناوين البديلة", group: "هوية العنوان" },
+  trivia: { label: "حقائق ومعلومات", group: "هوية العنوان" },
   summary: { label: "الملخص", group: "هوية العنوان" },
   releaseYear: { label: "سنة الإصدار", group: "إعدادات العنوان" },
   isPrivate: { label: "مخفي عن المنصة", group: "إعدادات العنوان" },
@@ -174,7 +176,13 @@ export const PROJECTION_FIELDS: readonly ProjectionField[] = [
 export const PROJECTION_PRESETS = {
   identity: {
     label: "هوية العنوان",
-    fields: ["title.canonicalTitle", "title.titleAr", "title.aliases", "title.summary"],
+    fields: [
+      "title.canonicalTitle",
+      "title.titleAr",
+      "title.aliases",
+      "title.trivia",
+      "title.summary",
+    ],
   },
   essential: {
     label: "الفهرس الأساسي",

@@ -36,6 +36,22 @@ export interface paths {
                         };
                     };
                 };
+                /** @description API is up but the database is not — this must be a non-2xx, or every plain fetch().ok reachability check (the login screen's server-address panel, pingServer in lib/api.ts) reports a broken deployment as healthy just because the process answered HTTP at all. */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            status: "ok" | "degraded";
+                            /** @enum {string} */
+                            database: "ready" | "unavailable";
+                            /** @enum {string} */
+                            version: "v2";
+                        };
+                    };
+                };
             };
         };
         put?: never;
@@ -365,6 +381,7 @@ export interface paths {
                             tvdbId: number | null;
                             anilistId: number | null;
                             malId: number | null;
+                            trivia: string[];
                             installments: {
                                 /** Format: uuid */
                                 id: string;

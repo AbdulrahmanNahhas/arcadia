@@ -324,6 +324,10 @@ export const workSchema = z.object({
   tags: z.array(z.string()),
   genres: z.array(z.string()),
   aliases: z.array(z.string()),
+  /** Ordered list of short Arabic trivia facts ("الأصل والقصة", "المكان", "حقائق بارزة") — see
+   *  `titleDetailSchema.trivia` in `@arcadia/contracts`. Rendered as a plain list on the title
+   *  page, distinct from `contentWarnings`/`analysisNotes`. */
+  trivia: z.array(z.string()).default([]),
   studios: z.array(z.string()),
   audience: audienceSchema.nullable(),
   sharedWith: z.array(z.string()),

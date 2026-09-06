@@ -143,6 +143,22 @@ export const adminFieldRegistry: readonly AdminFieldMeta[] = [
     zodPath: ["aliases"],
   },
   {
+    path: "title.trivia",
+    entity: "title",
+    tab: "identity",
+    labelAr: "حقائق ومعلومات",
+    labelEn: "Trivia",
+    kind: "tags",
+    required: false,
+    nullable: false,
+    purpose:
+      "Ordered list of short Arabic facts about the title's origin, setting, and production (e.g. \"الأصل والقصة\", \"المكان\", \"حقائق بارزة\") shown on the title page, distinct from content warnings/analysis notes.",
+    example: ["الأصل والقصة: قصة أصلية كتبها هاياو ميازاكي.", "المكان: ريف ويلز في بريطانيا."],
+    jsonCreatable: true,
+    bulk: "none",
+    zodPath: ["trivia"],
+  },
+  {
     path: "title.summary",
     entity: "title",
     tab: "identity",

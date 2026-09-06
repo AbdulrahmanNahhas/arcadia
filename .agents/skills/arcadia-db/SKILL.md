@@ -114,7 +114,7 @@ the CLI reconciles the database to it in a single transaction.
 ./bin/arcadia work export Arcane --json > arcane.json               # round-trips with apply
 ```
 
-The document covers the title, its classification, aliases, genres/tones/tags/countries,
+The document covers the title, its classification, aliases, trivia, genres/tones/tags/countries,
 planets, credits, external ids, relations, media, installments, episodes, scores, and awards.
 Fields you omit are left alone.
 
