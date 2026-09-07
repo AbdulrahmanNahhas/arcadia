@@ -109,6 +109,7 @@ import { ContributionField } from "./fields/credit-field";
 import { Field } from "./fields/field";
 import type { RiskLevel } from "./fields/risk-select";
 import { RiskSelect } from "./fields/risk-select";
+import { TriviaField } from "./fields/trivia-field";
 import { InstallmentScoreDesk } from "./installment-score-desk";
 import { RelationshipEditor } from "./relationship";
 
@@ -635,6 +636,11 @@ function WorkEditorFormFields({
               label="العناوين البديلة"
               value={draft.aliases}
               onChange={(aliases: string[]) => setDraft({ ...draft, aliases })}
+            />
+
+            <TriviaField
+              value={draft.trivia}
+              onChange={(trivia: string[]) => setDraft({ ...draft, trivia })}
             />
 
             <Field label="الملخص" wide>
@@ -1224,6 +1230,7 @@ function JsonWorkDialog({ work }: { work: Work }) {
       canonicalTitle: work.title,
       titleAr: work.arabicTitle,
       aliases: work.aliases,
+      trivia: work.trivia,
       summary: work.summary,
       releaseYear: work.year,
       isPrivate: work.isPrivate,

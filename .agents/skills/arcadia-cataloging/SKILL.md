@@ -193,6 +193,24 @@ Calibrate against neighbours before writing:
 
 - **`summary`** — Arabic, three to five sentences: premise and central conflict, no spoilers for
   late developments.
+- **`trivia`** — an ordered list of short Arabic facts about the title's origin, setting, and
+  production, shown as a plain list on the title page (distinct from `contentWarnings`/
+  `analysisNotes`, which are cautionary/judgement fields, not trivia). Optional — leave it empty
+  rather than padding it. When you do have material, house style is three kinds of fact, in this
+  order:
+  1. **origin/story** — where the story came from: original, or adapted from a named book/manga
+     and its author.
+  2. **place** — the real-world place or period that inspired the setting, if any.
+  3. **notable facts** — any number of standalone production/reception facts (casting trivia,
+     records set, connections to other works, production hardships).
+
+  > Castle in the Sky: `الأصل والقصة: قصة أصلية كتبها هاياو ميازاكي، مستلهمة من جزيرة "لابوتا" الطائرة في كتاب رحلات جاليفر لجوناثان سويفت.`, `المكان: عالم خيالي مستوحى من مناجم وقرى ويلز في بريطانيا إبان الثورة الصناعية.`, `أول فيلم يُنتج رسمياً تحت اسم "استوديو جيبلي".`
+
+  Each fact is its own array entry (own row in `title_trivia`), in display order.
+  `./bin/arcadia work apply`'s usual `--mode` rule applies: `--mode replace` makes the document's
+  array the whole list (anything already there and not repeated is dropped); the default
+  `--mode merge` only appends the given facts after whatever is already there — reorder or edit
+  existing ones with `--mode replace` and the full list, not merge.
 - **`planets`** — the browse universes (`adventure-fantasy`, `emerald`, `bonbon`, `action`,
   `future-technology`, `comedy-fun`, `darkness-mystery`, `history-knowledge`,
   `sports-challenge`). Most titles get exactly one. `./bin/arcadia planet list`.

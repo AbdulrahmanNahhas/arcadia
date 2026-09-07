@@ -22,6 +22,7 @@ export type LegacyTitleWritePayload = Partial<{
   audience: string | null;
   riskProfile: Partial<Record<"sexuality" | "behavioral" | "theology", string>> | null;
   aliases: string[];
+  trivia: string[];
   genres: string[];
   tone: string[];
   tags: string[];
@@ -170,6 +171,7 @@ export function legacyTitleInputToCanonical(
     verifiedAt,
 
     aliases: raw.aliases ?? [],
+    trivia: raw.trivia ?? [],
     genres: raw.genres ?? [],
     tones: raw.tone ?? [],
     tags: raw.tags ?? [],
@@ -293,6 +295,16 @@ export async function applyTitleWrite(
   }
   for (const alias of aliases.values())
     await sql`insert into title_aliases (title_id, title) values (${id}, ${alias}) on conflict do nothing`;
+
+  // Order matters here (unlike aliases, which are deduped/sorted) — a fact's position in the
+  // list is meaningful ("الأصل والقصة" first, "المكان" second, then any "حقائق بارزة"), so this
+  // is a straight delete-and-reinsert-in-order rather than a dedup-by-value Map.
+  await sql`delete from title_trivia where title_id=${id}`;
+  for (const [position, value] of input.trivia.entries()) {
+    const text = value.trim();
+    if (text)
+      await sql`insert into title_trivia (title_id, position, text) values (${id}, ${position}, ${text})`;
+  }
 
   const taxonomies = [
     ["genres", "title_genres", input.genres],

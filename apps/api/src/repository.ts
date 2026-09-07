@@ -569,7 +569,7 @@ export async function titleDetail(
       };
     }),
   );
-  const [relationships, credits, externalIdentities] = await Promise.all([
+  const [relationships, credits, externalIdentities, trivia] = await Promise.all([
     sql`select r.id, r.kind as type, r.notes, r.source_title_id,
       other.id as title_id, other.canonical_title as title
       from title_relations r
@@ -581,6 +581,7 @@ export async function titleDetail(
       where c.title_id=${titleId} order by c.position`,
     sql`select id, provider, external_id, url from external_identities
       where title_id=${titleId} order by provider, external_id`,
+    sql`select text from title_trivia where title_id=${titleId} order by position`,
   ]);
   const visibleRelationshipIds = accountId
     ? await visibleTitleIdsForAccount(
@@ -595,6 +596,7 @@ export async function titleDetail(
     tvdbId: numeric(row.tvdb_id),
     anilistId: numeric(row.anilist_id),
     malId: numeric(row.mal_id),
+    trivia: trivia.map((item) => String(item.text)),
     installments: installmentRows,
     relationships: relationships
       .filter(

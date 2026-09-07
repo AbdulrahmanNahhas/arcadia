@@ -72,13 +72,13 @@ export function PlatformShell({
         )}
       >
         <div className="mx-auto flex container! h-14 max-w-400 items-center gap-4 px-6 md:px-3 p-3!">
-          <div className="me-2 flex shrink-0 items-center gap-2 font-heading font-semibold">
+          <span className="me-2 flex shrink-0 items-center gap-2 font-heading font-semibold">
             <span className="relative flex size-8 items-center justify-center rounded-full border border-primary/50 text-primary">
               <span className="size-2 rounded-full bg-primary" />
               <span className="absolute h-px w-10 -rotate-20 bg-primary/60" />
             </span>
             <span className=" text-lg block">نحّاسينما</span>
-          </div>
+          </span>
 
           <nav className="hidden items-center gap-1 lg:flex" aria-label="التنقل الرئيسي">
             <NavLink to="/" active={pathname === "/"} icon={<HouseIcon />}>

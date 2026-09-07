@@ -381,6 +381,7 @@ export interface paths {
                             tvdbId: number | null;
                             anilistId: number | null;
                             malId: number | null;
+                            trivia: string[];
                             installments: {
                                 /** Format: uuid */
                                 id: string;

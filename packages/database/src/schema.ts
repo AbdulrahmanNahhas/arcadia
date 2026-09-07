@@ -160,6 +160,30 @@ export const titleAliases = pgTable(
   ],
 );
 
+/**
+ * Reader-facing trivia: an ordered list of short Arabic facts about a title's origin,
+ * setting, and production ("الأصل والقصة", "المكان", "حقائق بارزة" — house style documented in
+ * the arcadia-cataloging skill), rendered as a plain list on the title page. Deliberately a
+ * child table rather than a jsonb array — same shape as `titleAliases` — so each fact is its own
+ * ordered, individually editable row.
+ */
+export const titleTrivia = pgTable(
+  "title_trivia",
+  {
+    ...id,
+    titleId: uuid("title_id")
+      .notNull()
+      .references(() => titles.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    text: text("text").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("title_trivia_title_position_uq").on(t.titleId, t.position),
+    check("title_trivia_values_check", sql`btrim(${t.text}) <> ''`),
+  ],
+);
+
 export const installments = pgTable(
   "installments",
   {
@@ -1459,6 +1483,7 @@ export const jellyfinItems = pgTable(
 export const titlesRelations = relations(titles, ({ many }) => ({
   installments: many(installments),
   aliases: many(titleAliases),
+  trivia: many(titleTrivia),
   awards: many(awardRecognitions),
 }));
 export const installmentsRelations = relations(installments, ({ one, many }) => ({

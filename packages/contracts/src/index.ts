@@ -154,6 +154,10 @@ export const titleSummarySchema = z.object({
 });
 export const titleDetailSchema = titleSummarySchema.extend({
   ...externalIdFieldsSchema.shape,
+  /** Ordered list of short Arabic facts about the title's origin, setting, and production
+   *  ("الأصل والقصة", "المكان", "حقائق بارزة") — see the arcadia-cataloging skill. Rendered as a
+   *  plain list on the title page, distinct from `contentWarnings`/`analysisNotes`. */
+  trivia: z.array(z.string()),
   installments: z.array(installmentSchema),
   relationships: z.array(
     z.object({

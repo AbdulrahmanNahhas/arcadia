@@ -173,6 +173,10 @@ export const adminTitleInputSchema = z.object({
   verifiedAt: z.string().datetime().nullable().default(null),
 
   aliases: z.array(z.string().trim().min(1)).default([]),
+  /** Ordered list of short Arabic trivia facts ("الأصل والقصة", "المكان", "حقائق بارزة") — see
+   *  `titleDetailSchema.trivia` in `./index.ts`. Order is preserved; the write path fully
+   *  replaces the list, like `aliases`. */
+  trivia: z.array(z.string().trim().min(1)).default([]),
   genres: openVocabularyArray,
   tones: openVocabularyArray,
   tags: openVocabularyArray,

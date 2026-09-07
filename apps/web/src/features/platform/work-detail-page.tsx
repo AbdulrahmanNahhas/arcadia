@@ -10,6 +10,7 @@ import {
   FilmStripIcon,
   HeartIcon,
   InfoIcon,
+  LightbulbIcon,
   PlayIcon,
   RowsIcon,
   StarIcon,
@@ -1077,6 +1078,28 @@ function OverviewSection({
               </AlertDescription>
             </Alert>
           )}
+        </section>
+      )}
+
+      {work.trivia.length > 0 && (
+        <section>
+          <Subsection
+            title="حقائق ومعلومات"
+            description="خلفية العمل ومصدره وأبرز حقائق إنتاجه."
+          />
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {work.trivia.map((fact, index) => (
+              <li
+                // biome-ignore lint/suspicious/noArrayIndexKey: facts are free text with no
+                // domain id of their own, and can repeat in principle.
+                key={index}
+                className="flex gap-3 rounded-lg border border-border/40 bg-muted/20 p-4 text-sm leading-7 text-foreground/80"
+              >
+                <LightbulbIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <span>{fact}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

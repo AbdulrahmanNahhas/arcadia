@@ -1,6 +1,6 @@
 {
-  "id": "a839ed1f-b29b-4190-a942-ea820a4ba39d",
-  "prevId": "5dd9e18b-26a4-467b-842e-8b919abdf308",
+  "id": "baccd82d-fc20-415f-a0d0-3c12baba90a8",
+  "prevId": "05ae22fd-6020-488e-9cea-d311d7a4257d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -566,7 +566,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'orbit-1'"
+          "default": "'avatar-1.png'"
         },
         "capabilities": {
           "name": "capabilities",
@@ -1465,7 +1465,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'orbit-1'"
+          "default": "'avatar-1.png'"
         },
         "bio": {
           "name": "bio",
@@ -1491,12 +1491,6 @@
         "last_seen_at": {
           "name": "last_seen_at",
           "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pin_hash": {
-          "name": "pin_hash",
-          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -1565,12 +1559,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "accounts_avatar_key_check": {
-          "name": "accounts_avatar_key_check",
-          "value": "\"accounts\".\"avatar_key\" in ('orbit-1','orbit-2','orbit-3','orbit-4','orbit-5')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.audit_logs": {

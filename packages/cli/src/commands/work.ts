@@ -1,9 +1,9 @@
 /**
  * `arcadia work apply` / `arcadia work export` — whole-work editing as a single document.
  *
- * Creating a title the granular way means a dozen ordered commands across eight tables
- * (title, aliases, genres/tones/tags/countries, planet, credits, installments, episodes,
- * scores, awards, media) with UUIDs threaded between them. This command takes one JSON
+ * Creating a title the granular way means a dozen ordered commands across nine tables
+ * (title, aliases, trivia, genres/tones/tags/countries, planet, credits, installments,
+ * episodes, scores, awards, media) with UUIDs threaded between them. This command takes one JSON
  * document describing the finished state and reconciles the database to it inside one
  * transaction, so a partial failure leaves nothing behind.
  *
@@ -128,6 +128,10 @@ export const workDocument = z.object({
   anilistId: z.number().int().positive().nullable().optional(),
   malId: z.number().int().positive().nullable().optional(),
   aliases: z.array(z.string().min(1)).optional(),
+  // Ordered — unlike `aliases`, position is meaningful (see the arcadia-cataloging skill's
+  // "الأصل والقصة" / "المكان" / "حقائق بارزة" convention). Applying replaces the whole list, in
+  // the order given.
+  trivia: z.array(z.string().min(1)).optional(),
   genres: z.array(z.string().min(1)).optional(),
   tones: z.array(z.string().min(1)).optional(),
   tags: z.array(z.string().min(1)).optional(),
@@ -803,6 +807,31 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
       }
     }
 
+    // Same `mode` convention as `syncLookup`'s vocabulary lists: `replace` makes the document's
+    // array the complete, authoritative order; `merge` only appends the given facts (after
+    // whatever positions already exist) without touching or reordering existing ones — there's
+    // no id to merge entries against, so "append" is the closest analogue to "add without
+    // removing".
+    if (document.trivia) {
+      if (mode === "replace") {
+        await transaction.unsafe(
+          `delete from title_trivia where title_id = $1`,
+          parameters([titleId]),
+        );
+      }
+      const [row] = await transaction.unsafe<Array<{ next_position: number }>>(
+        `select coalesce(max(position) + 1, 0) as next_position from title_trivia where title_id = $1`,
+        parameters([titleId]),
+      );
+      const nextPosition = row ? Number(row.next_position) : 0;
+      for (const [offset, text] of document.trivia.entries()) {
+        await transaction.unsafe(
+          `insert into title_trivia (title_id, position, text) values ($1, $2, $3)`,
+          [titleId, nextPosition + offset, text],
+        );
+      }
+    }
+
     for (const name of ["genres", "tones", "tags", "countries"] as const) {
       const values = document[name];
       if (values) await syncLookup(transaction, titleId, name, values, mode, createMissing);
@@ -931,6 +960,7 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
 
   const [
     aliases,
+    trivia,
     genres,
     tones,
     tags,
@@ -946,6 +976,9 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
     sql<
       Array<{ title: string }>
     >`select title from title_aliases where title_id = ${titleId} order by title`,
+    sql<
+      Array<{ text: string }>
+    >`select text from title_trivia where title_id = ${titleId} order by position`,
     sql<
       Array<{ slug: string }>
     >`select g.slug from title_genres j join genres g on g.id = j.value_id where j.title_id = ${titleId} order by g.slug`,
@@ -1028,6 +1061,7 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
     anilistId: number(title.anilist_id),
     malId: number(title.mal_id),
     aliases: aliases.map((row) => row.title),
+    trivia: trivia.map((row) => row.text),
     genres: genres.map((row) => row.slug),
     tones: tones.map((row) => row.slug),
     tags: tags.map((row) => row.slug),
@@ -1118,6 +1152,7 @@ export function workTemplate(): WorkDocument {
     behavioralRisk: "low",
     theologyRisk: "none",
     aliases: ["Alternate Title"],
+    trivia: ["الأصل والقصة: قصة أصلية.", "المكان: مكان خيالي مستوحى من واقع معيّن."],
     genres: ["adventure"],
     tones: ["heartwarming"],
     tags: [],

@@ -1,5 +1,5 @@
 {
-  "id": "a839ed1f-b29b-4190-a942-ea820a4ba39d",
+  "id": "5dd9e18b-26a4-467b-842e-8b919abdf308",
   "prevId": "4a0d6faa-b08f-4cd3-a530-f9ea763da6b9",
   "version": "7",
   "dialect": "postgresql",
@@ -1491,12 +1491,6 @@
         "last_seen_at": {
           "name": "last_seen_at",
           "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pin_hash": {
-          "name": "pin_hash",
-          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -7397,6 +7391,99 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.title_trivia": {
+      "name": "title_trivia",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "title_id": {
+          "name": "title_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "title_trivia_title_position_uq": {
+          "name": "title_trivia_title_position_uq",
+          "columns": [
+            {
+              "expression": "title_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "title_trivia_title_id_titles_id_fk": {
+          "name": "title_trivia_title_id_titles_id_fk",
+          "tableFrom": "title_trivia",
+          "tableTo": "titles",
+          "columnsFrom": [
+            "title_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "title_trivia_values_check": {
+          "name": "title_trivia_values_check",
+          "value": "btrim(\"title_trivia\".\"text\") <> ''"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.titles": {
