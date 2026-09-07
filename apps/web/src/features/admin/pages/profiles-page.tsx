@@ -16,7 +16,6 @@ import {
   accountStatusLabels,
   ageOptions,
   audienceOptions,
-  avatarLabels,
   riskOptions,
 } from "@arcadia/i18n";
 import {
@@ -53,6 +52,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccountAvatar } from "@/features/accounts/account-avatar";
+import { avatarAssets } from "@/features/accounts/avatar-catalog";
 import {
   accountKeys,
   createAccountInvite,
@@ -67,16 +67,14 @@ import { AdminPageHeader } from "../components/admin-page-header";
 // SAFETY: `accountCapabilityLabels` is keyed by every `AccountCapability`, so `Object.keys`
 // always returns exactly that set.
 const allCapabilities = Object.keys(accountCapabilityLabels) as AccountCapability[];
-// SAFETY: `avatarLabels` is keyed by every `AvatarKey`, so `Object.keys` always returns exactly
-// that set.
-const avatarKeys = Object.keys(avatarLabels) as AvatarKey[];
+const defaultAvatarKey = avatarAssets[0]?.key ?? "avatar-1.png";
 const createDefaults: CreateAccountInput = {
   username: "",
   password: "",
   displayName: "",
   kind: "personal",
   role: "member",
-  avatarKey: "orbit-2",
+  avatarKey: defaultAvatarKey,
   capabilities: ["catalog.view"],
 };
 
@@ -695,22 +693,18 @@ function AvatarPicker({
   return (
     <Field>
       <FieldLabel>صورة الحساب</FieldLabel>
-      <div className="grid grid-cols-5 gap-2">
-        {avatarKeys.map((avatarKey) => (
+      <div className="grid max-h-80 grid-cols-5 gap-2 overflow-y-auto p-1">
+        {avatarAssets.map((avatar) => (
           <button
-            key={avatarKey}
+            key={avatar.key}
             type="button"
-            onClick={() => onChange(avatarKey)}
+            onClick={() => onChange(avatar.key)}
             className={cn(
               "rounded-xl border p-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-              avatarKey === value && "border-primary bg-primary/8",
+              avatar.key === value && "border-primary bg-primary/8",
             )}
           >
-            <AccountAvatar
-              avatarKey={avatarKey}
-              label={avatarLabels[avatarKey]}
-              className="mx-auto"
-            />
+            <AccountAvatar avatarKey={avatar.key} label={avatar.label} className="mx-auto" />
           </button>
         ))}
       </div>

@@ -1,6 +1,6 @@
 import type { AccountPreferences, AvatarKey } from "@arcadia/contracts";
 import type { Classification } from "@arcadia/domain";
-import { ageOptions, ar, audienceOptions, avatarLabels, riskOptions } from "@arcadia/i18n";
+import { ageOptions, ar, audienceOptions, riskOptions } from "@arcadia/i18n";
 import {
   ArrowCounterClockwiseIcon,
   BellIcon,
@@ -14,6 +14,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -38,6 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AccountAvatar } from "@/features/accounts/account-avatar";
+import { avatarAssets } from "@/features/accounts/avatar-catalog";
 import { accountKeys, updateCurrentAccount, useCurrentAccount } from "@/features/accounts/api";
 import { PlatformShell } from "@/features/platform/components/platform-shell";
 import { cn } from "@/lib/utils";
@@ -49,8 +51,6 @@ type SettingsDraft = {
   preferences: AccountPreferences;
   contentPolicy: Classification;
 };
-
-const avatarKeys = Object.keys(avatarLabels) as AvatarKey[];
 
 export function SettingsPage() {
   const queryClient = useQueryClient();
@@ -214,28 +214,32 @@ export function SettingsPage() {
               className="mt-6"
               icon={<PaletteIcon size={19} weight="duotone" />}
               title="صورتك"
-              description="اختر واحدة من هويات أركاديا الخمس."
+              description="اختر الصورة التي تمثّلك. تظهر كل الصور المتاحة على هذا الجهاز."
             >
-              <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-                {avatarKeys.map((avatarKey) => {
-                  const selected = draft.avatarKey === avatarKey;
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-8">
+                {avatarAssets.map((avatar) => {
+                  const selected = draft.avatarKey === avatar.key;
                   return (
                     <button
-                      key={avatarKey}
+                      key={avatar.key}
                       type="button"
                       aria-pressed={selected}
-                      onClick={() => setDraft((current) => current && { ...current, avatarKey })}
+                      onClick={() =>
+                        setDraft((current) =>
+                          current ? { ...current, avatarKey: avatar.key } : current,
+                        )
+                      }
                       className={cn(
                         "rounded-2xl border p-3 outline-none transition hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50",
                         selected ? "border-primary bg-primary/8" : "border-border/60",
                       )}
                     >
                       <AccountAvatar
-                        avatarKey={avatarKey}
-                        label={avatarLabels[avatarKey]}
+                        avatarKey={avatar.key}
+                        label={avatar.label}
                         className="mx-auto size-16"
                       />
-                      <span className="mt-2 block text-xs">{avatarLabels[avatarKey]}</span>
+                      <span className="mt-2 block truncate text-xs">{avatar.label}</span>
                     </button>
                   );
                 })}
@@ -249,6 +253,17 @@ export function SettingsPage() {
               title="حدود المحتوى التي تختارها"
               description="يمكنك جعل تجربتك أكثر تحفظاً. قواعد العائلة الوقائية تعمل تلقائياً ولا تكشف تفاصيلها."
             >
+              {data?.contentRestricted && (
+                <Alert className="mb-5 rounded-2xl border-primary/20 bg-primary/5">
+                  <ShieldCheckIcon size={17} weight="duotone" />
+                  <AlertTitle className="text-sm">بعض الحدود مضبوطة من العائلة</AlertTitle>
+                  <AlertDescription className="text-xs leading-5">
+                    أحد أفراد العائلة ممّن يملكون صلاحية الإدارة ضبط حداً أكثر تحفظاً مما تراه هنا، وهو
+                    ما يُطبَّق فعلياً بصرف النظر عمّا تختاره في الأسفل. إن أردت تغييره، تحدّث مع ذلك الفرد
+                    ليعدّله من لوحة إدارة الحسابات.
+                  </AlertDescription>
+                </Alert>
+              )}
               <FieldGroup>
                 <PolicySelect
                   label="الجمهور الأقصى"
