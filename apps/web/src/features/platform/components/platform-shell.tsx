@@ -3,14 +3,25 @@ import {
   BooksIcon,
   BuildingsIcon,
   DatabaseIcon,
+  GearSixIcon,
   HouseIcon,
   PlanetIcon,
   ScalesIcon,
+  SignOutIcon,
   TrophyIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -21,8 +32,15 @@ import {
 } from "@/components/ui/navigation-menu";
 import { AccountAvatar } from "@/features/accounts/account-avatar";
 import { useCurrentAccount } from "@/features/accounts/api";
+import { rememberDeviceProfile } from "@/features/accounts/device-profiles";
+import { signOut as clearSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "./global-search";
+
+async function signOut() {
+  await clearSession();
+  window.location.assign("/login");
+}
 
 export function PlatformShell({
   children,
@@ -32,17 +50,18 @@ export function PlatformShell({
   immersive?: boolean;
 }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const [exploreMenu, setExploreMenu] = useState<string | null>(null);
+  const headerActions = useRef<HTMLDivElement>(null);
   const { data } = useCurrentAccount();
   const account = data?.account;
   const isAdmin = account?.role === "owner" || account?.role === "editor";
+
+  useEffect(() => {
+    if (account) rememberDeviceProfile(account, window.localStorage);
+  }, [account]);
+
   return (
     <div className="platform-surface min-h-svh ">
-      <a
-        href="#main-content"
-        className="fixed inset-s-4 top-2 z-100 -translate-y-20 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:translate-y-0"
-      >
-        انتقل إلى المحتوى
-      </a>
       <header
         data-platform-header
         className={cn(
@@ -53,13 +72,13 @@ export function PlatformShell({
         )}
       >
         <div className="mx-auto flex container! h-14 max-w-400 items-center gap-4 px-6 md:px-3 p-3!">
-          <Link to="/" className="me-2 flex shrink-0 items-center gap-2 font-heading font-semibold">
+          <div className="me-2 flex shrink-0 items-center gap-2 font-heading font-semibold">
             <span className="relative flex size-8 items-center justify-center rounded-full border border-primary/50 text-primary">
               <span className="size-2 rounded-full bg-primary" />
               <span className="absolute h-px w-10 -rotate-20 bg-primary/60" />
             </span>
             <span className=" text-lg block">نحّاسينما</span>
-          </Link>
+          </div>
 
           <nav className="hidden items-center gap-1 lg:flex" aria-label="التنقل الرئيسي">
             <NavLink to="/" active={pathname === "/"} icon={<HouseIcon />}>
@@ -73,13 +92,28 @@ export function PlatformShell({
             </NavLink>
 
             {/* Shadcn Navigation Menu Replacement */}
-            <NavigationMenu align="center">
+            <NavigationMenu
+              align="center"
+              value={exploreMenu}
+              onValueChange={(value) => setExploreMenu(value)}
+            >
               <NavigationMenuList>
-                <NavigationMenuItem>
+                <NavigationMenuItem value="explore">
                   <NavigationMenuTrigger className="h-9 gap-1.5 rounded-2xl bg-transparent px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent/50 data-[state=open]:text-foreground">
                     <span>استكشف</span>
                   </NavigationMenuTrigger>
-                  <NavigationMenuContent className={"p-0!"}>
+                  <NavigationMenuContent
+                    data-spatial-navigation="off"
+                    onKeyDownCapture={(event) => {
+                      if (event.key !== "ArrowLeft") return;
+                      event.preventDefault();
+                      setExploreMenu(null);
+                      window.requestAnimationFrame(() =>
+                        headerActions.current?.querySelector<HTMLElement>("button")?.focus(),
+                      );
+                    }}
+                    className="p-0!"
+                  >
                     <ul className="grid w-[320px] gap-1 p-2 md:w-110 md:grid-cols-2 dir-rtl">
                       <li>
                         <NavigationMenuLink
@@ -181,24 +215,77 @@ export function PlatformShell({
             </NavigationMenu>
           </nav>
 
-          <div className="ms-auto flex items-center gap-2">
+          <div ref={headerActions} data-header-actions className="ms-auto flex items-center gap-2">
             <GlobalSearch />
 
-            <Link
-              to={isAdmin ? "/admin" : "/accounts"}
-              className="rounded-full outline-none transition hover:scale-105 focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              {account ? (
-                <AccountAvatar
-                  avatarKey={account.avatarKey}
-                  label={`حساب ${account.displayName}`}
-                  className="size-9"
-                />
-              ) : (
-                <span className="block size-9 rounded-full bg-muted" />
-              )}
-              <span className="sr-only">{isAdmin ? "لوحة الإدارة" : "اختيار الملف"}</span>
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className="rounded-full outline-none transition hover:scale-105 focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                }
+              >
+                {account ? (
+                  <AccountAvatar
+                    avatarKey={account.avatarKey}
+                    label={`حساب ${account.displayName}`}
+                    className="size-9"
+                  />
+                ) : (
+                  <span className="block size-9 rounded-full bg-muted" />
+                )}
+                <span className="sr-only">الملف والحساب</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                {account ? (
+                  <>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel className="flex items-center gap-3">
+                        <AccountAvatar avatarKey={account.avatarKey} label="" className="size-9" />
+                        <span className="min-w-0">
+                          <strong className="block truncate text-sm text-foreground">
+                            {account.displayName}
+                          </strong>
+                          <span className="block truncate font-mono text-[10px]" dir="ltr">
+                            @{account.username}
+                          </span>
+                        </span>
+                      </DropdownMenuLabel>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                  </>
+                ) : null}
+                <DropdownMenuGroup>
+                  <DropdownMenuItem render={<Link to="/archive" />}>
+                    <BookmarkIcon />
+                    مساحتي
+                  </DropdownMenuItem>
+                  <DropdownMenuItem render={<Link to="/accounts" />}>
+                    <UsersIcon />
+                    ملفي وحدود المحتوى
+                  </DropdownMenuItem>
+                  <DropdownMenuItem render={<Link to="/settings" />}>
+                    <GearSixIcon />
+                    الإعدادات
+                  </DropdownMenuItem>
+                  {isAdmin ? (
+                    <DropdownMenuItem render={<Link to="/admin" />}>
+                      <DatabaseIcon />
+                      الإدارة
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem variant="destructive" onClick={() => void signOut()}>
+                    <SignOutIcon />
+                    تسجيل الخروج
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
