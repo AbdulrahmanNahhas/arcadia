@@ -39,8 +39,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AccountAvatar } from "@/features/accounts/account-avatar";
-import { avatarAssets } from "@/features/accounts/avatar-catalog";
 import { accountKeys, updateCurrentAccount, useCurrentAccount } from "@/features/accounts/api";
+import { avatarAssets } from "@/features/accounts/avatar-catalog";
 import { PlatformShell } from "@/features/platform/components/platform-shell";
 import { cn } from "@/lib/utils";
 

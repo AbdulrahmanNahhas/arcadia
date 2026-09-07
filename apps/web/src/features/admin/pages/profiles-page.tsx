@@ -52,7 +52,6 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccountAvatar } from "@/features/accounts/account-avatar";
-import { avatarAssets } from "@/features/accounts/avatar-catalog";
 import {
   accountKeys,
   createAccountInvite,
@@ -61,6 +60,7 @@ import {
   getAdminAccounts,
   updateAdminAccount,
 } from "@/features/accounts/api";
+import { avatarAssets } from "@/features/accounts/avatar-catalog";
 import { cn } from "@/lib/utils";
 import { AdminPageHeader } from "../components/admin-page-header";
 
