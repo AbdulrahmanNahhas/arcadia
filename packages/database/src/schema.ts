@@ -763,7 +763,7 @@ export const accounts = pgTable(
     status: accountStatusEnum("status").notNull().default("invited"),
     slug: text("slug"),
     displayName: text("display_name").notNull(),
-    avatarKey: text("avatar_key").notNull().default("orbit-1"),
+    avatarKey: text("avatar_key").notNull().default("avatar-1.png"),
     bio: text("bio").notNull().default(""),
     isDiscoverable: boolean("is_discoverable").notNull().default(true),
     invitedAt: timestamp("invited_at", { withTimezone: true }).notNull().defaultNow(),
@@ -773,10 +773,6 @@ export const accounts = pgTable(
   (t) => [
     uniqueIndex("accounts_auth_user_uq").on(t.authUserId),
     uniqueIndex("accounts_slug_uq").on(t.slug),
-    check(
-      "accounts_avatar_key_check",
-      sql`${t.avatarKey} in ('orbit-1','orbit-2','orbit-3','orbit-4','orbit-5')`,
-    ),
   ],
 );
 export const accountCapabilities = pgTable(
@@ -805,7 +801,7 @@ export const accountInvites = pgTable(
     username: text("username").notNull(),
     kind: accountKindEnum("kind").notNull(),
     role: text("role").notNull().default("member"),
-    avatarKey: text("avatar_key").notNull().default("orbit-1"),
+    avatarKey: text("avatar_key").notNull().default("avatar-1.png"),
     capabilities: text("capabilities").array().notNull().default(sql`ARRAY[]::text[]`),
     createdByAccountId: uuid("created_by_account_id")
       .notNull()

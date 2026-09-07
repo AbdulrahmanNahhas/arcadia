@@ -162,6 +162,27 @@
       "when": 1788508626708,
       "tag": "0022_charming_rogue",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788689059975,
+      "tag": "0023_melted_mongu",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788692280296,
+      "tag": "0024_busy_lord_tyger",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788698794638,
+      "tag": "0025_unique_nova",
+      "breakpoints": true
     }
   ]
 }
