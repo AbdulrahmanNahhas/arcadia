@@ -1,8 +1,10 @@
 import {
   BuildingsIcon,
+  ClockCounterClockwiseIcon,
   FilmStripIcon,
   MagnifyingGlassIcon,
   PlanetIcon,
+  TrashIcon,
   UserIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -20,18 +22,27 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
-import type { Entity } from "@/features/library/model";
+import { useCurrentAccount } from "@/features/accounts/api";
 import type { CatalogSearchResult } from "@/features/platform/model";
-import { getEntities } from "@/server/library.functions";
+import {
+  clearRecentSearches,
+  readRecentSearches,
+  rememberRecentSearch,
+  removeRecentSearch,
+} from "@/features/platform/recent-searches";
 import { searchPlatformCatalog } from "@/server/platform.functions";
-import { EntityDialog } from "./entity-dialog";
 
 export function GlobalSearch() {
   const navigate = useNavigate();
+  const accountId = useCurrentAccount().data?.account.id;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [settledQuery, setSettledQuery] = useState("");
-  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
+  const [recentState, setRecentState] = useState<{
+    accountId: string | undefined;
+    searches: string[];
+  }>({ accountId: undefined, searches: [] });
+  const recentSearches = recentState.accountId === accountId ? recentState.searches : [];
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSettledQuery(query), 120);
@@ -42,22 +53,33 @@ export function GlobalSearch() {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "k") {
         event.preventDefault();
+        if (accountId) {
+          setRecentState({
+            accountId,
+            searches: readRecentSearches(accountId, window.localStorage),
+          });
+        }
         setOpen((value) => !value);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [accountId]);
 
   const results = useQuery({
     queryKey: ["platform-search", settledQuery],
     queryFn: () => searchPlatformCatalog({ data: { query: settledQuery, limit: 32 } }),
     enabled: settledQuery.trim().length > 0,
   });
-  const entities = useQuery({ queryKey: ["entities"], queryFn: () => getEntities() });
   const grouped = useMemo(() => groupResults(results.data ?? []), [results.data]);
 
   function select(result: CatalogSearchResult) {
+    if (accountId) {
+      setRecentState({
+        accountId,
+        searches: rememberRecentSearch(accountId, query, window.localStorage),
+      });
+    }
     setOpen(false);
     if (result.type === "work") {
       void navigate({ to: "/titles/$titleId", params: { titleId: result.id } });
@@ -67,15 +89,39 @@ export function GlobalSearch() {
       void navigate({ to: "/planets/$planetSlug", params: { planetSlug: result.slug } });
       return;
     }
-    const entity = entities.data?.find((item) => item.id === result.id) ?? null;
-    setSelectedEntity(entity);
+    if (result.type === "person") {
+      void navigate({ to: "/people/$personId", params: { personId: result.id } });
+      return;
+    }
+    void navigate({ to: "/studios/$studioId", params: { studioId: result.id } });
+  }
+
+  function openAllResults() {
+    const term = query.trim();
+    if (!term) return;
+    if (accountId) {
+      setRecentState({
+        accountId,
+        searches: rememberRecentSearch(accountId, term, window.localStorage),
+      });
+    }
+    setOpen(false);
+    void navigate({ to: "/browse", search: { q: term } });
   }
 
   return (
     <>
       <Button
         variant="outline"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          if (accountId) {
+            setRecentState({
+              accountId,
+              searches: readRecentSearches(accountId, window.localStorage),
+            });
+          }
+          setOpen(true);
+        }}
         className="h-9 min-w-9 justify-start border-border/80 bg-background/10 backdrop-blur-lg px-2 text-muted-foreground hover:bg-white/10 hover:text-foreground sm:w-64 sm:px-3"
       >
         <MagnifyingGlassIcon />
@@ -87,7 +133,15 @@ export function GlobalSearch() {
       </Button>
       <CommandDialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen && accountId) {
+            setRecentState({
+              accountId,
+              searches: readRecentSearches(accountId, window.localStorage),
+            });
+          }
+          setOpen(nextOpen);
+        }}
         title="البحث الشامل"
         description="ابحث في الأعمال والأشخاص والاستوديوهات والكواكب"
         className="platform-surface top-[12vh] max-w-2xl translate-y-0 rounded-2xl! border-white/10 bg-popover/96"
@@ -102,10 +156,58 @@ export function GlobalSearch() {
           />
           <CommandList className="max-h-[62svh]">
             {!query.trim() ? (
-              <div className="p-8 text-center text-sm leading-7 text-muted-foreground">
-                ابحث بالعربية أو الإنجليزية. تستطيع الانتقال مباشرة إلى الأعمال والكواكب، أو فتح
-                ملخصات الأشخاص والاستوديوهات دون مغادرة الصفحة.
-              </div>
+              recentSearches.length ? (
+                <>
+                  <CommandGroup heading="عمليات البحث الأخيرة">
+                    {recentSearches.map((term) => (
+                      <CommandItem
+                        key={term}
+                        value={`recent:${term}`}
+                        onSelect={() => setQuery(term)}
+                        className="py-3"
+                      >
+                        <ClockCounterClockwiseIcon />
+                        <span className="min-w-0 flex-1 truncate">{term}</span>
+                        <button
+                          type="button"
+                          aria-label={`حذف بحث ${term}`}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (!accountId) return;
+                            setRecentState({
+                              accountId,
+                              searches: removeRecentSearch(accountId, term, window.localStorage),
+                            });
+                          }}
+                          className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                  <CommandSeparator />
+                  <CommandGroup>
+                    <CommandItem
+                      value="clear-recent-searches"
+                      onSelect={() => {
+                        if (!accountId) return;
+                        clearRecentSearches(accountId, window.localStorage);
+                        setRecentState({ accountId, searches: [] });
+                      }}
+                    >
+                      <TrashIcon />
+                      مسح عمليات البحث
+                    </CommandItem>
+                  </CommandGroup>
+                </>
+              ) : (
+                <div className="p-8 text-center text-sm leading-7 text-muted-foreground">
+                  ابحث بالعربية أو الإنجليزية، ثم انتقل مباشرة إلى صفحة العمل أو الشخص أو الاستوديو
+                  أو الكوكب.
+                </div>
+              )
             ) : (
               <>
                 <CommandEmpty>
@@ -117,7 +219,7 @@ export function GlobalSearch() {
                   return (
                     <div key={type}>
                       {index > 0 && <CommandSeparator />}
-                      <CommandGroup heading={label}>
+                      <CommandGroup heading={`${label} · ${items.length}`}>
                         {items.map((result) => (
                           <CommandItem
                             key={`${result.type}:${result.id}`}
@@ -150,6 +252,17 @@ export function GlobalSearch() {
                     </div>
                   );
                 })}
+                {(results.data?.length ?? 0) >= 32 ? (
+                  <>
+                    <CommandSeparator />
+                    <CommandGroup>
+                      <CommandItem value="all-results" onSelect={openAllResults} className="py-3">
+                        <MagnifyingGlassIcon />
+                        عرض كل النتائج في قاعدة البيانات
+                      </CommandItem>
+                    </CommandGroup>
+                  </>
+                ) : null}
               </>
             )}
           </CommandList>
@@ -160,15 +273,6 @@ export function GlobalSearch() {
           </div>
         </Command>
       </CommandDialog>
-      {selectedEntity && (
-        <EntityDialog
-          entity={selectedEntity}
-          open
-          onOpenChange={(nextOpen) => {
-            if (!nextOpen) setSelectedEntity(null);
-          }}
-        />
-      )}
     </>
   );
 }

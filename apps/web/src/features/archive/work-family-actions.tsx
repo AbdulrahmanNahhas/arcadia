@@ -19,35 +19,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { getFamilyAccounts, useCurrentAccount } from "@/features/accounts/api";
 import {
   addCollectionItem,
   archiveKeys,
   createCollection,
   createFamilyEvent,
-  createRecommendation,
   getCollections,
 } from "./api";
+import { RecommendDialog } from "./recommend-dialog";
 
 export function WorkFamilyActions({ titleId, title }: { titleId: string; title: string }) {
-  const current = useCurrentAccount();
-  const family = useQuery({ queryKey: ["account", "family"], queryFn: getFamilyAccounts });
   const collections = useQuery({ queryKey: archiveKeys.collections, queryFn: getCollections });
-  const [recipientId, setRecipientId] = useState("");
-  const [reason, setReason] = useState("");
+  const [recommendOpen, setRecommendOpen] = useState(false);
   const [collectionId, setCollectionId] = useState("");
   const [newCollectionName, setNewCollectionName] = useState("");
   const [eventName, setEventName] = useState(`ليلة ${title}`);
   const [scheduledFor, setScheduledFor] = useState("");
   const client = useQueryClient();
-  const recommend = useMutation({
-    mutationFn: () => createRecommendation({ recipientAccountId: recipientId, titleId, reason }),
-    onSuccess: () => {
-      setReason("");
-      client.invalidateQueries({ queryKey: archiveKeys.recommendations });
-    },
-  });
   const add = useMutation({
     mutationFn: () => addCollectionItem(collectionId, titleId),
     onSuccess: () => client.invalidateQueries({ queryKey: archiveKeys.collections }),
@@ -78,55 +66,23 @@ export function WorkFamilyActions({ titleId, title }: { titleId: string; title: 
       }),
     onSuccess: () => client.invalidateQueries({ queryKey: archiveKeys.events }),
   });
-  const relatives = family.data?.filter((account) => account.id !== current.data?.account.id) ?? [];
-
   return (
     <div className="flex flex-wrap gap-2">
-      <Dialog>
-        <DialogTrigger
-          render={
-            <Button variant="secondary" size="sm" className="rounded-full" aria-label="رشّحه لشخص" />
-          }
-        >
-          <PaperPlaneTiltIcon /> <span className="sr-only sm:not-sr-only">رشّحه لشخص</span>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>رشّح «{title}»</DialogTitle>
-            <DialogDescription>توصية مباشرة داخل العائلة، وليست منشوراً عاماً.</DialogDescription>
-          </DialogHeader>
-          <FieldGroup>
-            <Field>
-              <FieldLabel>إلى</FieldLabel>
-              <Select value={recipientId} onValueChange={(value) => setRecipientId(value ?? "")}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="اختر الحساب" />
-                </SelectTrigger>
-                <SelectContent>
-                  {relatives.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel>لماذا؟</FieldLabel>
-              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} />
-            </Field>
-            <Button
-              disabled={!recipientId || !reason.trim() || recommend.isPending}
-              onClick={() => recommend.mutate()}
-            >
-              إرسال التوصية
-            </Button>
-            {recommend.isSuccess ? (
-              <p className="text-sm text-emerald-500">أُرسلت التوصية.</p>
-            ) : null}
-          </FieldGroup>
-        </DialogContent>
-      </Dialog>
+      <Button
+        variant="secondary"
+        size="sm"
+        className="rounded-full"
+        aria-label="رشّحه لشخص"
+        onClick={() => setRecommendOpen(true)}
+      >
+        <PaperPlaneTiltIcon /> <span className="sr-only sm:not-sr-only">رشّحه لشخص</span>
+      </Button>
+      <RecommendDialog
+        titleId={titleId}
+        title={title}
+        open={recommendOpen}
+        onOpenChange={setRecommendOpen}
+      />
       <Dialog>
         <DialogTrigger
           render={

@@ -1,10 +1,16 @@
-import type { StreamCandidate } from "@arcadia/contracts";
-import { ArrowLeftIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import type { AccountPlaybackState, StreamCandidate, TitleDetail } from "@arcadia/contracts";
+import { ArrowLeftIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCurrentAccount } from "@/features/accounts/api";
-import { getPlaybackForInstallment, updatePlaybackProgress } from "@/features/social/api";
+import {
+  getPlaybackForInstallment,
+  getPlaybackForTitle,
+  updatePlaybackProgress,
+} from "@/features/social/api";
+import { getTitle } from "@/lib/api";
 import {
   desktopPlayer,
   type PlayerEvent,
@@ -12,7 +18,8 @@ import {
   setFullscreen,
   subscribeToPlayer,
 } from "./desktop-player";
-import { useIsDesktopShell } from "./play-button";
+import { getOfflineStreams } from "./offline-store";
+import { unplayableEpisodeReason, useIsDesktopShell } from "./play-button";
 import {
   messageFor,
   PlaybackError,
@@ -61,14 +68,68 @@ const RESUME_END_BUFFER_SECONDS = 30;
 const OVERLAY_SELECTOR =
   '[data-video-overlay],[data-slot="popover-content"],[data-slot="tooltip-content"]';
 
+interface NextEpisode {
+  installmentId: string;
+  installmentTitle: string;
+  episodeId: string;
+  episodeNumber: number;
+  episodeTitle: string | null;
+}
+
+function nextUnwatchedEpisode(
+  detail: TitleDetail | null | undefined,
+  playback: readonly AccountPlaybackState[] | undefined,
+  installmentId: string,
+  episodeId: string | null,
+): NextEpisode | null {
+  if (!detail || !episodeId) return null;
+  const playedEpisodeIds = new Set(
+    playback?.filter((state) => state.isPlayed && state.episodeId).map((state) => state.episodeId),
+  );
+  const episodes = detail.installments
+    .toSorted((left, right) => left.position - right.position)
+    .flatMap((installment) =>
+      installment.kind !== "season" || !installment.isPlayable
+        ? []
+        : (installment.episodes ?? [])
+            .toSorted((left, right) => left.position - right.position)
+            .map((episode) => ({
+              installmentId: installment.id,
+              installmentTitle: installment.title,
+              episodeId: episode.id,
+              episodeNumber: episode.number,
+              episodeTitle: episode.title,
+              playable:
+                unplayableEpisodeReason({
+                  releaseStatus: installment.status,
+                  releaseAt: episode.releaseDate ? Date.parse(episode.releaseDate) : null,
+                  titleImdbId: detail.imdbId,
+                  titleTmdbId: detail.tmdbId,
+                  episodeNumber: episode.number,
+                }) === null,
+            })),
+    );
+  const currentIndex = episodes.findIndex(
+    (episode) => episode.installmentId === installmentId && episode.episodeId === episodeId,
+  );
+  if (currentIndex < 0) return null;
+  return (
+    episodes
+      .slice(currentIndex + 1)
+      .find((episode) => episode.playable && !playedEpisodeIds.has(episode.episodeId)) ?? null
+  );
+}
+
 export function PlayerPage({
   installmentId,
   titleId,
   episodeId,
+  origin,
 }: {
   installmentId: string;
   titleId: string;
   episodeId: string | null;
+  origin: string | null;
 }) {
   const navigate = useNavigate();
   const desktop = useIsDesktopShell();
@@ -90,6 +151,7 @@ export function PlayerPage({
   const [attempt, setAttempt] = useState<{ index: number; total: number } | null>(null);
   const [peers, setPeers] = useState<number | null>(null);
   const [softwareDecode, setSoftwareDecode] = useState(false);
+  const [playbackEnded, setPlaybackEnded] = useState(false);
   /** False until mpv reports a loaded file, so the surface never blacks out the loading state. */
   const [hasPicture, setHasPicture] = useState(false);
   /** `h` cycles this: normal auto-hide → forced hidden → pinned visible → back to normal. */
@@ -97,6 +159,23 @@ export function PlayerPage({
   /** A brief centred icon confirming play/pause, volume, or a lock-mode change. */
   const [feedback, setFeedback] = useState<FeedbackEvent | null>(null);
   const [feedbackNonce, setFeedbackNonce] = useState(0);
+  const title = useQuery({
+    queryKey: ["player", "title", titleId],
+    queryFn: () => getTitle(titleId),
+    enabled: desktop && Boolean(titleId) && Boolean(episodeId),
+    staleTime: 60_000,
+  });
+  const titlePlayback = useQuery({
+    queryKey: ["account", "playback", "title", titleId],
+    queryFn: () => getPlaybackForTitle(titleId),
+    enabled: desktop && Boolean(titleId) && Boolean(episodeId),
+  });
+  const nextEpisode = nextUnwatchedEpisode(
+    title.data,
+    titlePlayback.data,
+    installmentId,
+    episodeId,
+  );
 
   const playhead = useRef<HTMLDivElement>(null);
   const buffered = useRef<HTMLDivElement>(null);
@@ -136,6 +215,8 @@ export function PlayerPage({
   /** Same idea as `resumePositionSeconds`, for the `sub-delay` offset saved on this row. */
   const resumeSubtitleOffsetMs = useRef<number | null>(null);
   const [subtitleOffsetMs, setSubtitleOffsetMsState] = useState(0);
+  /** Serializes periodic/pause/exit writes so a slower old request cannot overwrite a newer tick. */
+  const progressWriteQueue = useRef<Promise<unknown>>(Promise.resolve());
   /**
    * Writes the current position/duration to `PUT /api/v1/me/playback`. Held in a ref (rather than
    * called directly) so the pause/exit call sites and the periodic-interval effect below don't
@@ -148,13 +229,18 @@ export function PlayerPage({
       const position = Math.round(tick.current.position);
       if (position <= 0) return;
       const total = tick.current.duration || duration;
-      void updatePlaybackProgress({
-        installmentId,
-        episodeId,
-        positionSeconds: position,
-        durationSeconds: total > 0 ? Math.round(total) : null,
-        subtitleOffsetMs,
-      }).catch(() => undefined);
+      progressWriteQueue.current = progressWriteQueue.current
+        .catch(() => undefined)
+        .then(() =>
+          updatePlaybackProgress({
+            installmentId,
+            episodeId,
+            positionSeconds: position,
+            durationSeconds: total > 0 ? Math.round(total) : null,
+            subtitleOffsetMs,
+          }),
+        )
+        .catch(() => undefined);
     };
   }, [installmentId, episodeId, duration, subtitleOffsetMs]);
 
@@ -251,7 +337,14 @@ export function PlayerPage({
           setPeers(event.peersConnected);
           break;
         case "ended":
-          if (event.reason === "error") fail("unknown", "توقّف التشغيل بسبب خطأ في الملف.");
+          if (event.reason === "error") {
+            fail("unknown", "توقّف التشغيل بسبب خطأ في الملف.");
+          } else {
+            persistProgress.current();
+            setPaused(true);
+            setPlaybackEnded(true);
+            setControlsVisible(true);
+          }
           break;
         case "failed":
           fail("unknown", event.message);
@@ -294,7 +387,8 @@ export function PlayerPage({
           .catch(() => undefined);
 
         setStatus("resolving");
-        const source = await resolvePlayback(installmentId, episodeId);
+        const cachedStreams = await getOfflineStreams(installmentId, episodeId).catch(() => null);
+        const source = await resolvePlayback(installmentId, episodeId, cachedStreams);
         if (cancelled) return;
 
         setCandidates(source.streams.candidates);
@@ -347,6 +441,20 @@ export function PlayerPage({
       persistProgress.current();
     }, PROGRESS_PERSIST_INTERVAL_MS);
     return () => window.clearInterval(interval);
+  }, [desktop]);
+
+  useEffect(() => {
+    if (!desktop) return;
+    const persistBeforeSuspend = () => persistProgress.current();
+    const persistWhenHidden = () => {
+      if (document.visibilityState === "hidden") persistProgress.current();
+    };
+    window.addEventListener("pagehide", persistBeforeSuspend);
+    document.addEventListener("visibilitychange", persistWhenHidden);
+    return () => {
+      window.removeEventListener("pagehide", persistBeforeSuspend);
+      document.removeEventListener("visibilitychange", persistWhenHidden);
+    };
   }, [desktop]);
 
   // Smooth scrubber. Nothing in this loop touches React state, so the overlay never re-renders
@@ -533,6 +641,18 @@ export function PlayerPage({
     [duration],
   );
 
+  const restartFromBeginning = useCallback(async () => {
+    await desktopPlayer.seek(0).catch(() => undefined);
+    tick.current = { ...tick.current, position: 0, at: performance.now() };
+    await updatePlaybackProgress({
+      installmentId,
+      episodeId,
+      positionSeconds: 0,
+      durationSeconds: duration > 0 ? Math.round(duration) : null,
+      subtitleOffsetMs,
+    }).catch(() => undefined);
+  }, [duration, episodeId, installmentId, subtitleOffsetMs]);
+
   const toggleMute = useCallback(async () => {
     const next = !muted;
     setMuted(next);
@@ -566,8 +686,31 @@ export function PlayerPage({
   }, [fullscreen]);
 
   const leave = useCallback(() => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    if (origin) {
+      window.location.assign(origin);
+      return;
+    }
     void navigate({ to: "/titles/$titleId", params: { titleId } });
-  }, [navigate, titleId]);
+  }, [navigate, origin, titleId]);
+
+  const playNextEpisode = useCallback(() => {
+    if (!nextEpisode) return;
+    setPlaybackEnded(false);
+    void navigate({
+      to: "/player/$installmentId",
+      params: { installmentId: nextEpisode.installmentId },
+      search: {
+        titleId,
+        episodeId: nextEpisode.episodeId,
+        origin,
+      },
+      replace: true,
+    });
+  }, [navigate, nextEpisode, origin, titleId]);
 
   useEffect(() => {
     if (status === "error") return;
@@ -667,6 +810,36 @@ export function PlayerPage({
         </div>
       )}
 
+      {playbackEnded && (
+        <div className="absolute inset-0 z-30 grid place-items-center bg-black/45 p-6">
+          <div
+            data-video-overlay
+            className="pointer-events-auto w-full max-w-md rounded-3xl border border-white/15 bg-black/90 p-7 text-center shadow-2xl"
+          >
+            <CheckCircleIcon className="mx-auto size-10 text-primary" weight="fill" />
+            <h1 className="mt-4 font-heading text-2xl font-semibold">اكتملت المشاهدة</h1>
+            {nextEpisode ? (
+              <>
+                <p className="mt-2 text-sm leading-6 text-white/70">
+                  التالي: {nextEpisode.installmentTitle} · الحلقة {nextEpisode.episodeNumber}
+                  {nextEpisode.episodeTitle ? ` — ${nextEpisode.episodeTitle}` : ""}
+                </p>
+                <Button className="mt-6 w-full" size="lg" onClick={playNextEpisode}>
+                  تشغيل الحلقة التالية
+                </Button>
+              </>
+            ) : (
+              <p className="mt-2 text-sm leading-6 text-white/70">
+                لا توجد حلقة تالية غير مُشاهدة ومتاحة لهذا العمل.
+              </p>
+            )}
+            <Button className="mt-3 w-full" variant="outline" onClick={leave}>
+              العودة إلى العمل
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/*
         Full-window chrome layer. `pointer-events-none` lets clicks through to the picture; each
         control opts back in. Hidden state uses `hidden` (display: none) rather than `invisible`
@@ -697,6 +870,7 @@ export function PlayerPage({
           elapsedRef={elapsedLabel}
           mobileElapsedRef={mobileElapsedLabel}
           onTogglePlay={() => void togglePlay()}
+          onRestart={() => void restartFromBeginning()}
           onSeekBy={(delta) => void seekBy(delta)}
           onScrub={onScrub}
           onToggleMute={() => void toggleMute()}

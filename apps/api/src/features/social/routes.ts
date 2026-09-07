@@ -15,6 +15,7 @@ import {
   upsertPlaybackInputSchema,
   upsertReviewInputSchema,
   upsertTitleStateInputSchema,
+  watchHistoryItemSchema,
   watchStatsSchema,
 } from "@arcadia/contracts";
 import { nextIsPlayed } from "@arcadia/domain";
@@ -79,6 +80,15 @@ function continueWatchingItemFromRow(row: Row): ContinueWatchingItem {
   };
 }
 
+function watchHistoryItemFromRow(row: Row) {
+  return watchHistoryItemSchema.parse({
+    ...continueWatchingItemFromRow(row),
+    isPlayed: row.isPlayed,
+    playedAt: nullableIso(row.playedAt),
+    updatedAt: iso(row.updatedAt),
+  });
+}
+
 function review(row: Row) {
   return titleReviewSchema.parse({
     id: row.id,
@@ -121,9 +131,19 @@ socialRoutes.get("/api/v1/me/library", async (context) => {
       s.personal_rating as "personalRating", s.notes, s.saved_offline as "savedOffline",
       s.updated_at as "updatedAt",
       coalesce(t.title_ar, t.canonical_title) as title,
+      (select min(i.release_date)::text from installments i where i.title_id=t.id) as "releaseDate",
+      playback.updated_at as "lastPlayedAt",
+      playback.position_seconds as "positionSeconds",
+      playback.duration_seconds as "durationSeconds",
       (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
         where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath"
     from account_title_states s join titles t on t.id=s.title_id
+    left join lateral (
+      select p.updated_at, p.position_seconds, p.duration_seconds
+      from account_playback_states p join installments i on i.id=p.installment_id
+      where p.account_id=${current.account.id} and i.title_id=t.id
+      order by p.updated_at desc limit 1
+    ) playback on true
     where s.account_id=${current.account.id}
       and (s.is_favorite or s.personal_rating is not null or btrim(s.notes) <> '' or s.saved_offline)
     order by s.updated_at desc`;
@@ -134,7 +154,15 @@ socialRoutes.get("/api/v1/me/library", async (context) => {
   return context.json(
     rows
       .filter((row) => visible.has(String(row.titleId)))
-      .map((row) => ({ ...state(row), title: row.title, posterPath: row.posterPath })),
+      .map((row) => ({
+        ...state(row),
+        title: row.title,
+        posterPath: row.posterPath,
+        releaseDate: row.releaseDate,
+        lastPlayedAt: nullableIso(row.lastPlayedAt),
+        positionSeconds: row.positionSeconds == null ? null : Number(row.positionSeconds),
+        durationSeconds: row.durationSeconds == null ? null : Number(row.durationSeconds),
+      })),
   );
 });
 
@@ -158,9 +186,7 @@ socialRoutes.put("/api/v1/me/library/:titleId", async (context) => {
         : (existing?.personal_rating ?? null),
     notes: input.notes !== undefined ? input.notes : String(existing?.notes ?? ""),
     savedOffline:
-      input.savedOffline !== undefined
-        ? input.savedOffline
-        : Boolean(existing?.saved_offline),
+      input.savedOffline !== undefined ? input.savedOffline : Boolean(existing?.saved_offline),
   };
   const [saved] = await database().client`insert into account_title_states
     (account_id, title_id, is_favorite, personal_rating, notes, saved_offline)
@@ -306,6 +332,59 @@ socialRoutes.get("/api/v1/me/playback", async (context) => {
     rows.map((row) => String(row.titleId)),
   );
   return context.json(rows.filter((row) => visible.has(String(row.titleId))).map(playbackState));
+});
+
+/** Played and in-progress movies/episodes, enriched for the family-facing watch-history screen. */
+socialRoutes.get("/api/v1/me/watch-history", async (context) => {
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
+  const rows = await database().client`
+    select s.installment_id as "installmentId", s.episode_id as "episodeId",
+      i.title_id as "titleId", coalesce(t.title_ar,t.canonical_title) as title,
+      i.title as "installmentTitle",
+      case when e.id is not null then coalesce(e.title, 'الحلقة ' || e.number::text) else null end as "episodeLabel",
+      s.position_seconds as "positionSeconds", s.duration_seconds as "durationSeconds",
+      s.is_played as "isPlayed", s.played_at as "playedAt", s.updated_at as "updatedAt",
+      (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+        where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath"
+    from account_playback_states s
+    join installments i on i.id=s.installment_id
+    join titles t on t.id=i.title_id
+    left join episodes e on e.id=s.episode_id
+    where s.account_id=${current.account.id} and (s.position_seconds > 0 or s.is_played)
+    order by coalesce(s.played_at,s.updated_at) desc
+    limit 100`;
+  const visible = await visibleTitleIdsForAccount(
+    current.account.id,
+    rows.map((row) => String(row.titleId)),
+  );
+  return context.json(
+    rows.filter((row) => visible.has(String(row.titleId))).map(watchHistoryItemFromRow),
+  );
+});
+
+/** Removes playback activity for this account only; supports one row or an explicit clear-all. */
+socialRoutes.delete("/api/v1/me/watch-history", async (context) => {
+  const current = await currentFamilyAccount(context.req.raw.headers);
+  if (!current) return context.json({ message: "الحساب غير متاح." }, 401);
+  const installmentId = context.req.query("installmentId");
+  const episodeId = context.req.query("episodeId");
+  const sql = database().client;
+  if (!installmentId) {
+    const result = await sql`
+      delete from account_playback_states where account_id=${current.account.id}`;
+    return context.json({ deleted: result.count });
+  }
+  const result = episodeId
+    ? await sql`
+        delete from account_playback_states
+        where account_id=${current.account.id}
+          and installment_id=${installmentId} and episode_id=${episodeId}`
+    : await sql`
+        delete from account_playback_states
+        where account_id=${current.account.id}
+          and installment_id=${installmentId} and episode_id is null`;
+  return context.json({ deleted: result.count });
 });
 
 /** Explicit watched/unwatched toggle for one movie/episode — always wins over auto-computation. */

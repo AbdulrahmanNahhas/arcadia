@@ -4,10 +4,21 @@ import { type ReactNode, useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 
 export function AuthBoundary({ children }: { children: ReactNode }) {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const location = useRouterState({ select: (state) => state.location });
+  const pathname = location.pathname;
   const navigate = useNavigate();
   const session = authClient.useSession();
-  const isPublic = pathname === "/login" || pathname.startsWith("/invite/");
+  // "/offline" is the saved-library fallback reached from the login form when no family server
+  // is reachable at all — there is no session to gate it behind (see offline-library-page.tsx).
+  const offlinePlayer =
+    pathname.startsWith("/player/") &&
+    typeof location.search.origin === "string" &&
+    location.search.origin.startsWith("/offline/");
+  const isPublic =
+    pathname === "/login" ||
+    pathname.startsWith("/invite/") ||
+    pathname.startsWith("/offline") ||
+    offlinePlayer;
 
   useEffect(() => {
     if (!isPublic && !session.isPending && !session.data) {

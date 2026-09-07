@@ -81,6 +81,7 @@ export interface PlayerControlsProps {
    */
   mobileElapsedRef: RefObject<HTMLSpanElement | null>;
   onTogglePlay: () => void;
+  onRestart: () => void;
   onSeekBy: (delta: number) => void;
   onScrub: (event: React.PointerEvent<HTMLDivElement>) => void;
   onToggleMute: () => void;
@@ -115,6 +116,7 @@ export function PlayerControls({
   elapsedRef,
   mobileElapsedRef,
   onTogglePlay,
+  onRestart,
   onSeekBy,
   onScrub,
   onToggleMute,
@@ -173,6 +175,9 @@ export function PlayerControls({
             <div className="flex min-w-0 items-center gap-1.5 rounded-xl p-1">
               {/* Seek Pill */}
               <div className="flex h-11 items-center rounded-full border border-white/15 bg-neutral-900 px-1 ring-1 ring-white/10">
+                <ControlButton label="ابدأ من البداية" onClick={onRestart}>
+                  <ClockCounterClockwiseIcon size={19} />
+                </ControlButton>
                 <ControlButton label="رجوع ١٠ ثوانٍ" hint="Left" onClick={() => onSeekBy(-10)}>
                   <ArrowCounterClockwiseIcon size={19} />
                 </ControlButton>

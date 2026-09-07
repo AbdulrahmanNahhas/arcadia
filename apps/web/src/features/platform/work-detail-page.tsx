@@ -1,4 +1,4 @@
-import type { AwardRecognition } from "@arcadia/contracts";
+import type { AccountPlaybackState, AwardRecognition } from "@arcadia/contracts";
 import {
   ArrowSquareOutIcon,
   BookmarkSimpleIcon,
@@ -18,7 +18,7 @@ import {
   UsersThreeIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   CartesianGrid,
@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { archiveKeys, recordHistory } from "@/features/archive/api";
 // import { WorkFamilyActions } from "@/features/archive/work-family-actions";
@@ -66,6 +67,7 @@ import {
   unplayableEpisodeReason,
   unplayableReason,
 } from "@/features/library/play-button";
+import { selectPlaybackTarget } from "@/features/library/playback-resolver";
 import { setTitleSavedOffline } from "@/features/library/saved-offline";
 import { scoreCriteria, scoreLabel, scoreWeights } from "@/features/library/scoring";
 import type { Recommendation, RiskAssessment } from "@/features/platform/model";
@@ -84,6 +86,7 @@ import { getPlatformWorkDetail } from "@/server/platform.functions";
 import { EntityDialog } from "./components/entity-dialog";
 import { PlatformShell } from "./components/platform-shell";
 import { WorkCard } from "./components/work-card";
+import { revealSpatialTarget, useSpatialFocusable } from "./spatial-navigation";
 
 type PlanetInfo = { slug: string; icon: string; nameAr: string; primaryColor: string } | null;
 type TitleTabId = "overview" | "episodes" | "cast" | "scores" | "reviews" | "details";
@@ -95,6 +98,40 @@ type TitleTab = {
   summary: string;
   icon: typeof RowsIcon;
 };
+
+function TitleTabTrigger({
+  tab,
+  workId,
+  onSelect,
+}: {
+  tab: TitleTab;
+  workId: string;
+  onSelect: (tab: TitleTabId) => void;
+}) {
+  const { ref, focused } = useSpatialFocusable<object, HTMLButtonElement>({
+    focusKey: `title:${workId}:tab:${tab.id}`,
+    accessibilityLabel: tab.title,
+    onEnterPress: () => onSelect(tab.id),
+    onFocus: ({ node }) => {
+      revealSpatialTarget(node);
+      onSelect(tab.id);
+    },
+  });
+  return (
+    <TabsTrigger
+      ref={ref}
+      value={tab.id}
+      aria-label={tab.title}
+      data-spatial-managed
+      data-spatial-focus-key={`title:${workId}:tab:${tab.id}`}
+      data-focused={focused || undefined}
+      className="h-9 flex-none rounded-full! px-4! text-sm hover:bg-accent!"
+    >
+      <tab.icon data-icon="inline-start" />
+      {tab.label}
+    </TabsTrigger>
+  );
+}
 
 // `Work.genres`/`.tone`/`.tags`/`.audience`/`.country` (built by `server/compat.ts`'s
 // `controlledLabel`/`labelFromSlug`/`audience`) carry the canonical **English** label as their
@@ -207,8 +244,18 @@ export function WorkDetailPage({
   const playedEpisodeIds = new Set(
     playback.flatMap((row) => (row.isPlayed && row.episodeId ? [row.episodeId] : [])),
   );
+  const playbackByUnit = new Map(
+    playback.map((row) => [playbackUnitKey(row.installmentId, row.episodeId), row]),
+  );
   const heroTarget = heroPlaybackTarget(
-    heroTrackableUnits(structure, work.imdbId, work.tmdbId, playedInstallmentIds, playedEpisodeIds),
+    heroTrackableUnits(
+      structure,
+      work.imdbId,
+      work.tmdbId,
+      playedInstallmentIds,
+      playedEpisodeIds,
+      playbackByUnit,
+    ),
   );
   const trackableUnitsBySeason = structure.seasons.map((season) => {
     const isMovie = season.installmentKind === "movie" || season.installmentKind === "special";
@@ -294,24 +341,19 @@ export function WorkDetailPage({
 
       <Tabs
         value={activeTab}
-        onValueChange={(value) => setActiveTab(value as TitleTabId)}
+        onValueChange={(value) => {
+          const next = tabs.find((tab) => tab.id === value);
+          if (next) setActiveTab(next.id);
+        }}
         className="mx-auto max-w-400 gap-0 px-5 sm:px-8"
       >
         <div
           id="title-sections"
-          className="scroll-fade-x sticky top-14 z-30 -mx-5 overflow-x-auto border-y bg-background/90 px-5 overflow-y-clip! backdrop-blur-xl sm:-mx-8 sm:px-8"
+          className="scroll-fade-x sticky top-14 z-30 -mx-5 overflow-x-auto border-y bg-background/95 px-5 overflow-y-clip! sm:-mx-8 sm:px-8"
         >
           <TabsList variant="line" className="h-12! min-w-max justify-start gap-0 p-0">
             {tabs.map((tab) => (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                aria-label={tab.title}
-                className="h-9 flex-none rounded-full! px-4! text-sm hover:bg-accent!"
-              >
-                <tab.icon data-icon="inline-start" />
-                {tab.label}
-              </TabsTrigger>
+              <TitleTabTrigger key={tab.id} tab={tab} workId={work.id} onSelect={setActiveTab} />
             ))}
           </TabsList>
         </div>
@@ -357,6 +399,7 @@ export function WorkDetailPage({
                   onSelectedIdChange={setSelectedInstallmentId}
                   playedInstallmentIds={playedInstallmentIds}
                   playedEpisodeIds={playedEpisodeIds}
+                  playbackByUnit={playbackByUnit}
                   onToggleEpisodePlayed={(installmentId, episodeId, isPlayed) =>
                     setEpisodePlayed.mutate({ installmentId, episodeId, isPlayed })
                   }
@@ -437,8 +480,10 @@ function youtubeEmbedUrl(url: string): string | null {
   }
 }
 
+type HeroProgress = Pick<AccountPlaybackState, "positionSeconds" | "durationSeconds" | "updatedAt">;
+
 /** One playable-or-not unit the hero's "next thing to watch" resolver can point at. */
-type HeroUnit =
+type HeroUnit = (
   | {
       kind: "movie";
       installmentId: string;
@@ -458,7 +503,26 @@ type HeroUnit =
       watched: boolean;
       releaseStatus?: "announced" | "airing" | "completed" | "unknown";
       releaseAt: number | null;
-    };
+    }
+) &
+  HeroProgress;
+
+function playbackUnitKey(installmentId: string, episodeId: string | null) {
+  return `${installmentId}:${episodeId ?? "movie"}`;
+}
+
+function playbackProgress(
+  playbackByUnit: ReadonlyMap<string, AccountPlaybackState>,
+  installmentId: string,
+  episodeId: string | null,
+): HeroProgress {
+  const state = playbackByUnit.get(playbackUnitKey(installmentId, episodeId));
+  return {
+    positionSeconds: state?.positionSeconds ?? 0,
+    durationSeconds: state?.durationSeconds ?? null,
+    updatedAt: state?.updatedAt ?? "",
+  };
+}
 
 /**
  * Every trackable unit across the whole work — every movie/special installment, and every episode
@@ -473,6 +537,7 @@ function heroTrackableUnits(
   titleTmdbId: number | null,
   playedInstallmentIds: Set<string>,
   playedEpisodeIds: Set<string>,
+  playbackByUnit: ReadonlyMap<string, AccountPlaybackState>,
 ): HeroUnit[] {
   return structure.seasons.flatMap((season): HeroUnit[] => {
     const isMovie = season.installmentKind === "movie" || season.installmentKind === "special";
@@ -492,6 +557,7 @@ function heroTrackableUnits(
             tmdbId: season.tmdbId,
           }),
           watched: playedInstallmentIds.has(season.id),
+          ...playbackProgress(playbackByUnit, season.id, null),
         },
       ];
     }
@@ -510,6 +576,7 @@ function heroTrackableUnits(
         episodeNumber: unit.unitNumber,
       }),
       watched: playedEpisodeIds.has(unit.id),
+      ...playbackProgress(playbackByUnit, season.id, unit.id),
     }));
   });
 }
@@ -523,19 +590,25 @@ function heroTrackableUnits(
  */
 function heroPlaybackTarget(units: HeroUnit[]): { unit: HeroUnit; label: string } | null {
   const playable = units.filter((unit) => unit.unplayable === null);
-  if (playable.length === 0) return null;
-  const firstUnwatched = playable.find((unit) => !unit.watched);
-  if (!firstUnwatched) {
-    const first = playable[0];
-    return first ? { unit: first, label: "إعادة المشاهدة" } : null;
+  const decision = selectPlaybackTarget(playable);
+  if (!decision) return null;
+  if (decision.mode === "resume") {
+    return {
+      unit: decision.target,
+      label:
+        decision.target.kind === "episode"
+          ? `متابعة الحلقة ${decision.target.number}`
+          : "متابعة المشاهدة",
+    };
   }
+  if (decision.mode === "replay") return { unit: decision.target, label: "إعادة المشاهدة" };
   const anyWatched = playable.some((unit) => unit.watched);
   const label = !anyWatched
     ? "بدء المشاهدة"
-    : firstUnwatched.kind === "episode"
-      ? `متابعة من الحلقة ${firstUnwatched.number}`
+    : decision.target.kind === "episode"
+      ? `متابعة من الحلقة ${decision.target.number}`
       : "متابعة المشاهدة";
-  return { unit: firstUnwatched, label };
+  return { unit: decision.target, label };
 }
 
 function WorkHero({
@@ -592,6 +665,13 @@ function WorkHero({
     (link) => link.provider.trim().toLowerCase() === "trailer",
   );
   const trailerEmbedUrl = trailerLink ? youtubeEmbedUrl(trailerLink.url) : null;
+  const progressPercent =
+    heroTarget?.unit.durationSeconds && heroTarget.unit.durationSeconds > 0
+      ? Math.min(
+          100,
+          Math.round((heroTarget.unit.positionSeconds / heroTarget.unit.durationSeconds) * 100),
+        )
+      : null;
 
   return (
     <>
@@ -651,7 +731,8 @@ function WorkHero({
               )}
             </h1>
             <p className="mt-3 font-mono text-base text-muted-foreground sm:text-lg" dir="ltr">
-              {work.logoPath ? work.arabicTitle : work.arabicTitle && work.title}
+              {/*{work.logoPath ? work.arabicTitle : work.arabicTitle && work.title}*/}
+              {work.title}
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-foreground/80 sm:text-base">
@@ -806,6 +887,31 @@ function WorkHero({
                 <BookmarkSimpleIcon weight={savedOffline ? "fill" : "regular"} />
               </Button>
             </div>
+            {heroTarget && heroTarget.unit.positionSeconds > 0 ? (
+              <fieldset className="mt-4 max-w-sm space-y-2">
+                <legend className="sr-only">تقدم المشاهدة</legend>
+                <div className="flex items-center justify-between gap-3 text-xs text-foreground/75">
+                  <span>
+                    {progressPercent === null
+                      ? `بدأت المشاهدة · ${Math.floor(heroTarget.unit.positionSeconds / 60)} د محفوظة`
+                      : `${Math.floor(heroTarget.unit.positionSeconds / 60)} من ${Math.ceil(
+                          (heroTarget.unit.durationSeconds ?? 0) / 60,
+                        )} د`}
+                  </span>
+                  {heroTarget.unit.updatedAt ? (
+                    <time dateTime={heroTarget.unit.updatedAt}>
+                      آخر تشغيل{" "}
+                      {new Intl.DateTimeFormat("ar", { dateStyle: "medium" }).format(
+                        new Date(heroTarget.unit.updatedAt),
+                      )}
+                    </time>
+                  ) : null}
+                </div>
+                {progressPercent === null ? null : (
+                  <Progress value={progressPercent} aria-label={`اكتمل ${progressPercent}٪`} />
+                )}
+              </fieldset>
+            ) : null}
           </div>
 
           {heroAward ? <AwardLaurel recognition={heroAward} /> : null}
@@ -1197,6 +1303,9 @@ type EpisodePreview = {
   releaseAt: number | null;
   isPlaceholder: boolean;
   watched: boolean;
+  positionSeconds: number;
+  durationSeconds: number | null;
+  updatedAt: string;
   /** `null` means playable; otherwise the exact reason `EpisodeCard` shows in its tooltip. */
   unplayableReason: string | null;
 };
@@ -1215,14 +1324,21 @@ function seasonContinueCta(episodes: EpisodePreview[]) {
   if (playable.length === 0) {
     return { label: "لا توجد حلقات قابلة للتشغيل بعد", episodeId: null as string | null };
   }
-  const firstUnwatched = playable.find((episode) => !episode.watched);
-  if (!firstUnwatched) {
-    return { label: "إعادة المشاهدة", episodeId: playable[0]?.id ?? null };
+  const decision = selectPlaybackTarget(playable);
+  if (!decision) return { label: "لا توجد حلقات قابلة للتشغيل بعد", episodeId: null };
+  if (decision.mode === "resume") {
+    return {
+      label: `متابعة الحلقة ${decision.target.number}`,
+      episodeId: decision.target.id,
+    };
+  }
+  if (decision.mode === "replay") {
+    return { label: "إعادة المشاهدة", episodeId: decision.target.id };
   }
   const anyWatched = playable.some((episode) => episode.watched);
   return {
-    label: anyWatched ? `متابعة من الحلقة ${firstUnwatched.number}` : "بدء المشاهدة",
-    episodeId: firstUnwatched.id,
+    label: anyWatched ? `متابعة من الحلقة ${decision.target.number}` : "بدء المشاهدة",
+    episodeId: decision.target.id,
   };
 }
 
@@ -1235,6 +1351,7 @@ function EpisodesSection({
   onSelectedIdChange,
   playedInstallmentIds,
   playedEpisodeIds,
+  playbackByUnit,
   onToggleEpisodePlayed,
   onToggleMoviePlayed,
   onMarkSeasonPlayed,
@@ -1247,6 +1364,7 @@ function EpisodesSection({
   onSelectedIdChange: (id: string) => void;
   playedInstallmentIds: Set<string>;
   playedEpisodeIds: Set<string>;
+  playbackByUnit: ReadonlyMap<string, AccountPlaybackState>;
   onToggleEpisodePlayed: (installmentId: string, episodeId: string, isPlayed: boolean) => void;
   onToggleMoviePlayed: (installmentId: string, isPlayed: boolean) => void;
   onMarkSeasonPlayed: (installmentId: string, isPlayed: boolean) => void;
@@ -1263,6 +1381,7 @@ function EpisodesSection({
     releaseAt: unit.releaseAt,
     isPlaceholder: false,
     watched: playedEpisodeIds.has(unit.id),
+    ...playbackProgress(playbackByUnit, selected?.id ?? "", unit.id),
     unplayableReason: unplayableEpisodeReason({
       releaseStatus: selected?.releaseStatus,
       releaseAt: unit.releaseAt,
@@ -1434,6 +1553,9 @@ function EpisodesSection({
                   </>
                 )}
               </div>
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                العلامة اليدوية للمشاهدة تتقدّم على الاكتمال التلقائي، وتبقى كذلك حتى تغيّرها من هنا.
+              </p>
             </div>
           </div>
         </section>
@@ -1451,7 +1573,6 @@ function EpisodesSection({
               onTogglePlayed={() =>
                 onToggleEpisodePlayed(selected?.id ?? "", episode.id, !episode.watched)
               }
-              className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300 motion-reduce:animate-none"
             />
           ))}
         </div>
@@ -1528,15 +1649,20 @@ function EpisodeCard({
   onTogglePlayed: () => void;
   className?: string;
 }) {
+  const origin = useLocation({ select: (location) => location.href });
   const playable = episode.unplayableReason === null;
+  const progressPercent =
+    episode.durationSeconds && episode.durationSeconds > 0
+      ? Math.min(100, Math.round((episode.positionSeconds / episode.durationSeconds) * 100))
+      : null;
   const content = (
     <>
       <div className="relative aspect-video overflow-hidden rounded-xl bg-muted ring-1 ring-border/10 transition group-hover:ring-primary/50">
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40">
           {image ? (
             <div className="flex size-full items-center justify-center">
-              <img src={image} alt="" className="size-full object-cover blur-lg" />
-              <TelevisionIcon className="size-11 text-muted-foreground absolute left-1/2 top-1/2 bg-accent rounded-lg p-2 -translate-y-1/2 -translate-x-1/2" />
+              <img src={image} alt="" className="size-full object-cover opacity-55" />
+              <TelevisionIcon className="absolute top-1/2 left-1/2 size-11 -translate-x-1/2 -translate-y-1/2 rounded-lg bg-accent/90 p-2 text-muted-foreground" />
             </div>
           ) : (
             <div className="flex size-full items-center justify-center">
@@ -1544,8 +1670,8 @@ function EpisodeCard({
             </div>
           )}
         </div>
-        <div className="absolute inset-0 flex items-center justify-center bg-background/0 opacity-0 transition group-hover:bg-background/65 group-hover:opacity-100">
-          <span className="flex size-11 items-center justify-center rounded-lg bg-primary/75 backdrop-lg text-primary-foreground">
+        <div className="absolute inset-0 flex items-center justify-center bg-background/0 opacity-0 transition group-hover:bg-background/55 group-hover:opacity-100 group-focus-within:bg-background/55 group-focus-within:opacity-100">
+          <span className="flex size-11 items-center justify-center rounded-lg bg-primary/90 text-primary-foreground">
             <PlayIcon weight="fill" />
           </span>
         </div>
@@ -1555,8 +1681,31 @@ function EpisodeCard({
         <span className="absolute bottom-2 inset-e-2 rounded bg-background/85 px-1.5 py-0.5 text-[10px] text-foreground">
           {episode.runtimeMinutes ?? 24} د
         </span>
+        {progressPercent === null || episode.watched ? null : (
+          <Progress
+            value={progressPercent}
+            aria-label={`اكتمل ${progressPercent}٪ من الحلقة ${episode.number}`}
+            className="absolute inset-x-0 bottom-0 h-1 rounded-none"
+          />
+        )}
       </div>
       <h4 className="mt-3 truncate font-heading text-sm font-semibold">{episode.title}</h4>
+      {episode.positionSeconds > 0 && !episode.watched ? (
+        <p className="mt-1 text-[11px] text-primary">
+          {progressPercent === null ? "بدأت المشاهدة" : `متابعة من ${progressPercent}٪`}
+          {episode.updatedAt ? (
+            <>
+              {" "}
+              ·{" "}
+              <time dateTime={episode.updatedAt}>
+                {new Intl.DateTimeFormat("ar", { dateStyle: "short" }).format(
+                  new Date(episode.updatedAt),
+                )}
+              </time>
+            </>
+          ) : null}
+        </p>
+      ) : null}
       <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
         {episode.isPlaceholder
           ? "ستُضاف تفاصيل الحلقة من المصدر عند الربط."
@@ -1573,7 +1722,7 @@ function EpisodeCard({
         <Link
           to="/player/$installmentId"
           params={{ installmentId }}
-          search={{ titleId, episodeId: episode.id }}
+          search={{ titleId, episodeId: episode.id, origin }}
           className="flex min-w-0 flex-col text-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           aria-label={`تشغيل الحلقة ${episode.number}`}
         >

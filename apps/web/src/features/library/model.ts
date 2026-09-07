@@ -91,6 +91,17 @@ function labelsFromTaxonomy(vocabulary: "genres" | "tones" | "tags") {
   );
 }
 
+/** Accepts either a canonical slug or the English display label produced by `titleToWork`. */
+export function taxonomyArabicLabel(
+  vocabulary: "genres" | "tones" | "tags",
+  value: string,
+): string {
+  return (
+    taxonomy[vocabulary].find(([slug, labelEn]) => slug === value || labelEn === value)?.[2] ??
+    value
+  );
+}
+
 export const taxonomyLabels = {
   genres: labelsFromTaxonomy("genres"),
   tones: labelsFromTaxonomy("tones"),

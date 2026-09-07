@@ -452,7 +452,21 @@ export const adminStatisticsSchema = z.object({
 export const accountKindSchema = z.enum(["admin", "family", "personal"]);
 export const accountStatusSchema = z.enum(["invited", "active", "suspended"]);
 export const accountRoleSchema = z.enum(["owner", "editor", "member"]);
-export const avatarKeySchema = z.enum(["orbit-1", "orbit-2", "orbit-3", "orbit-4", "orbit-5"]);
+/**
+ * Relative path to a curated static avatar beneath `public/media/avatars`. Keeping the filename
+ * (including its extension) as the value lets the catalog grow without another schema release,
+ * while this strict shape prevents path traversal or an arbitrary remote image URL.
+ */
+const legacyAvatarKeySchema = z.enum(["orbit-1", "orbit-2", "orbit-3", "orbit-4", "orbit-5"]);
+
+const avatarAssetKeySchema = z
+  .string()
+  .regex(/^(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]+(?:-[a-z0-9]+)*\.(?:png|webp|jpe?g|avif)$/);
+
+// Legacy device-profile data may outlive the database migration that replaces
+// the former sprite keys. Keep it readable while AccountAvatar maps it to a
+// current asset.
+export const avatarKeySchema = z.union([legacyAvatarKeySchema, avatarAssetKeySchema]);
 export const accountCapabilitySchema = z.enum([
   "catalog.view",
   "catalog.edit",
@@ -497,6 +511,10 @@ export const familyAccountSchema = z.object({
 export const sessionAccountSchema = z.object({
   account: familyAccountSchema,
   expiresAt: z.string(),
+  /** Whether a family-set ceiling or block list currently narrows this account below what
+   *  `account.contentPolicy` alone would allow — never which titles, only that something is
+   *  limited. See the Settings "الأمان"/content-limits explanation this backs. */
+  contentRestricted: z.boolean(),
 });
 export const signInInputSchema = z.object({
   username: z.string().trim().min(3).max(30),
@@ -699,6 +717,11 @@ export const continueWatchingResponseSchema = z.object({
   inProgress: z.array(continueWatchingItemSchema),
   /** The next unwatched unit per followed title that has no in-progress row of its own. */
   upNext: z.array(continueWatchingItemSchema),
+});
+export const watchHistoryItemSchema = continueWatchingItemSchema.extend({
+  isPlayed: z.boolean(),
+  playedAt: z.string().nullable(),
+  updatedAt: z.string(),
 });
 export const watchStatsSchema = z.object({
   inProgressCount: z.number().int().min(0),
@@ -1009,6 +1032,7 @@ export const releaseCalendarItemSchema = z.object({
   kind: z.enum(["season", "movie", "special"]),
   releaseDate: z.string(),
   followed: z.boolean(),
+  posterPath: z.string().nullable(),
 });
 export const permissionExplanationSchema = z.object({
   accountId: z.string().uuid(),
@@ -1058,6 +1082,7 @@ export type MarkPlayedInput = z.infer<typeof markPlayedInputSchema>;
 export type BulkMarkPlayedInput = z.infer<typeof bulkMarkPlayedInputSchema>;
 export type ContinueWatchingItem = z.infer<typeof continueWatchingItemSchema>;
 export type ContinueWatchingResponse = z.infer<typeof continueWatchingResponseSchema>;
+export type WatchHistoryItem = z.infer<typeof watchHistoryItemSchema>;
 export type WatchStats = z.infer<typeof watchStatsSchema>;
 export type TitleReview = z.infer<typeof titleReviewSchema>;
 export type TitleComment = z.infer<typeof titleCommentSchema>;

@@ -1,12 +1,12 @@
-import type { TitleDetail } from "@arcadia/contracts";
+import type { InstallmentStreams, TitleDetail } from "@arcadia/contracts";
 import { useSyncExternalStore } from "react";
+import { apiFetch } from "@/lib/api";
 
 /**
  * "Save for offline" storage (docs/deployment-and-release-roadmap.md §4) — a title's detail
- * payload and its poster/banner/logo bytes, kept in IndexedDB so a saved title renders fully with
- * no server reachable. Deliberately not the actual video (that's Phase 3 in
- * player-torrent-roadmap.md, a separate, larger feature): this only ever holds metadata + images,
- * a few hundred KB per title at most.
+ * payload, poster/banner/logo bytes, and stable torrent candidates, kept in IndexedDB so a saved
+ * title renders and starts playback with no Arcadia server reachable. It deliberately does not
+ * cache the video itself: the desktop torrent engine still streams it from peers.
  *
  * IndexedDB rather than a Tauri-specific filesystem API on purpose — the same code path works
  * unmodified in the browser build and inside the Tauri webview (which supports IndexedDB fine),
@@ -16,9 +16,10 @@ import { useSyncExternalStore } from "react";
  */
 
 const databaseName = "arcadia-offline";
-const databaseVersion = 1;
+const databaseVersion = 2;
 const titlesStore = "titles";
 const imagesStore = "images";
+const streamsStore = "streams";
 
 function runRequest<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -40,6 +41,7 @@ function openDatabase(): Promise<IDBDatabase> {
       const db = request.result;
       if (!db.objectStoreNames.contains(titlesStore)) db.createObjectStore(titlesStore);
       if (!db.objectStoreNames.contains(imagesStore)) db.createObjectStore(imagesStore);
+      if (!db.objectStoreNames.contains(streamsStore)) db.createObjectStore(streamsStore);
     });
     request.addEventListener("success", () => resolve(request.result));
     request.addEventListener("error", () => {
@@ -74,6 +76,66 @@ function imageUrlsOf(detail: TitleDetail): string[] {
   return [...urls];
 }
 
+type OfflinePlaybackTarget = {
+  installmentId: string;
+  episodeId: string | null;
+};
+
+function playbackTargetsOf(detail: TitleDetail): OfflinePlaybackTarget[] {
+  return detail.installments.flatMap<OfflinePlaybackTarget>((installment) => {
+    if (!installment.isPlayable) return [];
+    if (installment.kind !== "season") {
+      return [{ installmentId: installment.id, episodeId: null }];
+    }
+    return (installment.episodes ?? []).map((episode) => ({
+      installmentId: installment.id,
+      episodeId: episode.id,
+    }));
+  });
+}
+
+function streamKey(installmentId: string, episodeId: string | null | undefined) {
+  return `${installmentId}:${episodeId ?? ""}`;
+}
+
+async function cachePlaybackTarget(db: IDBDatabase, target: OfflinePlaybackTarget): Promise<void> {
+  try {
+    const query = target.episodeId ? `?episodeId=${target.episodeId}` : "";
+    const streams = await apiFetch<InstallmentStreams>(
+      `/api/v1/installments/${target.installmentId}/streams${query}`,
+      { signal: AbortSignal.timeout(12_000) },
+    );
+    // Torrent info hashes remain useful offline from Arcadia's server. Direct/debrid URLs may
+    // expire and can carry provider credentials, so they are deliberately never persisted.
+    const candidates = streams.candidates.filter(
+      (candidate) => candidate.kind === "torrent" && candidate.infoHash,
+    );
+    if (candidates.length === 0) return;
+    await runRequest(
+      db
+        .transaction(streamsStore, "readwrite")
+        .objectStore(streamsStore)
+        .put({ ...streams, candidates }, streamKey(target.installmentId, target.episodeId)),
+    );
+  } catch {
+    // Best-effort like artwork: metadata still saves if one episode has no torrent source.
+  }
+}
+
+async function cachePlaybackTargets(db: IDBDatabase, detail: TitleDetail): Promise<void> {
+  const targets = playbackTargetsOf(detail);
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < targets.length) {
+      const target = targets[nextIndex];
+      nextIndex += 1;
+      if (target) await cachePlaybackTarget(db, target);
+    }
+  }
+  const workerCount = Math.min(4, targets.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+}
+
 /**
  * Persists `detail` and best-effort downloads every image it references. One missing image (a
  * transient fetch failure) does not fail the save — the title still saves, that one picture just
@@ -84,20 +146,23 @@ export async function saveTitleOffline(detail: TitleDetail): Promise<void> {
   await runRequest(
     db.transaction(titlesStore, "readwrite").objectStore(titlesStore).put(detail, detail.id),
   );
-  await Promise.all(
-    imageUrlsOf(detail).map(async (url) => {
-      try {
-        const response = await fetch(url);
-        if (!response.ok) return;
-        const blob = await response.blob();
-        await runRequest(
-          db.transaction(imagesStore, "readwrite").objectStore(imagesStore).put(blob, url),
-        );
-      } catch {
-        // Best-effort, per the doc comment above.
-      }
-    }),
-  );
+  await Promise.all([
+    Promise.all(
+      imageUrlsOf(detail).map(async (url) => {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) return;
+          const blob = await response.blob();
+          await runRequest(
+            db.transaction(imagesStore, "readwrite").objectStore(imagesStore).put(blob, url),
+          );
+        } catch {
+          // Best-effort, per the doc comment above.
+        }
+      }),
+    ),
+    cachePlaybackTargets(db, detail),
+  ]);
 }
 
 /**
@@ -157,11 +222,19 @@ export async function removeTitleOffline(titleId: string): Promise<void> {
     db.transaction(titlesStore, "readwrite").objectStore(titlesStore).delete(titleId),
   );
   if (!detail) return;
-  await Promise.all(
-    imageUrlsOf(detail).map((url) =>
+  await Promise.all([
+    ...imageUrlsOf(detail).map((url) =>
       runRequest(db.transaction(imagesStore, "readwrite").objectStore(imagesStore).delete(url)),
     ),
-  );
+    ...playbackTargetsOf(detail).map((target) =>
+      runRequest(
+        db
+          .transaction(streamsStore, "readwrite")
+          .objectStore(streamsStore)
+          .delete(streamKey(target.installmentId, target.episodeId)),
+      ),
+    ),
+  ]);
 }
 
 export async function listOfflineTitleIds(): Promise<string[]> {
@@ -174,10 +247,40 @@ export async function listOfflineTitleIds(): Promise<string[]> {
   return keys as string[];
 }
 
+/**
+ * Every saved title, hydrated with its cached images — powers the unauthenticated `/offline`
+ * library (`features/library/offline-library-page.tsx`), reached from the login form when no
+ * family server is reachable at all (so there is no session to read this list from). Sorted by
+ * Arabic/English title since the local store keeps no separate "saved at" timestamp.
+ */
+export async function listOfflineTitles(): Promise<TitleDetail[]> {
+  const ids = await listOfflineTitleIds();
+  const details = await Promise.all(ids.map((id) => getOfflineTitle(id)));
+  return details
+    .filter((detail): detail is TitleDetail => detail !== null)
+    .toSorted((a, b) =>
+      (a.titleAr || a.canonicalTitle).localeCompare(b.titleAr || b.canonicalTitle),
+    );
+}
+
 export async function getOfflineImageBlob(url: string): Promise<Blob | null> {
   const db = await openDatabase();
   const result = await runRequest<Blob | undefined>(
     db.transaction(imagesStore, "readonly").objectStore(imagesStore).get(url),
+  );
+  return result ?? null;
+}
+
+export async function getOfflineStreams(
+  installmentId: string,
+  episodeId?: string | null,
+): Promise<InstallmentStreams | null> {
+  const db = await openDatabase();
+  const result = await runRequest<InstallmentStreams | undefined>(
+    db
+      .transaction(streamsStore, "readonly")
+      .objectStore(streamsStore)
+      .get(streamKey(installmentId, episodeId)),
   );
   return result ?? null;
 }

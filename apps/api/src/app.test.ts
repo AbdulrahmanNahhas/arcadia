@@ -1,3 +1,4 @@
+import { watchHistoryItemSchema } from "@arcadia/contracts";
 import { afterAll, describe, expect, it } from "vitest";
 import { app } from "./app";
 import { database } from "./database";
@@ -118,6 +119,32 @@ describe("Arcadia API contract", () => {
     expect(metrics.installments).toBeGreaterThanOrEqual(metrics.titles);
     expect(metrics.episodes).toBeGreaterThan(0);
     expect(metrics.scored_installments).toBeGreaterThan(0);
+  });
+
+  it("returns played activity as watch history rather than browsing history", async () => {
+    const signIn = await app.request("/api/auth/sign-in/username", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: "family", password: "ArcadiaFamily!2026" }),
+    });
+    const token = signIn.headers.get("set-auth-token");
+    expect(token).toBeTruthy();
+    if (!token) throw new Error("Expected Better Auth to return a bearer token");
+
+    try {
+      const response = await app.request("/api/v1/me/watch-history", {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(Array.isArray(body)).toBe(true);
+      expect(watchHistoryItemSchema.array().safeParse(body).success).toBe(true);
+    } finally {
+      await app.request("/api/auth/sign-out", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}` },
+      });
+    }
   });
 
   it("returns real validation, statistics, vocabularies, and media health", async () => {

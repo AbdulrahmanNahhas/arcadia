@@ -14,10 +14,11 @@ import {
   familyAccountSchema,
   updateAccountInputSchema,
 } from "@arcadia/contracts";
-import type { Classification } from "@arcadia/domain";
+import { type Classification, isClassificationAllowed } from "@arcadia/domain";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { auth, getAuthSession, isTestAuthBypass } from "../../auth";
 import { database } from "../../database";
+import { visibilityPolicyForAccount } from "../../repository";
 
 type AccountRow = Record<string, unknown>;
 
@@ -150,6 +151,26 @@ export async function currentFamilyAccount(headers: Headers) {
   return row ? { session, account: mapAccount(row, String(row.id)) } : null;
 }
 
+/**
+ * Whether a family-set ceiling (`account_admin_restrictions`) or specific block list currently
+ * narrows this account below what it would otherwise choose for itself — never which titles are
+ * blocked, only that something is. Backs the plain-Arabic explanation Settings shows a restricted
+ * profile (`familyAccountSchema`'s `contentPolicy` alone can't answer this: it's only ever this
+ * account's own chosen ceiling, not the family's).
+ */
+async function contentRestrictedFor(accountId: string, own: Classification): Promise<boolean> {
+  const policy = await visibilityPolicyForAccount(accountId);
+  if (!policy) return false;
+  return (
+    !isClassificationAllowed(own, policy.maximum) ||
+    policy.blockedTitleIds.size > 0 ||
+    policy.blockedTagIds.size > 0 ||
+    policy.blockedGenreIds.size > 0 ||
+    policy.blockedEntityIds.size > 0 ||
+    policy.blockedPlanetIds.size > 0
+  );
+}
+
 export async function createFamilyAccount(input: {
   username: string;
   password: string;
@@ -211,7 +232,15 @@ export const accountRoutes = new OpenAPIHono();
 accountRoutes.get("/api/v1/me", async (context) => {
   const current = await currentFamilyAccount(context.req.raw.headers);
   if (!current) return context.json({ message: "الحساب غير مرتبط بملف عائلي." }, 404);
-  return context.json({ account: current.account, expiresAt: current.session.session.expiresAt });
+  const contentRestricted = await contentRestrictedFor(
+    current.account.id,
+    current.account.contentPolicy,
+  );
+  return context.json({
+    account: current.account,
+    expiresAt: current.session.session.expiresAt,
+    contentRestricted,
+  });
 });
 
 accountRoutes.patch("/api/v1/me", async (context) => {

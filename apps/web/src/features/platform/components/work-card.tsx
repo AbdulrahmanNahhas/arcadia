@@ -1,5 +1,4 @@
 import {
-  BookmarkSimpleIcon,
   BookOpenIcon,
   FilmSlateIcon,
   GameControllerIcon,
@@ -8,13 +7,14 @@ import {
   StarIcon,
   TelevisionSimpleIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { archiveKeys, getLibrary } from "@/features/archive/api";
-import { taxonomyLabels, type Work } from "@/features/library/model";
-import { setTitleSavedOffline } from "@/features/library/saved-offline";
+import { useRef, useState } from "react";
+import { archiveKeys, getContinueWatching } from "@/features/archive/api";
+import type { Work } from "@/features/library/model";
 import { revealSpatialTarget, useSpatialFocusable } from "@/features/platform/spatial-navigation";
 import { cn } from "@/lib/utils";
+import { WorkCardActions } from "./work-card-actions";
 
 const EASE = "ease-[cubic-bezier(0.16,1,0.3,1)]";
 
@@ -56,11 +56,36 @@ function getDurationText(work: Work) {
   return null;
 }
 
-function useWorkCardSpatialNavigation(work: Work, focusKey?: string) {
+// How many repeated key-down events (the browser's own auto-repeat while a key stays held, not a
+// timer we run ourselves) count as "held", not "tapped". A keyboard/remote's first auto-repeat
+// normally lands well past the OS's initial ~500ms repeat delay, so requiring at least one repeat
+// before treating Enter as a hold keeps a normal tap from ever mis-firing as a hold.
+const LONG_PRESS_REPEAT_THRESHOLD = 2;
+
+/**
+ * A card is one focusable with two actions, not two overlapping ones: Enter/OK opens the title
+ * (unchanged), and *holding* Enter/OK opens the same card-action menu the visible "⋮" button does.
+ * Arrow-key navigation into a small button stacked on top of the card it belongs to was exactly
+ * the "hard to focus" problem this replaces — the spatial-nav engine's distance math assumes
+ * non-overlapping targets, so a button nested inside another focusable's bounds was never
+ * reliably reachable by direction. Holding Enter needs no geometry at all: it works the same on a
+ * keyboard, a remote, and (for mouse/touch users) the button is still there and still clickable.
+ */
+function useWorkCardSpatialNavigation(work: Work, focusKey?: string, onOpenActions?: () => void) {
+  const pressCount = useRef(0);
   return useSpatialFocusable<object, HTMLAnchorElement>({
     focusKey,
     accessibilityLabel: work.arabicTitle || work.installmentTitle || work.title,
     onEnterPress: () => {
+      pressCount.current += 1;
+    },
+    onEnterRelease: () => {
+      const held = pressCount.current >= LONG_PRESS_REPEAT_THRESHOLD;
+      pressCount.current = 0;
+      if (held) {
+        onOpenActions?.();
+        return;
+      }
       const activeElement = document.activeElement;
       if (activeElement instanceof HTMLAnchorElement) activeElement.click();
     },
@@ -167,19 +192,21 @@ function MetaRow({
 }
 
 /**
- * Rating / audience badges over the artwork.
- * `mode="hover"` keeps the artwork completely clean at rest and only reveals
- * the badges on hover — used on the banner variant so the full image reads
- * uninterrupted until the user actually engages with the card.
+ * Rating badge over the artwork's top-end corner (opposite the card-action trigger, which owns
+ * the top-start corner — see `WorkCard`). No longer shows audience: it sat in the same corner as
+ * the action trigger and cluttered every card's most-used corner for a value already visible on
+ * the title page itself.
+ * `mode="hover"` keeps the artwork completely clean at rest and only reveals the badge on
+ * hover/focus — used on the banner variant so the full image reads uninterrupted until the user
+ * actually engages with the card.
  */
 function TopBadges({ work, mode = "always" }: { work: Work; mode?: "always" | "hover" }) {
-  const audienceLabel = work.audience ? taxonomyLabels.audiences?.[work.audience] : null;
-  if (!audienceLabel && work.calculatedRating === null) return null;
+  if (work.calculatedRating === null) return null;
 
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-x-2.5 top-2.5 z-10 flex items-center justify-between",
+        "pointer-events-none absolute inset-e-2.5 top-2.5 z-10",
         mode === "hover" &&
           cn(
             "opacity-0 transition-opacity duration-200 motion-reduce:transition-none",
@@ -188,16 +215,10 @@ function TopBadges({ work, mode = "always" }: { work: Work; mode?: "always" | "h
           ),
       )}
     >
-      {audienceLabel ? <Pill>{audienceLabel}</Pill> : <span />}
-
-      <div className="flex items-center gap-1.5">
-        {work.calculatedRating !== null && (
-          <Pill className="font-semibold">
-            <StarIcon weight="fill" className="size-3 text-amber-300" />
-            {work.calculatedRating.toFixed(1)}
-          </Pill>
-        )}
-      </div>
+      <Pill className="font-semibold">
+        <StarIcon weight="fill" className="size-3 text-amber-300" />
+        {work.calculatedRating.toFixed(1)}
+      </Pill>
     </div>
   );
 }
@@ -229,7 +250,7 @@ function PlayGlyph({
         aria-hidden="true"
         className={cn(
           circleClassName,
-          "flex scale-75 items-center justify-center rounded-full border-2 border-white/70 bg-black/55 text-white shadow-lg",
+          "flex scale-75 items-center justify-center rounded-full border-2 border-border bg-background/80 text-foreground shadow-lg",
           "opacity-0 transition-[transform,opacity] duration-200 motion-reduce:transition-none",
           EASE,
           "group-hover/card:scale-100 group-hover/card:opacity-100 group-data-[focused=true]/card:scale-100 group-data-[focused=true]/card:opacity-100",
@@ -237,6 +258,59 @@ function PlayGlyph({
       >
         <PlayIcon weight="fill" className={cn(iconClassName, "translate-x-0")} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * The shared resume decision, surfaced on a catalog card: a thin progress bar along the bottom of
+ * the artwork when this title has real in-progress playback. Sourced from `getContinueWatching`
+ * (the same bulk, per-account query My Space's continue-watching row already fetches) so every
+ * card asking for it dedupes into the one request TanStack Query already has cached — never one
+ * request per card. Honors "determinate progress only when duration is known" (`v0.3-roadmap.md`):
+ * an unknown duration shows a plain "started" mark rather than a invented percentage.
+ */
+function useResumeProgress(titleId: string) {
+  const { data } = useQuery({
+    queryKey: archiveKeys.continueWatching,
+    queryFn: getContinueWatching,
+    staleTime: 30_000,
+  });
+  const item = data?.inProgress.find((entry) => entry.titleId === titleId);
+  if (!item) return null;
+  return {
+    progress:
+      item.durationSeconds && item.positionSeconds > 0
+        ? Math.min(100, Math.round((item.positionSeconds / item.durationSeconds) * 100))
+        : null,
+  };
+}
+
+function ResumeIndicator({ titleId }: { titleId: string }) {
+  const resume = useResumeProgress(titleId);
+  if (!resume) return null;
+
+  if (resume.progress === null) {
+    // Same hover/focus reveal as `TopBadges` — an unknown-duration "started" mark is still a text
+    // badge, not the thin edge-of-frame bar below, so it follows the same "clean at rest" rule
+    // the poster/banner artwork already holds everything else to.
+    return (
+      <Pill className="pointer-events-none absolute inset-s-2.5 bottom-2.5 z-10 bg-primary/90 opacity-0 transition-opacity duration-200 group-hover/card:opacity-100 group-data-[focused=true]/card:opacity-100 motion-reduce:transition-none">
+        بدأت المشاهدة
+      </Pill>
+    );
+  }
+
+  return (
+    <div
+      role="progressbar"
+      aria-label={`تقدّم المشاهدة ${resume.progress}٪`}
+      aria-valuenow={resume.progress}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-1 bg-black/40"
+    >
+      <div className="h-full bg-primary" style={{ width: `${resume.progress}%` }} />
     </div>
   );
 }
@@ -262,13 +336,15 @@ function PosterCard({
   work,
   className,
   spatialFocusKey,
+  onOpenActions,
 }: {
   work: Work;
   className?: string;
   spatialFocusKey?: string;
+  onOpenActions?: () => void;
 }) {
   const { displayTitle, parentTitle } = getTitleInfo(work);
-  const { ref, focused } = useWorkCardSpatialNavigation(work, spatialFocusKey);
+  const { ref, focused } = useWorkCardSpatialNavigation(work, spatialFocusKey, onOpenActions);
 
   return (
     <Link
@@ -276,6 +352,7 @@ function PosterCard({
       to="/titles/$titleId"
       params={{ titleId: work.id }}
       data-spatial-managed
+      data-spatial-focus-key={spatialFocusKey}
       data-focused={focused || undefined}
       className={cn(
         "group/card block max-w-100 min-w-0 rounded-2xl outline-none",
@@ -290,7 +367,7 @@ function PosterCard({
             "transition-[transform,box-shadow] duration-200 motion-reduce:transform-none motion-reduce:transition-none",
             EASE,
             "group-hover/card:-translate-y-1 group-hover/card:scale-[1.02]",
-            "group-data-[focused=true]/card:-translate-y-1 group-data-[focused=true]/card:scale-[1.025] group-data-[focused=true]/card:ring-[3px] group-data-[focused=true]/card:ring-primary group-data-[focused=true]/card:shadow-xl",
+            "group-data-[focused=true]/card:-translate-y-1 group-data-[focused=true]/card:scale-[0.99] group-data-[focused=true]/card:ring-[3px] group-data-[focused=true]/card:ring-primary group-data-[focused=true]/card:shadow-xl",
           )}
         >
           {work.imagePath ? (
@@ -307,9 +384,10 @@ function PosterCard({
           <HoverScrim />
           <PlayGlyph />
           <TopBadges work={work} mode="hover" />
+          <ResumeIndicator titleId={work.id} />
         </div>
 
-        <div className="flex flex-col gap-1 px-0.5 pt-2.5">
+        <div className="flex flex-col gap-1 px-0.5 pt-2.5 group-data-[focused=true]/card:-translate-y-1 ">
           <TitleBlock
             parentTitle={parentTitle}
             title={displayTitle}
@@ -326,14 +404,16 @@ function BannerCard({
   work,
   className,
   spatialFocusKey,
+  onOpenActions,
 }: {
   work: Work;
   className?: string;
   spatialFocusKey?: string;
+  onOpenActions?: () => void;
 }) {
   const { displayTitle, parentTitle } = getTitleInfo(work);
   const artwork = work.bannerPath || work.imagePath;
-  const { ref, focused } = useWorkCardSpatialNavigation(work, spatialFocusKey);
+  const { ref, focused } = useWorkCardSpatialNavigation(work, spatialFocusKey, onOpenActions);
 
   return (
     <Link
@@ -341,6 +421,7 @@ function BannerCard({
       to="/titles/$titleId"
       params={{ titleId: work.id }}
       data-spatial-managed
+      data-spatial-focus-key={spatialFocusKey}
       data-focused={focused || undefined}
       className={cn(
         "group/card block min-w-0 snap-start rounded-2xl outline-none",
@@ -376,6 +457,7 @@ function BannerCard({
           <HoverScrim />
           <PlayGlyph circleClassName="size-16" iconClassName="size-7" />
           <TopBadges work={work} mode="hover" />
+          <ResumeIndicator titleId={work.id} />
         </div>
 
         <div className="flex flex-col gap-1 px-0.5 pt-2.5">
@@ -410,6 +492,7 @@ function LogoCard({
       to="/titles/$titleId"
       params={{ titleId: work.id }}
       data-spatial-managed
+      data-spatial-focus-key={spatialFocusKey}
       data-focused={focused || undefined}
       className={cn(
         "group/card block min-w-0 rounded-xl outline-none",
@@ -464,34 +547,6 @@ function LogoCard({
 /* Public API                                                                */
 /* ----------------------------------------------------------------------- */
 
-function SaveOfflineButton({ workId }: { workId: string }) {
-  const queryClient = useQueryClient();
-  const library = useQuery({ queryKey: archiveKeys.library, queryFn: getLibrary });
-  const savedOffline =
-    library.data?.some((item) => item.titleId === workId && item.savedOffline) ?? false;
-  const mutation = useMutation({
-    mutationFn: (next: boolean) => setTitleSavedOffline(workId, next),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: archiveKeys.library }),
-  });
-
-  return (
-    <button
-      type="button"
-      aria-label={savedOffline ? "إزالة الحفظ دون اتصال" : "حفظ دون اتصال"}
-      aria-pressed={savedOffline}
-      disabled={mutation.isPending}
-      onClick={() => mutation.mutate(!savedOffline)}
-      className={cn(
-        "absolute top-3 left-1/2 z-20 flex size-9 -translate-x-1/2 items-center justify-center rounded-full bg-background/90 text-foreground shadow-md ring-1 ring-border backdrop-blur-sm transition",
-        "opacity-0 hover:bg-primary hover:text-primary-foreground group-hover/work-card:opacity-100 group-focus-within/work-card:opacity-100",
-        savedOffline && "text-primary opacity-100",
-      )}
-    >
-      <BookmarkSimpleIcon weight={savedOffline ? "fill" : "regular"} />
-    </button>
-  );
-}
-
 export function WorkCard({
   work,
   className,
@@ -503,17 +558,45 @@ export function WorkCard({
   variant?: "poster" | "banner" | "logo";
   spatialFocusKey?: string;
 }) {
-  let card = <PosterCard work={work} className={className} spatialFocusKey={spatialFocusKey} />;
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const onOpenActions = () => setActionsOpen(true);
+
+  let card = (
+    <PosterCard
+      work={work}
+      className={className}
+      spatialFocusKey={spatialFocusKey}
+      onOpenActions={onOpenActions}
+    />
+  );
   if (variant === "logo") {
     card = <LogoCard work={work} className={className} spatialFocusKey={spatialFocusKey} />;
   } else if (variant === "banner") {
-    card = <BannerCard work={work} className={className} spatialFocusKey={spatialFocusKey} />;
+    card = (
+      <BannerCard
+        work={work}
+        className={className}
+        spatialFocusKey={spatialFocusKey}
+        onOpenActions={onOpenActions}
+      />
+    );
   }
 
+  const { displayTitle } = getTitleInfo(work);
   return (
     <div className="group/work-card relative min-w-0">
       {card}
-      <SaveOfflineButton workId={work.id} />
+      {/* Logo cards are small franchise/collection tiles, not primary browsable titles — the
+          action menu only makes sense on the poster/banner cards that stand in for one work. */}
+      {variant !== "logo" && (
+        <WorkCardActions
+          titleId={work.id}
+          title={displayTitle}
+          open={actionsOpen}
+          onOpenChange={setActionsOpen}
+          className="absolute start-2.5 top-2.5 z-10"
+        />
+      )}
     </div>
   );
 }

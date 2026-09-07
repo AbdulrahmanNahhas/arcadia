@@ -173,7 +173,7 @@ function matchesQuery(work: Work, query: string) {
   ].some((value) => value?.toLocaleLowerCase().includes(query));
 }
 
-export function DatabasePage() {
+export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
   const { data: publicWorks } = useSuspenseQuery({
     queryKey: ["platform-catalog", "titles"],
     queryFn: () => getPlatformCatalogWorks(),
@@ -206,7 +206,7 @@ export function DatabasePage() {
     () => new Map(planets.map((planet) => [planet.id, planet])),
     [planets],
   );
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [mode, setMode] = useState<CatalogMode>("titles");
   const [sort, setSort] = useState<CatalogSort>("newest");
   const [view, setView] = usePersistedState<CatalogView>("arcadia:browse:view", "poster");

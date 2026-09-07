@@ -9,6 +9,10 @@ async function signIn(
   page: import("@playwright/test").Page,
   account: keyof typeof credentials = "owner",
 ) {
+  // Browser tests replay the desktop bearer token from localStorage as well as the session cookie.
+  // Clear both so switching test accounts cannot be redirected away from the login screen.
+  await page.goto("/login");
+  await page.evaluate(() => window.localStorage.removeItem("arcadia:sessionToken"));
   await page.context().clearCookies();
   await page.goto("/login");
   await page.locator('input[name="username"]').fill(credentials[account].username);
@@ -94,6 +98,7 @@ test("planet and entity directories expose their cards to arrow navigation", asy
 });
 
 test("browse and title actions receive focus before their work cards", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/browse");
   const focusedBrowseControl = page.locator(
     '#main-content [data-spatial-auto="true"][data-focused="true"]',
@@ -118,9 +123,65 @@ test("browse and title actions receive focus before their work cards", async ({ 
   await expect(focusedTitleAction).toHaveCount(1);
   await expect(focusedTitleAction).toBeInViewport();
   await expect(page.locator('#main-content [data-spatial-auto="true"]')).not.toHaveCount(0);
-  await expect(
-    page.locator('#main-content [data-spatial-managed][data-focused="true"]'),
-  ).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "ملف العمل" })).toHaveAttribute(
+    "data-spatial-managed",
+    "true",
+  );
+  await expect(page.getByRole("tabpanel")).not.toHaveAttribute("data-spatial-auto", "true");
+
+  const overviewTab = page.getByRole("tab", { name: "ملف العمل" });
+  const episodesTab = page.getByRole("tab", { name: "الأجزاء والحلقات" });
+  await overviewTab.click();
+  await page.keyboard.press("ArrowLeft");
+  await expect(episodesTab).toBeFocused();
+  await expect(episodesTab).toHaveAttribute("aria-selected", "true");
+  const firstInstallment = page
+    .getByRole("region", { name: "اختيار الجزء" })
+    .getByRole("button")
+    .first();
+  await expect(firstInstallment).toHaveAttribute("data-spatial-auto", "true");
+  await page.keyboard.press("ArrowDown");
+  await expect(firstInstallment).toBeFocused();
+});
+
+test("the explore menu releases focus toward the left side of the header", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/");
+  const trigger = page.getByRole("button", { name: /استكشف/ });
+  await trigger.click();
+  const menu = page.locator('[data-slot="navigation-menu-content"]');
+  await expect(menu).toBeVisible();
+  await menu.getByRole("link").first().focus();
+
+  await page.keyboard.press("ArrowLeft");
+
+  await expect(menu).toBeHidden();
+  await expect
+    .poll(() =>
+      page.evaluate(() => Boolean(document.activeElement?.closest("[data-header-actions]"))),
+    )
+    .toBe(true);
+});
+
+test("the shell profile switcher clears the active session before changing account", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /الملف والحساب/ }).click();
+  const switchTarget = page.getByRole("menuitem").filter({ hasText: "يتطلب كلمة المرور" }).first();
+  await expect(switchTarget).toBeVisible();
+
+  await Promise.all([
+    page.waitForURL((url) => url.pathname === "/login" && url.searchParams.has("profile")),
+    switchTarget.click(),
+  ]);
+
+  const selectedProfile = new URL(page.url()).searchParams.get("profile");
+  expect(selectedProfile).toBeTruthy();
+  await expect(page.locator('input[name="username"]')).toHaveValue(selectedProfile ?? "");
+  await expect
+    .poll(() => page.evaluate(() => window.localStorage.getItem("arcadia:sessionToken")))
+    .toBeNull();
 });
 
 test("home watch radar handles pinned works without banner artwork", async ({ page }) => {
@@ -141,9 +202,9 @@ test("family account browses an accessible title in RTL", async ({ page }) => {
   await signIn(page, "family");
   await page.goto("/accounts");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByText("أنت هنا")).toBeVisible();
+  await expect(page.locator("#main-content h1")).toBeVisible();
   await page.goto("/browse");
-  await expect(page.getByRole("heading", { name: "قاعدة البيانات" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "البحث في قاعدة البيانات" })).toBeVisible();
   const firstTitle = page.locator('a[href^="/titles/"]').first();
   await expect(firstTitle).toBeVisible();
   await firstTitle.click();

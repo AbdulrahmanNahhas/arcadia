@@ -233,7 +233,13 @@ archiveRoutes.get("/api/v1/calendar/releases", async (context) => {
   // films carry dates into 2027–2029) rather than protecting against unbounded growth.
   const rows = await database().client`select i.id as "installmentId",t.id as "titleId",
     coalesce(t.title_ar,t.canonical_title) as title,i.title as "installmentTitle",i.kind,
-    i.release_date as "releaseDate",(f.account_id is not null) as followed
+    i.release_date as "releaseDate",(f.account_id is not null) as followed,
+    coalesce(
+      (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+        where x.installment_id=i.id and x.role='poster' and x.is_primary limit 1),
+      (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+        where x.title_id=t.id and x.role='poster' and x.is_primary limit 1)
+    ) as "posterPath"
     from installments i join titles t on t.id=i.title_id left join title_follows f
       on f.title_id=t.id and f.account_id=${current.account.id}
     where i.release_date >= current_date - interval '30 days'

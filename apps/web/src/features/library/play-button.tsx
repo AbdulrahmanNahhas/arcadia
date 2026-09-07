@@ -1,5 +1,5 @@
 import { PlayIcon } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useSyncExternalStore } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -119,6 +119,7 @@ export function PlayFilmButton({
   className?: string;
 } & PlayableInstallment) {
   const desktop = useIsDesktopShell();
+  const origin = useLocation({ select: (location) => location.href });
   const reason = unplayableReason({ releaseStatus, releaseAt, imdbId, tmdbId });
 
   if (reason) {
@@ -138,9 +139,9 @@ export function PlayFilmButton({
 
   return (
     <Link
-      to="/player/$installmentId" // TODO: CHANGE!!! to $installmentId
+      to="/player/$installmentId"
       params={{ installmentId }}
-      search={{ titleId, episodeId: null }}
+      search={{ titleId, episodeId: null, origin }}
       className={cn(buttonVariants({ size }), className)}
     >
       <PlayIcon weight="fill" data-icon="inline-start" /> {label}
@@ -207,6 +208,7 @@ export function PlayEpisodeButton({
   className?: string;
 } & PlayableEpisode) {
   const desktop = useIsDesktopShell();
+  const origin = useLocation({ select: (location) => location.href });
   const reason = unplayableEpisodeReason({
     releaseStatus,
     releaseAt,
@@ -234,7 +236,7 @@ export function PlayEpisodeButton({
     <Link
       to="/player/$installmentId"
       params={{ installmentId }}
-      search={{ titleId, episodeId }}
+      search={{ titleId, episodeId, origin }}
       className={cn(buttonVariants({ size }), className)}
     >
       <PlayIcon weight="fill" data-icon="inline-start" /> {label}

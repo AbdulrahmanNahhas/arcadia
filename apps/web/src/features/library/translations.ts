@@ -15,7 +15,7 @@ export const kindLabelsAr: Record<WorkKind, string> = {
   comic: "قصص مصورة",
 };
 
-const valueLabelsAr: Readonly<Record<string, string>> = {
+export const valueLabelsAr: Readonly<Record<string, string>> = {
   upcoming: "قادم",
   airing: "يعرض الآن",
   returning: "مستمر",

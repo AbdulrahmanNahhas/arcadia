@@ -14,6 +14,45 @@ export interface PlaybackSource {
   streams: InstallmentStreams;
 }
 
+export interface PlaybackTargetCandidate {
+  watched: boolean;
+  positionSeconds: number;
+  updatedAt: string;
+}
+
+export type PlaybackTargetDecision<T extends PlaybackTargetCandidate> = {
+  target: T;
+  mode: "resume" | "next" | "replay";
+};
+
+/**
+ * One ordering rule for every "play" entry point: resume the most recently active unfinished
+ * unit, otherwise start the first unwatched unit in catalog order, otherwise offer the first unit
+ * again. Callers filter unavailable units before invoking this rule.
+ */
+export function selectPlaybackTarget<T extends PlaybackTargetCandidate>(
+  candidates: readonly T[],
+): PlaybackTargetDecision<T> | null {
+  if (candidates.length === 0) return null;
+
+  let latestResume: T | null = null;
+  let latestTimestamp = Number.NEGATIVE_INFINITY;
+  for (const candidate of candidates) {
+    if (candidate.watched || candidate.positionSeconds <= 0) continue;
+    const timestamp = Date.parse(candidate.updatedAt) || 0;
+    if (latestResume && timestamp <= latestTimestamp) continue;
+    latestResume = candidate;
+    latestTimestamp = timestamp;
+  }
+  if (latestResume) return { target: latestResume, mode: "resume" };
+
+  const next = candidates.find((candidate) => !candidate.watched);
+  if (next) return { target: next, mode: "next" };
+
+  const first = candidates[0];
+  return first ? { target: first, mode: "replay" } : null;
+}
+
 /**
  * Why playback could not start, in a form the UI turns into one specific Arabic sentence. This is
  * the roadmap's "no id / no streams / no peers, never a spinner that never resolves" — the
@@ -25,6 +64,10 @@ export type PlaybackFailure =
   | "no_streams"
   /** Not running inside the desktop shell. */
   | "not_desktop"
+  /** Arcadia's API cannot be reached from this device. */
+  | "server_unreachable"
+  /** The source did not answer within the playback-resolution deadline. */
+  | "upstream_timeout"
   | "unknown";
 
 export class PlaybackError extends Error {
@@ -60,18 +103,30 @@ function isFailureCode(code: string): code is StreamErrorCode {
 export async function resolvePlayback(
   installmentId: string,
   episodeId?: string | null,
+  cachedStreams?: InstallmentStreams | null,
 ): Promise<PlaybackSource> {
+  if (cachedStreams?.candidates.length) {
+    return { kind: "torrent", streams: cachedStreams };
+  }
+
   let streams: InstallmentStreams;
   try {
     const query = episodeId ? `?episodeId=${episodeId}` : "";
     streams = await apiFetch<InstallmentStreams>(
       `/api/v1/installments/${installmentId}/streams${query}`,
+      { signal: AbortSignal.timeout(12_000) },
     );
   } catch (error) {
     if (error instanceof ApiError && error.code && isFailureCode(error.code)) {
       // The API already writes the family-facing sentence; the local table is the fallback for a
       // response that carried a code but no message.
       throw new PlaybackError(error.code, error.message || messageFor(error.code));
+    }
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new PlaybackError("upstream_timeout", messageFor("upstream_timeout"));
+    }
+    if (error instanceof TypeError) {
+      throw new PlaybackError("server_unreachable", messageFor("server_unreachable"));
     }
     throw new PlaybackError("unknown", messageFor("unknown"));
   }
@@ -96,6 +151,8 @@ const messages = {
   source_not_configured: "لم يُضبط مصدر البث في هذا التثبيت.",
   no_streams: "لا توجد مصادر متاحة لهذا الفيلم حالياً.",
   not_desktop: "التشغيل متاح في تطبيق سطح المكتب فقط.",
+  server_unreachable: "تعذّر الاتصال بخادم العائلة. تحقق من الشبكة وعنوان الخادم.",
+  upstream_timeout: "استغرق مصدر البث وقتاً أطول من المتوقع. حاول مجدداً.",
   unknown: "تعذّر تجهيز التشغيل.",
 } satisfies Record<PlaybackFailure, string>;
 

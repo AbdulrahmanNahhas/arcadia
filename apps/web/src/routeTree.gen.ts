@@ -18,6 +18,7 @@ import { Route as AwardsRouteImport } from './routes/awards'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as OfflineRouteImport } from './routes/offline'
 import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as EntitiesPlanetsRouteImport } from './routes/_entities/planets'
@@ -38,6 +39,7 @@ import { Route as AdminVocabulariesRouteImport } from './routes/admin/vocabulari
 import { Route as AwardsIndexRouteImport } from './routes/awards.index'
 import { Route as AwardsOrganizationSlugRouteImport } from './routes/awards.$organizationSlug'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as OfflineTitleIdRouteImport } from './routes/offline_.$titleId'
 import { Route as PlayerInstallmentIdRouteImport } from './routes/player.$installmentId'
 import { Route as TitlesTitleIdRouteImport } from './routes/titles.$titleId'
 import { Route as EntitiesPeopleIndexRouteImport } from './routes/_entities/people.index'
@@ -95,6 +97,11 @@ const CompareRoute = CompareRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfflineRoute = OfflineRouteImport.update({
+  id: '/offline',
+  path: '/offline',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfilesRoute = ProfilesRouteImport.update({
@@ -197,6 +204,11 @@ const InviteTokenRoute = InviteTokenRouteImport.update({
   path: '/invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OfflineTitleIdRoute = OfflineTitleIdRouteImport.update({
+  id: '/offline_/$titleId',
+  path: '/offline/$titleId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlayerInstallmentIdRoute = PlayerInstallmentIdRouteImport.update({
   id: '/player/$installmentId',
   path: '/player/$installmentId',
@@ -280,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
   '/login': typeof LoginRoute
+  '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
   '/planets': typeof EntitiesPlanetsRouteWithChildren
@@ -298,6 +311,7 @@ export interface FileRoutesByFullPath {
   '/admin/vocabularies': typeof AdminVocabulariesRoute
   '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/offline/$titleId': typeof OfflineTitleIdRoute
   '/player/$installmentId': typeof PlayerInstallmentIdRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -322,6 +336,7 @@ export interface FileRoutesByTo {
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
   '/login': typeof LoginRoute
+  '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
   '/admin/accounts': typeof AdminAccountsRoute
@@ -338,6 +353,7 @@ export interface FileRoutesByTo {
   '/admin/vocabularies': typeof AdminVocabulariesRoute
   '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/offline/$titleId': typeof OfflineTitleIdRoute
   '/player/$installmentId': typeof PlayerInstallmentIdRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin': typeof AdminIndexRoute
@@ -366,6 +382,7 @@ export interface FileRoutesById {
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
   '/login': typeof LoginRoute
+  '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
   '/_entities/planets': typeof EntitiesPlanetsRouteWithChildren
@@ -384,6 +401,7 @@ export interface FileRoutesById {
   '/admin/vocabularies': typeof AdminVocabulariesRoute
   '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/offline_/$titleId': typeof OfflineTitleIdRoute
   '/player/$installmentId': typeof PlayerInstallmentIdRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -412,6 +430,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/compare'
     | '/login'
+    | '/offline'
     | '/profiles'
     | '/settings'
     | '/planets'
@@ -430,6 +449,7 @@ export interface FileRouteTypes {
     | '/admin/vocabularies'
     | '/awards/$organizationSlug'
     | '/invite/$token'
+    | '/offline/$titleId'
     | '/player/$installmentId'
     | '/titles/$titleId'
     | '/admin/'
@@ -454,6 +474,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/compare'
     | '/login'
+    | '/offline'
     | '/profiles'
     | '/settings'
     | '/admin/accounts'
@@ -470,6 +491,7 @@ export interface FileRouteTypes {
     | '/admin/vocabularies'
     | '/awards/$organizationSlug'
     | '/invite/$token'
+    | '/offline/$titleId'
     | '/player/$installmentId'
     | '/titles/$titleId'
     | '/admin'
@@ -497,6 +519,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/compare'
     | '/login'
+    | '/offline'
     | '/profiles'
     | '/settings'
     | '/_entities/planets'
@@ -515,6 +538,7 @@ export interface FileRouteTypes {
     | '/admin/vocabularies'
     | '/awards/$organizationSlug'
     | '/invite/$token'
+    | '/offline_/$titleId'
     | '/player/$installmentId'
     | '/titles/$titleId'
     | '/admin/'
@@ -543,9 +567,11 @@ export interface RootRouteChildren {
   BrowseRoute: typeof BrowseRoute
   CompareRoute: typeof CompareRoute
   LoginRoute: typeof LoginRoute
+  OfflineRoute: typeof OfflineRoute
   ProfilesRoute: typeof ProfilesRoute
   SettingsRoute: typeof SettingsRoute
   InviteTokenRoute: typeof InviteTokenRoute
+  OfflineTitleIdRoute: typeof OfflineTitleIdRoute
   PlayerInstallmentIdRoute: typeof PlayerInstallmentIdRoute
   TitlesTitleIdRoute: typeof TitlesTitleIdRoute
   TitlesTitleIdInstallmentsInstallmentIdRoute: typeof TitlesTitleIdInstallmentsInstallmentIdRoute
@@ -614,6 +640,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offline': {
+      id: '/offline'
+      path: '/offline'
+      fullPath: '/offline'
+      preLoaderRoute: typeof OfflineRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profiles': {
@@ -754,6 +787,13 @@ declare module '@tanstack/react-router' {
       path: '/invite/$token'
       fullPath: '/invite/$token'
       preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offline_/$titleId': {
+      id: '/offline_/$titleId'
+      path: '/offline/$titleId'
+      fullPath: '/offline/$titleId'
+      preLoaderRoute: typeof OfflineTitleIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/player/$installmentId': {
@@ -970,9 +1010,11 @@ const rootRouteChildren: RootRouteChildren = {
   BrowseRoute: BrowseRoute,
   CompareRoute: CompareRoute,
   LoginRoute: LoginRoute,
+  OfflineRoute: OfflineRoute,
   ProfilesRoute: ProfilesRoute,
   SettingsRoute: SettingsRoute,
   InviteTokenRoute: InviteTokenRoute,
+  OfflineTitleIdRoute: OfflineTitleIdRoute,
   PlayerInstallmentIdRoute: PlayerInstallmentIdRoute,
   TitlesTitleIdRoute: TitlesTitleIdRoute,
   TitlesTitleIdInstallmentsInstallmentIdRoute:

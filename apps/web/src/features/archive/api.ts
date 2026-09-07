@@ -12,6 +12,7 @@ import type {
   ReleaseCalendarItem,
   SavedView,
   ViewHistoryItem,
+  WatchHistoryItem,
   WatchStats,
 } from "@arcadia/contracts";
 import { apiFetch } from "@/lib/api";
@@ -25,12 +26,17 @@ export type LibraryEntry = {
   notes: string;
   savedOffline: boolean;
   updatedAt: string;
+  releaseDate: string | null;
+  lastPlayedAt: string | null;
+  positionSeconds: number | null;
+  durationSeconds: number | null;
 };
 
 export const archiveKeys = {
   root: ["archive"] as const,
   library: ["archive", "library"] as const,
   history: ["archive", "history"] as const,
+  watchHistory: ["archive", "watch-history"] as const,
   views: ["archive", "views"] as const,
   collections: ["archive", "collections"] as const,
   calendar: ["archive", "calendar"] as const,
@@ -45,6 +51,14 @@ export const archiveKeys = {
 
 export const getLibrary = () => apiFetch<LibraryEntry[]>("/api/v1/me/library");
 export const getHistory = () => apiFetch<ViewHistoryItem[]>("/api/v1/me/history");
+export const getWatchHistory = () => apiFetch<WatchHistoryItem[]>("/api/v1/me/watch-history");
+export const clearWatchHistory = (installmentId?: string, episodeId?: string | null) => {
+  const query = new URLSearchParams();
+  if (installmentId) query.set("installmentId", installmentId);
+  if (episodeId) query.set("episodeId", episodeId);
+  const suffix = query.size ? `?${query.toString()}` : "";
+  return apiFetch<{ deleted: number }>(`/api/v1/me/watch-history${suffix}`, { method: "DELETE" });
+};
 export const clearHistory = (titleId = "all") =>
   apiFetch<{ deleted: true }>(`/api/v1/me/history/${titleId}`, { method: "DELETE" });
 export const recordHistory = (titleId: string) =>

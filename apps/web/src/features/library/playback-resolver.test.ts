@@ -1,7 +1,12 @@
 import type { InstallmentStreams, StreamError } from "@arcadia/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api";
-import { messageFor, PlaybackError, resolvePlayback } from "./playback-resolver";
+import {
+  messageFor,
+  PlaybackError,
+  resolvePlayback,
+  selectPlaybackTarget,
+} from "./playback-resolver";
 
 function stubFetch(response: Response) {
   vi.stubGlobal(
@@ -52,7 +57,56 @@ const candidate: InstallmentStreams["candidates"][number] = {
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe("selectPlaybackTarget", () => {
+  const candidates = [
+    { id: "episode-1", watched: false, positionSeconds: 120, updatedAt: "2026-01-01T10:00:00Z" },
+    { id: "episode-2", watched: false, positionSeconds: 60, updatedAt: "2026-01-02T10:00:00Z" },
+    { id: "episode-3", watched: false, positionSeconds: 0, updatedAt: "" },
+  ];
+
+  it("resumes the most recently active unfinished unit", () => {
+    expect(selectPlaybackTarget(candidates)).toMatchObject({
+      mode: "resume",
+      target: { id: "episode-2" },
+    });
+  });
+
+  it("starts the first unwatched unit when there is no saved position", () => {
+    expect(
+      selectPlaybackTarget(
+        candidates.map((item) => ({ ...item, positionSeconds: 0, updatedAt: "" })),
+      ),
+    ).toMatchObject({ mode: "next", target: { id: "episode-1" } });
+  });
+
+  it("ignores completed progress and offers replay only when everything is watched", () => {
+    const watched = candidates.map((item) => ({ ...item, watched: true }));
+    expect(selectPlaybackTarget(watched)).toMatchObject({
+      mode: "replay",
+      target: { id: "episode-1" },
+    });
+  });
+});
+
 describe("resolvePlayback", () => {
+  it("uses saved torrent candidates without contacting Arcadia's server", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const streams: InstallmentStreams = {
+      installmentId: "11111111-1111-1111-1111-111111111111",
+      titleId: "22222222-2222-2222-2222-222222222222",
+      streamId: "tt0133093",
+      idSource: "installment.imdb",
+      candidates: [candidate],
+    };
+
+    const source = await resolvePlayback("11111111-1111-1111-1111-111111111111", null, streams);
+
+    expect(source.kind).toBe("torrent");
+    expect(source.streams).toEqual(streams);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("returns a torrent source when the API offers info-hash candidates", async () => {
     stubFetch(
       jsonResponse({
