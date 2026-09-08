@@ -190,6 +190,13 @@
       "when": 1788698794638,
       "tag": "0026_unique_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1788807842254,
+      "tag": "0027_jazzy_quasar",
+      "breakpoints": true
     }
   ]
 }

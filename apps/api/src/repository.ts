@@ -13,6 +13,10 @@ import {
   isClassificationAllowed,
   isVisibleToPolicy,
   type Score,
+  type TitleFormat,
+  type TitleKind,
+  titleKindOf,
+  titleKinds,
   titleRating,
   type VisibilityPolicy,
 } from "@arcadia/domain";
@@ -20,6 +24,20 @@ import { database } from "./database";
 
 type SqlRow = Record<string, unknown>;
 const numeric = (value: unknown) => (value == null ? null : Number(value));
+
+/**
+ * A title's four-way catalog type: its stored `format` crossed with whether any of its own
+ * installments is a season. Nothing stores the movie/series half, so it can never disagree with
+ * the structure beneath the title — see `titleKindOf` in `@arcadia/domain`.
+ */
+const isTitleKind = (value: string): value is TitleKind =>
+  (titleKinds as readonly string[]).includes(value);
+
+const titleKind = (row: SqlRow, ownInstallments: readonly SqlRow[]): TitleKind =>
+  titleKindOf(
+    (row.format as TitleFormat | null) ?? "animated",
+    ownInstallments.some((item) => item.kind === "season") ? "series" : "movie",
+  );
 const titleClassification = (row: SqlRow): Classification => ({
   audience: row.audience as Classification["audience"],
   age: row.age as Classification["age"],
@@ -94,10 +112,12 @@ export async function visibilityPolicyForAccount(
       r.audience as restriction_audience, r.age as restriction_age,
       r.sexuality_risk as restriction_sexuality_risk,
       r.behavioral_risk as restriction_behavioral_risk,
-      r.theology_risk as restriction_theology_risk
+      r.theology_risk as restriction_theology_risk,
+      pref.visible_title_kinds
       from accounts a
       join account_content_policies p on p.account_id=a.id
       join account_admin_restrictions r on r.account_id=a.id
+      left join account_preferences pref on pref.account_id=a.id
       where a.id=${accountId} and a.status='active'`,
     sql`select title_id as id from account_title_blocks where account_id=${accountId}`,
     sql`select tag_id as id from account_tag_blocks where account_id=${accountId}`,
@@ -116,8 +136,14 @@ export async function visibilityPolicyForAccount(
     theology: policyRow.restriction_theology_risk as Classification["theology"],
   };
   const ids = (rows: SqlRow[]) => new Set(rows.map((item) => String(item.id)));
+  // An account with no preferences row yet (or a row predating this column) sees every type —
+  // the shelf filter is opt-in, so its absence must never hide anything.
+  const kinds = Array.isArray(policyRow.visible_title_kinds)
+    ? policyRow.visible_title_kinds.map(String).filter(isTitleKind)
+    : [];
   return {
     maximum: effectivePolicy(own, restriction),
+    allowedKinds: new Set(kinds.length ? kinds : titleKinds),
     blockedTitleIds: ids(titleRows),
     blockedTagIds: ids(tagRows),
     blockedGenreIds: ids(genreRows),
@@ -137,6 +163,10 @@ function isTitleVisible(
       {
         id: titleId,
         classification: titleClassification(row),
+        kind: titleKind(
+          row,
+          data.installments.filter((item) => item.title_id === row.id),
+        ),
         tagIds: data.tags.filter((item) => item.title_id === row.id).map((item) => String(item.id)),
         genreIds: data.genres
           .filter((item) => item.title_id === row.id)
@@ -255,7 +285,7 @@ function summary(
   return {
     id: String(row.id),
     canonicalTitle: String(row.canonical_title),
-    kind: ownInstallments.some((item) => item.kind === "season") ? "anime" : "movie",
+    kind: titleKind(row, ownInstallments),
     titleAr: row.title_ar ? String(row.title_ar) : null,
     summary: String(row.summary),
     posterPath: row.poster_path ? String(row.poster_path) : null,

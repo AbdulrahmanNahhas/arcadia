@@ -224,18 +224,25 @@ Calibrate against neighbours before writing:
   classification, both prose fields, and at least one scored installment are in place.
 - **`isPrivate`** — hides a title from the family-facing catalog.
 - **`releaseYear`** — on the title; individual `releaseDate`s go on installments.
+- **`kind`** — one of `animated-movie`/`animated-series`/`live-action-movie`/`live-action-series`.
+  Only its animated/live-action half is a real column (`titles.format`); the movie/series half is
+  derived from whether the title has any `season` installment, so it always agrees with the
+  structure — set `format` and the installment structure, never `kind` directly.
 - **External ids (`tmdbId`, `imdbId`, `tvdbId`, `anilistId`, `malId`)** — both the title and each
-  installment carry all five columns, but which level to fill in depends on `kind`:
-  - **Anime/TV titles (`kind: "anime"`)** — set them **on the title**. The title is the one TMDB/
-    AniList/MAL/TVDB entry; season installments never carry their own ids by design (a season has
-    no separate entry on those sites — only the show does).
-  - **Movie-kind titles (`kind: "movie"`)** — set them **on the installment only**, never the
-    title, even when the title has just one film. A title can hold several films (a franchise
-    like Toy Story), each with its own distinct TMDB/IMDb id, so there is no single id that
-    correctly represents "the title" — the admin editor's artwork search for a movie-kind title's
+  installment carry all five columns, but which level to fill in depends on the movie/series half
+  of `kind`:
+  - **Series titles (`animated-series`/`live-action-series`)** — set them **on the title**. The
+    title is the one TMDB/AniList/MAL/TVDB entry; season installments never carry their own ids
+    by design (a season has no separate entry on those sites — only the show does).
+  - **Movie titles (`animated-movie`/`live-action-movie`)** — set them **on the installment only**,
+    never the title, even when the title has just one film. A title can hold several films (a
+    franchise like Toy Story), each with its own distinct TMDB/IMDb id, so there is no single id
+    that correctly represents "the title" — the admin editor's artwork search for a movie title's
     own poster/banner/logo uses its *first* film's id for exactly this reason. Leave
-    `title.tmdbId`/`title.imdbId` null for every movie-kind title; a value there for one is a bug,
-    not extra coverage — the CLI does not stop you from setting it, so this is on you to avoid.
+    `title.tmdbId`/`title.imdbId` null for every movie title; a value there for one is a bug, not
+    extra coverage — the CLI does not stop you from setting it, so this is on you to avoid.
+  - AniList/MyAnimeList only catalog animation — never set `anilistId`/`malId` on a live-action
+    title.
   - `tvdbId`, `anilistId`, `malId` are used sparingly and only where they add real value — leave
     them null rather than guessing.
   - Verify what you set actually landed: `./bin/arcadia sql "select canonical_title, tmdb_id,
@@ -270,5 +277,5 @@ Calibrate against neighbours before writing:
 - Scores sit sensibly against comparable works — check `stats top` if anything is above 9.
 - Genres, tones, and credits reuse existing terms.
 - The title has a planet, a release year, and a poster.
-- External ids are on the right level: title-level for `kind: "anime"`, installment-level only
-  for `kind: "movie"` (`title.tmdbId`/`title.imdbId` must be null there, even for a single film).
+- External ids are on the right level: title-level for a series, installment-level only for a
+  movie (`title.tmdbId`/`title.imdbId` must be null there, even for a single film).

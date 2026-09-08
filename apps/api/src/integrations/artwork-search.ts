@@ -1,4 +1,5 @@
 import type { artworkSearchQuerySchema } from "@arcadia/contracts";
+import { titleFormatOf, titleShapeOf } from "@arcadia/domain";
 import type { z } from "zod";
 import { searchAniListArtwork } from "./anilist";
 import { fetchFanartMovieArtwork } from "./fanart";
@@ -11,20 +12,26 @@ type Query = z.infer<typeof artworkSearchQuerySchema>;
  * first. Each provider call is best-effort — a missing key or a failed request just yields no
  * candidates from that provider rather than failing the whole search, since admins are visually
  * picking from whatever came back, not relying on any single source being present.
+ *
+ * The two halves of `kind` route independently: the movie/series half picks TMDB's `/movie` vs
+ * `/tv` endpoint and decides whether Fanart (movies only) can be chained, while the
+ * animated/live-action half decides whether AniList is worth asking at all. An absent `kind`
+ * falls back to the animated-movie shape, matching the catalog's historical default.
  */
 export async function searchArtwork(query: Query) {
-  const isAnime = query.kind === "anime";
-  const tmdbMediaType = isAnime ? "tv" : "movie";
+  const kind = query.kind ?? "animated-movie";
+  const isAnimated = titleFormatOf(kind) === "animated";
+  const isMovie = titleShapeOf(kind) === "movie";
 
   const [tmdb, anilist] = await Promise.all([
     searchTmdbArtwork({
       title: query.title,
       year: query.year,
       role: query.role,
-      mediaType: tmdbMediaType,
+      mediaType: isMovie ? "movie" : "tv",
       tmdbId: query.tmdbId,
     }).catch(() => ({ candidates: [], matchedId: null })),
-    isAnime
+    isAnimated
       ? searchAniListArtwork({
           title: query.title,
           role: query.role,
@@ -37,7 +44,7 @@ export async function searchArtwork(query: Query) {
 
   // Fanart only covers movies here (see fanart.ts) — chain it off a movie-shaped TMDB match.
   const fanart =
-    !isAnime && tmdb.matchedId
+    isMovie && tmdb.matchedId
       ? await fetchFanartMovieArtwork({
           tmdbId: tmdb.matchedId,
           role: query.role,
@@ -45,7 +52,8 @@ export async function searchArtwork(query: Query) {
         }).catch(() => ({ candidates: [] }))
       : { candidates: [] };
 
-  return isAnime
+  // AniList's art is the closest match for animation, so it leads when it was queried at all.
+  return isAnimated
     ? [...anilist.candidates, ...tmdb.candidates, ...fanart.candidates]
-    : [...tmdb.candidates, ...fanart.candidates, ...anilist.candidates];
+    : [...tmdb.candidates, ...fanart.candidates];
 }

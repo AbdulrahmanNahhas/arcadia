@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Classification } from "./classification";
 import { intersectClassifications, isClassificationAllowed } from "./classification";
+import { type TitleKind, titleKindSchema } from "./title-kind";
 
 export const filterTreeSchema: z.ZodType<FilterTree> = z.lazy(() =>
   z.union([
@@ -24,6 +25,14 @@ export type FilterTree =
 
 export type VisibilityPolicy = {
   maximum: Classification;
+  /**
+   * Which of the four catalog types this account wants on its shelves
+   * (`account_preferences.visible_title_kinds`) — a self-chosen preference rather than a safety
+   * control, but enforced here beside the safety rules so a type the reader turned off stays
+   * hidden on every surface (browse, search, detail) instead of only the ones that remembered
+   * to filter.
+   */
+  allowedKinds: ReadonlySet<TitleKind>;
   blockedTitleIds: ReadonlySet<string>;
   blockedTagIds: ReadonlySet<string>;
   blockedGenreIds: ReadonlySet<string>;
@@ -34,6 +43,8 @@ export type VisibilityPolicy = {
 export type VisibilityCandidate = {
   id: string;
   classification: Classification;
+  /** Omitted by candidates that aren't titles (or where the type is already known to match). */
+  kind?: TitleKind;
   tagIds?: readonly string[];
   genreIds?: readonly string[];
   entityIds?: readonly string[];
@@ -42,6 +53,7 @@ export type VisibilityCandidate = {
 
 export function isVisibleToPolicy(candidate: VisibilityCandidate, policy: VisibilityPolicy) {
   if (!isClassificationAllowed(candidate.classification, policy.maximum)) return false;
+  if (candidate.kind && !policy.allowedKinds.has(candidate.kind)) return false;
   if (policy.blockedTitleIds.has(candidate.id)) return false;
   const hasBlocked = (values: readonly string[] | undefined, blocked: ReadonlySet<string>) =>
     values?.some((value) => blocked.has(value)) ?? false;
@@ -72,6 +84,17 @@ export const languagePolicySchema = z
           path: ["preferredAudio"],
         });
   });
+
+/**
+ * The account-level "which types appear for me" preference. At least one type has to stay
+ * selected: an empty list would silently empty the entire catalog, which reads as a broken app
+ * rather than a choice, so it is rejected instead of stored.
+ */
+export const visibleTitleKindsSchema = z
+  .array(titleKindSchema)
+  .min(1)
+  .max(titleKindSchema.options.length)
+  .transform((kinds) => [...new Set(kinds)]);
 
 export function effectivePolicy(profile: Classification, restriction: Classification | null) {
   return restriction ? intersectClassifications(profile, restriction) : profile;

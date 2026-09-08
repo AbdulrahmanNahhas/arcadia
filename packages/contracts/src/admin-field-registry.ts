@@ -152,7 +152,7 @@ export const adminFieldRegistry: readonly AdminFieldMeta[] = [
     required: false,
     nullable: false,
     purpose:
-      "Ordered list of short Arabic facts about the title's origin, setting, and production (e.g. \"الأصل والقصة\", \"المكان\", \"حقائق بارزة\") shown on the title page, distinct from content warnings/analysis notes.",
+      'Ordered list of short Arabic facts about the title\'s origin, setting, and production (e.g. "الأصل والقصة", "المكان", "حقائق بارزة") shown on the title page, distinct from content warnings/analysis notes.',
     example: ["الأصل والقصة: قصة أصلية كتبها هاياو ميازاكي.", "المكان: ريف ويلز في بريطانيا."],
     jsonCreatable: true,
     bulk: "none",
@@ -186,6 +186,23 @@ export const adminFieldRegistry: readonly AdminFieldMeta[] = [
     jsonCreatable: true,
     bulk: "none",
     zodPath: ["releaseYear"],
+  },
+  {
+    path: "title.format",
+    entity: "title",
+    tab: "identity",
+    labelAr: "الشكل: رسوم متحركة أو تمثيل واقعي",
+    labelEn: "Format",
+    kind: "select",
+    required: false,
+    nullable: false,
+    options: { type: "static", values: ["animated", "live-action"] },
+    purpose:
+      "Animated or live action. Crossed with whether the title has any season installment, this produces its catalog type (animated-movie / animated-series / live-action-movie / live-action-series) — the movie-vs-series half is derived and cannot be set here.",
+    example: "animated",
+    jsonCreatable: true,
+    bulk: "set",
+    zodPath: ["format"],
   },
   {
     path: "title.isPrivate",

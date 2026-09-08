@@ -1,4 +1,11 @@
-import { ageSchema, audienceSchema, riskLevelSchema, taxonomySchema } from "@arcadia/domain";
+import {
+  ageSchema,
+  audienceSchema,
+  riskLevelSchema,
+  taxonomySchema,
+  titleKindSchema,
+  visibleTitleKindsSchema,
+} from "@arcadia/domain";
 import { z } from "zod";
 import { adminAwardCeremonyInputSchema, externalIdFieldsSchema } from "./admin-catalog";
 import {
@@ -111,7 +118,9 @@ export const installmentSchema = z.object({
 export const titleSummarySchema = z.object({
   id: z.string().uuid(),
   canonicalTitle: z.string(),
-  kind: z.enum(["movie", "anime"]),
+  /** The stored `format` (animated / live action) crossed with whether the title has any season
+   *  installment — see `titleKindOf` in `@arcadia/domain`. Read-only: writers send `format`. */
+  kind: titleKindSchema,
   titleAr: z.string().nullable(),
   summary: z.string(),
   posterPath: z.string().nullable(),
@@ -233,7 +242,7 @@ export const adminEntityWorkSchema = z.object({
   title: z.string(),
   arabicTitle: z.string().nullable(),
   year: z.number().int().nullable(),
-  kind: z.enum(["movie", "anime"]),
+  kind: titleKindSchema,
   releaseStatus: titleReleaseStatusSchema,
   imagePath: z.string().nullable(),
   isPrivate: z.boolean(),
@@ -336,7 +345,9 @@ export const artworkProviderSchema = z.enum(["tmdb", "anilist", "fanart"]);
 export const artworkSearchQuerySchema = z.object({
   title: z.string().trim().min(1).max(200),
   year: z.coerce.number().int().min(1850).max(2100).optional(),
-  kind: z.enum(["anime", "movie"]).optional(),
+  /** Routes the search: the series/movie half picks TMDB's `/tv` vs `/movie` endpoint, and the
+   *  animated half decides whether AniList is worth querying at all. */
+  kind: titleKindSchema.optional(),
   role: artworkRoleSchema,
   /** A confirmed id already on the title/installment — when present, the matching provider
    * looks the row up directly instead of fuzzy-searching by `title`/`year`. */
@@ -492,6 +503,10 @@ export const accountPreferencesSchema = z.object({
   autoplay: z.boolean(),
   hideSpoilers: z.boolean(),
   spoilerMode: z.enum(["cover", "hide", "show"]),
+  /** Which of the four catalog types this account wants on its shelves. Enforced server-side
+   *  through the visibility policy, so a deselected type disappears from browse, search, and
+   *  its own detail page alike — never fewer than one type. */
+  visibleTitleKinds: visibleTitleKindsSchema,
   notifyFamilyActivity: z.boolean(),
   notifyReplies: z.boolean(),
   defaultSavedViewId: z.string().uuid().nullable(),

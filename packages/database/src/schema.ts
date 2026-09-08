@@ -22,6 +22,13 @@ export const audienceEnum = pgEnum("audience", ["general", "teen", "young-adult"
 export const ageEnum = pgEnum("age_rating", ["all", "7+", "10+", "13+", "16+", "18+"]);
 export const riskEnum = pgEnum("risk_level", ["none", "low", "medium", "high"]);
 export const installmentKindEnum = pgEnum("installment_kind", ["season", "movie", "special"]);
+/**
+ * Animated vs. live action — the only half of a title's four-way type the catalog stores. The
+ * other half (film vs. episodic) is read off the title's installments, so `animated-movie` /
+ * `animated-series` / `live-action-movie` / `live-action-series` are always consistent with the
+ * structure beneath the title. See `titleKindOf` in `@arcadia/domain`.
+ */
+export const titleFormatEnum = pgEnum("title_format", ["animated", "live-action"]);
 export const releaseStatusEnum = pgEnum("release_status", [
   "announced",
   "airing",
@@ -118,6 +125,7 @@ export const titles = pgTable(
     contentWarnings: text("content_warnings"),
     analysisNotes: text("analysis_notes"),
     releaseYear: integer("release_year"),
+    format: titleFormatEnum("format").notNull().default("animated"),
     isPrivate: boolean("is_private").notNull().default(false),
     workflowStatus: workflowStatusEnum("workflow_status").notNull().default("published"),
     qualityScore: integer("quality_score").notNull().default(0),
@@ -842,25 +850,46 @@ export const accountInvites = pgTable(
     check("account_invites_role_check", sql`${t.role} in ('owner','editor','member')`),
   ],
 );
-export const accountPreferences = pgTable("account_preferences", {
-  accountId: uuid("account_id")
-    .primaryKey()
-    .references(() => accounts.id, { onDelete: "cascade" }),
-  locale: text("locale").notNull().default("ar"),
-  theme: text("theme").notNull().default("dark"),
-  preferredAudio: text("preferred_audio").array().notNull().default(sql`ARRAY['ar']::text[]`),
-  allowedAudio: text("allowed_audio").array().notNull().default(sql`ARRAY['ar','en']::text[]`),
-  subtitleMode: text("subtitle_mode").notNull().default("allowed"),
-  canSwitchTracks: boolean("can_switch_tracks").notNull().default(true),
-  autoplay: boolean("autoplay").notNull().default(false),
-  hideSpoilers: boolean("hide_spoilers").notNull().default(true),
-  notifyFamilyActivity: boolean("notify_family_activity").notNull().default(true),
-  notifyReplies: boolean("notify_replies").notNull().default(true),
-  spoilerMode: text("spoiler_mode").notNull().default("cover"),
-  defaultSavedViewId: uuid("default_saved_view_id"),
-  homeLayout: jsonb("home_layout").notNull().default(sql`'{}'::jsonb`),
-  dashboardLayout: jsonb("dashboard_layout").notNull().default(sql`'{}'::jsonb`),
-});
+export const accountPreferences = pgTable(
+  "account_preferences",
+  {
+    accountId: uuid("account_id")
+      .primaryKey()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    locale: text("locale").notNull().default("ar"),
+    theme: text("theme").notNull().default("dark"),
+    preferredAudio: text("preferred_audio").array().notNull().default(sql`ARRAY['ar']::text[]`),
+    allowedAudio: text("allowed_audio").array().notNull().default(sql`ARRAY['ar','en']::text[]`),
+    subtitleMode: text("subtitle_mode").notNull().default("allowed"),
+    canSwitchTracks: boolean("can_switch_tracks").notNull().default(true),
+    autoplay: boolean("autoplay").notNull().default(false),
+    hideSpoilers: boolean("hide_spoilers").notNull().default(true),
+    notifyFamilyActivity: boolean("notify_family_activity").notNull().default(true),
+    notifyReplies: boolean("notify_replies").notNull().default(true),
+    spoilerMode: text("spoiler_mode").notNull().default("cover"),
+    /**
+     * Which of the four catalog types this account wants to see. Text rather than an enum array
+     * so adding a type later needs no `ALTER TYPE`; `visibleTitleKindsSchema` (`@arcadia/domain`)
+     * validates the values, and the check below keeps the list from ever being emptied.
+     */
+    visibleTitleKinds: text("visible_title_kinds")
+      .array()
+      .notNull()
+      .default(
+        sql`ARRAY['animated-movie','animated-series','live-action-movie','live-action-series']::text[]`,
+      ),
+    defaultSavedViewId: uuid("default_saved_view_id"),
+    homeLayout: jsonb("home_layout").notNull().default(sql`'{}'::jsonb`),
+    dashboardLayout: jsonb("dashboard_layout").notNull().default(sql`'{}'::jsonb`),
+  },
+  (t) => [
+    check(
+      "account_preferences_visible_title_kinds_check",
+      sql`array_length(${t.visibleTitleKinds}, 1) >= 1
+        and ${t.visibleTitleKinds} <@ ARRAY['animated-movie','animated-series','live-action-movie','live-action-series']::text[]`,
+    ),
+  ],
+);
 export const accountContentPolicies = pgTable("account_content_policies", {
   accountId: uuid("account_id")
     .primaryKey()

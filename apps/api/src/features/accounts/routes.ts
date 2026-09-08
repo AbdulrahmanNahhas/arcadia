@@ -14,13 +14,31 @@ import {
   familyAccountSchema,
   updateAccountInputSchema,
 } from "@arcadia/contracts";
-import { type Classification, isClassificationAllowed } from "@arcadia/domain";
+import {
+  type Classification,
+  isClassificationAllowed,
+  type TitleKind,
+  titleKinds,
+} from "@arcadia/domain";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { auth, getAuthSession, isTestAuthBypass } from "../../auth";
 import { database } from "../../database";
 import { visibilityPolicyForAccount } from "../../repository";
 
 type AccountRow = Record<string, unknown>;
+
+/**
+ * Reads the stored shelf-type preference defensively: an account with no `account_preferences`
+ * row yet, or one written before this column existed, sees all four types rather than none.
+ * Unknown values are dropped instead of failing the whole account read.
+ */
+function parseVisibleTitleKinds(value: unknown): TitleKind[] {
+  if (!Array.isArray(value)) return [...titleKinds];
+  const kinds = value.filter((item): item is TitleKind =>
+    (titleKinds as readonly unknown[]).includes(item),
+  );
+  return kinds.length ? kinds : [...titleKinds];
+}
 
 const defaultPreferences: AccountPreferences = {
   theme: "dark",
@@ -34,6 +52,7 @@ const defaultPreferences: AccountPreferences = {
   autoplay: false,
   hideSpoilers: true,
   spoilerMode: "cover",
+  visibleTitleKinds: [...titleKinds],
   notifyFamilyActivity: true,
   notifyReplies: true,
   defaultSavedViewId: null,
@@ -106,6 +125,7 @@ function mapAccount(row: AccountRow, currentId: string | null): FamilyAccount {
       autoplay: row.autoplay ?? defaultPreferences.autoplay,
       hideSpoilers: row.hideSpoilers ?? defaultPreferences.hideSpoilers,
       spoilerMode: row.spoilerMode ?? defaultPreferences.spoilerMode,
+      visibleTitleKinds: parseVisibleTitleKinds(row.visibleTitleKinds),
       notifyFamilyActivity: row.notifyFamilyActivity ?? defaultPreferences.notifyFamilyActivity,
       notifyReplies: row.notifyReplies ?? defaultPreferences.notifyReplies,
       defaultSavedViewId: row.defaultSavedViewId ?? defaultPreferences.defaultSavedViewId,
@@ -128,7 +148,8 @@ async function accountRows(where: "current" | "family", authUserId: string) {
       p.subtitle_mode as "subtitleMode", p.can_switch_tracks as "canSwitchTracks",
       p.autoplay, p.hide_spoilers as "hideSpoilers",
       p.notify_family_activity as "notifyFamilyActivity", p.notify_replies as "notifyReplies",
-      p.spoiler_mode as "spoilerMode", p.default_saved_view_id as "defaultSavedViewId",
+      p.spoiler_mode as "spoilerMode", p.visible_title_kinds as "visibleTitleKinds",
+      p.default_saved_view_id as "defaultSavedViewId",
       p.home_layout as "homeLayout", p.dashboard_layout as "dashboardLayout",
       cp.audience, cp.age, cp.sexuality_risk as sexuality,
       cp.behavioral_risk as behavioral, cp.theology_risk as theology
@@ -260,11 +281,12 @@ accountRoutes.patch("/api/v1/me", async (context) => {
       const preferences = { ...current.account.preferences, ...input.preferences };
       await transaction`insert into account_preferences
         (account_id, theme, preferred_audio, allowed_audio, subtitle_mode, can_switch_tracks,
-          autoplay, hide_spoilers, spoiler_mode, notify_family_activity, notify_replies,
-          default_saved_view_id, home_layout, dashboard_layout)
+          autoplay, hide_spoilers, spoiler_mode, visible_title_kinds, notify_family_activity,
+          notify_replies, default_saved_view_id, home_layout, dashboard_layout)
         values (${current.account.id}, ${preferences.theme}, ${preferences.preferredAudio},
           ${preferences.allowedAudio}, ${preferences.subtitleMode}, ${preferences.canSwitchTracks},
           ${preferences.autoplay}, ${preferences.hideSpoilers}, ${preferences.spoilerMode},
+          ${preferences.visibleTitleKinds},
           ${preferences.notifyFamilyActivity}, ${preferences.notifyReplies},
           ${preferences.defaultSavedViewId}, ${JSON.stringify(preferences.homeLayout)}::jsonb,
           ${JSON.stringify(preferences.dashboardLayout)}::jsonb)
@@ -272,7 +294,9 @@ accountRoutes.patch("/api/v1/me", async (context) => {
           preferred_audio=excluded.preferred_audio, allowed_audio=excluded.allowed_audio,
           subtitle_mode=excluded.subtitle_mode, can_switch_tracks=excluded.can_switch_tracks,
           autoplay=excluded.autoplay, hide_spoilers=excluded.hide_spoilers,
-          spoiler_mode=excluded.spoiler_mode, default_saved_view_id=excluded.default_saved_view_id,
+          spoiler_mode=excluded.spoiler_mode,
+          visible_title_kinds=excluded.visible_title_kinds,
+          default_saved_view_id=excluded.default_saved_view_id,
           home_layout=excluded.home_layout, dashboard_layout=excluded.dashboard_layout,
           notify_family_activity=excluded.notify_family_activity,
           notify_replies=excluded.notify_replies`;

@@ -1,4 +1,5 @@
 import { type AdminTitleInput, adminTitleInputSchema } from "@arcadia/contracts";
+import { type TitleKind, titleFormatOf, titleKindSchema } from "@arcadia/domain";
 import type { database } from "../../database";
 
 type Sql = ReturnType<typeof database>["client"];
@@ -18,6 +19,13 @@ export type LegacyTitleWritePayload = Partial<{
   contentWarnings: string | null;
   analysisNotes: string | null;
   year: number | null;
+  /**
+   * The four-way catalog type the editor works in. Only its animated/live-action half is
+   * stored (as `titles.format`); the movie/series half is derived from the title's
+   * installments, so it is read from here only when seeding a brand-new title's first
+   * installment (see `app.ts`).
+   */
+  kind: TitleKind;
   isPrivate: boolean;
   audience: string | null;
   riskProfile: Partial<Record<"sexuality" | "behavioral" | "theology", string>> | null;
@@ -59,6 +67,7 @@ export type LegacyTitleWritePayload = Partial<{
 
 /** Columns `legacyTitleInputToCanonical` falls back to preserving from the current row when the caller sends neither the direct field nor (for workflow/verification) the legacy `curation` object. */
 export interface PreservedTitleFields {
+  format: AdminTitleInput["format"];
   age: AdminTitleInput["age"];
   qualityScore: number;
   provenance: Record<string, unknown>;
@@ -69,6 +78,7 @@ export interface PreservedTitleFields {
 }
 
 export const defaultPreservedTitleFields: PreservedTitleFields = {
+  format: "animated",
   age: "all",
   qualityScore: 0,
   provenance: {},
@@ -147,6 +157,11 @@ export function legacyTitleInputToCanonical(
         : preserved.curatorNotes;
   const age = raw.age != null ? raw.age : preserved.age;
   const qualityScore = raw.qualityScore != null ? raw.qualityScore : preserved.qualityScore;
+  // The legacy client carries the whole four-way type on `kind`; only its animated/live-action
+  // half is storable. A caller that omits `kind` (the bulk/JSON paths that build a `Work` from
+  // a summary) keeps the row's current format rather than silently resetting it to animated.
+  const parsedKind = titleKindSchema.safeParse(raw.kind);
+  const format = parsedKind.success ? titleFormatOf(parsedKind.data) : preserved.format;
 
   return {
     id: raw.id,
@@ -156,6 +171,7 @@ export function legacyTitleInputToCanonical(
     contentWarnings: raw.contentWarnings ?? null,
     analysisNotes: raw.analysisNotes ?? null,
     releaseYear: raw.year ?? null,
+    format,
     isPrivate: raw.isPrivate ?? false,
 
     audience: normalizeAudience(raw.audience),
@@ -256,7 +272,8 @@ export async function applyTitleWrite(
             canonical_title=${input.canonicalTitle}, sort_title=${input.canonicalTitle.toLocaleLowerCase()},
             title_ar=${input.titleAr}, summary=${input.summary},
             content_warnings=${input.contentWarnings}, analysis_notes=${input.analysisNotes},
-            release_year=${input.releaseYear}, is_private=${input.isPrivate},
+            release_year=${input.releaseYear}, format=${input.format},
+            is_private=${input.isPrivate},
             audience=${input.audience}, age=${input.age},
             sexuality_risk=${input.sexualityRisk}, behavioral_risk=${input.behavioralRisk},
             theology_risk=${input.theologyRisk}, workflow_status=${input.workflowStatus},
@@ -271,13 +288,13 @@ export async function applyTitleWrite(
     : await (async () => {
         const [row] = await sql`
           insert into titles (canonical_title, sort_title, title_ar, summary, content_warnings,
-            analysis_notes, release_year, is_private, audience, age, sexuality_risk,
+            analysis_notes, release_year, format, is_private, audience, age, sexuality_risk,
             behavioral_risk, theology_risk, workflow_status, quality_score, curator_notes,
             provenance, verified_at, verified_by_account_id,
             tmdb_id, imdb_id, tvdb_id, anilist_id, mal_id)
           values (${input.canonicalTitle}, ${input.canonicalTitle.toLocaleLowerCase()},
             ${input.titleAr}, ${input.summary}, ${input.contentWarnings}, ${input.analysisNotes},
-            ${input.releaseYear}, ${input.isPrivate}, ${input.audience}, ${input.age},
+            ${input.releaseYear}, ${input.format}, ${input.isPrivate}, ${input.audience}, ${input.age},
             ${input.sexualityRisk}, ${input.behavioralRisk}, ${input.theologyRisk},
             ${input.workflowStatus}, ${input.qualityScore}, ${input.curatorNotes},
             ${JSON.stringify(input.provenance)}::jsonb, ${input.verifiedAt}, ${verifiedByAccountId},

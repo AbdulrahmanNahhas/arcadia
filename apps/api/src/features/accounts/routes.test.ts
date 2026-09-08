@@ -77,3 +77,47 @@ describe("account content-restriction visibility", () => {
     }
   });
 });
+
+describe("account visible-title-kinds preference", () => {
+  it("hides every title of a type the account turned off, and shows them again once re-enabled", async () => {
+    const token = await signIn("personal", "ArcadiaPersonal!2026");
+    const sql = database().client;
+    try {
+      const me = await app.request("/api/v1/me", { headers: { authorization: `Bearer ${token}` } });
+      const { account } = (await me.json()) as { account: { id: string } };
+      const [before] = await sql`select visible_title_kinds as "visibleTitleKinds"
+        from account_preferences where account_id=${account.id}`;
+
+      try {
+        // The seed catalog is entirely animated (see the arcadia-cataloging skill), so narrowing
+        // to the two live-action types must empty browse entirely — a clean, catalog-independent
+        // assertion that the preference is actually enforced server-side, not just stored.
+        await sql`update account_preferences
+          set visible_title_kinds=array['live-action-movie','live-action-series']
+          where account_id=${account.id}`;
+        const narrowed = await app.request("/api/v1/titles?limit=5", {
+          headers: { authorization: `Bearer ${token}` },
+        });
+        const narrowedBody = (await narrowed.json()) as { total: number };
+        expect(narrowedBody.total).toBe(0);
+
+        await sql`update account_preferences
+          set visible_title_kinds=array['animated-movie','animated-series','live-action-movie','live-action-series']
+          where account_id=${account.id}`;
+        const restored = await app.request("/api/v1/titles?limit=5", {
+          headers: { authorization: `Bearer ${token}` },
+        });
+        const restoredBody = (await restored.json()) as { total: number };
+        expect(restoredBody.total).toBeGreaterThan(0);
+      } finally {
+        if (before) {
+          await sql`update account_preferences
+            set visible_title_kinds=${before.visibleTitleKinds}
+            where account_id=${account.id}`;
+        }
+      }
+    } finally {
+      await signOut(token);
+    }
+  });
+});

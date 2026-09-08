@@ -100,7 +100,7 @@ export interface paths {
                                 id: string;
                                 canonicalTitle: string;
                                 /** @enum {string} */
-                                kind: "movie" | "anime";
+                                kind: "animated-movie" | "animated-series" | "live-action-movie" | "live-action-series";
                                 titleAr: string | null;
                                 summary: string;
                                 posterPath: string | null;
@@ -297,7 +297,7 @@ export interface paths {
                             id: string;
                             canonicalTitle: string;
                             /** @enum {string} */
-                            kind: "movie" | "anime";
+                            kind: "animated-movie" | "animated-series" | "live-action-movie" | "live-action-series";
                             titleAr: string | null;
                             summary: string;
                             posterPath: string | null;

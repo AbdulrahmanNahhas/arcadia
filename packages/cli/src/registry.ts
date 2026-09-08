@@ -46,6 +46,7 @@ export const resources: readonly Resource[] = [
       "canonical_title",
       "title_ar",
       "release_year",
+      "format",
       "workflow_status",
       "audience",
       "age",

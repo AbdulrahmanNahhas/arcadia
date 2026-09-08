@@ -1,4 +1,4 @@
-import { ageSchema, audienceSchema, riskLevelSchema } from "@arcadia/domain";
+import { ageSchema, audienceSchema, riskLevelSchema, titleFormatSchema } from "@arcadia/domain";
 import { z } from "zod";
 import {
   awardResultSchema,
@@ -157,6 +157,9 @@ export const adminTitleInputSchema = z.object({
   contentWarnings: z.string().nullable().default(null),
   analysisNotes: z.string().nullable().default(null),
   releaseYear: z.number().int().min(1800).max(2200).nullable().default(null),
+  /** Animated vs. live action. The other half of the four-way catalog type (movie vs. series)
+   *  is derived from the title's installments and is never written here. */
+  format: titleFormatSchema.default("animated"),
   isPrivate: z.boolean().default(false),
 
   audience: audienceSchema.default("general"),

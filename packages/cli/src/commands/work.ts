@@ -108,6 +108,10 @@ export const workDocument = z.object({
   analysisNotes: z.string().nullable().optional(),
   curatorNotes: z.string().optional(),
   releaseYear: z.number().int().min(1800).max(2200).nullable().optional(),
+  // Animated vs. live action — the only half of the four-way catalog type that is a real
+  // column (`titles.format`). The other half (movie vs. series) is derived from whether the
+  // title ends up with a `season` installment, so it is never set directly here.
+  format: z.enum(["animated", "live-action"]).optional(),
   isPrivate: z.boolean().optional(),
   workflowStatus: z.enum(["draft", "in_review", "approved", "published", "archived"]).optional(),
   qualityScore: z.number().int().min(0).optional(),
@@ -352,6 +356,7 @@ const titleScalarColumns: Array<[keyof WorkDocument, string]> = [
   ["analysisNotes", "analysis_notes"],
   ["curatorNotes", "curator_notes"],
   ["releaseYear", "release_year"],
+  ["format", "format"],
   ["isPrivate", "is_private"],
   ["workflowStatus", "workflow_status"],
   ["qualityScore", "quality_score"],
@@ -1047,6 +1052,7 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
     analysisNotes: (title.analysis_notes as string | null) ?? null,
     curatorNotes: String(title.curator_notes ?? ""),
     releaseYear: number(title.release_year),
+    format: title.format as "animated" | "live-action",
     isPrivate: Boolean(title.is_private),
     workflowStatus: title.workflow_status as WorkDocument["workflowStatus"],
     qualityScore: Number(title.quality_score ?? 0),
@@ -1145,6 +1151,7 @@ export function workTemplate(): WorkDocument {
     contentWarnings: "عنف خفيف، مشاهد حزن.",
     analysisNotes: "لا توجد مشكلة عقدية.",
     releaseYear: 2024,
+    format: "animated",
     workflowStatus: "draft",
     audience: "general",
     age: "all",

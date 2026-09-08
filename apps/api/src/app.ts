@@ -939,7 +939,7 @@ for (const resource of ["planets", "people", "studios", "relationships"] as cons
               (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id where x.entity_id=e.id and x.role='profile' and x.is_primary limit 1) as "profilePath",
               coalesce((select json_agg(item order by item.title) from (
                 select t.id, t.canonical_title as title, t.title_ar as "arabicTitle", t.release_year as year,
-                  case when bool_or(i.kind='season') then 'anime' else 'movie' end as kind,
+                  t.format::text || case when bool_or(i.kind='season') then '-series' else '-movie' end as kind,
                   case
                     when count(i.id) = 0 or bool_or(i.status = 'unknown') then 'unknown'
                     when bool_or(i.status = 'airing') then 'airing'
@@ -959,7 +959,7 @@ for (const resource of ["planets", "people", "studios", "relationships"] as cons
                 (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id where x.entity_id=e.id and x.role='profile' and x.is_primary limit 1) as "profilePath",
                 coalesce((select json_agg(item order by item.title) from (
                   select t.id, t.canonical_title as title, t.title_ar as "arabicTitle", t.release_year as year,
-                    case when bool_or(i.kind='season') then 'anime' else 'movie' end as kind,
+                    t.format::text || case when bool_or(i.kind='season') then '-series' else '-movie' end as kind,
                   case
                     when count(i.id) = 0 or bool_or(i.status = 'unknown') then 'unknown'
                     when bool_or(i.status = 'airing') then 'airing'
@@ -1618,7 +1618,7 @@ app.get("/api/v1/admin/statistics", async (context) => {
     contributorRows,
   ] = await Promise.all([
     sql`select case when is_private then 'private' else 'public' end as key, count(*)::int as value from titles group by is_private`,
-    sql`select case when exists(select 1 from installments i where i.title_id=t.id and i.kind='season') then 'anime' else 'movie' end as key, count(*)::int as value from titles t where ${titleFilter} group by key`,
+    sql`select t.format::text || case when exists(select 1 from installments i where i.title_id=t.id and i.kind='season') then '-series' else '-movie' end as key, count(*)::int as value from titles t where ${titleFilter} group by key`,
     sql`select release_year::int as year, count(*)::int as value from titles t where release_year is not null and ${titleFilter} group by release_year order by release_year`,
     sql`select i.status as key, count(*)::int as value from installments i join titles t on t.id=i.title_id where ${titleFilter} group by i.status`,
     sql`select v.slug as key, v.label_ar, count(*)::int as value from title_genres x join genres v on v.id=x.value_id join titles t on t.id=x.title_id where ${titleFilter} group by v.id order by value desc limit 12`,
@@ -1720,10 +1720,11 @@ app.post("/api/v1/admin/titles", async (context) => {
 
   let preserved = defaultPreservedTitleFields;
   if (raw.id) {
-    const [row] = await sql`select age, quality_score, curator_notes, provenance,
+    const [row] = await sql`select format, age, quality_score, curator_notes, provenance,
       workflow_status, verified_at, verified_by_account_id from titles where id=${raw.id}`;
     if (!row) return context.json({ message: "Title not found" }, 404);
     preserved = {
+      format: row.format,
       age: row.age,
       qualityScore: Number(row.quality_score),
       curatorNotes: String(row.curator_notes),
@@ -1764,7 +1765,10 @@ app.post("/api/v1/admin/titles", async (context) => {
       where title_id=${result.id}
         and (select count(*) from installments where title_id=${result.id})=1`;
   } else {
-    const kind = ["series", "anime"].includes(String(raw.kind)) ? "season" : "movie";
+    // A brand-new title gets one installment seeded from the type the editor picked: the
+    // series types start a season, the movie types a film. `format` itself is written by
+    // `applyTitleWrite` from the same `kind` (see `legacyTitleInputToCanonical`).
+    const kind = String(raw.kind ?? "").endsWith("-series") ? "season" : "movie";
     await sql`insert into installments
       (title_id, kind, position, title, summary, status, runtime_minutes)
       values (${result.id}, ${kind}, 1, ${titleText}, ${String(raw.summary ?? "")},
@@ -1906,7 +1910,7 @@ app.get("/api/v1/admin/entities", async (context) => {
     coalesce((select json_agg(work order by work.title) from (
       select t.id, t.canonical_title as title, t.title_ar as "arabicTitle",
         t.release_year as year, t.is_private as "isPrivate",
-        case when exists(select 1 from installments i where i.title_id=t.id and i.kind='season') then 'anime' else 'movie' end as kind,
+        t.format::text || case when exists(select 1 from installments i where i.title_id=t.id and i.kind='season') then '-series' else '-movie' end as kind,
         case
           when not exists(select 1 from installments i where i.title_id=t.id) or exists(select 1 from installments i where i.title_id=t.id and i.status='unknown') then 'unknown'
           when exists(select 1 from installments i where i.title_id=t.id and i.status='airing') then 'airing'
