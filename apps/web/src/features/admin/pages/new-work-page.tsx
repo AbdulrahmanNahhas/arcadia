@@ -52,11 +52,10 @@ const addModeItems = [
   { value: "guided", label: "عمل واحد — نموذج موجّه" },
   { value: "paste", label: "أعمال متعددة — لصق منظّم" },
 ] as const;
-const mediaKinds = workKinds.filter((value) => ["movie", "series", "anime"].includes(value));
-const kindItems = mediaKinds.map((value) => ({ value, label: kindLabels[value] }));
+const kindItems = workKinds.map((value) => ({ value, label: kindLabels[value] }));
 
-const pasteExample = `Frieren: Beyond Journey's End | anime | 2023 | Adventure, Fantasy | Madhouse
-Pluto | anime | 2023 | Mystery, Science Fiction | Studio M2`;
+const pasteExample = `Frieren: Beyond Journey's End | animated-series | 2023 | Adventure, Fantasy | Madhouse
+The Last of Us | live-action-series | 2023 | Drama, Science Fiction | HBO`;
 
 function parseList(value: string) {
   return [
@@ -77,7 +76,7 @@ function parsePastedWorks(value: string): ParseResult {
     if (!line.trim()) return;
     const [
       title,
-      rawKind = "anime",
+      rawKind = "animated-series",
       rawYear = "",
       rawGenres = "",
       rawStudios = "",
@@ -87,7 +86,7 @@ function parsePastedWorks(value: string): ParseResult {
     if (!title) lineErrors.push("العنوان مطلوب");
     // SAFETY: `Array#includes` does a plain equality check regardless of the argument's static
     // type, so a `rawKind` that isn't really a `WorkKind` correctly reports as absent.
-    if (!mediaKinds.includes(rawKind as WorkKind)) lineErrors.push(`النوع «${rawKind}» غير معروف`);
+    if (!workKinds.includes(rawKind as WorkKind)) lineErrors.push(`النوع «${rawKind}» غير معروف`);
     const isPrivate = ["true", "private", "خاص", "yes", "1"].includes(
       rawPrivate.toLocaleLowerCase(),
     );
@@ -105,7 +104,7 @@ function parsePastedWorks(value: string): ParseResult {
       errors.push(`السطر ${index + 1}: ${lineErrors.join("، ")}`);
       return;
     }
-    // SAFETY: the check above already returned early unless `rawKind` is in `mediaKinds`, so
+    // SAFETY: the check above already returned early unless `rawKind` is in `workKinds`, so
     // this cast is already validated.
     works.push({
       title,
@@ -127,7 +126,7 @@ export function AdminNewWorkPage() {
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<AddMode>("guided");
   const [title, setTitle] = useState("");
-  const [kind, setKind] = useState<WorkKind>("movie");
+  const [kind, setKind] = useState<WorkKind>("animated-series");
   const [year, setYear] = useState("");
   const [summary, setSummary] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
@@ -263,7 +262,7 @@ export function AdminNewWorkPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {mediaKinds.map((item) => (
+                        {workKinds.map((item) => (
                           <SelectItem key={item} value={item}>
                             {kindLabels[item]}
                           </SelectItem>
@@ -349,7 +348,7 @@ export function AdminNewWorkPage() {
                   spellCheck={false}
                   aria-invalid={parsed.errors.length > 0}
                 />
-                <FieldDescription>الأنواع المتاحة: {mediaKinds.join(", ")}.</FieldDescription>
+                <FieldDescription>الأنواع المتاحة: {workKinds.join(", ")}.</FieldDescription>
               </Field>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">

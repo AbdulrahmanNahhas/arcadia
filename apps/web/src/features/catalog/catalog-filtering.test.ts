@@ -8,7 +8,7 @@ import {
 } from "./catalog-filtering";
 
 const work = {
-  kind: "anime",
+  kind: "animated-series",
   releaseStatus: "completed",
   isPrivate: false,
   year: 2024,

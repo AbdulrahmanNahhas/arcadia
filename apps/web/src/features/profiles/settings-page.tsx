@@ -1,5 +1,5 @@
 import type { AccountPreferences, AvatarKey } from "@arcadia/contracts";
-import type { Classification } from "@arcadia/domain";
+import { type Classification, titleKindLabels, titleKinds } from "@arcadia/domain";
 import { ageOptions, ar, audienceOptions, riskOptions } from "@arcadia/i18n";
 import {
   ArrowCounterClockwiseIcon,
@@ -265,6 +265,46 @@ export function SettingsPage() {
                 </Alert>
               )}
               <FieldGroup>
+                <FieldSet>
+                  <FieldLegend>الأنواع التي تظهر لك</FieldLegend>
+                  <FieldDescription>
+                    اختر ما تريد أن تراه في المكتبة والتصفّح والبحث. النوع الذي تُطفئه يختفي تماماً،
+                    ولا بدّ من إبقاء نوع واحد على الأقل.
+                  </FieldDescription>
+                  <FieldGroup>
+                    {titleKinds.map((kind) => {
+                      const selected = draft.preferences.visibleTitleKinds.includes(kind);
+                      // Turning off the last remaining type would empty the whole catalog, so the
+                      // final switch stays on rather than leaving the reader with a blank library.
+                      const isLastSelected =
+                        selected && draft.preferences.visibleTitleKinds.length === 1;
+                      return (
+                        <Field key={kind} orientation="horizontal">
+                          <FieldContent>
+                            <FieldLabel htmlFor={`kind-${kind}`}>
+                              {titleKindLabels[kind].ar}
+                            </FieldLabel>
+                          </FieldContent>
+                          <Switch
+                            id={`kind-${kind}`}
+                            checked={selected}
+                            disabled={isLastSelected}
+                            onCheckedChange={(checked) =>
+                              setPreference(
+                                "visibleTitleKinds",
+                                checked
+                                  ? [...draft.preferences.visibleTitleKinds, kind]
+                                  : draft.preferences.visibleTitleKinds.filter(
+                                      (value) => value !== kind,
+                                    ),
+                              )
+                            }
+                          />
+                        </Field>
+                      );
+                    })}
+                  </FieldGroup>
+                </FieldSet>
                 <PolicySelect
                   label="الجمهور الأقصى"
                   value={draft.contentPolicy.audience}

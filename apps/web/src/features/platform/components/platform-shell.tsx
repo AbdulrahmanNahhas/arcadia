@@ -45,9 +45,11 @@ async function signOut() {
 export function PlatformShell({
   children,
   immersive = false,
+  sticky = false,
 }: {
   children: ReactNode;
   immersive?: boolean;
+  sticky?: boolean;
 }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [exploreMenu, setExploreMenu] = useState<string | null>(null);
@@ -69,6 +71,7 @@ export function PlatformShell({
           !immersive && "bg-background/72 mx-0 backdrop-blur-lg border-t-0",
           immersive &&
             "fixed inset-x-0 bg-linear-to-b from-background/70 via-50% via-background/75 pb-0 to-background/40 backdrop-blur-lg border border-border/50 sm:rounded-full sm:m-1 sm:container sm:mx-auto!",
+          immersive && sticky && "sticky! top-2 z-40!",
         )}
       >
         <div className="mx-auto flex container! h-14 max-w-400 items-center gap-4 px-6 md:px-3 p-3!">
@@ -77,7 +80,7 @@ export function PlatformShell({
               <span className="size-2 rounded-full bg-primary" />
               <span className="absolute h-px w-10 -rotate-20 bg-primary/60" />
             </span>
-            <span className=" text-lg block">نحّاسينما</span>
+            <span className=" text-lg block ">نحّاسينما</span>
           </span>
 
           <nav className="hidden items-center gap-1 lg:flex" aria-label="التنقل الرئيسي">

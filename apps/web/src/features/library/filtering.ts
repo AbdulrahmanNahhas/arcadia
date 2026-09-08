@@ -1,6 +1,7 @@
 import type { Work, WorkKind } from "./model";
 import type { ScoreComponents } from "./scoring";
 import { scoreCriteria } from "./scoring";
+import { kindLabelsAr } from "./translations";
 import type { Sort, SortDirection } from "./view-types";
 
 export type FacetKey =
@@ -75,16 +76,8 @@ export const facetDefinitions: Array<{
   { key: "structureStates", label: "Tracking structure" },
 ];
 
-export const kindLabels: Record<WorkKind, string> = {
-  movie: "فيلم",
-  series: "مسلسل",
-  anime: "أنمي",
-  manga: "مانغا",
-  novel: "رواية",
-  game: "لعبة",
-  "visual-novel": "رواية مرئية",
-  comic: "قصص مصورة",
-};
+/** Re-exported under the name the admin surfaces import it by — see `kindLabelsAr`. */
+export const kindLabels = kindLabelsAr;
 
 export function createDefaultFilters(): WorkFilterState {
   return {

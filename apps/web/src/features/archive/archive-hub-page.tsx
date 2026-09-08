@@ -107,7 +107,7 @@ export function ArchiveHubPage() {
     <PlatformShell>
       <div className="mx-auto max-w-400 px-5 pb-28 pt-10 sm:px-8">
         <header className="archive-grid relative overflow-hidden rounded-[2rem] border bg-card p-7 sm:p-10">
-          <div className="absolute inset-y-0 start-0 w-1/2 bg-[radial-gradient(circle_at_center,var(--color-primary),transparent_68%)] opacity-10" />
+          <div className="absolute inset-y-0 inset-s-0 w-1/2 bg-[radial-gradient(circle_at_center,var(--color-primary),transparent_68%)] opacity-10" />
           <p className="relative text-xs font-semibold tracking-[0.18em] text-primary">
             مساحتك داخل الأرشيف
           </p>

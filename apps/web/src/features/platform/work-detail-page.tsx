@@ -1,4 +1,5 @@
 import type { AccountPlaybackState, AwardRecognition } from "@arcadia/contracts";
+import { titleShapeOf } from "@arcadia/domain";
 import {
   ArrowSquareOutIcon,
   BookmarkSimpleIcon,
@@ -71,6 +72,7 @@ import {
 import { selectPlaybackTarget } from "@/features/library/playback-resolver";
 import { setTitleSavedOffline } from "@/features/library/saved-offline";
 import { scoreCriteria, scoreLabel, scoreWeights } from "@/features/library/scoring";
+import { kindLabelsAr } from "@/features/library/translations";
 import type { Recommendation, RiskAssessment } from "@/features/platform/model";
 import {
   bulkMarkPlayed,
@@ -1083,16 +1085,11 @@ function OverviewSection({
 
       {work.trivia.length > 0 && (
         <section>
-          <Subsection
-            title="حقائق ومعلومات"
-            description="خلفية العمل ومصدره وأبرز حقائق إنتاجه."
-          />
+          <Subsection title="حقائق ومعلومات" description="خلفية العمل ومصدره وأبرز حقائق إنتاجه." />
           <ul className="grid gap-3 sm:grid-cols-2">
             {work.trivia.map((fact, index) => (
               <li
-                // biome-ignore lint/suspicious/noArrayIndexKey: facts are free text with no
-                // domain id of their own, and can repeat in principle.
-                key={index}
+                key={index.toString()}
                 className="flex gap-3 rounded-lg border border-border/40 bg-muted/20 p-4 text-sm leading-7 text-foreground/80"
               >
                 <LightbulbIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
@@ -2138,7 +2135,7 @@ function WorkDetails({
   const formatDetails: Array<readonly [string, string]> = [
     ...(work.runtimeMinutes ? [["المدة", `${work.runtimeMinutes} دقيقة`] as const] : []),
     ...(work.playtimeMinutes ? [["مدة اللعب", `${work.playtimeMinutes} دقيقة`] as const] : []),
-    ...(work.kind === "series" || work.kind === "anime"
+    ...(titleShapeOf(work.kind) === "series"
       ? [
           ...(structure.seasons.length
             ? [["عدد المواسم", `${structure.seasons.length} موسم`] as const]
@@ -2147,16 +2144,6 @@ function WorkDetails({
             ? [["عدد الحلقات", `${work.episodeCount || structure.totalUnits} حلقة`] as const]
             : []),
         ]
-      : []),
-    ...(work.kind === "novel" || work.kind === "manga" || work.kind === "comic"
-      ? [
-          ...(work.pageCount ? [["عدد الصفحات", `${work.pageCount} صفحة`] as const] : []),
-          ...(work.chapterCount ? [["عدد الفصول", `${work.chapterCount} فصل`] as const] : []),
-          ...(work.volumeCount ? [["عدد المجلدات", `${work.volumeCount} مجلد`] as const] : []),
-        ]
-      : []),
-    ...(work.routeCount && (work.kind === "game" || work.kind === "visual-novel")
-      ? [["عدد المسارات", `${work.routeCount} مسار`] as const]
       : []),
   ];
   const releaseDetails: Array<readonly [string, string]> = [
@@ -2425,16 +2412,7 @@ function ParentGuideCard({ risks }: { risks: RiskAssessment[] }) {
 // Labels
 // ---------------------------------------------------------------------------
 
-const kindLabels: Record<Work["kind"], string> = {
-  movie: "فيلم",
-  series: "مسلسل",
-  anime: "أنمي",
-  game: "لعبة",
-  novel: "رواية",
-  manga: "مانغا",
-  "visual-novel": "رواية مرئية",
-  comic: "قصص مصوّرة",
-};
+const kindLabels: Record<Work["kind"], string> = kindLabelsAr;
 const releaseLabels: Record<Work["releaseStatus"], string> = {
   upcoming: "قادم",
   airing: "يعرض الآن",

@@ -123,9 +123,9 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
           </div>
 
           {work.summary ? (
-            <p className="mt-5 line-clamp-3 max-w-xl text-sm leading-7 text-foreground/72 sm:text-base sm:leading-8">
-              {work.summary}
-            </p>
+            <div className="mt-5 max-w-xl">
+              <p className="text-sm leading-6 sm:text-base sm:leading-7">{work.summary}</p>
+            </div>
           ) : null}
 
           <div className="mt-7 flex flex-wrap items-center gap-3">

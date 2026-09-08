@@ -122,7 +122,9 @@ export function titleToWork(title: TitleSummary | TitleDetail | AdminTitleDetail
           work: {
             id: relation.titleId,
             title: relation.title,
-            kind: "movie",
+            // The relationships payload carries only the related title's id and name, so this
+            // is a placeholder the UI never renders — not a claim about the other title's type.
+            kind: "animated-movie",
             year: null,
             releaseStatus: "unknown",
             imagePath: null,
@@ -328,7 +330,9 @@ function installmentWorks(items: Installment[], titles: TitleSummary[]) {
       arabicTitle: title?.arabicTitle ?? item.title,
       installmentId: item.id,
       installmentTitle: item.title,
-      kind: title?.kind ?? (item.kind === "season" ? "anime" : "movie"),
+      // The parent title carries the real type; falling back to its installment's shape can only
+      // guess the movie/series half, so assume the catalog's animated majority for the other.
+      kind: title?.kind ?? (item.kind === "season" ? "animated-series" : "animated-movie"),
       installmentKinds: [item.kind],
       year: item.releaseDate ? Number(item.releaseDate.slice(0, 4)) : null,
       releaseStatus: installmentReleaseStatus(item.status),

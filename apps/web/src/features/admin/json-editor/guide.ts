@@ -67,6 +67,15 @@ interface JsonOnlyFieldDoc {
 }
 
 const JSON_ONLY_DOCS = {
+  "title.kind": {
+    purpose:
+      "The title's catalog type. Only its animated/live-action half is stored (as `format`) — the movie/series half is derived from whether the title has any season installment, so switching between e.g. animated-movie and animated-series here changes the format, not the structure. Add or remove a season under `structure.installments` to change the other half.",
+    required: true,
+    nullable: false,
+    format: "animated-movie | animated-series | live-action-movie | live-action-series",
+    example: '"animated-series"',
+    safetyNotes: undefined,
+  },
   "title.risks": {
     purpose: "Default risk levels for all three dimensions, set together.",
     required: true,

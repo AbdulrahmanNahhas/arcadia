@@ -30,30 +30,21 @@ export const scoreCriterionLabels: Record<ScoreCriterion, { ar: string; en: stri
   craft: { ar: "الحِرفة", en: "Craft" },
 };
 
+// "Craft" means something different for drawn work than for filmed work, so the criterion is
+// named after the format. The movie/series half doesn't change what's being judged.
+const animatedCraft = {
+  ar: "التحريك والحِرفة السمعية البصرية",
+  en: "Animation & audiovisual craft",
+};
+const liveActionCraft = {
+  ar: "الإخراج والحِرفة السمعية البصرية",
+  en: "Direction & audiovisual craft",
+};
 const craftLabels: Record<WorkKind, { ar: string; en: string }> = {
-  anime: {
-    ar: "التحريك والحِرفة السمعية البصرية",
-    en: "Animation & audiovisual craft",
-  },
-  movie: {
-    ar: "الإخراج والحِرفة السمعية البصرية",
-    en: "Direction & audiovisual craft",
-  },
-  series: {
-    ar: "الإخراج والحِرفة السمعية البصرية",
-    en: "Direction & audiovisual craft",
-  },
-  novel: { ar: "النثر والحِرفة الأدبية", en: "Prose & literary craft" },
-  manga: { ar: "الرسم والسرد المتتابع", en: "Art & sequential storytelling" },
-  comic: { ar: "الرسم والسرد المتتابع", en: "Art & sequential storytelling" },
-  game: {
-    ar: "أسلوب اللعب والتصميم التفاعلي",
-    en: "Gameplay & interactive design",
-  },
-  "visual-novel": {
-    ar: "النثر والرسم والتفاعل",
-    en: "Prose, art & interaction",
-  },
+  "animated-movie": animatedCraft,
+  "animated-series": animatedCraft,
+  "live-action-movie": liveActionCraft,
+  "live-action-series": liveActionCraft,
 };
 
 export function scoreLabel(criterion: ScoreCriterion, kind: WorkKind) {

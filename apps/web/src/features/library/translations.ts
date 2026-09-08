@@ -1,18 +1,17 @@
+import { titleKindLabels } from "@arcadia/domain";
 import { vocabularyFallbackLabel } from "@arcadia/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { getTaxonomyTerms } from "@/server/library.functions";
 import type { FacetKey } from "./filtering";
 import type { WorkKind } from "./model";
 
+/** The one Arabic name for each catalog type — every surface (browse chips, group headers, the
+ *  card badge, the admin table) reads it from here rather than keeping its own copy. */
 export const kindLabelsAr: Record<WorkKind, string> = {
-  movie: "فيلم",
-  series: "مسلسل",
-  anime: "أنمي",
-  manga: "مانغا",
-  novel: "رواية",
-  game: "لعبة",
-  "visual-novel": "رواية مرئية",
-  comic: "قصص مصورة",
+  "animated-movie": titleKindLabels["animated-movie"].ar,
+  "animated-series": titleKindLabels["animated-series"].ar,
+  "live-action-movie": titleKindLabels["live-action-movie"].ar,
+  "live-action-series": titleKindLabels["live-action-series"].ar,
 };
 
 export const valueLabelsAr: Readonly<Record<string, string>> = {

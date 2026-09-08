@@ -9,7 +9,7 @@ function work(overrides: Partial<Work>): Work {
   // in full.
   return {
     id: "id",
-    kind: "anime",
+    kind: "animated-series",
     year: 2024,
     releaseStatus: "completed",
     audience: "Teen",
@@ -51,12 +51,12 @@ describe("groupWorks", () => {
 
   it("preserves each work's incoming sort order inside its group", () => {
     const works = [
-      work({ id: "a", kind: "movie" }),
-      work({ id: "b", kind: "anime" }),
-      work({ id: "c", kind: "movie" }),
+      work({ id: "a", kind: "animated-movie" }),
+      work({ id: "b", kind: "animated-series" }),
+      work({ id: "c", kind: "animated-movie" }),
     ];
     const groups = groupWorks(works, "kind");
-    const movies = groups.find((group) => group.key === "movie");
+    const movies = groups.find((group) => group.key === "animated-movie");
     expect(movies?.works.map((item) => item.id)).toEqual(["a", "c"]);
   });
 

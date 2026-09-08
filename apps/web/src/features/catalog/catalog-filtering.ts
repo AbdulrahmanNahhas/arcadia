@@ -1,4 +1,6 @@
+import { titleFormatOf, titleKindOf } from "@arcadia/domain";
 import type { Work, WorkKind } from "../library/model";
+import { workKinds } from "../library/model";
 import type { ScoreComponents, ScoreCriterion } from "../library/scoring";
 import { scoreCriteria } from "../library/scoring";
 
@@ -95,10 +97,13 @@ export function cycleCatalogSelection(
 
 export function getCatalogFacetValues(work: Work, key: CatalogFacetKey): string[] {
   if (key === "kinds") {
-    // Installment kinds (season/movie/special) and title kinds (movie/series/anime/…) only
-    // overlap on "movie" — surface that so a movie installment under e.g. an anime title still
-    // matches a "Movie" filter, without leaking "season"/"special" as bogus title-kind values.
-    return work.installmentKinds?.includes("movie") ? [work.kind, "movie"] : [work.kind];
+    // A series title that also contains a film (a season plus a movie installment) belongs under
+    // the movie type as well, so filtering by e.g. "فيلم رسوم متحركة" still finds it. Only the
+    // movie/series half flips — the film under an animated series is still animated.
+    const asMovie = titleKindOf(titleFormatOf(work.kind), "movie");
+    return work.installmentKinds?.includes("movie") && work.kind !== asMovie
+      ? [work.kind, asMovie]
+      : [work.kind];
   }
   if (key === "releaseStatuses") return [work.releaseStatus];
   if (key === "audiences") return work.audience ? [work.audience] : ["unknown"];
@@ -225,7 +230,5 @@ export function setMinimumScore(
 }
 
 export function catalogKind(value: string): value is WorkKind {
-  return ["movie", "series", "anime", "manga", "novel", "game", "visual-novel", "comic"].includes(
-    value,
-  );
+  return (workKinds as readonly string[]).includes(value);
 }

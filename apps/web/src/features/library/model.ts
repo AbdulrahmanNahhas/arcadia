@@ -4,22 +4,18 @@ import {
   adminEntityInputSchema as contractAdminEntityInputSchema,
   workflowStatusSchema,
 } from "@arcadia/contracts";
-import { ageSchema, taxonomy } from "@arcadia/domain";
+import { ageSchema, type TitleKind, taxonomy, titleKindSchema, titleKinds } from "@arcadia/domain";
 import { z } from "zod";
 
-export const workKinds = [
-  "movie",
-  "series",
-  "anime",
-  "manga",
-  "novel",
-  "game",
-  "visual-novel",
-  "comic",
-] as const;
+/**
+ * The four catalog types, re-exported from `@arcadia/domain` under the names the web app has
+ * always used for them. A title's type is its stored format (animated / live action) crossed
+ * with whether it has any season installment — the API derives it, the client never computes it.
+ */
+export const workKinds = titleKinds;
 
-export const workKindSchema = z.enum(workKinds);
-export type WorkKind = z.infer<typeof workKindSchema>;
+export const workKindSchema = titleKindSchema;
+export type WorkKind = TitleKind;
 
 export const ageValues = ageSchema.options;
 export const workflowStatusValues = workflowStatusSchema.options;
@@ -314,7 +310,7 @@ export const workSchema = z.object({
   /**
    * Kinds of the title's own installments (`season`/`movie`/`special`), distinct from `kind`
    * (the umbrella title's own type). Lets catalog filtering find e.g. a movie installment
-   * that lives under an `anime` title, which `kind` alone would hide from a "Movie" filter.
+   * that lives under a series title, which `kind` alone would hide from a "Movie" filter.
    */
   installmentKinds: z.array(z.enum(["season", "movie", "special"])).default([]),
   year: z.number().int().nullable(),

@@ -17,6 +17,7 @@ import type {
   AdminEntityInput,
   AdminWorkUpdate,
   EditableWorkStructure,
+  WorkKind,
   WorkStructure,
 } from "@/features/library/model";
 import { apiFetch } from "@/lib/api";
@@ -360,7 +361,7 @@ export async function searchArtwork({
 }: Data<{
   title: string;
   year?: number;
-  kind?: "anime" | "movie";
+  kind?: WorkKind;
   role: "poster" | "banner" | "logo";
   tmdbId?: number | null;
   anilistId?: number | null;

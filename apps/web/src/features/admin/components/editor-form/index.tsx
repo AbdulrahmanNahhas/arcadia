@@ -1,6 +1,7 @@
 "use client";
 
 import type { ArtworkCandidate, ArtworkProvider } from "@arcadia/contracts";
+import { titleFormatOf, titleShapeOf } from "@arcadia/domain";
 import {
   CheckIcon,
   CodeIcon,
@@ -434,21 +435,19 @@ function EditorMasthead({
 
 type StructureField = "runtime" | "episodes";
 
-// Which structure/tracking fields apply to each work kind — this is what was
-// missing before (showRuntime etc. were hardcoded to `true`, so every kind
-// showed all seven fields). Adjust these slugs to match your actual WorkKind
-// union. A kind that isn't listed falls back to showing everything, so
-// nothing silently disappears for a kind you add later and forget to map.
+// Which structure/tracking fields apply to each type — this is what was missing before
+// (showRuntime etc. were hardcoded to `true`, so every type showed all seven fields). Only the
+// movie/series half matters: an episode count is meaningless for a film, whatever its format.
 const STRUCTURE_FIELDS_BY_KIND = {
-  movie: ["runtime"],
-  series: ["runtime", "episodes"],
-  anime: ["runtime", "episodes"],
-} satisfies Partial<Record<string, StructureField[]>>;
+  "animated-movie": ["runtime"],
+  "live-action-movie": ["runtime"],
+  "animated-series": ["runtime", "episodes"],
+  "live-action-series": ["runtime", "episodes"],
+} satisfies Record<WorkKind, StructureField[]>;
 
 function hasStructureFields(kind: string): kind is keyof typeof STRUCTURE_FIELDS_BY_KIND {
   return kind in STRUCTURE_FIELDS_BY_KIND;
 }
-const MEDIA_WORK_KINDS = workKinds.filter((kind) => ["movie", "series", "anime"].includes(kind));
 
 // --- component ---
 
@@ -489,15 +488,17 @@ function WorkEditorFormFields({
     () => [...new Set(works.flatMap((candidate) => candidate.tags))].toSorted(),
     [works],
   );
-  // Movie-kind titles don't carry their own TMDB/IMDb id (one franchise can hold several films,
+  // Movie-type titles don't carry their own TMDB/IMDb id (one franchise can hold several films,
   // each with a different id — see the hint text below) — the artwork search for the title's own
-  // poster/banner/logo uses its first film's id instead. Anime/TV titles are the opposite: the
-  // title itself is the one TMDB/AniList/… entry, so `draft.tmdbId` is used directly.
+  // poster/banner/logo uses its first film's id instead. Series titles are the opposite: the
+  // title itself is the one TMDB/AniList/… entry, so `draft.tmdbId` is used directly. Only the
+  // movie/series half of the type decides this; animated and live action behave the same.
+  const isSeries = titleShapeOf(draft.kind) === "series";
   const firstMovieTmdbId =
     structure?.seasons.find(
       (season) => season.installmentKind === "movie" || season.installmentKind === "special",
     )?.tmdbId ?? null;
-  const posterTmdbId = draft.kind === "anime" ? draft.tmdbId : firstMovieTmdbId;
+  const posterTmdbId = isSeries ? draft.tmdbId : firstMovieTmdbId;
 
   return (
     <form
@@ -568,7 +569,7 @@ function WorkEditorFormFields({
 
             <Field label="النوع">
               <Select
-                items={MEDIA_WORK_KINDS.map((kind) => ({ value: kind, label: kindLabels[kind] }))}
+                items={workKinds.map((kind) => ({ value: kind, label: kindLabels[kind] }))}
                 value={draft.kind}
                 onValueChange={(value) => value && changeKind(value)}
               >
@@ -577,7 +578,7 @@ function WorkEditorFormFields({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {MEDIA_WORK_KINDS.map((kind) => (
+                    {workKinds.map((kind) => (
                       <SelectItem key={kind} value={kind}>
                         {kindLabels[kind]}
                       </SelectItem>
@@ -1028,7 +1029,7 @@ function WorkEditorFormFields({
               />
             </Field>
 
-            {draft.kind === "anime" ? (
+            {isSeries ? (
               <>
                 <IdField
                   label="TMDB"
@@ -1050,18 +1051,24 @@ function WorkEditorFormFields({
                   onChange={(value) => setDraft({ ...draft, tvdbId: value })}
                   openUrl={(value) => `https://thetvdb.com/dereferrer/series/${value}`}
                 />
-                <IdField
-                  label="AniList"
-                  value={draft.anilistId}
-                  onChange={(value) => setDraft({ ...draft, anilistId: value })}
-                  openUrl={(value) => `https://anilist.co/anime/${value}`}
-                />
-                <IdField
-                  label="MyAnimeList"
-                  value={draft.malId}
-                  onChange={(value) => setDraft({ ...draft, malId: value })}
-                  openUrl={(value) => `https://myanimelist.net/anime/${value}`}
-                />
+                {/* AniList and MyAnimeList only catalog animation — a live-action series has no
+                    entry to point at, so the two fields aren't offered for one. */}
+                {titleFormatOf(draft.kind) === "animated" && (
+                  <>
+                    <IdField
+                      label="AniList"
+                      value={draft.anilistId}
+                      onChange={(value) => setDraft({ ...draft, anilistId: value })}
+                      openUrl={(value) => `https://anilist.co/anime/${value}`}
+                    />
+                    <IdField
+                      label="MyAnimeList"
+                      value={draft.malId}
+                      onChange={(value) => setDraft({ ...draft, malId: value })}
+                      openUrl={(value) => `https://myanimelist.net/anime/${value}`}
+                    />
+                  </>
+                )}
               </>
             ) : (
               <Field label="معرّفات خارجية" wide>
@@ -1165,7 +1172,7 @@ function WorkEditorFormFields({
                 assetType="poster"
                 ownerName={draft.title}
                 year={draft.year}
-                kind={draft.kind === "anime" ? "anime" : "movie"}
+                kind={draft.kind}
                 titleId={draft.id}
                 tmdbId={posterTmdbId}
                 anilistId={draft.anilistId}
@@ -1177,7 +1184,7 @@ function WorkEditorFormFields({
                 assetType="banner"
                 ownerName={draft.title}
                 year={draft.year}
-                kind={draft.kind === "anime" ? "anime" : "movie"}
+                kind={draft.kind}
                 titleId={draft.id}
                 tmdbId={posterTmdbId}
                 anilistId={draft.anilistId}
@@ -1189,7 +1196,7 @@ function WorkEditorFormFields({
                 assetType="logo"
                 ownerName={draft.title}
                 year={draft.year}
-                kind={draft.kind === "anime" ? "anime" : "movie"}
+                kind={draft.kind}
                 titleId={draft.id}
                 tmdbId={posterTmdbId}
                 anilistId={draft.anilistId}
@@ -1203,7 +1210,7 @@ function WorkEditorFormFields({
                   structure={structure}
                   workTitle={draft.title}
                   year={draft.year}
-                  kind={draft.kind === "anime" ? "anime" : "movie"}
+                  kind={draft.kind}
                 />
               </div>
             )}
@@ -1321,7 +1328,7 @@ function ArtworkPickerDialog({
   artworkRole: "poster" | "banner" | "logo";
   ownerName: string;
   year?: number | null;
-  kind?: "anime" | "movie";
+  kind?: WorkKind;
   /** A confirmed TMDB/AniList id already on this title/installment — when set, the external tab
    * looks the row up directly instead of fuzzy-searching by title/year (see the player/torrent
    * roadmap's Phase 0). */
@@ -1534,7 +1541,7 @@ function ArtworkField({
   assetType: "poster" | "banner" | "logo";
   ownerName: string;
   year?: number | null;
-  kind?: "anime" | "movie";
+  kind?: WorkKind;
   titleId?: string;
   tmdbId?: number | null;
   anilistId?: number | null;
@@ -1872,7 +1879,7 @@ function SeasonArtworkManager({
   structure: WorkStructure;
   workTitle: string;
   year?: number | null;
-  kind?: "anime" | "movie";
+  kind?: WorkKind;
 }) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -1950,7 +1957,7 @@ function SeasonPosterCard({
   season: WorkStructure["seasons"][number];
   workTitle: string;
   year?: number | null;
-  kind?: "anime" | "movie";
+  kind?: WorkKind;
   disabled: boolean;
   onSave: (posterPath: string | null) => void;
   onSaveIdentifiers: (ids: SeasonIdPatch) => void;
@@ -2158,7 +2165,7 @@ function SeasonPosterCard({
               />
             </>
           )}
-          {kind === "anime" && (
+          {kind && titleFormatOf(kind) === "animated" && (
             <>
               <Input
                 placeholder="AniList"

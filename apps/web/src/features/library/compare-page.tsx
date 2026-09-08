@@ -341,7 +341,7 @@ function WorkCompareCard({
       <Button
         variant="ghost"
         size="icon-xs"
-        className="absolute end-2 top-2 z-10 rounded-full bg-background/80 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
+        className="absolute inset-e-2 top-2 z-10 rounded-full bg-background/80 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
         aria-label={`إزالة ${work.arabicTitle || work.title} من المقارنة`}
         onClick={onRemove}
       >

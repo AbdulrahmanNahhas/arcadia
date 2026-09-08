@@ -34,20 +34,10 @@ import {
 } from "@/features/catalog/catalog-filtering";
 import { CatalogFilterSheet, CatalogFilterSidebar } from "@/features/catalog/catalog-filters";
 import type { Work } from "@/features/library/model";
+import { kindLabelsAr as kindLabels } from "@/features/library/translations";
 import { cn } from "@/lib/utils";
 import { deleteWorks, getAdminWorks } from "@/server/library.functions";
 import { AdminPageHeader } from "../components/admin-page-header";
-
-const kindLabels = {
-  movie: "فيلم",
-  series: "مسلسل",
-  anime: "أنمي",
-  game: "لعبة",
-  novel: "رواية",
-  manga: "مانغا",
-  "visual-novel": "رواية مرئية",
-  comic: "قصص مصوّرة",
-} as const;
 
 export function AdminCatalogPage() {
   const queryClient = useQueryClient();
