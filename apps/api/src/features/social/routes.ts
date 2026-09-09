@@ -71,6 +71,7 @@ function continueWatchingItemFromRow(row: Row): ContinueWatchingItem {
     titleId: String(row.titleId),
     title: String(row.title),
     posterPath: row.posterPath == null ? null : String(row.posterPath),
+    bannerPath: row.bannerPath == null ? null : String(row.bannerPath),
     installmentId: String(row.installmentId),
     installmentTitle: String(row.installmentTitle),
     episodeId: row.episodeId == null ? null : String(row.episodeId),
@@ -346,7 +347,9 @@ socialRoutes.get("/api/v1/me/watch-history", async (context) => {
       s.position_seconds as "positionSeconds", s.duration_seconds as "durationSeconds",
       s.is_played as "isPlayed", s.played_at as "playedAt", s.updated_at as "updatedAt",
       (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
-        where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath"
+        where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath",
+      (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+        where x.title_id=t.id and x.role='banner' and x.is_primary limit 1) as "bannerPath"
     from account_playback_states s
     join installments i on i.id=s.installment_id
     join titles t on t.id=i.title_id
@@ -474,7 +477,9 @@ socialRoutes.get("/api/v1/me/continue-watching", async (context) => {
       case when e.id is not null then coalesce(e.title, 'الحلقة ' || e.number::text) else null end as "episodeLabel",
       s.position_seconds as "positionSeconds", s.duration_seconds as "durationSeconds",
       (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
-        where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath"
+        where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath",
+      (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+        where x.title_id=t.id and x.role='banner' and x.is_primary limit 1) as "bannerPath"
     from account_playback_states s
     join installments i on i.id = s.installment_id
     join titles t on t.id = i.title_id
@@ -503,7 +508,9 @@ socialRoutes.get("/api/v1/me/continue-watching", async (context) => {
       case when e.id is not null then coalesce(e.title, 'الحلقة ' || e.number::text) else null end as "episodeLabel",
       coalesce(s.position_seconds,0) as "positionSeconds", s.duration_seconds as "durationSeconds",
       (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
-        where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath"
+        where x.title_id=t.id and x.role='poster' and x.is_primary limit 1) as "posterPath",
+      (select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
+        where x.title_id=t.id and x.role='banner' and x.is_primary limit 1) as "bannerPath"
     from candidates c
     join titles t on t.id=c.title_id
     join installments i on i.id=c.installment_id

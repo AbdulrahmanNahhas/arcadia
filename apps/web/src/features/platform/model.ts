@@ -120,8 +120,8 @@ export type OrganizationRelationship = {
 
 export type PlatformHomeData = {
   watchRadar: Work[];
-  continueExploring: Work[];
   highlyRated: Work[];
   recentlyUpdated: Work[];
+  recommended: Work[];
   planets: PlanetWithWorks[];
 };

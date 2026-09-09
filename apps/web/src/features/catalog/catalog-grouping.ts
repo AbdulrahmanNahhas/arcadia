@@ -6,6 +6,7 @@ import type { Planet } from "../platform/model";
 export type CatalogGroupBy =
   | "none"
   | "year"
+  | "calculatedRating"
   | "audience"
   | "age"
   | "kind"
@@ -30,6 +31,7 @@ export type CatalogGroup = {
 export const catalogGroupByOptions: Array<{ value: CatalogGroupBy; label: string }> = [
   { value: "none", label: "بلا تجميع" },
   { value: "year", label: "سنة الإصدار" },
+  { value: "calculatedRating", label: "التقييم" },
   { value: "kind", label: "النوع" },
   { value: "theologyRisk", label: "الخطر العقدي" },
   { value: "releaseStatus", label: "حالة العرض" },
@@ -55,6 +57,21 @@ export const releaseStatusLabelsAr = {
 const audienceOrder = ["General", "Teen", "Young Adult", "Adult", unknownKey];
 const ageOrder = [...ageValues, unknownKey];
 const kindOrder = [...workKinds];
+
+// Score buckets from 10 down to 0
+const scoreOrder = [
+  "9-10",
+  "8-9",
+  "7-8",
+  "6-7",
+  "5-6",
+  "4-5",
+  "3-4",
+  "2-3",
+  "1-2",
+  "0-1",
+  unknownKey,
+];
 
 // Safest first, same framing as audienceOrder above.
 const theologyRiskOrder = ["none", "low", "medium", "high", unknownKey];
@@ -84,6 +101,13 @@ function groupIdentity(
   if (groupBy === "year") {
     const key = work.year === null ? unknownKey : String(work.year);
     return { key, label: work.year === null ? unknownLabel : key };
+  }
+  if (groupBy === "calculatedRating") {
+    if (work.calculatedRating == null) return { key: unknownKey, label: unknownLabel };
+    const floor = Math.min(Math.floor(work.calculatedRating), 9);
+    const key = `${floor}-${floor + 1}`;
+    const label = `${floor + 1} - ${floor}`;
+    return { key, label };
   }
   if (groupBy === "kind") {
     return { key: work.kind, label: kindLabelsAr[work.kind] };
@@ -115,6 +139,7 @@ function groupIdentity(
 }
 
 function groupOrder(groupBy: Exclude<CatalogGroupBy, "none" | "year" | "planet">): string[] {
+  if (groupBy === "calculatedRating") return scoreOrder;
   if (groupBy === "kind") return kindOrder;
   if (groupBy === "releaseStatus") return releaseStatusOrder;
   if (groupBy === "audience") return audienceOrder;
@@ -149,11 +174,11 @@ function pickGroups(buckets: Map<string, CatalogGroup>, order: string[]) {
 
 /**
  * Buckets already-sorted works into ordered sections. Works keep the incoming sort order within
- * each group. Groups over a fixed taxonomy (kind/releaseStatus/audience/age) always appear in
- * the same intentional order; year groups follow `yearsDescending` (matched to the active sort
- * so a "newest" sort reads as descending years, "oldest" as ascending). Planet groups follow the
- * planets' own `displayOrder`, with unassigned works last; `planetsById` is required for planet
- * grouping to resolve names/icons/colors and is ignored otherwise.
+ * each group. Groups over a fixed taxonomy (kind/releaseStatus/audience/age/calculatedRating)
+ * always appear in the same intentional order; year groups follow `yearsDescending` (matched to
+ * the active sort so a "newest" sort reads as descending years, "oldest" as ascending). Planet
+ * groups follow the planets' own `displayOrder`, with unassigned works last; `planetsById` is
+ * required for planet grouping to resolve names/icons/colors and is ignored otherwise.
  */
 export function groupWorks(
   works: Work[],

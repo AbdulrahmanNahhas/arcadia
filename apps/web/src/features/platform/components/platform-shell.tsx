@@ -1,6 +1,5 @@
 import {
   BookmarkIcon,
-  BooksIcon,
   BuildingsIcon,
   DatabaseIcon,
   GearSixIcon,
@@ -87,8 +86,8 @@ export function PlatformShell({
             <NavLink to="/" active={pathname === "/"} icon={<HouseIcon />}>
               الرئيسية
             </NavLink>
-            <NavLink to="/planets" active={pathname.startsWith("/planets")} icon={<PlanetIcon />}>
-              الكواكب
+            <NavLink to="/archive" active={pathname.startsWith("/archive")} icon={<BookmarkIcon />}>
+              مساحتي
             </NavLink>
             <NavLink to="/browse" active={pathname === "/browse"} icon={<DatabaseIcon />}>
               قاعدة البيانات
@@ -118,6 +117,25 @@ export function PlatformShell({
                     className="p-0!"
                   >
                     <ul className="grid w-[320px] gap-1 p-2 md:w-110 md:grid-cols-2 dir-rtl">
+                      <li>
+                        <NavigationMenuLink
+                          render={
+                            <Link
+                              to="/planets"
+                              className="flex flex-col gap-1 rounded-md p-2.5 transition-colors hover:bg-accent focus:bg-accent"
+                            >
+                              <div className="flex items-start ml-auto! gap-2 text-sm font-semibold text-foreground">
+                                <PlanetIcon className="size-4 text-primary" />
+                                <span>الكواكب</span>
+                              </div>
+                              <p className="line-clamp-2 text-xs text-muted-foreground">
+                                كل الأعمال مصنّفة حسب عالمها
+                              </p>
+                            </Link>
+                          }
+                        />
+                      </li>
+
                       <li>
                         <NavigationMenuLink
                           render={
@@ -187,25 +205,6 @@ export function PlatformShell({
                               </div>
                               <p className="line-clamp-2 text-xs text-muted-foreground">
                                 الجهات المانحة والأعمال الفائزة والمرشّحة
-                              </p>
-                            </Link>
-                          }
-                        />
-                      </li>
-
-                      <li>
-                        <NavigationMenuLink
-                          render={
-                            <Link
-                              to="/archive"
-                              className="flex flex-col gap-1 rounded-md p-2.5 transition-colors hover:bg-accent focus:bg-accent"
-                            >
-                              <div className="flex items-start ml-auto! gap-2 text-sm font-semibold text-foreground">
-                                <BookmarkIcon className="size-4 text-primary" />
-                                <span>مساحتي والأرشيف</span>
-                              </div>
-                              <p className="line-clamp-2 text-xs text-muted-foreground">
-                                مجموعاتك القوائم وسجل مشاهداتك
                               </p>
                             </Link>
                           }
@@ -299,10 +298,10 @@ export function PlatformShell({
       >
         <MobileLink to="/" active={pathname === "/"} icon={<HouseIcon />} label="الرئيسية" />
         <MobileLink
-          to="/planets"
-          active={pathname.startsWith("/planets")}
-          icon={<PlanetIcon />}
-          label="الكواكب"
+          to="/archive"
+          active={pathname.startsWith("/archive")}
+          icon={<BookmarkIcon />}
+          label="مساحتي"
         />
         <MobileLink
           to="/browse"
@@ -311,10 +310,10 @@ export function PlatformShell({
           label="قاعدة البيانات"
         />
         <MobileLink
-          to="/archive"
-          active={pathname.startsWith("/archive")}
-          icon={<BooksIcon />}
-          label="مساحتي"
+          to="/planets"
+          active={pathname.startsWith("/planets")}
+          icon={<PlanetIcon />}
+          label="الكواكب"
         />
       </nav>
     </div>

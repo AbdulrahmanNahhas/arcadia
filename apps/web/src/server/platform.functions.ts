@@ -1,4 +1,5 @@
 import type { FamilyActivity, PublicAwardsDocument } from "@arcadia/contracts";
+import type { LibraryEntry } from "@/features/archive/api";
 import type { Work } from "@/features/library/model";
 import type {
   OrganizationRelationship,
@@ -25,21 +26,19 @@ export async function getPlatformHome() {
   const [works, planets, library, familyActivity] = await Promise.all([
     allWorks(),
     planetsWithWorks(),
-    apiFetch<Array<{ titleId: string; isFavorite: boolean }>>("/api/v1/me/library").catch(() => []),
+    apiFetch<LibraryEntry[]>("/api/v1/me/library").catch(() => []),
     apiFetch<FamilyActivity[]>("/api/v1/family/activity").catch(() => []),
   ]);
-  const rated = [...works]
+  const rated = works
     .filter((work) => work.calculatedRating !== null)
-    .sort((a, b) => (b.calculatedRating ?? 0) - (a.calculatedRating ?? 0));
+    .toSorted((a, b) => (b.calculatedRating ?? 0) - (a.calculatedRating ?? 0));
   return {
     watchRadar: selectHeroWorks(works, library),
-    // TODO(tracking): drive this from real playback progress once Phase B of
-    // docs/tracking-dashboard-i18n-roadmap.md lands — status-based "continue watching" is gone.
-    continueExploring: [] as Work[],
     highlyRated: rated.slice(0, 18),
-    recentlyUpdated: [...works]
-      .sort((left, right) => right.catalogUpdatedAt - left.catalogUpdatedAt)
+    recentlyUpdated: works
+      .toSorted((left, right) => right.catalogUpdatedAt - left.catalogUpdatedAt)
       .slice(0, 18),
+    recommended: recommendedForYou(works, library),
     planets,
     familyActivity,
   };
@@ -58,7 +57,7 @@ function selectHeroWorks(works: Work[], library: Array<{ titleId: string; isFavo
     for (const character of id) hash = (hash * 31 + character.charCodeAt(0)) | 0;
     return Math.abs(hash % 19);
   };
-  const ranked = [...works]
+  const ranked = works
     .filter((work) => Boolean(work.bannerPath || work.imagePath))
     .map((work) => {
       const state = stateById.get(work.id);
@@ -75,7 +74,7 @@ function selectHeroWorks(works: Work[], library: Array<{ titleId: string; isFavo
           releaseBoost + personalBoost + (work.calculatedRating ?? 0) * 2 + stableNoise(work.id),
       };
     })
-    .sort((left, right) => right.score - left.score)
+    .toSorted((left, right) => right.score - left.score)
     .map(({ work }) => work);
   const upcoming = ranked.filter(
     (work) => work.releaseStatus === "upcoming" || work.releaseStatus === "returning",
@@ -85,7 +84,37 @@ function selectHeroWorks(works: Work[], library: Array<{ titleId: string; isFavo
   );
   return [...upcoming.slice(0, 5), ...available.slice(0, 5)];
 }
+
+/**
+ * Home page's "قد يعجبك أيضاً" rail: seeded from whichever library entry best expresses the
+ * account's taste — the personal favorite/rating with the most recent activity — then scored
+ * against the whole catalog with the same `recommendationsFor` engine the title page uses for
+ * "أعمال مشابهة". No seed (an empty library) means no rail, not a generic "popular" fallback —
+ * that's what `highlyRated` already is.
+ */
+function recommendedForYou(works: Work[], library: LibraryEntry[]) {
+  const worksById = new Map(works.map((work) => [work.id, work]));
+  const seedEntry = library
+    .filter((item) => item.isFavorite || item.personalRating !== null)
+    .toSorted((a, b) => (b.personalRating ?? 0) - (a.personalRating ?? 0))
+    .find((item) => worksById.has(item.titleId));
+  const seed = seedEntry ? worksById.get(seedEntry.titleId) : undefined;
+  if (!seed) return [];
+  const libraryIds = new Set(library.map((item) => item.titleId));
+  return recommendationsFor(seed, works, 18)
+    .map((recommendation) => recommendation.work)
+    .filter((work) => !libraryIds.has(work.id));
+}
+
 export const getPlanets = () => planetsWithWorks();
+/** Home page's bottom "الاستوديوهات" rail: the studios with the most catalogued works first. */
+export async function getTopStudios({ data }: Data<{ limit?: number }> = { data: {} }) {
+  const all = await entities();
+  return all
+    .filter((entity) => entity.entityType === "organization")
+    .toSorted((a, b) => b.workCount - a.workCount)
+    .slice(0, data.limit ?? 12);
+}
 export const getPublicAwards = () => apiFetch<PublicAwardsDocument>("/api/v1/awards");
 export const getAdminPlanets = adminPlanetsWithWorks;
 export async function getPlatformCatalogWorks({ data }: Data<{ query?: string }> = { data: {} }) {

@@ -5,8 +5,11 @@ import { useCurrentAccount } from "@/features/accounts/api";
 import type { PlanetWithWorks } from "@/features/platform/model";
 import { cn } from "@/lib/utils";
 import { getAdminWatchRadar, getPlatformHome } from "@/server/platform.functions";
+import { ContinueWatchingRail } from "./components/continue-watching-rail";
 import { FamilyActivityRail } from "./components/family-activity-rail";
 import { PlatformShell } from "./components/platform-shell";
+import { StudiosRail } from "./components/studios-rail";
+import { UpcomingRail } from "./components/upcoming-rail";
 import { WatchRadarHero } from "./components/watch-radar-hero";
 import { WorkRail } from "./components/work-rail";
 
@@ -29,16 +32,12 @@ export function PlatformHome() {
     <PlatformShell immersive>
       <WatchRadarHero works={watchRadar} />
       <div className="relative z-10 mx-auto -mt-8 flex flex-col gap-18 pb-28 lg:-mt-12 lg:gap-24 px-0">
-        {data.continueExploring.length > 0 && (
-          <WorkRail
-            title="واصل الاستكشاف"
-            description="الأعمال التي تركتها مفتوحة تنتظرك هنا."
-            works={data.continueExploring}
-            variant="banner"
-          />
-        )}
+        <ContinueWatchingRail />
 
         <PlanetIndex planets={populatedPlanets} />
+
+        <UpcomingRail />
+
         <FamilyActivityRail items={data.familyActivity} />
 
         <WorkRail
@@ -47,6 +46,17 @@ export function PlatformHome() {
           works={data.highlyRated}
           variant="banner"
         />
+
+        <StudiosRail />
+
+        {data.recommended.length > 0 && (
+          <WorkRail
+            title="قد يعجبك أيضاً"
+            description="بناءً على ما أضفته أو قيّمته في مكتبتك."
+            works={data.recommended}
+            variant="poster"
+          />
+        )}
 
         {populatedPlanets.length > 0 && (
           <section className="flex flex-col gap-16" aria-labelledby="planet-collections-title">
@@ -79,7 +89,7 @@ export function PlatformHome() {
 }
 
 function PlanetIndex({ planets }: { planets: PlanetWithWorks[] }) {
-  const sortedPlanets = [...planets].sort((a, b) => b.workCount - a.workCount);
+  const sortedPlanets = planets.toSorted((a, b) => b.workCount - a.workCount);
 
   return (
     <section className="relative py-14 sm:py-16" aria-labelledby="planet-index-title">
@@ -104,7 +114,7 @@ function PlanetIndex({ planets }: { planets: PlanetWithWorks[] }) {
 
         {/* Horizontal planet rail */}
         <div className="mt-7 overflow-hidden">
-          <div className="flex scroll-fade-x gap-3 overflow-x-auto pb-4 scrollbar-none">
+          <div className="flex scroll-fade-x gap-3 overflow-x-auto pb-4 scrollbar-none pt-2">
             {sortedPlanets.map((planet, index) => {
               const artwork = planet.works[0]?.bannerPath || planet.works[0]?.imagePath;
 

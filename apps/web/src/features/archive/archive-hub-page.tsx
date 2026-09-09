@@ -8,81 +8,211 @@ import {
   UsersThreeIcon,
   WifiSlashIcon,
 } from "@phosphor-icons/react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Fragment, type ReactNode, useEffect, useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AccountAvatar } from "@/features/accounts/account-avatar";
 import { useCurrentAccount } from "@/features/accounts/api";
 import { PlatformShell } from "@/features/platform/components/platform-shell";
-import { revealSpatialTarget, useSpatialFocusable } from "@/features/platform/spatial-navigation";
+import { cn } from "@/lib/utils";
 import {
-  ArchiveOverview,
-  CalendarPanel,
-  FamilyPanel,
-  HistoryPanel,
-  isLibrarySort,
-  LibraryPanel,
-  NotificationsPanel,
-} from "./archive-panels";
+  archiveKeys,
+  getCalendar,
+  getLibrary,
+  getNotifications,
+  getRecommendations,
+  getWatchStats,
+} from "./api";
+import { FamilyPanel } from "./archive-family-panel";
+import { HistoryPanel } from "./archive-history-panel";
+import { NotificationsPanel } from "./archive-notifications-panel";
+import { ArchiveOverview } from "./archive-overview";
+import { isLibrarySort, LibraryPanel } from "./components/library-panel";
+import { sessionStartedAt } from "./components/shared";
+import { CalendarPanel } from "./components/upcoming";
 
-const tabs = [
-  ["overview", "الموجز", HouseLineIcon],
-  ["library", "مكتبتي", BooksIcon],
-  ["history", "السجل", ClockCounterClockwiseIcon],
-  ["calendar", "التقويم", CalendarDotsIcon],
-  ["family", "العائلة", UsersThreeIcon],
-  ["notifications", "التنبيهات", BellIcon],
-] as const;
-type ArchiveTab = (typeof tabs)[number][0];
+type ArchiveTab = "overview" | "library" | "history" | "calendar" | "family" | "notifications";
 
 /**
- * Same manual spatial registration as the title page's `TitleTabTrigger` — arrow-focusing a tab
- * activates it immediately (`onFocus` selects, not just `onEnterPress`), rather than the
- * automatic system's plain "focus, then Enter to activate". Opts out of automatic scanning
- * (`data-spatial-managed`) so the two systems never both claim this button.
+ * The section index. `hint` is the one-line annotation shown beside each entry on wide screens —
+ * this rail is the page's table of contents, so every entry says what lives behind it rather
+ * than relying on the label alone.
  */
-function ArchiveTabTrigger({
+const sections = [
+  { value: "overview", label: "الموجز", hint: "ما ينتظرك الآن", icon: HouseLineIcon },
+  { value: "library", label: "مكتبتي", hint: "المحفوظ والمقيَّم", icon: BooksIcon },
+  {
+    value: "history",
+    label: "السجل",
+    hint: "ما شاهدته وتصفّحته",
+    icon: ClockCounterClockwiseIcon,
+  },
+  { value: "calendar", label: "التقويم", hint: "إصدارات مؤرَّخة", icon: CalendarDotsIcon },
+  { value: "family", label: "العائلة", hint: "توصيات ونشاط وأمسيات", icon: UsersThreeIcon },
+  { value: "notifications", label: "التنبيهات", hint: "ردود وتحديثات", icon: BellIcon },
+] as const satisfies readonly { value: ArchiveTab; label: string; hint: string; icon: Icon }[];
+
+const dateLineFormat = new Intl.DateTimeFormat("ar", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
+function greetingForHour(hour: number) {
+  if (hour >= 4 && hour < 12) return "صباح الخير";
+  if (hour >= 12 && hour < 17) return "طاب يومك";
+  if (hour >= 17 && hour < 22) return "مساء الخير";
+  return "ليلة هادئة";
+}
+
+/** Arabic counted nouns need three shapes, not two: singular, dual, then the plural that takes a
+ *  leading numeral. Only the plural form renders a digit, so `2` reads «إصداران» and never «2 إصدارات». */
+function CountedNoun({
+  count,
+  forms,
+}: {
+  count: number;
+  forms: readonly [singular: string, dual: string, plural: string];
+}) {
+  if (count === 1) return <>{forms[0]}</>;
+  if (count === 2) return <>{forms[1]}</>;
+  return (
+    <>
+      <span className="font-mono font-semibold tabular-nums text-foreground">{count}</span>{" "}
+      {forms[2]}
+    </>
+  );
+}
+
+/** Joins the pending-work clauses into one Arabic sentence: «أ، ب، وج.» */
+function StatusSentence({ clauses }: { clauses: readonly { key: string; node: ReactNode }[] }) {
+  if (clauses.length === 0) {
+    return <>مساحتك مرتّبة — لا شيء ينتظر ردّك اليوم.</>;
+  }
+  return (
+    <>
+      {clauses.map((clause, index) => (
+        <Fragment key={clause.key}>
+          {index === 0 ? null : index === clauses.length - 1 ? "، و" : "، "}
+          {clause.node}
+        </Fragment>
+      ))}
+      .
+    </>
+  );
+}
+
+/**
+ * The counts behind both the status sentence and the index rail. Every query here is one the
+ * panels already own, keyed identically — opening the hub warms them, and no panel refetches.
+ */
+function useArchivePulse() {
+  const stats = useQuery({ queryKey: archiveKeys.watchStats, queryFn: getWatchStats });
+  const calendar = useQuery({ queryKey: archiveKeys.calendar, queryFn: getCalendar });
+  const notifications = useQuery({
+    queryKey: archiveKeys.notifications,
+    queryFn: getNotifications,
+  });
+  const library = useQuery({ queryKey: archiveKeys.library, queryFn: getLibrary });
+  const recommendations = useQuery({
+    queryKey: archiveKeys.recommendations,
+    queryFn: getRecommendations,
+  });
+  return {
+    loading:
+      stats.isPending || calendar.isPending || notifications.isPending || recommendations.isPending,
+    unfinished: stats.data?.inProgressCount ?? 0,
+    librarySize: library.data?.length ?? 0,
+    upcoming: (calendar.data ?? []).filter(
+      (item) => new Date(item.releaseDate).getTime() >= sessionStartedAt,
+    ).length,
+    unread: (notifications.data ?? []).filter((item) => item.readAt === null).length,
+    awaitingReply: (recommendations.data ?? []).filter((item) => item.status === "pending").length,
+  };
+}
+
+/**
+ * One entry in the section index. A plain `Link` that rewrites `?tab=` — no custom focus-driven
+ * selection here; the site's automatic spatial-nav scanner already treats every `a[href]` as a
+ * focusable target on its own; layering a second, competing "focus selects the tab" mechanism on
+ * top of that caused focus to bounce between adjacent entries (`?tab=` flipping back and forth on
+ * its own). A real link is also simply the correct affordance for something that navigates.
+ */
+function ArchiveSectionLink({
   value,
+  active,
   label,
-  icon: Icon,
-  onSelect,
+  hint,
+  icon: SectionIcon,
+  count,
+  countLabel,
+  attention,
 }: {
   value: ArchiveTab;
+  active: boolean;
   label: string;
+  hint: string;
   icon: Icon;
-  onSelect: (value: ArchiveTab) => void;
+  count: number;
+  countLabel: string;
+  attention: boolean;
 }) {
-  const focusKey = `archive:tab:${value}`;
-  const { ref, focused } = useSpatialFocusable<object, HTMLButtonElement>({
-    focusKey,
-    accessibilityLabel: label,
-    onEnterPress: () => onSelect(value),
-    onFocus: ({ node }) => {
-      revealSpatialTarget(node);
-      onSelect(value);
-    },
-  });
   return (
-    <TabsTrigger
-      ref={ref}
-      value={value}
-      data-spatial-managed
-      data-spatial-focus-key={focusKey}
-      data-focused={focused || undefined}
-      className="px-3"
+    <Link
+      to="/archive"
+      search={(previous) => ({ ...previous, tab: value })}
+      replace
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "group/section relative flex flex-none items-center gap-2.5 rounded-full px-3.5 py-2 text-start transition-colors",
+        "text-foreground/65 hover:bg-muted/60 hover:text-foreground",
+        active && "bg-accent/70 text-foreground dark:bg-accent/50",
+        "lg:w-full lg:rounded-xl lg:px-3 lg:py-2.5",
+      )}
     >
-      <Icon data-icon="inline-start" />
-      {label}
-    </TabsTrigger>
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-s-0 top-1/2 hidden h-5 w-[3px] -translate-y-1/2 rounded-full bg-primary opacity-0 transition-opacity duration-200 lg:block",
+          active && "opacity-100",
+        )}
+      />
+      <SectionIcon
+        weight={attention ? "fill" : "regular"}
+        className={cn(
+          "shrink-0 transition-colors",
+          active ? "text-primary" : "text-muted-foreground group-hover/section:text-foreground",
+        )}
+      />
+      <span className="flex min-w-0 flex-col">
+        <span className="font-heading text-sm font-medium leading-5">{label}</span>
+        <span className="hidden text-[0.6875rem] leading-4 text-muted-foreground lg:block">
+          {hint}
+        </span>
+      </span>
+      {count > 0 ? (
+        <span
+          className={cn(
+            "ms-auto rounded-full px-1.5 py-0.5 font-mono text-[0.6875rem] leading-4 tabular-nums",
+            attention ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+          )}
+        >
+          {count}
+          <span className="sr-only"> {countLabel}</span>
+        </span>
+      ) : null}
+    </Link>
   );
 }
 
 export function ArchiveHubPage() {
   const search = useSearch({ from: "/archive" });
   const navigate = useNavigate({ from: "/archive" });
-  const selectTab = (tab: ArchiveTab) =>
-    void navigate({ search: (previous) => ({ ...previous, tab }), replace: true });
-  const accountId = useCurrentAccount().data?.account.id;
+  const activeTab = search.tab ?? "overview";
+  const account = useCurrentAccount().data?.account;
+  const accountId = account?.id;
+  const pulse = useArchivePulse();
   const [online, setOnline] = useState(true);
   useEffect(() => {
     const update = () => setOnline(window.navigator.onLine);
@@ -103,89 +233,174 @@ export function ArchiveHubPage() {
       replace: true,
     });
   }, [accountId, navigate, search.sort]);
+
+  const counts = {
+    overview: 0,
+    library: pulse.librarySize,
+    history: 0,
+    calendar: pulse.upcoming,
+    family: pulse.awaitingReply,
+    notifications: pulse.unread,
+  } satisfies Record<ArchiveTab, number>;
+  const countLabels = {
+    overview: "",
+    library: "عمل في مكتبتك",
+    history: "",
+    calendar: "إصدار قادم",
+    family: "توصية تنتظر ردّك",
+    notifications: "تنبيه لم يُقرأ",
+  } satisfies Record<ArchiveTab, string>;
+  /** Filled counters mean "this is waiting on you"; plain counters only report a size. */
+  const attention = {
+    overview: false,
+    library: false,
+    history: false,
+    calendar: false,
+    family: pulse.awaitingReply > 0,
+    notifications: pulse.unread > 0,
+  } satisfies Record<ArchiveTab, boolean>;
+
+  const clauses = [
+    {
+      key: "unfinished",
+      count: pulse.unfinished,
+      forms: ["عمل واحد لم يكتمل", "عملان لم يكتملا", "أعمال لم تكتمل"],
+    },
+    {
+      key: "awaitingReply",
+      count: pulse.awaitingReply,
+      forms: ["توصية تنتظر ردّك", "توصيتان تنتظران ردّك", "توصيات تنتظر ردّك"],
+    },
+    {
+      key: "unread",
+      count: pulse.unread,
+      forms: ["تنبيه لم يُقرأ", "تنبيهان لم يُقرآ", "تنبيهات لم تُقرأ"],
+    },
+    {
+      key: "upcoming",
+      count: pulse.upcoming,
+      forms: ["إصدار واحد قادم", "إصداران قادمان", "إصدارات قادمة"],
+    },
+  ] as const satisfies readonly {
+    key: string;
+    count: number;
+    forms: readonly [string, string, string];
+  }[];
+  const activeClauses = clauses
+    .filter((clause) => clause.count > 0)
+    .map((clause) => ({
+      key: clause.key,
+      node: <CountedNoun count={clause.count} forms={clause.forms} />,
+    }));
+
   return (
     <PlatformShell>
-      <div className="mx-auto max-w-400 px-5 pb-28 pt-10 sm:px-8">
-        <header className="archive-grid relative overflow-hidden rounded-[2rem] border bg-card p-7 sm:p-10">
-          <div className="absolute inset-y-0 inset-s-0 w-1/2 bg-[radial-gradient(circle_at_center,var(--color-primary),transparent_68%)] opacity-10" />
-          <p className="relative text-xs font-semibold tracking-[0.18em] text-primary">
-            مساحتك داخل الأرشيف
-          </p>
-          <h1 className="relative mt-3 max-w-3xl font-heading text-3xl font-semibold sm:text-5xl">
-            مساحتي
-          </h1>
-          <p className="relative mt-4 max-w-2xl leading-8 text-muted-foreground">
-            أكمل ما بدأته، قيّم ورشّح ما تشاهده، وتابع نبض العائلة وإصدارات الأعمال — من مكان واحد
-            يعرف أين توقّفت.
-          </p>
+      <div className="relative mx-auto max-w-400 px-5 pb-28 pt-10 sm:px-8">
+        <div
+          aria-hidden
+          className="archive-grid pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 opacity-80 [mask-image:linear-gradient(to_bottom,black,transparent)]"
+        />
+
+        <header>
+          <p className="text-xs text-muted-foreground">{dateLineFormat.format(new Date())}</p>
+          <div className="mt-5 flex items-start gap-4">
+            {account ? (
+              <AccountAvatar
+                avatarKey={account.avatarKey}
+                label={account.displayName}
+                className="size-12 shrink-0 ring-1 ring-border sm:size-14"
+              />
+            ) : (
+              <Skeleton className="size-12 shrink-0 rounded-full sm:size-14" />
+            )}
+            <div className="min-w-0 flex-1">
+              <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
+                <span className="text-muted-foreground">
+                  {greetingForHour(new Date().getHours())}
+                  {account ? "، " : ""}
+                </span>
+                {account?.displayName ?? ""}
+              </h1>
+              {pulse.loading ? (
+                <Skeleton className="mt-4 h-5 w-full max-w-lg" />
+              ) : (
+                <p className="mt-3 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg sm:leading-9">
+                  <StatusSentence clauses={activeClauses} />
+                </p>
+              )}
+            </div>
+          </div>
+          {online ? null : (
+            <div
+              role="status"
+              className="mt-6 flex items-start gap-3 rounded-xl border border-dashed bg-muted/40 px-4 py-3 text-sm leading-6 text-muted-foreground"
+            >
+              <WifiSlashIcon className="mt-1 size-4 shrink-0" />
+              <p>
+                <strong className="font-medium text-foreground">دون اتصال بخادم العائلة.</strong>{" "}
+                الأعمال المحفوظة على هذا الجهاز تفتح الآن، ويستأنف التقدم والتقويم التحديث فور عودة
+                الاتصال.
+              </p>
+            </div>
+          )}
         </header>
 
-        {!online ? (
-          <Alert className="mt-5">
-            <WifiSlashIcon />
-            <AlertTitle>أنت دون اتصال بخادم العائلة</AlertTitle>
-            <AlertDescription>
-              تستطيع فتح الأعمال المحفوظة على هذا الجهاز. سنحدّث التقدم والتوصيات والتقويم عند عودة
-              الاتصال.
-            </AlertDescription>
-          </Alert>
-        ) : null}
+        <div className="mt-9 border-t" />
 
-        <Tabs
-          value={search.tab ?? "overview"}
-          onValueChange={(value) => selectTab(value)}
-          className="mt-8 gap-6"
-        >
-          <div className="overflow-x-auto pb-1">
-            <TabsList className="h-11 min-w-max" aria-label="أقسام مساحة الأرشيف">
-              {tabs.map(([value, label, Icon]) => (
-                <ArchiveTabTrigger
-                  key={value}
-                  value={value}
-                  label={label}
-                  icon={Icon}
-                  onSelect={selectTab}
+        <div className="flex flex-col gap-0 lg:flex-row lg:gap-8">
+          <nav
+            aria-label="أقسام مساحتي"
+            className="sticky top-14 z-20 -mx-5 border-b bg-background/85 px-5 py-2 backdrop-blur-md sm:-mx-8 sm:px-8 lg:top-20 lg:mx-0 lg:w-60 lg:shrink-0 lg:self-start lg:border-b-0 lg:border-e lg:px-0 lg:pe-5 lg:pt-8"
+          >
+            <p className="mb-2 hidden text-[0.6875rem] font-medium tracking-[0.2em] text-muted-foreground lg:block">
+              الفهرس
+            </p>
+            <div className="flex w-full items-center gap-1 overflow-x-auto no-scrollbar scroll-fade-x lg:flex-col lg:items-stretch lg:overflow-visible lg:scroll-fade-none">
+              {sections.map((section) => (
+                <ArchiveSectionLink
+                  key={section.value}
+                  value={section.value}
+                  active={activeTab === section.value}
+                  label={section.label}
+                  hint={section.hint}
+                  icon={section.icon}
+                  count={counts[section.value]}
+                  countLabel={countLabels[section.value]}
+                  attention={attention[section.value]}
                 />
               ))}
-            </TabsList>
-          </div>
-          <TabsContent value="overview">
-            <ArchiveOverview />
-          </TabsContent>
-          <TabsContent value="library">
-            <LibraryPanel
-              filter={search.filter ?? "all"}
-              sort={search.sort ?? "updated"}
-              onFilterChange={(filter) =>
-                void navigate({
-                  search: (previous) => ({ ...previous, filter }),
-                  replace: true,
-                })
-              }
-              onSortChange={(sort) => {
-                if (accountId) {
-                  window.localStorage.setItem(`arcadia:archive-sort:${accountId}`, sort);
+            </div>
+          </nav>
+
+          <div className="min-w-0 flex-1 pt-8">
+            {activeTab === "overview" ? <ArchiveOverview /> : null}
+            {activeTab === "library" ? (
+              <LibraryPanel
+                filter={search.filter ?? "all"}
+                sort={search.sort ?? "updated"}
+                onFilterChange={(filter) =>
+                  void navigate({
+                    search: (previous) => ({ ...previous, filter }),
+                    replace: true,
+                  })
                 }
-                void navigate({
-                  search: (previous) => ({ ...previous, sort }),
-                  replace: true,
-                });
-              }}
-            />
-          </TabsContent>
-          <TabsContent value="history">
-            <HistoryPanel />
-          </TabsContent>
-          <TabsContent value="calendar">
-            <CalendarPanel />
-          </TabsContent>
-          <TabsContent value="family">
-            <FamilyPanel />
-          </TabsContent>
-          <TabsContent value="notifications">
-            <NotificationsPanel />
-          </TabsContent>
-        </Tabs>
+                onSortChange={(sort) => {
+                  if (accountId) {
+                    window.localStorage.setItem(`arcadia:archive-sort:${accountId}`, sort);
+                  }
+                  void navigate({
+                    search: (previous) => ({ ...previous, sort }),
+                    replace: true,
+                  });
+                }}
+              />
+            ) : null}
+            {activeTab === "history" ? <HistoryPanel /> : null}
+            {activeTab === "calendar" ? <CalendarPanel /> : null}
+            {activeTab === "family" ? <FamilyPanel /> : null}
+            {activeTab === "notifications" ? <NotificationsPanel /> : null}
+          </div>
+        </div>
       </div>
     </PlatformShell>
   );

@@ -38,3 +38,29 @@ devenv.local.yaml
 # Claude Code local/session state — machine- and session-specific, never project config
 .claude/settings.local.json
 .claude/projects/
+
+# Personal shell/editor/agent config that ends up in the working tree on this machine. None of it
+# is project configuration, and some of it (shell rc files, MCP server definitions) can carry
+# credentials — keep it out of the repo rather than relying on remembering not to `git add -A`.
+.bashrc
+.bash_profile
+.zshrc
+.zprofile
+.profile
+.gitconfig
+.ripgreprc
+.idea
+.vscode
+**/.mcp.json
+.claude/agents
+.claude/commands
+.claude/hooks
+.claude/output-styles
+.claude/routines
+.claude/workflows
+.claude/skills
+.claude/launch.json
+.claude/loop.md
+.claude/settings.json
+apps/*/.claude/
+apps/*/src/**/.claude/

@@ -1,9 +1,11 @@
 import { StarIcon } from "@phosphor-icons/react";
+import { cn } from "@/lib/utils";
 
 /**
  * A clickable 1–5 star rating. Clicking the currently-set value clears it. Shared by every
  * surface that lets a family member rate a title — the My Space library grid
- * (`archive-panels.tsx`) and the per-card action menu (`work-card-actions.tsx`) — so the same
+ * (`archive/components/library-panel.tsx`) and the per-card action menu
+ * (`work-card-actions.tsx`) — so the same
  * gesture and icon always mean the same thing (see the "predictable affordances" product rule in
  * `docs/v0.3-roadmap.md`).
  */
@@ -12,14 +14,16 @@ export function RatingStars({
   onRate,
   disabled,
   size = "base",
+  className,
 }: {
   value: number | null;
   onRate: (next: number | null) => void;
   disabled?: boolean;
   size?: "sm" | "base";
+  className?: string;
 }) {
   return (
-    <fieldset className="flex items-center">
+    <fieldset className={cn("flex items-center", className)}>
       <legend className="sr-only">تقييمك الشخصي</legend>
       {[1, 2, 3, 4, 5].map((n) => (
         <button

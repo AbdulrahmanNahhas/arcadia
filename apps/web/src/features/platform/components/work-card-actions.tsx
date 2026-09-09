@@ -198,7 +198,8 @@ function MenuRow({
 
 /**
  * The one card-action pattern (favorite / save-offline / rate / recommend) — same icons, labels,
- * and behavior as the My Space library grid (`archive-panels.tsx`'s `LibraryCard`), reused
+ * and behavior as the My Space library grid (`archive/components/library-panel.tsx`'s
+ * `LibraryCard`), reused
  * wherever a `WorkCard` appears (rails, browse grid, related-works, search) rather than each
  * surface growing its own buttons. Watched/unwatched is deliberately not here: that toggle needs
  * per-installment playback data a generic catalog card doesn't have loaded, and already has a

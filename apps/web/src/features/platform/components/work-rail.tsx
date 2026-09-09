@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import type { Work } from "@/features/library/model";
 import { FocusContext, useSpatialFocusable } from "@/features/platform/spatial-navigation";
 import { cn } from "@/lib/utils";
+import { posterTrackClass } from "./rail";
 import { WorkCard } from "./work-card";
 
 const FADE_SIZE = 40;
@@ -138,7 +139,7 @@ export function WorkRail({
             "grid grid-flow-col scroll-fade-x! overflow-x-auto overflow-y-visible overscroll-x-contain scrollbar-none px-4 pt-2",
             variant === "banner"
               ? "auto-cols-[86%] gap-3 pb-18 pt-2 sm:auto-cols-[55%] md:auto-cols-[42%] lg:auto-cols-[34%] xl:auto-cols-[28%]"
-              : "auto-cols-[43%] gap-3 pb-5 sm:auto-cols-[28%] md:auto-cols-[21%] lg:auto-cols-[16%] xl:auto-cols-[13.5%]",
+              : posterTrackClass,
           )}
         >
           {works.map((work, index) => (

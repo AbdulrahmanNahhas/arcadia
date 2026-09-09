@@ -724,6 +724,10 @@ export const continueWatchingItemSchema = z.object({
   titleId: z.string().uuid(),
   title: z.string(),
   posterPath: z.string().nullable(),
+  /** Landscape artwork, preferred over `posterPath` on resume/history surfaces: a 16:9 frame
+   *  leaves room beside the art for a progress bar and time-remaining, which a 2:3 poster does
+   *  not. Null when the title has no primary banner assigned — callers fall back to the poster. */
+  bannerPath: z.string().nullable(),
   installmentId: z.string().uuid(),
   installmentTitle: z.string(),
   episodeId: z.string().uuid().nullable(),
