@@ -335,8 +335,8 @@ function NavLink({
     <Link
       to={to}
       className={cn(
-        "rounded-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground transition hover:bg-white/6 hover:text-foreground",
-        active && "bg-white/8 text-foreground",
+        "rounded-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-muted-foreground transition hover:bg-white/6 hover:text-foreground",
+        active && "bg-foreground text-background",
       )}
     >
       {icon}
