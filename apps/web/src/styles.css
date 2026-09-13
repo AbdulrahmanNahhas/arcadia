@@ -4,6 +4,7 @@
 /* FONTS */
 @import "@fontsource-variable/noto-kufi-arabic/wght.css";
 @import "@fontsource-variable/noto-sans-arabic/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
 
 @custom-variant dark (&:is(.dark *));
 

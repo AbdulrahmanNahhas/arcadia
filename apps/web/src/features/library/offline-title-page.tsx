@@ -140,7 +140,7 @@ export function OfflineTitlePage({ titleId }: { titleId: string }) {
         </Link>
 
         <div className="flex flex-col gap-6 sm:flex-row">
-          <div className="w-32 shrink-0 overflow-hidden rounded-2xl bg-muted shadow-lg ring-1 ring-white/10 sm:w-44">
+          <div className="w-32 shrink-0 overflow-hidden rounded-2xl bg-muted shadow-lg ring-1 ring-foreground/10 sm:w-44">
             {work.imagePath ? (
               <img src={work.imagePath} alt="" className="aspect-2/3 size-full object-cover" />
             ) : (

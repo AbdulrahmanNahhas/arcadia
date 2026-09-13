@@ -2,6 +2,8 @@ import { CircleNotchIcon } from "@phosphor-icons/react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { type ReactNode, useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
+import { useThemeEffects } from "@/lib/theme";
+import { useCurrentAccount } from "./api";
 
 export function AuthBoundary({ children }: { children: ReactNode }) {
   const location = useRouterState({ select: (state) => state.location });
@@ -40,5 +42,12 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
       </main>
     );
   }
+  return <SignedIn>{children}</SignedIn>;
+}
+
+/** Rendered only with a session, so the account query never fires on the public routes. */
+function SignedIn({ children }: { children: ReactNode }) {
+  const account = useCurrentAccount();
+  useThemeEffects(account.data?.account.preferences.theme);
   return children;
 }

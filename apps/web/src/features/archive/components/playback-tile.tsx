@@ -75,14 +75,26 @@ export function PlaybackTile({
               </span>
             </div>
           )}
-          <div className="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent" />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover/tile:opacity-100 motion-reduce:transition-none">
-            <span className="flex size-12 items-center justify-center rounded-full bg-white text-black shadow-lg">
+          <div
+            data-on-artwork
+            className="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent"
+          />
+          <div
+            data-on-artwork
+            className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover/tile:opacity-100 motion-reduce:transition-none"
+          >
+            <span
+              data-on-artwork
+              className="flex size-12 items-center justify-center rounded-full bg-white text-black shadow-lg"
+            >
               <PlayIcon weight="fill" className="size-5" />
             </span>
           </div>
           {played ? (
-            <span className="absolute top-2 inset-s-2 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[0.6875rem] font-medium text-white ring-1 ring-white/15">
+            <span
+              data-on-artwork
+              className="absolute top-2 inset-s-2 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[0.6875rem] font-medium text-white ring-1 ring-white/15"
+            >
               <CheckCircleIcon weight="fill" className="size-3.5" />
               مكتمل
             </span>
@@ -96,6 +108,7 @@ export function PlaybackTile({
               aria-valuenow={percent}
               aria-valuemin={0}
               aria-valuemax={100}
+              data-on-artwork
               className="absolute inset-x-0 bottom-0 h-1.5 bg-black/55"
             >
               <div

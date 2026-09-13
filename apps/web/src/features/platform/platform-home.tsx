@@ -65,7 +65,7 @@ export function PlatformHome() {
               <div
                 key={planet.id}
                 className={cn(
-                  "relative before:absolute before:inset-y-0 before:w-px before:bg-linear-to-b before:from-transparent before:via-white/10 before:to-transparent",
+                  "relative before:absolute before:inset-y-0 before:w-px before:bg-linear-to-b before:from-transparent before:via-border before:to-transparent",
                   index % 2 === 0 ? "before:inset-s-0" : "before:inset-e-0",
                 )}
                 style={{
@@ -206,9 +206,9 @@ function PlanetIndex({ planets }: { planets: PlanetWithWorks[] }) {
                       <span
                         className="
                           flex size-7 items-center justify-center
-                          rounded-full border border-white/10
-                          bg-black/20 backdrop-blur-md
-                          text-[9px] font-medium text-white/80
+                          rounded-full border border-border/60
+                          bg-background/60 backdrop-blur-md
+                          text-[9px] font-medium text-foreground/80
                         "
                       >
                         {String(index + 1).padStart(2, "0")}
@@ -216,9 +216,9 @@ function PlanetIndex({ planets }: { planets: PlanetWithWorks[] }) {
 
                       <span
                         className="
-                          rounded-full border border-white/10
-                          bg-black/20 px-2 py-0.5
-                          text-[9px] font-medium text-white/80
+                          rounded-full border border-border/60
+                          bg-background/60 px-2 py-0.5
+                          text-[9px] font-medium text-foreground/80
                           backdrop-blur-md
                         "
                       >
@@ -232,8 +232,8 @@ function PlanetIndex({ planets }: { planets: PlanetWithWorks[] }) {
                         className="
                           flex size-14 items-center justify-center
                           rounded-full
-                          border border-white/10
-                          bg-black/10
+                          border border-border/60
+                          bg-background/40
                           text-2xl
                           shadow-2xl
                           backdrop-blur-sm

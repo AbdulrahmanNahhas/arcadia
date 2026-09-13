@@ -127,6 +127,11 @@ lag if you work around it with `WEBKIT_DISABLE_COMPOSITING_MODE`). `src-tauri/sr
 this by forcing `GDK_BACKEND=x11` before GTK initializes — don't remove it without re-testing on
 Wayland.
 
+If the shell crashes it leaves an ELF core dump (`core.<pid>`, hundreds of MB) next to the
+directory it was launched from — usually the repo root under `devenv up`. They are gitignored;
+delete them (`rm core.*`) and, if they keep appearing, inspect the latest one with
+`gdb -c core.<pid>` to find the faulting library before filing it under `docs/v0.3.5.md` Phase T.
+
 ### Playback runtime
 
 The embedded player links against **libmpv** and decodes in hardware where it can

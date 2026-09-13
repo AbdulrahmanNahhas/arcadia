@@ -109,7 +109,7 @@ function OfflineTitleCard({ detail }: { detail: TitleDetail }) {
       params={{ titleId: work.id }}
       className="group block min-w-0 rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
-      <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted shadow-md shadow-black/20 ring-1 ring-white/10 transition-transform duration-200 group-hover:-translate-y-1 group-hover:scale-[1.02]">
+      <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted shadow-md shadow-black/20 ring-1 ring-foreground/10 transition-transform duration-200 group-hover:-translate-y-1 group-hover:scale-[1.02]">
         {work.imagePath ? (
           <img
             src={work.imagePath}

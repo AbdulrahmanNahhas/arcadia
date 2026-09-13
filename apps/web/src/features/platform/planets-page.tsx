@@ -239,9 +239,9 @@ export function PlanetsPage() {
                     <span
                       className="
                         flex size-7 items-center justify-center
-                        rounded-full border border-white/10
-                        bg-black/20
-                        text-[9px] font-medium text-white/75
+                        rounded-full border border-border/60
+                        bg-background/60
+                        text-[9px] font-medium text-foreground/80
                         backdrop-blur-md
                       "
                     >
@@ -250,9 +250,9 @@ export function PlanetsPage() {
 
                     <span
                       className="
-                        rounded-full border border-white/10
-                        bg-black/20 px-2 py-0.5
-                        text-[9px] font-medium text-white/75
+                        rounded-full border border-border/60
+                        bg-background/60 px-2 py-0.5
+                        text-[9px] font-medium text-foreground/80
                         backdrop-blur-md
                       "
                     >
@@ -266,8 +266,8 @@ export function PlanetsPage() {
                       className="
                         flex size-16 items-center justify-center
                         rounded-full
-                        border border-white/10
-                        bg-black/10
+                        border border-border/60
+                        bg-background/40
                         text-3xl
                         shadow-2xl
                         backdrop-blur-sm
@@ -279,7 +279,9 @@ export function PlanetsPage() {
                         boxShadow: `0 14px 45px ${primaryColor}30`,
                       }}
                     >
-                      {planet.icon || <PlanetIcon weight="duotone" className="size-9 text-white" />}
+                      {planet.icon || (
+                        <PlanetIcon weight="duotone" className="size-9 text-foreground" />
+                      )}
                     </span>
                   </div>
                 </div>

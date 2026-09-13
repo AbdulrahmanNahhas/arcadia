@@ -80,15 +80,24 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
               className="size-full object-cover transition-transform duration-300 group-hover/card:scale-105"
             />
           ) : null}
-          <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/10 to-transparent opacity-0 transition-opacity duration-200 group-hover/card:opacity-100 group-focus-within/card:opacity-100" />
+          <div
+            data-on-artwork
+            className="absolute inset-0 bg-linear-to-t from-black/90 via-black/10 to-transparent opacity-0 transition-opacity duration-200 group-hover/card:opacity-100 group-focus-within/card:opacity-100"
+          />
         </Link>
         {item.positionSeconds && progress !== null ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-black/40">
+          <div
+            data-on-artwork
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-black/40"
+          >
             <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
           </div>
         ) : null}
         {item.savedOffline ? (
-          <span className="pointer-events-none absolute top-2 inset-s-2 flex size-6 items-center justify-center rounded-full bg-black/60 text-white">
+          <span
+            data-on-artwork
+            className="pointer-events-none absolute top-2 inset-s-2 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
+          >
             <BookmarkSimpleIcon weight="fill" className="size-3.5" />
           </span>
         ) : null}
@@ -96,7 +105,10 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
          *  their own, and nesting them inside the anchor would fire a navigation on every click. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-1 items-center justify-between gap-1 px-2 pb-2 opacity-0 transition-all duration-200 group-hover/card:translate-y-0 group-hover/card:opacity-100 group-focus-within/card:translate-y-0 group-focus-within/card:opacity-100">
           {progress !== null ? (
-            <span className="flex items-center gap-1 text-[0.6875rem] font-medium text-white">
+            <span
+              data-on-artwork
+              className="flex items-center gap-1 text-[0.6875rem] font-medium text-white"
+            >
               <PlayIcon weight="fill" className="size-3" />
               {progress}٪
             </span>
@@ -129,6 +141,7 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
             event.preventDefault();
             mutation.mutate({ isFavorite: !item.isFavorite });
           }}
+          data-on-artwork
           className={cn(
             "flex size-7 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80",
             item.isFavorite && "text-primary",
@@ -145,6 +158,7 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
             event.preventDefault();
             mutation.mutate({ savedOffline: !item.savedOffline });
           }}
+          data-on-artwork
           className={cn(
             "flex size-7 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80",
             item.savedOffline && "text-primary",
@@ -168,6 +182,7 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
               savedOffline: false,
             });
           }}
+          data-on-artwork
           className="flex size-7 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-destructive"
         >
           <TrashIcon className="size-3.5" />

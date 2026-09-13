@@ -824,6 +824,7 @@ function WorkHero({
                         <Button
                           size="lg"
                           variant="outline"
+                          data-on-artwork
                           className="border-white/25 bg-white/10 font-semibold backdrop-blur-md hover:bg-white/20"
                         />
                       }
@@ -834,7 +835,7 @@ function WorkHero({
                       showCloseButton={false}
                       className="max-w-3xl! gap-0 overflow-hidden rounded-2xl p-0"
                     >
-                      <div className="aspect-video bg-black">
+                      <div data-on-artwork className="aspect-video bg-black">
                         <iframe
                           src={trailerEmbedUrl}
                           title="الإعلان الرسمي"
@@ -850,6 +851,7 @@ function WorkHero({
                   <Button
                     size="lg"
                     variant="outline"
+                    data-on-artwork
                     className="border-white/25 bg-white/10 font-semibold backdrop-blur-md hover:bg-white/20"
                     nativeButton={false}
                     render={<a href={trailerLink.url} target="_blank" rel="noreferrer" />}
@@ -866,6 +868,7 @@ function WorkHero({
                 aria-pressed={isFavorite}
                 disabled={favoriteMutation.isPending}
                 onClick={() => favoriteMutation.mutate(!isFavorite)}
+                data-on-artwork
                 className={cn(
                   "border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20",
                   isFavorite && "border-primary/60 bg-primary/25 text-primary hover:bg-primary/35",
@@ -881,6 +884,7 @@ function WorkHero({
                 aria-pressed={savedOffline}
                 disabled={saveOfflineMutation.isPending}
                 onClick={() => saveOfflineMutation.mutate(!savedOffline)}
+                data-on-artwork
                 className={cn(
                   "border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20",
                   savedOffline &&
@@ -1124,7 +1128,7 @@ function OverviewSection({
                   params={{ titleId: work.id, installmentId: installment.id }}
                   className="group w-36 shrink-0 snap-start text-start outline-none sm:w-44"
                 >
-                  <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted ring-1 ring-white/10">
+                  <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted ring-1 ring-foreground/10">
                     {installment.posterPath ? (
                       <img
                         src={installment.posterPath}
@@ -1870,7 +1874,7 @@ function SimilarSection({ recommendations }: { recommendations: Recommendation[]
             <WorkCard work={recommendation.work} />
             <Popover>
               <PopoverTrigger
-                className="absolute bottom-0 left-0 flex size-7 items-center justify-center rounded-full bg-background/75 text-muted-foreground ring-1 ring-white/10 transition hover:text-foreground"
+                className="absolute bottom-0 left-0 flex size-7 items-center justify-center rounded-full bg-background/75 text-muted-foreground ring-1 ring-foreground/10 transition hover:text-foreground"
                 aria-label="تفاصيل سبب الاقتراح"
               >
                 <InfoIcon />

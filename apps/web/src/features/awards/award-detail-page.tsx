@@ -64,7 +64,7 @@ export function AwardOrganizationPage({ organizationSlug }: { organizationSlug: 
 
   return (
     <PlatformShell>
-      <section className="archive-grid border-b border-white/8">
+      <section className="archive-grid border-b border-border/60">
         <div className="mx-auto max-w-400 px-5 pb-12 pt-28 sm:px-8 sm:pt-36">
           <Link
             to="/awards"
@@ -75,7 +75,7 @@ export function AwardOrganizationPage({ organizationSlug }: { organizationSlug: 
           <div className="mt-6 flex flex-wrap items-end justify-between gap-6">
             <div className="flex items-center gap-4">
               {organization.logoPath ? (
-                <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-card p-2">
+                <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-card p-2">
                   <img src={organization.logoPath} alt="" className="size-full object-contain" />
                 </span>
               ) : (
@@ -132,7 +132,7 @@ export function AwardOrganizationPage({ organizationSlug }: { organizationSlug: 
             ))}
           </div>
         ) : (
-          <Empty className="min-h-64 border border-dashed border-white/10">
+          <Empty className="min-h-64 border border-dashed border-border">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <TrophyIcon />
@@ -182,7 +182,7 @@ function RecognitionCard({
         recognition.result === "winner" && "bg-muted! p-2 hover:pt-3 rounded-2xl",
       )}
     >
-      <div className="relative aspect-2/3 transform-gpu overflow-hidden rounded-2xl bg-muted shadow-md shadow-black/20 ring-1 ring-white/10 transition-all duration-500 ease-out group-hover:-translate-y-1 group-hover:scale-[1.03] group-hover:shadow-2xl group-hover:shadow-black/40 group-hover:ring-primary/35">
+      <div className="relative aspect-2/3 transform-gpu overflow-hidden rounded-2xl bg-muted shadow-md shadow-black/20 ring-1 ring-foreground/10 transition-all duration-500 ease-out group-hover:-translate-y-1 group-hover:scale-[1.03] group-hover:shadow-2xl group-hover:shadow-black/40 group-hover:ring-primary/35">
         {recognition.posterPath ? (
           <img
             src={recognition.posterPath}

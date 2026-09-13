@@ -54,12 +54,22 @@ export function ReleaseCard({
               </span>
             </div>
           )}
-          <div className="absolute inset-x-0 top-0 h-1/2 bg-linear-to-b from-black/60 to-transparent" />
-          <div className="absolute start-2 top-2 flex flex-col items-center justify-center rounded-xl bg-black/70 px-2 py-1 leading-none text-white ring-1 ring-white/15">
+          <div
+            data-on-artwork
+            className="absolute inset-x-0 top-0 h-1/2 bg-linear-to-b from-black/60 to-transparent"
+          />
+          <div
+            data-on-artwork
+            className="absolute start-2 top-2 flex flex-col items-center justify-center rounded-xl bg-black/70 px-2 py-1 leading-none text-white ring-1 ring-white/15"
+          >
             <strong className="text-sm">{dayFormat.format(date)}</strong>
             <span className="mt-0.5 text-[10px]">{monthFormat.format(date)}</span>
           </div>
-          <Badge variant="secondary" className="absolute end-2 top-2 bg-black/65 text-white">
+          <Badge
+            variant="secondary"
+            data-on-artwork
+            className="absolute end-2 top-2 bg-black/65 text-white"
+          >
             {installmentKindLabel[item.kind]}
           </Badge>
         </div>

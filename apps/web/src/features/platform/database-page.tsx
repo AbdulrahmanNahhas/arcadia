@@ -278,28 +278,6 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
 
   return (
     <PlatformShell immersive sticky>
-      {/* <section className="relative isolate overflow-hidden border-b border-white/8">
-        <div className="archive-grid absolute inset-0 -z-10 opacity-30" />
-        <div className="absolute inset-x-0 top-0 -z-20 h-72 bg-linear-to-b from-primary/12 to-transparent" />
-        <div className="mx-auto max-w-400 px-5 pb-10 pt-28 sm:px-8 sm:pt-36">
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <div>
-              <p className="text-xs font-semibold tracking-[0.18em] text-primary">أرشيف نحّاسينما</p>
-              <h1 className="mt-3 font-heading text-4xl font-semibold tracking-tight sm:text-6xl">
-                قاعدة البيانات
-              </h1>
-              <p className="mt-4 max-w-2xl text-base leading-8 text-foreground/70 sm:text-lg">
-                افتح الأرشيف من أي زاوية: النوع، المخاطر، السنة، أو حتى عمق المواسم.
-              </p>
-            </div>
-            <div className="flex items-baseline gap-2 rounded-3xl border bg-background/40 px-5 py-3 backdrop-blur">
-              <strong className="font-mono text-2xl">{visibleWorks.length}</strong>
-              <span className="text-xs text-muted-foreground">نتيجة الآن</span>
-            </div>
-          </div>
-        </div>
-      </section>*/}
-
       <section className="mx-auto max-w-400 px-5 pb-12 pt-0 sm:px-8">
         <div
           className={cn(

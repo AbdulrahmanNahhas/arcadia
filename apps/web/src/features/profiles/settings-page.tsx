@@ -42,6 +42,7 @@ import { AccountAvatar } from "@/features/accounts/account-avatar";
 import { accountKeys, updateCurrentAccount, useCurrentAccount } from "@/features/accounts/api";
 import { avatarAssets } from "@/features/accounts/avatar-catalog";
 import { PlatformShell } from "@/features/platform/components/platform-shell";
+import { setTheme, type ThemePreference } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 type SettingsDraft = {
@@ -74,8 +75,7 @@ export function SettingsPage() {
   const mutation = useMutation({
     mutationFn: updateCurrentAccount,
     onSuccess: async (updated) => {
-      window.localStorage.setItem("arcadia:theme", updated.preferences.theme);
-      document.documentElement.classList.toggle("dark", updated.preferences.theme === "dark");
+      setTheme(updated.preferences.theme);
       await queryClient.invalidateQueries({ queryKey: accountKeys.current });
       await queryClient.invalidateQueries({ queryKey: accountKeys.family });
       setSaved(true);
@@ -413,13 +413,14 @@ export function SettingsPage() {
             <SettingsSection
               icon={<PaletteIcon size={19} weight="duotone" />}
               title="المظهر"
-              description="ظلام سينمائي أو ضوء هادئ."
+              description="ظلام سينمائي، ضوء هادئ، أو اتباع النظام."
             >
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-3">
                 {(
                   [
                     ["dark", "داكن", "مناسب لغرفة المشاهدة."],
                     ["light", "فاتح", "أوضح في الإضاءة العالية."],
+                    ["system", "تلقائي", "يتبع إعداد الجهاز."],
                   ] as const
                 ).map(([theme, label, hint]) => {
                   const selected = draft.preferences.theme === theme;
@@ -434,14 +435,7 @@ export function SettingsPage() {
                         selected ? "border-primary bg-primary/8" : "border-border/60",
                       )}
                     >
-                      <div
-                        className={cn(
-                          "h-14 w-full rounded-lg border",
-                          theme === "dark"
-                            ? "border-white/10 bg-neutral-900"
-                            : "border-black/10 bg-neutral-100",
-                        )}
-                      />
+                      <ThemeSwatch theme={theme} />
                       <p className="mt-3 flex items-center gap-2 text-sm font-medium">
                         {label}
                         {selected && (
@@ -654,5 +648,25 @@ function SwitchField({
       </FieldContent>
       <Switch checked={checked} onCheckedChange={onChange} />
     </Field>
+  );
+}
+
+/** Fixed light/dark swatches (not theme tokens) so each option previews what it will look like. */
+function ThemeSwatch({ theme }: { theme: ThemePreference }) {
+  const dark = "border-white/10 bg-neutral-900";
+  const light = "border-black/10 bg-neutral-100";
+  if (theme === "system") {
+    return (
+      <div className="flex h-14 w-full overflow-hidden rounded-lg border" data-on-artwork>
+        <div className={cn("h-full w-1/2 border-e", dark)} />
+        <div className={cn("h-full w-1/2", light)} />
+      </div>
+    );
+  }
+  return (
+    <div
+      className={cn("h-14 w-full rounded-lg border", theme === "dark" ? dark : light)}
+      data-on-artwork
+    />
   );
 }

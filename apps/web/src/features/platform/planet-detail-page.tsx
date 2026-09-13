@@ -94,7 +94,7 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
   return (
     <PlatformShell immersive>
       <section
-        className="relative isolate overflow-hidden border-b border-white/10"
+        className="relative isolate overflow-hidden border-b border-border"
         style={
           // SAFETY: `--planet-color`/`--planet-secondary` are CSS custom properties, which
           // `CSSProperties` doesn't declare — the cast only widens `style` to accept the same
@@ -189,7 +189,7 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
             </div>
           )}
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-6">
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-border/40 pt-6">
             <p className="text-xs text-muted-foreground sm:text-sm">
               <span className="font-semibold text-foreground">{visibleWorks.length}</span> عمل ·{" "}
               <span>{SORT_LABELS[sort]}</span>
@@ -278,7 +278,7 @@ export function PlanetDetailPage({ slug }: { slug: string }) {
             ))}
           </div>
         ) : (
-          <Empty className="min-h-80 border border-dashed border-white/10">
+          <Empty className="min-h-80 border border-dashed border-border">
             <EmptyHeader>
               <EmptyTitle>هذا الكوكب بانتظار أول عمل</EmptyTitle>
               <EmptyDescription>

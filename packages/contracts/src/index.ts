@@ -495,7 +495,8 @@ export const accountCapabilitySchema = z.enum([
   "analytics.view",
 ]);
 export const accountPreferencesSchema = z.object({
-  theme: z.enum(["dark", "light"]),
+  /** `system` follows `prefers-color-scheme`; resolved on the client by `lib/theme.ts`. */
+  theme: z.enum(["dark", "light", "system"]),
   preferredAudio: z.array(z.string()),
   allowedAudio: z.array(z.string()),
   subtitleMode: z.enum(["off", "allowed"]),

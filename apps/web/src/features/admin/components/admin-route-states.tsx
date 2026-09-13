@@ -1,5 +1,5 @@
 import { ArrowClockwiseIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import { useRouter } from "@tanstack/react-router";
+import { type ErrorComponentProps, useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,15 +23,16 @@ export function AdminRoutePending() {
   );
 }
 
-export function AdminRouteError({ error }: { error: Error }) {
+export function AdminRouteError({ error }: ErrorComponentProps) {
   const router = useRouter();
+  const message = error instanceof Error ? error.message : String(error);
   return (
     <div className="p-6">
       <Empty className="rounded-3xl border">
         <EmptyHeader>
           <WarningCircleIcon className="mx-auto size-8 text-destructive" />
           <EmptyTitle>تعذّر تحميل هذه الصفحة</EmptyTitle>
-          <EmptyDescription>{error.message}</EmptyDescription>
+          <EmptyDescription>{message}</EmptyDescription>
         </EmptyHeader>
         <Button onClick={() => router.invalidate()}>
           <ArrowClockwiseIcon data-icon="inline-start" /> إعادة المحاولة

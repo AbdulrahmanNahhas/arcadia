@@ -293,7 +293,7 @@ export function PlatformShell({
       </header>
       <main id="main-content">{children}</main>
       <nav
-        className="fixed inset-x-3 bottom-3 z-40 flex h-14 items-center justify-around rounded-xl border border-white/10 bg-background/90 px-2 shadow-2xl backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-3 bottom-3 z-40 flex h-14 items-center justify-around rounded-xl border border-border bg-background/90 px-2 shadow-2xl backdrop-blur-xl lg:hidden"
         aria-label="التنقل على الهاتف"
       >
         <MobileLink to="/" active={pathname === "/"} icon={<HouseIcon />} label="الرئيسية" />
@@ -335,7 +335,7 @@ function NavLink({
     <Link
       to={to}
       className={cn(
-        "rounded-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-muted-foreground transition hover:bg-white/6 hover:text-foreground",
+        "rounded-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-foreground",
         active && "bg-foreground text-background",
       )}
     >

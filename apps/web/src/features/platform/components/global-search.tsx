@@ -122,12 +122,12 @@ export function GlobalSearch() {
           }
           setOpen(true);
         }}
-        className="h-9 min-w-9 justify-start border-border/80 bg-background/10 backdrop-blur-lg px-2 text-muted-foreground hover:bg-white/10 hover:text-foreground sm:w-64 sm:px-3"
+        className="h-9 min-w-9 justify-start border-border/80 bg-background/10 backdrop-blur-lg px-2 text-muted-foreground hover:bg-accent hover:text-foreground sm:w-64 sm:px-3"
       >
         <MagnifyingGlassIcon />
         <span className="hidden sm:inline">ابحث في الأرشيف…</span>
         <span className="sr-only sm:hidden">البحث</span>
-        <kbd className="ms-auto hidden rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] md:inline">
+        <kbd className="ms-auto hidden rounded-full border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] md:inline">
           Ctrl K
         </kbd>
       </Button>
@@ -144,7 +144,7 @@ export function GlobalSearch() {
         }}
         title="البحث الشامل"
         description="ابحث في الأعمال والأشخاص والاستوديوهات والكواكب"
-        className="platform-surface top-[12vh] max-w-2xl translate-y-0 rounded-2xl! border-white/10 bg-popover/96"
+        className="platform-surface top-[12vh] max-w-2xl translate-y-0 rounded-2xl! border-border bg-popover/96"
       >
         <Command shouldFilter={false} className="rounded-2xl p-2">
           <CommandInput
@@ -266,7 +266,7 @@ export function GlobalSearch() {
               </>
             )}
           </CommandList>
-          <div className="flex items-center gap-2 border-t border-white/8 px-3 pt-2 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-2 border-t border-border/60 px-3 pt-2 text-[11px] text-muted-foreground">
             <CommandShortcut>↵ فتح</CommandShortcut>
             <span>↑↓ تنقّل</span>
             <span>Esc إغلاق</span>

@@ -1,14 +1,23 @@
 import { DirectionProvider } from "@base-ui/react";
 import { ArrowClockwiseIcon, HouseIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import { createRootRoute, HeadContent, Link, Scripts, useRouter } from "@tanstack/react-router";
+import type { QueryClient } from "@tanstack/react-query";
+import {
+  createRootRouteWithContext,
+  type ErrorComponentProps,
+  HeadContent,
+  Link,
+  Scripts,
+  useRouter,
+} from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthBoundary } from "@/features/accounts/auth-boundary";
 import { SpatialNavigationRoot } from "@/features/platform/spatial-navigation";
+import { themeRestoreScript } from "@/lib/theme";
 import appCss from "../styles.css?url";
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -28,8 +37,9 @@ export const Route = createRootRoute({
   shellComponent: RootDocument,
 });
 
-function FamilyRouteError({ error }: { error: Error }) {
+function FamilyRouteError({ error }: ErrorComponentProps) {
   const router = useRouter();
+  const message = error instanceof Error ? error.message : String(error);
   return (
     <main className="mx-auto flex min-h-svh max-w-3xl items-center px-5 py-24">
       <Empty className="rounded-3xl border bg-card/60">
@@ -39,7 +49,7 @@ function FamilyRouteError({ error }: { error: Error }) {
           <EmptyDescription>
             بقيت بياناتك المحفوظة آمنة. تحقق من اتصال خادم العائلة ثم أعد المحاولة.
             <span className="mt-2 block font-mono text-xs" dir="ltr">
-              {error.message}
+              {message}
             </span>
           </EmptyDescription>
         </EmptyHeader>
@@ -59,15 +69,14 @@ function FamilyRouteError({ error }: { error: Error }) {
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const restore = `(function(){try{var r=document.documentElement,t=localStorage.getItem('arcadia:theme')||'dark';r.classList.toggle('dark',t==='dark');r.style.colorScheme=t}catch(e){}})()`;
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static preference restoration before first paint */}
-        <script dangerouslySetInnerHTML={{ __html: restore }} />
+        <script dangerouslySetInnerHTML={{ __html: themeRestoreScript }} />
         <HeadContent />
       </head>
-      <body className="dark">
+      <body>
         <DirectionProvider direction="rtl">
           <SpatialNavigationRoot>
             <TooltipProvider>

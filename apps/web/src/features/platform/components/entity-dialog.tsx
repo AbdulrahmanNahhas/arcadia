@@ -64,6 +64,7 @@ export function EntityDialog({
                     src={entity.imagePath}
                     alt=""
                     decoding="async"
+                    data-on-artwork
                     className="size-full object-contain bg-white"
                   />
                 ) : (

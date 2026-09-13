@@ -22,6 +22,14 @@ packages/i18n        shared Arabic/English interface vocabulary and taxonomy lab
 packages/cli         `arcadia` agent-facing CLI over the PostgreSQL catalog
 ```
 
+## Current release work (v0.3.5)
+
+Read `docs/AGENT-CONTEXT.md` first — it is the map (paths, versions, commands, gotchas, house
+rules) and must be kept true as files move. `docs/v0.3.5.md` is the plan: phases, checkboxes,
+model guidance per phase, and the design direction (simple, clean, a little glassy, identical on
+every page; Linux-native Tauri performance first, Android/iOS later). Tick boxes there as work
+lands; record moved files and measured numbers in AGENT-CONTEXT.md.
+
 ## Commands
 
 The project targets Node.js 26 and expects the Nix/devenv environment (`devenv shell -- <cmd>`,

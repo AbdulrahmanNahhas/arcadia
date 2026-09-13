@@ -165,24 +165,17 @@ function ArchiveSectionLink({
       replace
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group/section relative flex flex-none items-center gap-2.5 rounded-full px-3.5 py-2 text-start transition-colors",
+        "group/section relative flex flex-none items-center gap-2.5 rounded-xl px-3.5 py-2 text-start transition-colors",
         "text-foreground/65 hover:bg-muted/60 hover:text-foreground",
-        active && "bg-accent/70 text-foreground dark:bg-accent/50",
-        "lg:w-full lg:rounded-xl lg:px-3 lg:py-2.5",
+        active && "bg-foreground text-background! hover:bg-foreground/80",
       )}
     >
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-s-0 top-1/2 hidden h-5 w-[3px] -translate-y-1/2 rounded-full bg-primary opacity-0 transition-opacity duration-200 lg:block",
-          active && "opacity-100",
-        )}
-      />
+      <span aria-hidden className={cn(active && "opacity-100")} />
       <SectionIcon
         weight={attention ? "fill" : "regular"}
         className={cn(
-          "shrink-0 transition-colors",
-          active ? "text-primary" : "text-muted-foreground group-hover/section:text-foreground",
+          "shrink-0 transition-colors size-6",
+          active ? "text-background" : "text-muted-foreground group-hover/section:text-foreground",
         )}
       />
       <span className="flex min-w-0 flex-col">
@@ -347,15 +340,9 @@ export function ArchiveHubPage() {
 
         <div className="mt-9 border-t" />
 
-        <div className="flex flex-col gap-0 lg:flex-row lg:gap-8">
-          <nav
-            aria-label="أقسام مساحتي"
-            className="sticky top-14 z-20 -mx-5 border-b bg-background/85 px-5 py-2 backdrop-blur-md sm:-mx-8 sm:px-8 lg:top-20 lg:mx-0 lg:w-60 lg:shrink-0 lg:self-start lg:border-b-0 lg:border-e lg:px-0 lg:pe-5 lg:pt-8"
-          >
-            <p className="mb-2 hidden text-[0.6875rem] font-medium tracking-[0.2em] text-muted-foreground lg:block">
-              الفهرس
-            </p>
-            <div className="flex w-full items-center gap-1 overflow-x-auto no-scrollbar scroll-fade-x lg:flex-col lg:items-stretch lg:overflow-visible lg:scroll-fade-none">
+        <div className="flex flex-col gap-6">
+          <nav aria-label="أقسام مساحتي" className="w-fit max-w-full overflow-hidden">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-fade-x p-2">
               {sections.map((section) => (
                 <ArchiveSectionLink
                   key={section.value}
@@ -372,7 +359,7 @@ export function ArchiveHubPage() {
             </div>
           </nav>
 
-          <div className="min-w-0 flex-1 pt-8">
+          <div className="min-w-0 flex-1">
             {activeTab === "overview" ? <ArchiveOverview /> : null}
             {activeTab === "library" ? (
               <LibraryPanel

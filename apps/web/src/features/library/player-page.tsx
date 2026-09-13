@@ -800,8 +800,9 @@ export function PlayerPage({
     );
   }
 
+  // Everything inside sits over the video plane; black/white here is intentional.
   return (
-    <main className="fixed inset-0 bg-black text-white" dir="rtl">
+    <main data-on-artwork className="fixed inset-0 bg-black text-white" dir="rtl">
       {starting && (
         <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center">
           <div data-video-overlay className="rounded-2xl bg-black/85 px-6 py-4 text-center">

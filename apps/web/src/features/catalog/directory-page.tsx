@@ -132,7 +132,7 @@ export function DirectoryPage({ kind }: { kind: Kind }) {
 
   return (
     <PlatformShell>
-      <section className="archive-grid relative overflow-hidden border-b border-white/8">
+      <section className="archive-grid relative overflow-hidden border-b border-border/60">
         <div
           className="pointer-events-none absolute -top-32 -inset-e-24 size-125 rounded-full bg-primary/15 blur-[160px]"
           aria-hidden="true"
@@ -146,9 +146,9 @@ export function DirectoryPage({ kind }: { kind: Kind }) {
               <h1 className="mt-3 font-heading text-4xl font-semibold sm:text-6xl">{title}</h1>
               <p className="mt-4 max-w-2xl text-lg leading-9 text-foreground/70">{description}</p>
             </div>
-            <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-card/50 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl">
+            <div className="flex items-center gap-1 rounded-2xl border border-border bg-card/50 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl">
               <Stat icon={<KindIcon weight="duotone" />} value={pool.length} label={noun} />
-              <div className="h-10 w-px bg-white/10" />
+              <div className="h-10 w-px bg-border" />
               <Stat
                 icon={<FilmStripIcon weight="duotone" />}
                 value={totalWorks}
@@ -156,7 +156,7 @@ export function DirectoryPage({ kind }: { kind: Kind }) {
               />
               {isAdmin && privateWorks > 0 ? (
                 <>
-                  <div className="h-10 w-px bg-white/10" />
+                  <div className="h-10 w-px bg-border" />
                   <Stat
                     icon={<SparkleIcon weight="duotone" />}
                     value={privateWorks}
@@ -216,7 +216,7 @@ export function DirectoryPage({ kind }: { kind: Kind }) {
               ))}
             </div>
           ) : (
-            <Empty className="min-h-72 border border-dashed border-white/10">
+            <Empty className="min-h-72 border border-dashed border-border">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <MagnifyingGlassIcon />
@@ -269,7 +269,7 @@ function Stat({
 
 function SortToggle({ sort, onChange }: { sort: SortMode; onChange: (sort: SortMode) => void }) {
   return (
-    <div className="inline-flex items-center gap-1 self-start rounded-full border border-white/10 bg-muted/20 p-1">
+    <div className="inline-flex items-center gap-1 self-start rounded-full border border-border bg-muted/20 p-1">
       <Button
         type="button"
         size="sm"
@@ -309,7 +309,7 @@ function RoleChip({
         "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition",
         active
           ? "border-primary/40 bg-primary/15 text-primary"
-          : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/20 hover:text-foreground",
+          : "border-border bg-muted/40 text-muted-foreground hover:border-border hover:text-foreground",
       )}
     >
       {children}
@@ -325,11 +325,12 @@ function EntityCard({ entity, onSelect }: { entity: Entity; onSelect: (entity: E
     <button
       type="button"
       onClick={() => onSelect(entity)}
-      className="group flex w-full flex-col items-center gap-3 rounded-2xl p-2 text-center outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex w-full flex-col items-center gap-3 rounded-2xl p-2 text-center outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div
+        data-on-artwork
         className={cn(
-          "relative aspect-square w-full overflow-hidden bg-white ring-1 ring-white/10 transition duration-300 group-hover:shadow-lg group-hover:shadow-primary/10 group-hover:ring-primary/50",
+          "relative aspect-square w-full overflow-hidden bg-white ring-1 ring-foreground/10 transition duration-300 group-hover:shadow-lg group-hover:shadow-primary/10 group-hover:ring-primary/50",
           isPerson ? "rounded-full" : "rounded-2xl",
         )}
       >

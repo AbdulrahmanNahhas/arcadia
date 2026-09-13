@@ -110,7 +110,7 @@ export function ComparePage({
 
   return (
     <PlatformShell>
-      <section className="archive-grid border-b border-white/8">
+      <section className="archive-grid border-b border-border/60">
         <div className="mx-auto max-w-400 px-5 pb-10 pt-28 sm:px-8 sm:pt-36">
           <Link
             to="/browse"
@@ -206,7 +206,7 @@ export function ComparePage({
             {view === "details" && <DetailsMatrix works={works} />}
           </>
         ) : (
-          <Empty className="min-h-64 border border-dashed border-white/10">
+          <Empty className="min-h-64 border border-dashed border-border">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <ScalesIcon />

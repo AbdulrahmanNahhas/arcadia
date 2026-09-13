@@ -41,6 +41,7 @@ export function StudiosRail() {
                   src={studio.imagePath}
                   alt=""
                   loading="lazy"
+                  data-on-artwork
                   className="size-full object-contain p-0 bg-white"
                 />
               ) : (

@@ -32,6 +32,7 @@ export function WorkArtwork({
 
   return (
     <div
+      data-on-artwork
       className={cn(
         "group/art relative isolate overflow-hidden",
         artworkType === "logo" ? "aspect-square" : "aspect-2/3",
@@ -71,7 +72,10 @@ export function WorkArtwork({
       )}
 
       {artworkType === "poster" && path && (
-        <div className="absolute inset-0 bg-linear-to-t from-black/55 via-transparent to-black/15" />
+        <div
+          data-on-artwork
+          className="absolute inset-0 bg-linear-to-t from-black/55 via-transparent to-black/15"
+        />
       )}
 
       {showType && (

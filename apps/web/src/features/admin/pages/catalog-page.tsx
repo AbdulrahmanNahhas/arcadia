@@ -340,16 +340,17 @@ function CatalogCard({
         params={{ workId: work.id }}
         className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted ring-1 ring-white/10 group-hover:ring-primary/40">
+        <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted ring-1 ring-foreground/10 group-hover:ring-primary/40">
           {work.imagePath ? (
             <img src={work.imagePath} alt="" className="size-full object-cover transition" />
           ) : null}
-          <div className="absolute left-2 top-2 text-white">
+          <div data-on-artwork className="absolute left-2 top-2 text-white">
             <div className="flex flex-wrap gap-1">
               <Badge variant="secondary">{kindLabels[work.kind] ?? work.kind}</Badge>
               {work.isPrivate ? (
                 <Badge
                   variant="destructive"
+                  data-on-artwork
                   className="bg-destructive/75! backdrop-blur-lg text-white!"
                 >
                   خاص

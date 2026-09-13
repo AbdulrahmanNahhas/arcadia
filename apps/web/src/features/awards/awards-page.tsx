@@ -46,7 +46,7 @@ export function AwardsPage() {
 
   return (
     <PlatformShell>
-      <section className="archive-grid border-b border-white/8">
+      <section className="archive-grid border-b border-border/60">
         <div className="mx-auto max-w-400 px-5 pb-12 pt-28 sm:px-8 sm:pt-36">
           <p className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.18em] text-primary">
             <TrophyIcon weight="fill" /> التكريمات الموثّقة
@@ -76,7 +76,7 @@ export function AwardsPage() {
           </div>
         ) : (
           <div className="px-5 sm:px-8">
-            <Empty className="min-h-72 border border-dashed border-white/10">
+            <Empty className="min-h-72 border border-dashed border-border">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <TrophyIcon />

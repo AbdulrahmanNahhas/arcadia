@@ -8,7 +8,7 @@ import type {
   SessionAccount,
   UpdateAccountInput,
 } from "@arcadia/contracts";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 
 export const accountKeys = {
@@ -61,6 +61,14 @@ export function getAccountRestrictions(accountId: string) {
   return apiFetch<AccountRestrictionEditor>(`/api/v1/admin/accounts/${accountId}/restrictions`);
 }
 
+export function currentAccountQueryOptions() {
+  return queryOptions({
+    queryKey: accountKeys.current,
+    queryFn: getCurrentAccount,
+    staleTime: 60_000,
+  });
+}
+
 export function useCurrentAccount() {
-  return useQuery({ queryKey: accountKeys.current, queryFn: getCurrentAccount, staleTime: 60_000 });
+  return useQuery(currentAccountQueryOptions());
 }

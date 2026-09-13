@@ -44,9 +44,9 @@ export function PersonPage({ personId }: { personId: string }) {
 
   return (
     <PlatformShell>
-      <section className="archive-grid border-b border-white/8">
+      <section className="archive-grid border-b border-border/60">
         <div className="mx-auto grid max-w-400 gap-8 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-[13rem_1fr] lg:items-center">
-          <div className="flex aspect-square items-center justify-center overflow-hidden rounded-full border border-white/10 bg-card shadow-2xl">
+          <div className="flex aspect-square items-center justify-center overflow-hidden rounded-full border border-border bg-card shadow-2xl">
             {person.imagePath ? (
               <img src={person.imagePath} alt="" className="size-full object-cover" />
             ) : (
@@ -88,7 +88,7 @@ export function PersonPage({ personId }: { personId: string }) {
                   params={{ titleId: work.id }}
                   className="group"
                 >
-                  <div className="relative aspect-2/3 overflow-hidden rounded-xl bg-muted ring-1 ring-white/8">
+                  <div className="relative aspect-2/3 overflow-hidden rounded-xl bg-muted ring-1 ring-foreground/10">
                     {work.imagePath && (
                       <img
                         src={work.imagePath}
@@ -131,7 +131,7 @@ export function PersonPage({ personId }: { personId: string }) {
                   return (
                     <div
                       key={relationship.id}
-                      className="rounded-xl border border-white/8 bg-card/45 p-5"
+                      className="rounded-xl border border-border/60 bg-card/45 p-5"
                     >
                       <div className="flex flex-wrap items-center gap-3">
                         <EntityDialog entity={relationship.source}>
@@ -169,7 +169,7 @@ export function PersonPage({ personId }: { personId: string }) {
           )}
         </div>
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-xl border border-white/8 bg-card/45 p-5">
+          <div className="rounded-xl border border-border/60 bg-card/45 p-5">
             <h2 className="font-heading text-sm font-semibold">بيانات الشخص</h2>
             <dl className="mt-4 space-y-4">
               <Meta
@@ -186,7 +186,7 @@ export function PersonPage({ personId }: { personId: string }) {
             </dl>
           </div>
           {person.roles.length > 0 && (
-            <div className="rounded-xl border border-white/8 bg-card/45 p-5">
+            <div className="rounded-xl border border-border/60 bg-card/45 p-5">
               <h2 className="font-heading text-sm font-semibold">الأدوار</h2>
               <div className="mt-4 flex flex-wrap gap-2">
                 {person.roles.map(({ role, count }) => (

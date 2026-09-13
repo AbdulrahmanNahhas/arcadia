@@ -186,6 +186,7 @@ function OverlayBadge({ className, ...props }: React.ComponentProps<typeof Badge
   return (
     <Badge
       variant="secondary"
+      data-on-artwork
       className={cn("bg-black/65 text-white backdrop-blur-sm", className)}
       {...props}
     />
@@ -201,6 +202,7 @@ function ArtworkScrim() {
   return (
     <div
       aria-hidden="true"
+      data-on-artwork
       className={cn(
         "absolute inset-0 bg-linear-to-t from-black/85 via-black/10 to-black/35 -bottom-1.5 -left-1",
         FADE_IN,
@@ -283,6 +285,7 @@ function ResumeIndicator({ titleId }: { titleId: string }) {
       aria-valuenow={resume.progress}
       aria-valuemin={0}
       aria-valuemax={100}
+      data-on-artwork
       className="absolute inset-x-0 bottom-0 h-0.75 bg-black/50"
     >
       <div className="h-full bg-primary" style={{ width: `${resume.progress}%` }} />
