@@ -70,7 +70,7 @@ export interface PreservedTitleFields {
   format: AdminTitleInput["format"];
   age: AdminTitleInput["age"];
   qualityScore: number;
-  provenance: Record<string, unknown>;
+  provenance: AdminTitleInput["provenance"];
   workflowStatus: AdminTitleInput["workflowStatus"];
   curatorNotes: string;
   verifiedAt: string | null;

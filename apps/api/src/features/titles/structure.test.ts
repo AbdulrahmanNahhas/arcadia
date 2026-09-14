@@ -1,11 +1,36 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
+import { z } from "zod";
 import { app } from "../../app";
 import { database } from "../../database";
 
 function assertDefined<T>(value: T | undefined, message: string): T {
   if (value === undefined) throw new Error(message);
   return value;
+}
+
+const insertedRowSchema = z.object({ id: z.string() });
+
+/** The subset of `adminStructureSchema`'s (`apps/api/src/app.ts`, not exported) season shape
+ *  these tests exercise. */
+type StructurePayload = {
+  seasons: Array<{
+    id?: string;
+    title?: string;
+    installmentKind?: string;
+    position?: number;
+    tmdbId?: number;
+    imdbId?: string;
+  }>;
+  ungroupedUnits: unknown[];
+};
+
+async function putStructure(titleId: string, body: StructurePayload) {
+  return app.request(`/api/v1/admin/titles/${titleId}/structure`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 /**
@@ -30,22 +55,17 @@ describe("PUT /api/v1/admin/titles/:titleId/structure — award recognition surv
     const [row] = await sql`
       insert into titles (canonical_title, sort_title, title_ar, summary)
       values (${title}, ${title.toLowerCase()}, ${title}, 'x') returning id`;
-    const titleId = assertDefined(row, "expected the created title row").id as string;
+    const titleId = insertedRowSchema.parse(
+      assertDefined(row, "expected the created title row"),
+    ).id;
     createdTitleIds.push(titleId);
     const [installment] = await sql`
       insert into installments (title_id, kind, position, title, status)
       values (${titleId}, 'movie', 0, ${title}, 'completed') returning id`;
-    const installmentId = assertDefined(installment, "expected the created installment row")
-      .id as string;
+    const installmentId = insertedRowSchema.parse(
+      assertDefined(installment, "expected the created installment row"),
+    ).id;
     return { titleId, installmentId };
-  }
-
-  async function putStructure(titleId: string, body: Record<string, unknown>) {
-    return app.request(`/api/v1/admin/titles/${titleId}/structure`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
   }
 
   it("keeps an installment-level award recognition across a routine structure resave", async () => {
@@ -100,7 +120,8 @@ describe("PUT /api/v1/admin/titles/:titleId/structure — award recognition surv
 
   it("preserves an installment's ids across a resave that doesn't mention them, the same way scores/awards survive", async () => {
     const { titleId, installmentId } = await createTitleWithInstallment();
-    await database().client`update installments set imdb_id='tt0245429', tmdb_id=572154 where id=${installmentId}`;
+    await database()
+      .client`update installments set imdb_id='tt0245429', tmdb_id=572154 where id=${installmentId}`;
 
     // A resave that renames the installment but never sends tmdbId/imdbId at all (e.g. an older
     // structure-editing surface, or a partial patch) must not null out ids it doesn't know about.
@@ -110,8 +131,8 @@ describe("PUT /api/v1/admin/titles/:titleId/structure — award recognition surv
     });
     expect(response.status).toBe(200);
 
-    const rows =
-      await database().client`select imdb_id, tmdb_id from installments where title_id=${titleId}`;
+    const rows = await database()
+      .client`select imdb_id, tmdb_id from installments where title_id=${titleId}`;
     expect(rows[0]?.imdb_id).toBe("tt0245429");
     expect(rows[0]?.tmdb_id).toBe(572154);
   });

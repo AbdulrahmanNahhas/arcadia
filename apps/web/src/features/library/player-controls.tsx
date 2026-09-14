@@ -611,26 +611,26 @@ function SpeedMenu({ speed, onSetSpeed }: { speed: number; onSetSpeed: (speed: n
 /** Every code `detectLanguages` (`apps/api/.../torrent-source.ts`) can produce, labelled in
  *  Arabic for the source picker's language badges — a superset of the audio/subtitle pickers'
  *  own curated four, since a badge is just informational, not a menu the family picks from. */
-const SOURCE_LANGUAGE_LABELS: Record<string, string> = {
-  en: "الإنجليزية",
-  ar: "العربية",
-  ja: "اليابانية",
-  es: "الإسبانية",
-  ru: "الروسية",
-  fr: "الفرنسية",
-  de: "الألمانية",
-  it: "الإيطالية",
-  hi: "الهندية",
-  ta: "التاميلية",
-  te: "التيلوغوية",
-  ko: "الكورية",
-  pt: "البرتغالية",
-  tr: "التركية",
-  pl: "البولندية",
-  nl: "الهولندية",
-  zh: "الصينية",
-  fa: "الفارسية",
-};
+const SOURCE_LANGUAGE_LABELS = new Map([
+  ["en", "الإنجليزية"],
+  ["ar", "العربية"],
+  ["ja", "اليابانية"],
+  ["es", "الإسبانية"],
+  ["ru", "الروسية"],
+  ["fr", "الفرنسية"],
+  ["de", "الألمانية"],
+  ["it", "الإيطالية"],
+  ["hi", "الهندية"],
+  ["ta", "التاميلية"],
+  ["te", "التيلوغوية"],
+  ["ko", "الكورية"],
+  ["pt", "البرتغالية"],
+  ["tr", "التركية"],
+  ["pl", "البولندية"],
+  ["nl", "الهولندية"],
+  ["zh", "الصينية"],
+  ["fa", "الفارسية"],
+]);
 
 function SourceMenu({
   candidates,
@@ -695,7 +695,7 @@ function SourceMenu({
                         key={language}
                         className="rounded bg-primary/15 px-1.5 py-0.5 text-primary"
                       >
-                        {SOURCE_LANGUAGE_LABELS[language] ?? language}
+                        {SOURCE_LANGUAGE_LABELS.get(language) ?? language}
                       </span>
                     ))}
 

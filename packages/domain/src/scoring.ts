@@ -8,14 +8,14 @@ export const scoreCriteria = [
 ] as const;
 export type ScoreCriterion = (typeof scoreCriteria)[number];
 export type Score = Partial<Record<ScoreCriterion, number | null>>;
-export const scoreWeights: Record<ScoreCriterion, number> = {
+export const scoreWeights = {
   story: 0.25,
   characters: 0.2,
   depth: 0.15,
   worldBuilding: 0.1,
   originality: 0.1,
   craft: 0.2,
-};
+} satisfies Record<ScoreCriterion, number>;
 
 export function installmentRating(score: Score): number | null {
   const values = scoreCriteria.map((criterion) => score[criterion]);
@@ -27,7 +27,7 @@ export function installmentRating(score: Score): number | null {
     return null;
   const rating = scoreCriteria.reduce((total, criterion, index) => {
     const value = values[index];
-    return total + (typeof value === "number" ? value : 0) * scoreWeights[criterion];
+    return total + (value ?? 0) * scoreWeights[criterion];
   }, 0);
   return Math.round(rating * 10) / 10;
 }

@@ -31,23 +31,23 @@ const scoreEntries = [
   ["craft", "الحِرفة"],
 ] as const;
 
-const roleLabels: Record<string, string> = {
-  creator: "مبتكر",
-  original_author: "المؤلف الأصلي",
-  director: "مخرج",
-  writer: "كاتب",
-  producer: "منتج",
-  executive_producer: "منتج تنفيذي",
-  creative_producer: "منتج إبداعي",
-  character_designer: "مصمم الشخصيات",
-  art_director: "مدير فني",
-  scene_design: "تصميم المشاهد",
-  composer: "ملحن",
-  animation_studio: "استوديو الرسوم",
-  production_company: "شركة إنتاج",
-  distributor: "موزع",
-  publisher: "ناشر",
-};
+const roleLabels = new Map([
+  ["creator", "مبتكر"],
+  ["original_author", "المؤلف الأصلي"],
+  ["director", "مخرج"],
+  ["writer", "كاتب"],
+  ["producer", "منتج"],
+  ["executive_producer", "منتج تنفيذي"],
+  ["creative_producer", "منتج إبداعي"],
+  ["character_designer", "مصمم الشخصيات"],
+  ["art_director", "مدير فني"],
+  ["scene_design", "تصميم المشاهد"],
+  ["composer", "ملحن"],
+  ["animation_studio", "استوديو الرسوم"],
+  ["production_company", "شركة إنتاج"],
+  ["distributor", "موزع"],
+  ["publisher", "ناشر"],
+]);
 
 function riskSurfaceClass(level: "none" | "low" | "medium" | "high" | "unknown") {
   if (level === "high") return "border-destructive/30 bg-destructive/10";
@@ -215,7 +215,7 @@ export function OfflineTitlePage({ titleId }: { titleId: string }) {
                       {riskDimensionLabels[dimension]}
                     </p>
                     <p className="mt-2 font-heading text-lg font-semibold">
-                      {valueLabelsAr[level] ?? "غير معروف"}
+                      {valueLabelsAr.get(level) ?? "غير معروف"}
                     </p>
                   </div>
                 );
@@ -361,7 +361,7 @@ export function OfflineTitlePage({ titleId }: { titleId: string }) {
                 >
                   <p className="text-sm font-medium">{credit.name}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {roleLabels[credit.role] ?? credit.role}
+                    {roleLabels.get(credit.role) ?? credit.role}
                   </p>
                 </div>
               ))}

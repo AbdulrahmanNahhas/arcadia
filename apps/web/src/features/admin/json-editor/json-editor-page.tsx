@@ -980,7 +980,7 @@ function EditWorkspace({
                 <strong className="block">{doc.label}</strong>
                 <p className="mt-1 text-muted-foreground">{doc.purpose}</p>
                 <p className="mt-1 font-mono text-[10px]">
-                  {doc["shape"]} · {doc.required ? "required key" : "optional key"} ·{" "}
+                  {doc.shape} · {doc.required ? "required key" : "optional key"} ·{" "}
                   {doc.nullable ? "nullable" : "not nullable"}
                 </p>
                 {doc.safetyNotes ? (

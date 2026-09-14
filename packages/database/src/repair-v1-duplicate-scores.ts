@@ -13,6 +13,8 @@ const duplicates = await sql`
 let removed = 0;
 await sql.begin(async (tx) => {
   for (const group of duplicates) {
+    // SAFETY: the SELECT above aliases `array_agg(i.id ...)` (a uuid column) as
+    // `installment_ids`, so each row's value is always an array of installment id strings.
     const [, ...duplicateIds] = group.installment_ids as string[];
     if (!duplicateIds.length) continue;
     const result =

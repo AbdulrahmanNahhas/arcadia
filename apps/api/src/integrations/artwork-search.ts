@@ -1,5 +1,5 @@
 import type { artworkSearchQuerySchema } from "@arcadia/contracts";
-import { titleFormatOf, titleShapeOf } from "@arcadia/domain";
+import { titleFormatOf, titleStructureOf } from "@arcadia/domain";
 import type { z } from "zod";
 import { searchAniListArtwork } from "./anilist";
 import { fetchFanartMovieArtwork } from "./fanart";
@@ -21,7 +21,7 @@ type Query = z.infer<typeof artworkSearchQuerySchema>;
 export async function searchArtwork(query: Query) {
   const kind = query.kind ?? "animated-movie";
   const isAnimated = titleFormatOf(kind) === "animated";
-  const isMovie = titleShapeOf(kind) === "movie";
+  const isMovie = titleStructureOf(kind) === "movie";
 
   const [tmdb, anilist] = await Promise.all([
     searchTmdbArtwork({

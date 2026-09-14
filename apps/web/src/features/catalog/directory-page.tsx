@@ -27,10 +27,7 @@ import { getAdminEntities, getEntities } from "@/server/library.functions";
 type Kind = "people" | "studios";
 type SortMode = "prolific" | "alphabetical";
 
-const kindCopy: Record<
-  Kind,
-  { title: string; description: string; noun: string; icon: typeof UserIcon; placeholder: string }
-> = {
+const kindCopy = {
   people: {
     title: "الأشخاص",
     description: "المخرجون والكتّاب وصنّاع القصص، مع أعمالهم وأدوارهم المحفوظة.",
@@ -45,7 +42,10 @@ const kindCopy: Record<
     icon: BuildingsIcon,
     placeholder: "ابحث باسم الاستوديو أو عمل مرتبط…",
   },
-};
+} satisfies Record<
+  Kind,
+  { title: string; description: string; noun: string; icon: typeof UserIcon; placeholder: string }
+>;
 
 export function DirectoryPage({ kind }: { kind: Kind }) {
   const { data: accountData } = useCurrentAccount();

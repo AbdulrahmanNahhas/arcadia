@@ -20,7 +20,7 @@ export function ContinueWatchingRail() {
   const items = inProgress.length ? inProgress : upNext;
   if (!items.length) return null;
   return (
-    <section className="scroll-mt-24 overflow-hidden" aria-labelledby="continue-watching-title">
+    <section className="scroll-mt-24" aria-labelledby="continue-watching-title">
       <RailHeader
         id="continue-watching-title"
         title="أكمل المشاهدة"

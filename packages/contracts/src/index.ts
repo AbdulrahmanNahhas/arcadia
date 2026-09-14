@@ -90,31 +90,32 @@ export const episodeSchema = z.object({
   runtimeMinutes: z.number().int().nullable(),
   posterPath: z.string().nullable(),
 });
-export const installmentSchema = z.object({
-  id: z.string().uuid(),
-  titleId: z.string().uuid(),
-  kind: installmentKindSchema,
-  position: z.number().int(),
-  title: z.string(),
-  summary: z.string(),
-  releaseDate: z.string().nullable(),
-  runtimeMinutes: z.number().int().nullable(),
-  status: installmentStatusSchema,
-  posterPath: z.string().nullable(),
-  episodeCount: z.number().int().min(0).nullable(),
-  classification: effectiveClassificationSchema,
-  classificationOverrides: z.array(z.string()),
-  score: scoreSchema,
-  rating: z.number().nullable(),
-  awards: z.array(awardRecognitionSchema),
-  episodes: z.array(episodeSchema).optional(),
-  /** Whether this installment can actually resolve a stream today — the same id-availability
-   *  rules the player's `GET .../streams` route itself applies (own id, or a sole-film title's
-   *  id; a season additionally needs at least one integer-numbered episode). Independent of
-   *  release status — this is a cataloging-completeness signal, not a "is it out yet" one. */
-  isPlayable: z.boolean(),
-  ...externalIdFieldsSchema.shape,
-});
+export const installmentSchema = z
+  .object({
+    id: z.string().uuid(),
+    titleId: z.string().uuid(),
+    kind: installmentKindSchema,
+    position: z.number().int(),
+    title: z.string(),
+    summary: z.string(),
+    releaseDate: z.string().nullable(),
+    runtimeMinutes: z.number().int().nullable(),
+    status: installmentStatusSchema,
+    posterPath: z.string().nullable(),
+    episodeCount: z.number().int().min(0).nullable(),
+    classification: effectiveClassificationSchema,
+    classificationOverrides: z.array(z.string()),
+    score: scoreSchema,
+    rating: z.number().nullable(),
+    awards: z.array(awardRecognitionSchema),
+    episodes: z.array(episodeSchema).optional(),
+    /** Whether this installment can actually resolve a stream today — the same id-availability
+     *  rules the player's `GET .../streams` route itself applies (own id, or a sole-film title's
+     *  id; a season additionally needs at least one integer-numbered episode). Independent of
+     *  release status — this is a cataloging-completeness signal, not a "is it out yet" one. */
+    isPlayable: z.boolean(),
+  })
+  .merge(externalIdFieldsSchema);
 export const titleSummarySchema = z.object({
   id: z.string().uuid(),
   canonicalTitle: z.string(),
@@ -161,8 +162,7 @@ export const titleSummarySchema = z.object({
    *  on `installmentSchema.isPlayable`. */
   isPlayable: z.boolean(),
 });
-export const titleDetailSchema = titleSummarySchema.extend({
-  ...externalIdFieldsSchema.shape,
+export const titleDetailSchema = titleSummarySchema.merge(externalIdFieldsSchema).extend({
   /** Ordered list of short Arabic facts about the title's origin, setting, and production
    *  ("الأصل والقصة", "المكان", "حقائق بارزة") — see the arcadia-cataloging skill. Rendered as a
    *  plain list on the title page, distinct from `contentWarnings`/`analysisNotes`. */

@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { adminAwardsDocumentSchema } from "@arcadia/contracts";
 import { afterAll, describe, expect, it } from "vitest";
+import { z } from "zod";
 import { app } from "../../app";
 import { database } from "../../database";
 
@@ -7,6 +9,8 @@ function assertDefined<T>(value: T | undefined, message: string): T {
   if (value === undefined) throw new Error(message);
   return value;
 }
+
+const createdCeremonySchema = z.object({ id: z.string() });
 
 describe("award ceremony CRUD", () => {
   const orgSlug = `ceremony-test-org-${randomUUID().slice(0, 8)}`;
@@ -33,13 +37,11 @@ describe("award ceremony CRUD", () => {
       body: JSON.stringify({ organizationId, year, label: String(year) }),
     });
     expect(createResponse.status).toBe(201);
-    const { id } = (await createResponse.json()) as { id: string };
+    const { id } = createdCeremonySchema.parse(await createResponse.json());
     expect(id).toBeTruthy();
 
     const docResponse = await app.request("/api/v1/admin/awards");
-    const doc = (await docResponse.json()) as {
-      ceremonies: Array<{ id: string; organizationId: string; year: number; label: string }>;
-    };
+    const doc = adminAwardsDocumentSchema.parse(await docResponse.json());
     const found = doc.ceremonies.find((ceremony) => ceremony.id === id);
     expect(found).toBeDefined();
     expect(found?.year).toBe(year);
@@ -91,7 +93,7 @@ describe("award ceremony CRUD", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ organizationId, year, label: String(year) }),
       });
-      const { id: ceremonyId } = (await createResponse.json()) as { id: string };
+      const { id: ceremonyId } = createdCeremonySchema.parse(await createResponse.json());
 
       const [recognition] = await sql`
         insert into award_recognitions

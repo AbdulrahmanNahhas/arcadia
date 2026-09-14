@@ -1,4 +1,14 @@
+import { titleSocialSchema } from "@arcadia/contracts";
 import { expect, test } from "@playwright/test";
+import { z } from "zod";
+
+const titlesQuickBrowseSchema = z.object({
+  items: z.array(
+    z.object({ id: z.string(), titleAr: z.string().nullable(), canonicalTitle: z.string() }),
+  ),
+});
+const titleIdsBrowseSchema = z.object({ items: z.array(z.object({ id: z.string() })) });
+const meAccountSchema = z.object({ account: z.object({ id: z.string() }) });
 
 const credentials = {
   owner: { username: "admin", password: "ArcadiaAdmin!2026" },
@@ -236,9 +246,7 @@ test("title detail exposes Arabic editorial data, scores, family, and installmen
   const response = await page.request.get(
     "http://127.0.0.1:23101/api/v1/titles?mode=titles&limit=1",
   );
-  const catalog = (await response.json()) as {
-    items: Array<{ id: string; titleAr: string | null; canonicalTitle: string }>;
-  };
+  const catalog = titlesQuickBrowseSchema.parse(await response.json());
   const title = catalog.items[0];
   expect(title).toBeDefined();
   if (!title) return;
@@ -260,24 +268,19 @@ test("title review can be deleted from its review card", async ({ page }) => {
   const response = await page.request.get(
     "http://127.0.0.1:23101/api/v1/titles?mode=titles&limit=1",
   );
-  const catalog = (await response.json()) as { items: Array<{ id: string }> };
+  const catalog = titleIdsBrowseSchema.parse(await response.json());
   const title = catalog.items[0];
   expect(title).toBeDefined();
   if (!title) return;
 
-  const me = (await (await page.request.get("http://127.0.0.1:23101/api/v1/me")).json()) as {
-    account: { id: string };
-  };
-  const originalSocial = (await (
-    await page.request.get(`http://127.0.0.1:23101/api/v1/titles/${title.id}/social`)
-  ).json()) as {
-    reviews: Array<{
-      author: { id: string };
-      rating: number;
-      body: string;
-      containsSpoilers: boolean;
-    }>;
-  };
+  const me = meAccountSchema.parse(
+    await (await page.request.get("http://127.0.0.1:23101/api/v1/me")).json(),
+  );
+  const originalSocial = titleSocialSchema.parse(
+    await (
+      await page.request.get(`http://127.0.0.1:23101/api/v1/titles/${title.id}/social`)
+    ).json(),
+  );
   const originalReview = originalSocial.reviews.find((item) => item.author.id === me.account.id);
   const temporaryBody = "مراجعة مؤقتة لاختبار الحذف من البطاقة.";
 

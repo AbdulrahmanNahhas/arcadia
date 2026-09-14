@@ -123,13 +123,15 @@ export type MessageKey = keyof typeof messages;
 export function t(locale: Locale, key: MessageKey, values: Record<string, string | number> = {}) {
   return Object.entries(values).reduce(
     (text, [name, value]) => text.replace(`{${name}}`, String(value)),
+    // SAFETY: `messages` is `as const`, so `messages[key][locale]` is a specific string literal
+    // type; widen it to `string` so `.reduce`'s accumulator matches `.replace`'s `string` return.
     messages[key][locale] as string,
   );
 }
 
 const taxonomyLabels = new Map<string, Message>(
   Object.entries(taxonomy).flatMap(([vocabulary, values]) =>
-    values.map(([slug, en, ar]) => [`${vocabulary}:${slug}`, { ar, en }] as const),
+    values.map(([slug, en, arLabel]) => [`${vocabulary}:${slug}`, { ar: arLabel, en }] as const),
   ),
 );
 export function taxonomyLabel(locale: Locale, vocabulary: keyof typeof taxonomy, slug: string) {
@@ -148,11 +150,15 @@ export const classificationLabels = {
   high: { ar: "مرتفع", en: "High" },
 } as const;
 
-export function valueLabel(locale: Locale, value: string) {
-  return (classificationLabels as Record<string, Message>)[value]?.[locale] ?? value;
+function isClassificationKey(value: string): value is keyof typeof classificationLabels {
+  return Object.hasOwn(classificationLabels, value);
 }
 
-const controlledValueLabels: Record<string, Message> = {
+export function valueLabel(locale: Locale, value: string) {
+  return isClassificationKey(value) ? classificationLabels[value][locale] : value;
+}
+
+const controlledValueLabels = {
   upcoming: { ar: "قادم", en: "Upcoming" },
   announced: { ar: "معلن", en: "Announced" },
   airing: { ar: "يعرض الآن", en: "Airing" },
@@ -171,14 +177,23 @@ const controlledValueLabels: Record<string, Message> = {
   compilation: { ar: "تجميعي", en: "Compilation" },
   alternative: { ar: "بديل", en: "Alternative" },
   related: { ar: "مرتبط", en: "Related" },
-};
+} satisfies Record<string, Message>;
+
+function isTaxonomyVocabulary(value: string): value is keyof typeof taxonomy {
+  return value in taxonomy;
+}
+
+function isControlledValueKey(value: string): value is keyof typeof controlledValueLabels {
+  return Object.hasOwn(controlledValueLabels, value);
+}
 
 export function vocabularyFallbackLabel(
   locale: Locale,
   vocabulary: keyof typeof taxonomy | string,
   slug: string,
 ) {
-  if (vocabulary in taxonomy)
-    return taxonomyLabel(locale, vocabulary as keyof typeof taxonomy, slug);
-  return controlledValueLabels[slug]?.[locale] ?? valueLabel(locale, slug);
+  if (isTaxonomyVocabulary(vocabulary)) return taxonomyLabel(locale, vocabulary, slug);
+  return isControlledValueKey(slug)
+    ? controlledValueLabels[slug][locale]
+    : valueLabel(locale, slug);
 }

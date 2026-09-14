@@ -27,6 +27,8 @@ import { visibilityPolicyForAccount } from "../../repository";
 
 type AccountRow = Record<string, unknown>;
 
+const idList = (rows: AccountRow[]) => rows.map((row) => String(row.id));
+
 /**
  * Reads the stored shelf-type preference defensively: an account with no `account_preferences`
  * row yet, or one written before this column existed, sees all four types rather than none.
@@ -505,7 +507,6 @@ accountRoutes.get("/api/v1/admin/accounts/:accountId/restrictions", async (conte
     sql`select id, name_ar as label, name_en as description, 'planet' as kind
         from planets where is_active order by display_order`,
   ]);
-  const idList = (rows: AccountRow[]) => rows.map((row) => String(row.id));
   return context.json(
     accountRestrictionEditorSchema.parse({
       blockedTitleIds: idList(blockedTitles),

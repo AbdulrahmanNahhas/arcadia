@@ -15,7 +15,9 @@
       "title": "Монстры на каникулах / Hotel Transylvania (2012) WEB-DL-HEVC 2160p | 4K | HDR | Dolby Vision Profile 8 | D A | Лицензия\n👤 3 💾 48.97 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
       "infoHash": "29cff886e762ea7d1c90297f5bbbca10dcd9ccaa",
       "fileIdx": 0,
-      "behaviorHints": { "filename": "Hotel.Transylvania.2012.2160p.BC.WEB-DL.DDP5.1.HDR.DoVi.Hybrid.P8.by.DVT.mkv" },
+      "behaviorHints": {
+        "filename": "Hotel.Transylvania.2012.2160p.BC.WEB-DL.DDP5.1.HDR.DoVi.Hybrid.P8.by.DVT.mkv"
+      },
       "sources": [
         "tracker:udp://opentor.net:6969",
         "tracker:http://retracker.local/announce",
@@ -54,7 +56,9 @@
       "title": "Hotel.Transylvania.2012.FRENCH.DVDRip.XviD\n👤 11 💾 698.43 MB ⚙️ Torrent9\n🇫🇷",
       "infoHash": "c22a15ba90e0adf71b7dfc9fd26ab6ddef057ce5",
       "fileIdx": 0,
-      "behaviorHints": { "filename": "[ OxTorrent.com ] Hotel.Transylvania.2012.FRENCH.DVDRip.XviD.avi" }
+      "behaviorHints": {
+        "filename": "[ OxTorrent.com ] Hotel.Transylvania.2012.FRENCH.DVDRip.XviD.avi"
+      }
     },
     {
       "name": "Torrentio",

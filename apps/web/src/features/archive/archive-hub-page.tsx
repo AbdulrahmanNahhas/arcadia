@@ -165,30 +165,46 @@ function ArchiveSectionLink({
       replace
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group/section relative flex flex-none items-center gap-2.5 rounded-xl px-3.5 py-2 text-start transition-colors",
+        "group/section relative flex flex-none items-center gap-2.5 rounded-xl px-3.5 py-2.5",
+        "text-start transition-colors duration-150",
         "text-foreground/65 hover:bg-muted/60 hover:text-foreground",
-        active && "bg-foreground text-background! hover:bg-foreground/80",
+        active &&
+          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
       )}
     >
-      <span aria-hidden className={cn(active && "opacity-100")} />
       <SectionIcon
         weight={attention ? "fill" : "regular"}
         className={cn(
-          "shrink-0 transition-colors size-6",
-          active ? "text-background" : "text-muted-foreground group-hover/section:text-foreground",
+          "size-5.5 shrink-0 transition-colors",
+          active
+            ? "text-primary-foreground"
+            : "text-muted-foreground group-hover/section:text-foreground",
         )}
       />
+
       <span className="flex min-w-0 flex-col">
         <span className="font-heading text-sm font-medium leading-5">{label}</span>
-        <span className="hidden text-[0.6875rem] leading-4 text-muted-foreground lg:block">
+
+        <span
+          className={cn(
+            "hidden text-[0.6875rem] leading-4 lg:block",
+            active ? "text-primary-foreground/65" : "text-muted-foreground",
+          )}
+        >
           {hint}
         </span>
       </span>
+
       {count > 0 ? (
         <span
           className={cn(
-            "ms-auto rounded-full px-1.5 py-0.5 font-mono text-[0.6875rem] leading-4 tabular-nums",
-            attention ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+            "ms-auto min-w-5 rounded-full px-1.5 py-0.5 text-center",
+            "font-mono text-[0.6875rem] font-medium leading-4 tabular-nums",
+            active
+              ? "bg-primary-foreground/15 text-primary-foreground"
+              : attention
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground",
           )}
         >
           {count}
@@ -291,7 +307,7 @@ export function ArchiveHubPage() {
       <div className="relative mx-auto max-w-400 px-5 pb-28 pt-10 sm:px-8">
         <div
           aria-hidden
-          className="archive-grid pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 opacity-80 [mask-image:linear-gradient(to_bottom,black,transparent)]"
+          className="archive-grid pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 opacity-80 mask-[linear-gradient(to_bottom,black,transparent)]"
         />
 
         <header>

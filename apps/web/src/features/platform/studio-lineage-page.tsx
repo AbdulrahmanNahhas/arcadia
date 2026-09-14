@@ -555,7 +555,7 @@ function buildLineageGraph(
     adjacency.set(relationship.target.id, targetNeighbors);
   }
 
-  const entityIds = [...entities.keys()].sort();
+  const entityIds = [...entities.keys()].toSorted();
   const componentById = connectedComponents(entityIds, adjacency);
   const componentCount = Math.max(1, new Set(componentById.values()).size);
   const columns = Math.ceil(Math.sqrt(componentCount));
@@ -587,7 +587,7 @@ function buildLineageGraph(
   });
   const families = [...new Set(componentById.values())].map((component): GraphFamily => {
     const familyNodes = nodes.filter((node) => componentById.get(node.entity.id) === component);
-    const hub = [...familyNodes].sort(
+    const hub = familyNodes.toSorted(
       (left, right) =>
         right.degree - left.degree || left.entity.name.localeCompare(right.entity.name),
     )[0];
@@ -730,7 +730,7 @@ function buildFlowPositions(
       groups.set(itemLevel, [...(groups.get(itemLevel) ?? []), id]);
     }
     for (const [itemLevel, levelIds] of groups) {
-      const sortedIds = [...levelIds].sort((left, right) => stableHash(left) - stableHash(right));
+      const sortedIds = levelIds.toSorted((left, right) => stableHash(left) - stableHash(right));
       sortedIds.forEach((id, index) => {
         positions.set(id, {
           // Wide enough that a node's label and the relationship badge floating on its incoming

@@ -171,6 +171,9 @@ export type TaxonomyVocabulary = keyof typeof taxonomy;
 export type TaxonomySlug<V extends TaxonomyVocabulary> = (typeof taxonomy)[V][number][0];
 
 export function taxonomySchema<V extends TaxonomyVocabulary>(vocabulary: V) {
+  // SAFETY: every vocabulary literal above (genres/tones/tags) is authored with at least one
+  // entry, so mapping its slugs can never yield an empty array even though `.map` widens the
+  // tuple type z.enum requires to a plain array.
   const values = taxonomy[vocabulary].map(([slug]) => slug) as [
     TaxonomySlug<V>,
     ...TaxonomySlug<V>[],
@@ -179,6 +182,9 @@ export function taxonomySchema<V extends TaxonomyVocabulary>(vocabulary: V) {
 }
 
 export function taxonomySeeds() {
+  // SAFETY: `taxonomy` is the literal object defined above, so its own keys are exactly
+  // `TaxonomyVocabulary` and each value is a `Definition` — `Object.entries` only widens both to
+  // `string`/`unknown` because it can't see through the object literal type.
   return (Object.entries(taxonomy) as [TaxonomyVocabulary, Definition][]).flatMap(
     ([vocabulary, values]) =>
       values.map(([slug, labelEn, labelAr], position) => ({

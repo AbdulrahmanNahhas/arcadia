@@ -6,5 +6,6 @@ import { resolve } from "node:path";
 // real deployments should inject secrets through the platform, not a checked-out .env file.
 // Import this module first, as a side effect, before any module that reads process.env at import
 // time (see apps/api/src/server.ts).
-const envPath = resolve(import.meta.dirname, "../../../.env");
-if (existsSync(envPath)) process.loadEnvFile(envPath);
+export const envPath = resolve(import.meta.dirname, "../../../.env");
+export const envLoaded = existsSync(envPath);
+if (envLoaded) process.loadEnvFile(envPath);

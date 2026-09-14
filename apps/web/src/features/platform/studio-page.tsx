@@ -88,8 +88,8 @@ export function StudioPage({ studioId }: { studioId: string }) {
               </span>
             </h2>
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
-              {[...studio.works]
-                .sort((a, b) => (b.year ?? 0) - (a.year ?? 0))
+              {studio.works
+                .toSorted((a, b) => (b.year ?? 0) - (a.year ?? 0))
                 .map((work) => (
                   <Link
                     key={work.id}

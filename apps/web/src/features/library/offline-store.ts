@@ -52,27 +52,43 @@ function openDatabase(): Promise<IDBDatabase> {
   return databasePromise;
 }
 
+/** A parsed JSON value — a title detail payload (and everything IndexedDB gives back for one) is
+ *  always one of these, which is exactly the shape both walks below need. Mirrors the same-named
+ *  local type in `lib/api.ts`'s `rewriteMediaUrls`. */
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+function isJsonRecord(value: JsonValue): value is { [key: string]: JsonValue } {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNonEmptyPathValue(key: string, value: JsonValue): value is string {
+  return key.endsWith("Path") && typeof value === "string" && value.length > 0;
+}
+
 /** Every `*Path` field in a title detail payload, deduplicated — the same walk
  *  `rewriteMediaUrls` (`lib/api.ts`) does, but collecting URLs instead of rewriting them. By the
  *  time a detail payload reaches here it has already passed through that rewrite, so every URL
  *  collected is absolute and fetchable on its own. */
 function imageUrlsOf(detail: TitleDetail): string[] {
   const urls = new Set<string>();
-  const walk = (value: unknown): void => {
+  const walk = (value: JsonValue): void => {
     if (Array.isArray(value)) {
       for (const item of value) walk(item);
       return;
     }
-    if (!value || typeof value !== "object") return;
+    if (!isJsonRecord(value)) return;
     for (const [key, entryValue] of Object.entries(value)) {
-      if (key.endsWith("Path") && typeof entryValue === "string" && entryValue) {
+      if (isNonEmptyPathValue(key, entryValue)) {
         urls.add(entryValue);
       } else {
         walk(entryValue);
       }
     }
   };
-  walk(detail);
+  // SAFETY: a title detail payload is JSON decoded from the API (or from IndexedDB, itself a
+  // stored copy of that same payload) — a string/number/boolean/null, or an array/object built
+  // from those — so it always fits `JsonValue`.
+  walk(detail as JsonValue);
   return [...urls];
 }
 
@@ -174,26 +190,32 @@ export async function saveTitleOffline(detail: TitleDetail): Promise<void> {
  * image never downloaded (a transient failure at save time) is left as its original URL, which
  * fails to load exactly like a normal broken image would.
  */
-async function hydrateOfflineImages<T>(value: T): Promise<T> {
+async function hydrateJsonImages(value: JsonValue): Promise<JsonValue> {
   if (Array.isArray(value)) {
-    // SAFETY: mapping an array over the identity shape (each element rebuilt by the same
-    // function) preserves T's own array-ness; the generic walk can't express that structurally.
-    return Promise.all(value.map((item) => hydrateOfflineImages(item))) as Promise<T>;
+    return Promise.all(value.map((item) => hydrateJsonImages(item)));
   }
-  if (!value || typeof value !== "object") return value;
+  if (!isJsonRecord(value)) return value;
   const entries = await Promise.all(
-    Object.entries(value).map(async ([key, entryValue]) => {
-      if (key.endsWith("Path") && typeof entryValue === "string" && entryValue) {
+    Object.entries(value).map(async ([key, entryValue]): Promise<[string, JsonValue]> => {
+      if (isNonEmptyPathValue(key, entryValue)) {
         const blob = await getOfflineImageBlob(entryValue);
         return [key, blob ? URL.createObjectURL(blob) : entryValue];
       }
-      return [key, await hydrateOfflineImages(entryValue)];
+      return [key, await hydrateJsonImages(entryValue)];
     }),
   );
-  // SAFETY: entries carries exactly value's own keys, each rebuilt to the same shape (a plain
-  // string reassigned, or the recursive result of hydrating that same key's original value) —
-  // the object's runtime shape never changes, only some of its leaf string values do.
-  return Object.fromEntries(entries) as T;
+  return Object.fromEntries(entries);
+}
+
+async function hydrateOfflineImages<T>(value: T): Promise<T> {
+  // SAFETY: every call site passes a value read back from IndexedDB, itself a stored copy of a
+  // title detail JSON payload — a string/number/boolean/null, or an array/object built from
+  // those — so it always fits `JsonValue`.
+  const hydrated = await hydrateJsonImages(value as JsonValue);
+  // SAFETY: hydrateJsonImages preserves every key and array position, only ever replacing a
+  // `*Path` string leaf with a same-typed blob URL string, so the result still fits the same
+  // `T` shape `value` had.
+  return hydrated as T;
 }
 
 /** Raw read, no blob-URL hydration — for internal use (cleanup) where the image bytes

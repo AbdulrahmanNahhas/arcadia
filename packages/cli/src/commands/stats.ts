@@ -96,9 +96,10 @@ async function genericStats(
   return sql.unsafe<Row[]>(text, parameters(builder.params));
 }
 
-const presets = new Map<string, (sql: Sql) => Promise<CommandResult>>(Object.entries({
-  async overview(sql) {
-    const [row] = await sql<Row[]>`
+const presets = new Map<string, (sql: Sql) => Promise<CommandResult>>(
+  Object.entries({
+    async overview(sql) {
+      const [row] = await sql<Row[]>`
       select
         (select count(*)::int from titles) as titles,
         (select count(*)::int from titles where workflow_status = 'published') as published,
@@ -112,12 +113,12 @@ const presets = new Map<string, (sql: Sql) => Promise<CommandResult>>(Object.ent
         (select count(*)::int from planets where is_active) as planets,
         (select count(*)::int from media_assets) as media_assets,
         (select count(*)::int from accounts) as accounts`;
-    return row ?? {};
-  },
+      return row ?? {};
+    },
 
-  /** Where the catalog is incomplete — the report that decides what to work on next. */
-  async coverage(sql) {
-    return sql<Row[]>`
+    /** Where the catalog is incomplete — the report that decides what to work on next. */
+    async coverage(sql) {
+      return sql<Row[]>`
       select 'titles without a summary' as gap, count(*)::int as n from titles where btrim(summary) = ''
       union all select 'titles without content warnings', count(*)::int from titles
         where content_warnings is null or btrim(content_warnings) = ''
@@ -146,10 +147,10 @@ const presets = new Map<string, (sql: Sql) => Promise<CommandResult>>(Object.ent
       union all select 'media assets referenced by nothing', count(*)::int from media_assets a
         where not exists (select 1 from media_asset_assignments x where x.asset_id = a.id)
       order by n desc`;
-  },
+    },
 
-  async scores(sql) {
-    return sql<Row[]>`
+    async scores(sql) {
+      return sql<Row[]>`
       select 'story' as criterion, round(avg(story)::numeric,2) as avg, min(story) as min, max(story) as max,
              count(story)::int as scored from installment_scores
       union all select 'characters', round(avg(characters)::numeric,2), min(characters), max(characters), count(characters)::int from installment_scores
@@ -157,11 +158,11 @@ const presets = new Map<string, (sql: Sql) => Promise<CommandResult>>(Object.ent
       union all select 'world_building', round(avg(world_building)::numeric,2), min(world_building), max(world_building), count(world_building)::int from installment_scores
       union all select 'originality', round(avg(originality)::numeric,2), min(originality), max(originality), count(originality)::int from installment_scores
       union all select 'craft', round(avg(craft)::numeric,2), min(craft), max(craft), count(craft)::int from installment_scores`;
-  },
+    },
 
-  /** Highest-rated installments by the weighted editorial formula. */
-  async top(sql) {
-    return sql.unsafe<Row[]>(`
+    /** Highest-rated installments by the weighted editorial formula. */
+    async top(sql) {
+      return sql.unsafe<Row[]>(`
       select t.canonical_title, i.title as installment,
              round(${ratingExpression}::numeric, 2) as rating
       from installment_scores s
@@ -170,10 +171,10 @@ const presets = new Map<string, (sql: Sql) => Promise<CommandResult>>(Object.ent
       where s.story is not null and s.characters is not null and s.depth is not null
         and s.world_building is not null and s.originality is not null and s.craft is not null
       order by rating desc limit 25`);
-  },
+    },
 
-  async vocabulary(sql) {
-    return sql<Row[]>`
+    async vocabulary(sql) {
+      return sql<Row[]>`
       select 'genre' as kind, g.slug, g.label_en, count(tg.title_id)::int as titles
         from genres g left join title_genres tg on tg.value_id = g.id group by 1,2,3
       union all select 'tone', t.slug, t.label_en, count(tt.title_id)::int
@@ -183,48 +184,49 @@ const presets = new Map<string, (sql: Sql) => Promise<CommandResult>>(Object.ent
       union all select 'country', c.slug, c.label_en, count(tc.title_id)::int
         from countries c left join title_countries tc on tc.value_id = c.id group by 1,2,3
       order by titles desc, kind`;
-  },
+    },
 
-  async classification(sql) {
-    return sql<Row[]>`
+    async classification(sql) {
+      return sql<Row[]>`
       select audience, age, sexuality_risk, behavioral_risk, theology_risk, count(*)::int as titles
       from titles group by 1,2,3,4,5 order by titles desc`;
-  },
+    },
 
-  async planets(sql) {
-    return sql<Row[]>`
+    async planets(sql) {
+      return sql<Row[]>`
       select p.slug, p.name_ar, p.name_en, count(tp.title_id)::int as titles,
              count(tp.featured_rank)::int as featured
       from planets p left join title_planets tp on tp.planet_id = p.id
       group by 1,2,3 order by titles desc`;
-  },
+    },
 
-  async awards(sql) {
-    return sql<Row[]>`
+    async awards(sql) {
+      return sql<Row[]>`
       select organization_name, result, count(*)::int as n,
              count(distinct title_id)::int as titles,
              min(year) as earliest, max(year) as latest
       from award_recognitions group by 1,2 order by n desc`;
-  },
+    },
 
-  async people(sql) {
-    return sql<Row[]>`
+    async people(sql) {
+      return sql<Row[]>`
       select e.name, e.kind, r.label_en as role, count(*)::int as credits
       from contributions c
       join entities e on e.id = c.entity_id
       join roles r on r.id = c.role_id
       group by 1,2,3 order by credits desc limit 40`;
-  },
+    },
 
-  async media(sql) {
-    return sql<Row[]>`
+    async media(sql) {
+      return sql<Row[]>`
       select x.role, count(*)::int as assignments,
              count(distinct x.asset_id)::int as assets,
              pg_size_pretty(sum(a.byte_size)::bigint) as total_size
       from media_asset_assignments x join media_assets a on a.id = x.asset_id
       group by 1 order by assignments desc`;
-  },
-}));
+    },
+  }),
+);
 
 export const statsPresets = [...presets.keys()];
 

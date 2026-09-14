@@ -1,7 +1,17 @@
 import * as React from "react";
 
+function matchesQuery(query: string) {
+  return import.meta.env.SSR ? false : matchMedia(query).matches;
+}
+
 export function useMediaQuery(query: string) {
-  const [value, setValue] = React.useState(false);
+  const [trackedQuery, setTrackedQuery] = React.useState(query);
+  const [value, setValue] = React.useState(() => matchesQuery(query));
+
+  if (query !== trackedQuery) {
+    setTrackedQuery(query);
+    setValue(matchesQuery(query));
+  }
 
   React.useEffect(() => {
     function onChange(event: MediaQueryListEvent) {
@@ -10,7 +20,6 @@ export function useMediaQuery(query: string) {
 
     const result = matchMedia(query);
     result.addEventListener("change", onChange);
-    setValue(result.matches);
 
     return () => result.removeEventListener("change", onChange);
   }, [query]);

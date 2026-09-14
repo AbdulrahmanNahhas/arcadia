@@ -90,7 +90,7 @@ describe("selectPlaybackTarget", () => {
 
 describe("resolvePlayback", () => {
   it("uses saved torrent candidates without contacting Arcadia's server", async () => {
-    const fetch = vi.fn();
+    const fetch = vi.fn<() => Promise<Response>>();
     vi.stubGlobal("fetch", fetch);
     const streams: InstallmentStreams = {
       installmentId: "11111111-1111-1111-1111-111111111111",

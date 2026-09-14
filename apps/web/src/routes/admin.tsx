@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { AdminShell } from "@/features/admin/admin-shell";
 import { currentAccountQueryOptions } from "@/features/accounts/api";
+import { AdminShell } from "@/features/admin/admin-shell";
 
 export const Route = createFileRoute("/admin")({
   // Family profiles never load the admin bundle: the role is checked before the route resolves,

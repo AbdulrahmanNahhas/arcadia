@@ -24,7 +24,7 @@ const themePreferenceSchema = accountPreferencesSchema.pick({ theme: true });
  * mirrored by `app.windows[].backgroundColor` in tauri.conf.json for the native window itself),
  * so a cold start never flashes white. Keep in sync with the two `--background` tokens.
  */
-const BACKGROUND_HEX = { dark: "#080c13", light: "#f4f7fb" } satisfies Record<
+const BACKGROUND_HEX = { dark: "#070a0f", light: "#f9fafc" } satisfies Record<
   ResolvedTheme,
   string
 >;

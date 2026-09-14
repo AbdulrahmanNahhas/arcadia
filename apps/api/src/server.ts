@@ -1,6 +1,6 @@
-import "./env";
 import { serve } from "@hono/node-server";
 import { app } from "./app";
+import { envLoaded, envPath } from "./env";
 
 if (process.env.NODE_ENV === "production" && process.env.ARCADIA_MOCK_AUTH === "true")
   throw new Error("Refusing production startup while ARCADIA_MOCK_AUTH=true");
@@ -11,6 +11,7 @@ const port = Number(process.env.PORT ?? 23101);
 // set HOST explicitly rather than flipping the default, so bare `node dist/server.js` outside
 // Docker stays loopback-only unless someone opts in on purpose.
 const hostname = process.env.HOST ?? "127.0.0.1";
-serve({ fetch: app.fetch, hostname, port }, (info) =>
-  console.log(`Arcadia API listening on http://${info.address}:${info.port}`),
-);
+serve({ fetch: app.fetch, hostname, port }, (info) => {
+  console.log(`Arcadia API listening on http://${info.address}:${info.port}`);
+  if (envLoaded) console.log(`Loaded local environment from ${envPath}`);
+});

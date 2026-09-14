@@ -71,12 +71,12 @@ const orderedComponent = (members: string[]) => {
               String(relation.target_work_id) === id,
           ),
       )
-      .sort(compareWorks)[0];
+      .toSorted(compareWorks)[0];
     if (!next) break;
     ordered.push(next);
     remaining.delete(next);
   }
-  return [...ordered, ...[...remaining].sort(compareWorks)];
+  return [...ordered, ...[...remaining].toSorted(compareWorks)];
 };
 const groups = [...components.values()]
   .filter((members) => members.length > 1)
@@ -101,7 +101,7 @@ const parseMetadata = (work: Row) => {
 };
 const mergeEditorial = (values: string[]) => {
   const unique = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-  return unique.sort((left, right) => right.length - left.length)[0] ?? null;
+  return unique.toSorted((left, right) => right.length - left.length)[0] ?? null;
 };
 
 const sql = postgres(process.env.DATABASE_URL, { max: 1 });

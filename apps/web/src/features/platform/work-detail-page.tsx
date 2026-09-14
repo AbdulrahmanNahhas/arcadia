@@ -1,5 +1,5 @@
 import type { AccountPlaybackState, AwardRecognition } from "@arcadia/contracts";
-import { titleShapeOf } from "@arcadia/domain";
+import { titleStructureOf } from "@arcadia/domain";
 import {
   ArrowSquareOutIcon,
   BookmarkSimpleIcon,
@@ -1091,9 +1091,9 @@ function OverviewSection({
         <section>
           <Subsection title="حقائق ومعلومات" description="خلفية العمل ومصدره وأبرز حقائق إنتاجه." />
           <ul className="grid gap-3 sm:grid-cols-2">
-            {work.trivia.map((fact, index) => (
+            {work.trivia.map((fact) => (
               <li
-                key={index.toString()}
+                key={fact}
                 className="flex gap-3 rounded-lg border border-border/40 bg-muted/20 p-4 text-sm leading-7 text-foreground/80"
               >
                 <LightbulbIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
@@ -2139,7 +2139,7 @@ function WorkDetails({
   const formatDetails: Array<readonly [string, string]> = [
     ...(work.runtimeMinutes ? [["المدة", `${work.runtimeMinutes} دقيقة`] as const] : []),
     ...(work.playtimeMinutes ? [["مدة اللعب", `${work.playtimeMinutes} دقيقة`] as const] : []),
-    ...(titleShapeOf(work.kind) === "series"
+    ...(titleStructureOf(work.kind) === "series"
       ? [
           ...(structure.seasons.length
             ? [["عدد المواسم", `${structure.seasons.length} موسم`] as const]

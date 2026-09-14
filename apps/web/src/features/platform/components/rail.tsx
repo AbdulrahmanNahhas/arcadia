@@ -90,8 +90,8 @@ export function RailHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="relative right-5 mx-auto mb-5 flex max-w-400 items-end justify-between gap-5 border-s-2 border-primary/50 ps-4">
-      <div>
+    <header className="mx-auto mb-5 px-4 flex max-w-400 items-end justify-between gap-5">
+      <div className=" border-s-2 border-primary/50 ps-4">
         <h2 id={id} className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
           {title}
         </h2>
@@ -103,7 +103,7 @@ export function RailHeader({
 }
 
 export const railActionClass = cn(
-  "me-10 flex shrink-0 items-center gap-1.5 text-sm font-medium text-foreground transition duration-200 hover:border-primary/50! hover:bg-primary/10! hover:text-primary!",
+  "flex shrink-0 items-center gap-1.5 text-sm font-medium text-foreground transition duration-200 hover:border-primary/50! hover:bg-primary/10! hover:text-primary!",
   buttonVariants({ variant: "outline" }),
 );
 

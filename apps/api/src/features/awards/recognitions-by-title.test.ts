@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { adminAwardRecognitionSchema } from "@arcadia/contracts";
 import { afterAll, describe, expect, it } from "vitest";
+import { z } from "zod";
 import { app } from "../../app";
 import { database } from "../../database";
 
@@ -34,6 +36,10 @@ describe("GET /api/v1/admin/awards/recognitions?titleId=", () => {
       insert into titles (canonical_title, sort_title)
       values ('Recognitions By Title Test', 'recognitions by title test') returning id`;
     titleId = String(assertDefined(title, "expected title").id);
+
+    expect(organizationId).not.toBe("");
+    expect(categoryId).not.toBe("");
+    expect(titleId).not.toBe("");
   });
 
   it("requires a titleId query parameter", async () => {
@@ -61,12 +67,7 @@ describe("GET /api/v1/admin/awards/recognitions?titleId=", () => {
 
     const response = await app.request(`/api/v1/admin/awards/recognitions?titleId=${titleId}`);
     expect(response.status).toBe(200);
-    const rows = (await response.json()) as Array<{
-      titleId: string;
-      organizationId: string | null;
-      categoryId: string | null;
-      result: string;
-    }>;
+    const rows = z.array(adminAwardRecognitionSchema).parse(await response.json());
     expect(rows).toHaveLength(1);
     expect(rows[0]?.titleId).toBe(titleId);
     expect(rows[0]?.organizationId).toBe(organizationId);

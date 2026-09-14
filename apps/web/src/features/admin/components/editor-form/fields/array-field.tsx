@@ -4,9 +4,11 @@ import { useId, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Field } from "./field";
 
+const EMPTY_VALUES: string[] = [];
+
 export function ArrayField({
   label,
-  value = [],
+  value = EMPTY_VALUES,
   onChange,
   options,
   maxItems,

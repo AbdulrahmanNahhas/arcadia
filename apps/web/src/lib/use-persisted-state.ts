@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
  */
 export function usePersistedState<T>(key: string, defaultValue: T) {
   const [value, setValue] = useState<T>(() => {
-    if (typeof window === "undefined") return defaultValue;
+    if (import.meta.env.SSR) return defaultValue;
     try {
       const stored = window.localStorage.getItem(key);
       if (stored === null) return defaultValue;

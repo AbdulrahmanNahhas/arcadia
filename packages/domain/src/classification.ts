@@ -28,12 +28,13 @@ export function effectiveClassification(
   title: Classification,
   installment: ClassificationOverrides,
 ): Classification {
-  return Object.fromEntries(
-    Object.entries(title).map(([key, value]) => [
-      key,
-      installment[key as keyof Classification] ?? value,
-    ]),
-  ) as Classification;
+  return {
+    audience: installment.audience ?? title.audience,
+    age: installment.age ?? title.age,
+    sexuality: installment.sexuality ?? title.sexuality,
+    behavioral: installment.behavioral ?? title.behavioral,
+    theology: installment.theology ?? title.theology,
+  };
 }
 
 const rank = <T extends string>(values: readonly T[], value: T) => values.indexOf(value);
@@ -49,8 +50,12 @@ export function isClassificationAllowed(value: Classification, maximum: Classifi
 }
 
 export function intersectClassifications(a: Classification, b: Classification): Classification {
-  const stricter = <T extends string>(values: readonly T[], left: T, right: T) =>
-    values[Math.min(rank(values, left), rank(values, right))] as T;
+  const stricter = <T extends string>(values: readonly T[], left: T, right: T): T => {
+    const value = values[Math.min(rank(values, left), rank(values, right))];
+    if (value === undefined)
+      throw new Error("stricter() requires left and right to both be members of values");
+    return value;
+  };
   return {
     audience: stricter(audienceValues, a.audience, b.audience),
     age: stricter(ageValues, a.age, b.age),

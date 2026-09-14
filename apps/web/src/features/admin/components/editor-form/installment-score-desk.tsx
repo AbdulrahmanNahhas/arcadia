@@ -1,6 +1,6 @@
 import { CheckCircleIcon, FloppyDiskIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -133,17 +133,22 @@ export function InstallmentScoreDesk({
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<EditableWorkStructure | null>(null);
   const [activeInstallmentId, setActiveInstallmentId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!structure) return;
-    const nextDraft = editableStructure(structure);
-    setDraft(nextDraft);
-    setActiveInstallmentId((active) =>
-      active && nextDraft.seasons.some((installment) => installment.id === active)
-        ? active
-        : (nextDraft.seasons[0]?.id ?? null),
-    );
-  }, [structure]);
+  // Adjust draft/active-installment state while rendering (React's supported pattern for
+  // deriving state from a changed prop) instead of an effect, so a new `structure` never
+  // renders once with the previous draft before catching up.
+  const [syncedStructure, setSyncedStructure] = useState(structure);
+  if (structure !== syncedStructure) {
+    setSyncedStructure(structure);
+    if (structure) {
+      const nextDraft = editableStructure(structure);
+      setDraft(nextDraft);
+      setActiveInstallmentId((active) =>
+        active && nextDraft.seasons.some((installment) => installment.id === active)
+          ? active
+          : (nextDraft.seasons[0]?.id ?? null),
+      );
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: saveWorkStructure,

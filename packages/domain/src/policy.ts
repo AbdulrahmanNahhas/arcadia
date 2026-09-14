@@ -51,12 +51,13 @@ export type VisibilityCandidate = {
   planetIds?: readonly string[];
 };
 
+const hasBlocked = (values: readonly string[] | undefined, blocked: ReadonlySet<string>) =>
+  values?.some((value) => blocked.has(value)) ?? false;
+
 export function isVisibleToPolicy(candidate: VisibilityCandidate, policy: VisibilityPolicy) {
   if (!isClassificationAllowed(candidate.classification, policy.maximum)) return false;
   if (candidate.kind && !policy.allowedKinds.has(candidate.kind)) return false;
   if (policy.blockedTitleIds.has(candidate.id)) return false;
-  const hasBlocked = (values: readonly string[] | undefined, blocked: ReadonlySet<string>) =>
-    values?.some((value) => blocked.has(value)) ?? false;
   return !(
     hasBlocked(candidate.tagIds, policy.blockedTagIds) ||
     hasBlocked(candidate.genreIds, policy.blockedGenreIds) ||

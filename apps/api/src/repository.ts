@@ -23,6 +23,8 @@ import {
 import { database } from "./database";
 
 type SqlRow = Record<string, unknown>;
+
+const ids = (rows: SqlRow[]) => new Set(rows.map((item) => String(item.id)));
 const numeric = (value: unknown) => (value == null ? null : Number(value));
 
 /**
@@ -135,7 +137,6 @@ export async function visibilityPolicyForAccount(
     behavioral: policyRow.restriction_behavioral_risk as Classification["behavioral"],
     theology: policyRow.restriction_theology_risk as Classification["theology"],
   };
-  const ids = (rows: SqlRow[]) => new Set(rows.map((item) => String(item.id)));
   // An account with no preferences row yet (or a row predating this column) sees every type —
   // the shelf filter is opt-in, so its absence must never hide anything.
   const kinds = Array.isArray(policyRow.visible_title_kinds)
@@ -426,7 +427,7 @@ function compareNewest(left: string | number | null, right: string | number | nu
 }
 
 function sortTitleSummaries(items: TitleSummary[], sort: "title" | "release" | "score") {
-  return [...items].sort((left, right) => {
+  return items.toSorted((left, right) => {
     if (sort === "release") {
       const comparison = compareNewest(left.releaseYear, right.releaseYear);
       if (comparison) return comparison;
@@ -447,7 +448,7 @@ function sortInstallments(
   titlesById: Map<string, SqlRow>,
   sort: "title" | "release" | "score",
 ) {
-  return [...items].sort((left, right) => {
+  return items.toSorted((left, right) => {
     if (sort === "release") {
       const comparison = compareNewest(left.releaseDate, right.releaseDate);
       if (comparison) return comparison;

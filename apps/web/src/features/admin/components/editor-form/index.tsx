@@ -1,7 +1,7 @@
 "use client";
 
 import type { ArtworkCandidate, ArtworkProvider } from "@arcadia/contracts";
-import { titleFormatOf, titleShapeOf } from "@arcadia/domain";
+import { titleFormatOf, titleStructureOf } from "@arcadia/domain";
 import {
   CheckIcon,
   CodeIcon,
@@ -493,7 +493,7 @@ function WorkEditorFormFields({
   // poster/banner/logo uses its first film's id instead. Series titles are the opposite: the
   // title itself is the one TMDB/AniList/… entry, so `draft.tmdbId` is used directly. Only the
   // movie/series half of the type decides this; animated and live action behave the same.
-  const isSeries = titleShapeOf(draft.kind) === "series";
+  const isSeries = titleStructureOf(draft.kind) === "series";
   const firstMovieTmdbId =
     structure?.seasons.find(
       (season) => season.installmentKind === "movie" || season.installmentKind === "special",

@@ -64,6 +64,8 @@ export async function searchAniListArtwork(input: {
     ),
   });
   if (!response.ok) return { candidates: [] };
+  // SAFETY: the GraphQL query above requests exactly the `data.Media` fields AniListResponse
+  // declares, and AniList always returns `data.Media` (null when no match) for this query shape.
   const body = (await response.json()) as AniListResponse;
   const media = body.data.Media;
   if (!media) return { candidates: [] };

@@ -10,8 +10,8 @@ export const titleFormatSchema = z.enum(["animated", "live-action"]);
 export type TitleFormat = z.infer<typeof titleFormatSchema>;
 
 /** Film vs. episodic — derived, never stored: a title is a series exactly when it has a season. */
-export const titleShapeSchema = z.enum(["movie", "series"]);
-export type TitleShape = z.infer<typeof titleShapeSchema>;
+export const titleStructureSchema = z.enum(["movie", "series"]);
+export type TitleStructure = z.infer<typeof titleStructureSchema>;
 
 /**
  * The four catalog types, one per (format × shape) pair. This is what readers filter, group,
@@ -28,26 +28,26 @@ export const titleKinds = [
 export const titleKindSchema = z.enum(titleKinds);
 export type TitleKind = z.infer<typeof titleKindSchema>;
 
-export function titleKindOf(format: TitleFormat, shape: TitleShape): TitleKind {
-  return `${format}-${shape}`;
+export function titleKindOf(format: TitleFormat, structure: TitleStructure): TitleKind {
+  return `${format}-${structure}`;
 }
 
 export function titleFormatOf(kind: TitleKind): TitleFormat {
   return kind.startsWith("live-action") ? "live-action" : "animated";
 }
 
-export function titleShapeOf(kind: TitleKind): TitleShape {
+export function titleStructureOf(kind: TitleKind): TitleStructure {
   return kind.endsWith("-series") ? "series" : "movie";
 }
 
-export const titleKindLabels: Record<TitleKind, { ar: string; en: string }> = {
+export const titleKindLabels = {
   "animated-movie": { ar: "فيلم رسوم متحركة", en: "Animated Movie" },
   "animated-series": { ar: "مسلسل رسوم متحركة", en: "Animated Series" },
   "live-action-movie": { ar: "فيلم واقعي", en: "Live-Action Movie" },
   "live-action-series": { ar: "مسلسل واقعي", en: "Live-Action Series" },
-};
+} satisfies Record<TitleKind, { ar: string; en: string }>;
 
-export const titleFormatLabels: Record<TitleFormat, { ar: string; en: string }> = {
+export const titleFormatLabels = {
   animated: { ar: "رسوم متحركة", en: "Animated" },
   "live-action": { ar: "تمثيل واقعي", en: "Live Action" },
-};
+} satisfies Record<TitleFormat, { ar: string; en: string }>;

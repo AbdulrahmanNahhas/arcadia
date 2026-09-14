@@ -75,21 +75,21 @@ const scoreOrder = [
 
 // Safest first, same framing as audienceOrder above.
 const theologyRiskOrder = ["none", "low", "medium", "high", unknownKey];
-const theologyRiskLabelsAr: Record<(typeof theologyRiskOrder)[number], string> = {
+const theologyRiskLabelsAr = {
   none: "لا يوجد",
   low: "منخفض",
   medium: "متوسط",
   high: "مرتفع",
   unknown: unknownLabel,
-};
+} satisfies Record<(typeof theologyRiskOrder)[number], string>;
 // Green-to-red risk scale, echoing the destructive/warning hues used elsewhere for severity.
-const theologyRiskColors: Record<(typeof theologyRiskOrder)[number], string> = {
+const theologyRiskColors = {
   none: "oklch(0.72 0.19 149)",
   low: "oklch(0.8 0.16 99)",
   medium: "oklch(0.7 0.19 51)",
   high: "oklch(0.64 0.22 27)",
   unknown: "oklch(0.7 0 0)",
-};
+} satisfies Record<(typeof theologyRiskOrder)[number], string>;
 
 type GroupIdentity = { key: string; label: string; icon?: string; color?: string; slug?: string };
 

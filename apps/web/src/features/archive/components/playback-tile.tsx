@@ -15,6 +15,7 @@ import { remainingLabel, watchPercent } from "./shared";
  * resume surface. `bannerPath` is the intended art; `posterPath` is the fallback, cropped to the
  * same frame so a title with no banner still lines up in the grid instead of breaking the row.
  */
+
 export function PlaybackTile({
   item,
   played = false,
@@ -45,19 +46,29 @@ export function PlaybackTile({
       ? (remainingLabel(item.positionSeconds, item.durationSeconds) ?? "بدأته")
       : null;
   const artwork = item.bannerPath ?? item.posterPath;
+
   return (
-    <div className="group/tile relative flex min-w-0 flex-col gap-2.5">
+    <div className="relative flex min-w-0 flex-col gap-2.5">
       <Link
         to="/player/$installmentId"
         params={{ installmentId: item.installmentId }}
-        search={{ titleId: item.titleId, episodeId: item.episodeId, origin }}
-        className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        search={{
+          titleId: item.titleId,
+          episodeId: item.episodeId,
+          origin,
+        }}
+        className="group/tile block rounded-2xl outline-none"
       >
         <div
           className={cn(
-            "relative aspect-video overflow-hidden rounded-2xl bg-muted ring-1 ring-foreground/10",
+            "relative aspect-video overflow-hidden rounded-xl bg-muted",
+            "ring-1 ring-border/70",
+            "transition-[box-shadow,ring-color,transform] duration-300",
             variant === "rail" &&
-              "shadow-md shadow-black/20 transform-gpu transition-[transform,box-shadow] duration-300 group-hover/tile:-translate-y-1 group-hover/tile:scale-[1.02] group-hover/tile:shadow-2xl group-hover/tile:shadow-black/40 motion-reduce:transition-none",
+              "group-hover/tile:-translate-y-1 group-hover/tile:scale-[1.02] group-hover/tile:shadow-inner group-hover/tile:shadow-foreground/15",
+            "group-focus/tile:ring-2 group-focus/tile:ring-ring",
+            "group-focus/tile:shadow-xl group-focus/tile:shadow-foreground/20",
+            "motion-reduce:transition-none motion-reduce:transform-none",
           )}
         >
           {artwork ? (
@@ -66,41 +77,59 @@ export function PlaybackTile({
               alt=""
               loading="lazy"
               decoding="async"
-              className="size-full object-cover transition-transform duration-500 group-hover/tile:scale-[1.04] motion-reduce:transition-none"
+              className={cn(
+                "size-full object-cover",
+                "transition-transform duration-500",
+                "group-hover/tile:scale-[1.045]",
+                "motion-reduce:transition-none",
+              )}
             />
           ) : (
-            <div className="flex size-full items-end bg-linear-to-br from-primary/25 via-muted to-muted p-3">
-              <span className="font-heading text-sm leading-6 text-foreground/90">
+            <div className="flex size-full items-end bg-linear-to-br from-primary/25 via-muted to-muted p-4">
+              <span className="font-heading text-sm font-medium leading-5 text-foreground/90">
                 {item.title}
               </span>
             </div>
           )}
+
           <div
-            data-on-artwork
-            className="absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-transparent"
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-background/85 via-background/20 to-transparent"
           />
+
           <div
-            data-on-artwork
-            className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover/tile:opacity-100 motion-reduce:transition-none"
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 flex items-center justify-center",
+              "bg-background/20 opacity-0 backdrop-blur-[1px]",
+              "transition-opacity duration-200",
+              "group-hover/tile:opacity-100",
+              "group-focus/tile:opacity-100",
+              "motion-reduce:transition-none",
+            )}
           >
             <span
-              data-on-artwork
-              className="flex size-12 items-center justify-center rounded-full bg-white text-black shadow-lg"
+              className={cn(
+                "flex size-12 items-center justify-center rounded-full",
+                "bg-background text-foreground",
+                "ring-1 ring-border/80 shadow-xl shadow-foreground/20",
+                "transition-transform duration-200",
+                "group-hover/tile:scale-105",
+                "group-focus/tile:scale-105",
+                "motion-reduce:transition-none",
+              )}
             >
-              <PlayIcon weight="fill" className="size-5" />
+              <PlayIcon weight="fill" className="ms-0.5 size-5" />
             </span>
           </div>
+
           {played ? (
-            <span
-              data-on-artwork
-              className="absolute top-2 inset-s-2 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[0.6875rem] font-medium text-white ring-1 ring-white/15"
-            >
-              <CheckCircleIcon weight="fill" className="size-3.5" />
+            <span className="absolute inset-s-2.5 top-2.5 inline-flex items-center gap-1.5 rounded-full bg-background/75 px-2.5 py-1 text-[0.6875rem] font-medium text-foreground ring-1 ring-border/70 backdrop-blur-md">
+              <CheckCircleIcon weight="fill" className="size-3.5 text-primary" />
               مكتمل
             </span>
           ) : null}
-          {/* The progress bar sits on the art's bottom edge at a real, readable weight — the point
-           *  of this surface is telling how far in you are at a glance, so it is not a hairline. */}
+
           {percent !== null && !played ? (
             <div
               role="progressbar"
@@ -108,11 +137,10 @@ export function PlaybackTile({
               aria-valuenow={percent}
               aria-valuemin={0}
               aria-valuemax={100}
-              data-on-artwork
-              className="absolute inset-x-0 bottom-0 h-1.5 bg-black/55"
+              className="absolute inset-x-3 bottom-1.5 rounded-full h-1 overflow-hidden bg-background/70 ltr"
             >
               <div
-                className="h-full rounded-e-full bg-primary"
+                className="h-full rounded-full bg-primary transition-[width] duration-500 motion-reduce:transition-none"
                 style={{ width: `${Math.max(percent, 2)}%` }}
               />
             </div>
@@ -120,45 +148,75 @@ export function PlaybackTile({
         </div>
       </Link>
 
-      <div className="flex min-w-0 items-start gap-2 px-0.5">
+      <div className="flex min-w-0 items-start gap-2">
         <div className="min-w-0 flex-1">
-          <Link
-            to="/titles/$titleId"
-            params={{ titleId: item.titleId }}
-            className="block truncate font-heading text-sm font-semibold hover:text-primary"
-          >
+          <div className="truncate font-heading text-sm font-semibold leading-5 text-foreground">
             {item.title}
-          </Link>
-          <p className="truncate text-xs text-muted-foreground">
-            {item.episodeLabel ?? item.installmentTitle}
-          </p>
-          {status || footnote ? (
-            <p
-              className={cn(
-                "mt-0.5 truncate text-xs tabular-nums",
-                played || !status ? "text-muted-foreground" : "font-medium text-primary",
-              )}
-            >
-              {status}
-              {status && percent !== null && !played ? (
-                <span className="text-muted-foreground"> · {percent}٪</span>
-              ) : null}
-              {footnote ? (
-                <span className="text-muted-foreground">
-                  {status ? " · " : ""}
-                  {footnote}
-                </span>
-              ) : null}
+          </div>
+
+          {(item.episodeLabel ?? item.installmentTitle) !== item.title ? (
+            <p className="mt-0.5 truncate text-xs leading-5 text-muted-foreground">
+              {item.episodeLabel ?? item.installmentTitle}
             </p>
           ) : null}
+
+          {status || footnote || (percent !== null && !played) ? (
+            <div className="mt-0.5 flex min-w-0 items-center gap-1 text-xs leading-5 tabular-nums">
+              {status ? (
+                <span
+                  className={cn(
+                    "truncate",
+                    played ? "text-muted-foreground" : "font-medium text-primary",
+                  )}
+                >
+                  {status}
+                </span>
+              ) : null}
+
+              {percent !== null && !played ? (
+                <>
+                  {status ? (
+                    <span aria-hidden className="shrink-0 text-muted-foreground/60">
+                      ·
+                    </span>
+                  ) : null}
+
+                  <span className="shrink-0 text-muted-foreground">{percent}٪</span>
+                </>
+              ) : null}
+
+              {footnote ? (
+                <>
+                  {status || (percent !== null && !played) ? (
+                    <span aria-hidden className="shrink-0 text-muted-foreground/60">
+                      ·
+                    </span>
+                  ) : null}
+
+                  <span className="min-w-0 truncate text-muted-foreground">{footnote}</span>
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </div>
+
         {onRemove ? (
           <button
             type="button"
             aria-label={removeLabel ?? "حذف من السجل"}
             disabled={removing}
             onClick={onRemove}
-            className="-me-1 flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover/tile:opacity-100 disabled:opacity-40"
+            className={cn(
+              "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full",
+              "text-muted-foreground opacity-0",
+              "transition-[opacity,background-color,color] duration-150",
+              "hover:bg-destructive/10 hover:text-destructive",
+              "focus-visible:opacity-100 focus-visible:outline-none",
+              "focus-visible:ring-2 focus-visible:ring-ring",
+              "group-hover/tile:opacity-100",
+              "disabled:pointer-events-none disabled:opacity-40",
+              "motion-reduce:transition-none",
+            )}
           >
             <TrashIcon className="size-4" />
           </button>

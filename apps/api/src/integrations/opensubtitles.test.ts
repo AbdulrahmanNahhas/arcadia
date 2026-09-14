@@ -83,11 +83,11 @@ describe("fetchSubtitleCandidates", () => {
     }
   });
 });
-describe("sanitizeSubtitleBytes", () => {
-  function decode(bytes: Uint8Array) {
-    return new TextDecoder("utf-8").decode(bytes);
-  }
+function decode(bytes: Uint8Array) {
+  return new TextDecoder("utf-8").decode(bytes);
+}
 
+describe("sanitizeSubtitleBytes", () => {
   it("replaces the bidi mark entities with the real Unicode characters", () => {
     const input = new TextEncoder().encode("&rlm;مرحباً&lrm; World");
     const output = decode(sanitizeSubtitleBytes(input));

@@ -1,11 +1,11 @@
 import type { Entity, WorkContribution } from "@/features/library/model";
 
-export const entityTypeLabels: Record<Entity["entityType"], string> = {
+export const entityTypeLabels = {
   person: "أشخاص",
   organization: "منظمات",
-};
+} satisfies Record<Entity["entityType"], string>;
 
-export const contributionRoleLabels: Record<WorkContribution["role"], string> = {
+export const contributionRoleLabels = {
   creator: "منشئ",
   original_author: "مؤلف أصلي",
   director: "مخرج",
@@ -21,7 +21,7 @@ export const contributionRoleLabels: Record<WorkContribution["role"], string> = 
   production_company: "شركة إنتاج",
   distributor: "موزّع",
   publisher: "ناشر",
-};
+} satisfies Record<WorkContribution["role"], string>;
 
 export function entityMonogram(name: string) {
   return name

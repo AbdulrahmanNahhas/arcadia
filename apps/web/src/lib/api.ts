@@ -15,7 +15,7 @@ const apiUrlOverrideKey = "arcadia:apiUrl";
  * simpler than threading a reactive base URL through every consumer of the `apiBaseUrl` constant.
  */
 function readApiUrlOverride(): string | null {
-  if (typeof window === "undefined") return null;
+  if (import.meta.env.SSR) return null;
   try {
     return window.localStorage.getItem(apiUrlOverrideKey);
   } catch {
@@ -26,7 +26,7 @@ function readApiUrlOverride(): string | null {
 function resolveApiBaseUrl() {
   const configured =
     readApiUrlOverride() || import.meta.env.VITE_API_URL || "http://127.0.0.1:23101";
-  if (typeof window === "undefined") return configured;
+  if (import.meta.env.SSR) return configured;
 
   const url = new URL(configured);
   const loopbackHosts = new Set(["127.0.0.1", "localhost", "::1"]);
@@ -54,7 +54,7 @@ export const apiBaseUrlDefault = import.meta.env.VITE_API_URL ?? "http://127.0.0
  */
 export async function setApiUrlOverride(url: string | null) {
   if (url) {
-    new URL(url); // throws on garbage input before it ever reaches localStorage
+    if (!URL.canParse(url)) throw new TypeError(`Invalid URL: ${url}`);
     window.localStorage.setItem(apiUrlOverrideKey, url);
   } else {
     window.localStorage.removeItem(apiUrlOverrideKey);
@@ -77,21 +77,45 @@ export async function setApiUrlOverride(url: string | null) {
  * the same rule. Missing it made every media-library and existing-asset-picker thumbnail request
  * the web origin after media moved out of the web build.
  */
-export function rewriteMediaUrls<T>(value: T): T {
-  if (Array.isArray(value)) return value.map((item) => rewriteMediaUrls(item)) as T;
-  if (value && typeof value === "object") {
-    const result: Record<string, unknown> = {};
-    for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
-      result[key] =
-        (key.endsWith("Path") || key === "path") &&
-        typeof entryValue === "string" &&
-        entryValue.startsWith("/media/")
-          ? `${apiBaseUrl}${entryValue}`
-          : rewriteMediaUrls(entryValue);
+/** A parsed JSON value — every API response body is one of these before it's cast to its
+ *  contract type, which is exactly the shape `rewriteMediaUrls` needs to walk recursively. */
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+function isJsonRecord(value: JsonValue): value is { [key: string]: JsonValue } {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isRewritableMediaPath(key: string, value: JsonValue): value is string {
+  return (
+    (key.endsWith("Path") || key === "path") &&
+    typeof value === "string" &&
+    value.startsWith("/media/")
+  );
+}
+
+function rewriteMediaPaths(value: JsonValue): JsonValue {
+  if (Array.isArray(value)) return value.map((item) => rewriteMediaPaths(item));
+  if (isJsonRecord(value)) {
+    const result: { [key: string]: JsonValue } = {};
+    for (const [key, entryValue] of Object.entries(value)) {
+      result[key] = isRewritableMediaPath(key, entryValue)
+        ? `${apiBaseUrl}${entryValue}`
+        : rewriteMediaPaths(entryValue);
     }
-    return result as T;
+    return result;
   }
   return value;
+}
+
+export function rewriteMediaUrls<T>(value: T): T {
+  // SAFETY: every call site passes a value decoded from an API response body (or a piece of
+  // one), which is always JSON — a string/number/boolean/null, or an array/object built from
+  // those — so it always fits `JsonValue`.
+  const rewritten = rewriteMediaPaths(value as JsonValue);
+  // SAFETY: `rewriteMediaPaths` preserves every key and array position, changing only string
+  // leaves that satisfy `isRewritableMediaPath`, so the result still fits the same `T` shape
+  // `value` had.
+  return rewritten as T;
 }
 
 /**
@@ -204,6 +228,10 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     headers: withSessionToken({ "Content-Type": "application/json", ...init?.headers }),
   });
   if (!response.ok) {
+    // SAFETY: the shape below is only ever read through optional chaining (`body?.message`,
+    // `body?.issues`, `body?.code`) with a fallback for each, so a body that doesn't actually
+    // match — a non-JSON error page, a differently shaped payload — degrades to the fallback
+    // message below rather than throwing.
     const body = (await response.json().catch(() => null)) as {
       message?: string;
       issues?: ApiErrorIssue[];
@@ -216,12 +244,16 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       body?.code,
     );
   }
+  // SAFETY: `T` is the type the caller declares for this specific `path`; the API validates its
+  // own response bodies against the OpenAPI contract those types are generated from.
   return rewriteMediaUrls((await response.json()) as T);
 }
 
 export async function browseTitles(query: Record<string, string | number> = {}) {
   const { data, error } = await client.GET("/api/v1/titles", { params: { query } });
   if (error || !data) throw new Error("تعذّر تحميل الأرشيف من واجهة Arcadia.");
+  // SAFETY: `client` is generated from the same OpenAPI document `BrowseResponse` is generated
+  // from, so a successful `/api/v1/titles` response always matches it.
   return rewriteMediaUrls(data as BrowseResponse);
 }
 
@@ -251,12 +283,16 @@ export async function getTitle(titleId: string) {
   }
   if (result.response.status === 404) return null;
   if (result.error || !result.data) throw new Error("تعذّر تحميل تفاصيل العنوان.");
+  // SAFETY: `client` is generated from the same OpenAPI document `TitleDetail` is generated
+  // from, so a successful `/api/v1/titles/{titleId}` response always matches it.
   return rewriteMediaUrls(result.data as TitleDetail);
 }
 
 export async function getPlanets() {
   const { data, error } = await client.GET("/api/v1/planets");
   if (error || !data) throw new Error("تعذّر تحميل الكواكب.");
+  // SAFETY: `client` is generated from the same OpenAPI document, so a successful
+  // `/api/v1/planets` response always has exactly these fields.
   return data as Array<{
     id: string;
     slug: string;

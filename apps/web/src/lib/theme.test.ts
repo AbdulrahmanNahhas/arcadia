@@ -35,8 +35,8 @@ function runRestoreScript(stored: string | null, prefersDark: boolean) {
 
 describe("themeRestoreScript", () => {
   it("mirrors resolveTheme for every stored value", () => {
-    const dark = { theme: "dark", colorScheme: "dark", backgroundColor: "#080c13" };
-    const light = { theme: "light", colorScheme: "light", backgroundColor: "#f4f7fb" };
+    const dark = { theme: "dark", colorScheme: "dark", backgroundColor: "#070a0f" };
+    const light = { theme: "light", colorScheme: "light", backgroundColor: "#f9fafc" };
     expect(runRestoreScript(null, false)).toEqual(dark);
     expect(runRestoreScript("light", true)).toEqual(light);
     expect(runRestoreScript("system", true)).toEqual(dark);

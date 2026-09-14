@@ -498,7 +498,7 @@ export async function adminPlanetsWithWorks(): Promise<PlanetWithWorks[]> {
     reviewCount: 0,
     works: works
       .filter((work) => work.planetId === row.id)
-      .sort(
+      .toSorted(
         (left, right) =>
           (right.year ?? 0) - (left.year ?? 0) ||
           (left.arabicTitle || left.title).localeCompare(right.arabicTitle || right.title, "ar"),
@@ -516,7 +516,7 @@ export async function planetsWithWorks(includePrivate = false): Promise<PlanetWi
     .map((row, index) => {
       const planetWorks = works
         .filter((work) => work.planetId === row.id)
-        .sort((left, right) => {
+        .toSorted((left, right) => {
           const yearLeft = left.year ? Number(left.year) : 0;
           const yearRight = right.year ? Number(right.year) : 0;
 
@@ -549,9 +549,9 @@ function adminEntityToEntity(item: AdminEntity): Entity {
     calculatedRating: null,
     isSequelMovie: false,
     roles: work.contributions.map(({ role }) => role as WorkContribution["role"]),
-    contributions: work.contributions.map((contribution) => ({
-      ...contribution,
-      role: contribution.role as WorkContribution["role"],
+    contributions: work.contributions.map((entry) => ({
+      ...entry,
+      role: entry.role as WorkContribution["role"],
     })),
   }));
   return {
@@ -704,7 +704,7 @@ export function recommendationsFor(work: Work, works: Work[], limit = 10): Recom
       };
     })
     .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score)
+    .toSorted((a, b) => b.score - a.score)
     .slice(0, limit);
 }
 

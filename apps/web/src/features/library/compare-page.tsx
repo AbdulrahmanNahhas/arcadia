@@ -44,12 +44,18 @@ const MAX_WORKS = 10;
 
 type CompareView = "overview" | "scores" | "installments" | "details";
 
-const compareViewLabels: Record<CompareView, string> = {
+const compareViewLabels = {
   overview: "نظرة عامة",
   scores: "التقييمات",
   installments: "الأجزاء",
   details: "التفاصيل",
-};
+} satisfies Record<CompareView, string>;
+
+const compareViewOrder = ["overview", "scores", "installments", "details"] satisfies CompareView[];
+
+function isCompareView(value: string): value is CompareView {
+  return value in compareViewLabels;
+}
 
 export function ComparePage({
   ids,
@@ -169,14 +175,14 @@ export function ComparePage({
               <ToggleGroup
                 value={[view]}
                 onValueChange={(value) => {
-                  const next = value.at(-1) as CompareView | undefined;
-                  if (next) setView(next);
+                  const next = value.at(-1);
+                  if (next && isCompareView(next)) setView(next);
                 }}
                 variant="outline"
                 spacing={0}
                 aria-label="طريقة عرض المقارنة"
               >
-                {(Object.keys(compareViewLabels) as CompareView[]).map((mode) => (
+                {compareViewOrder.map((mode) => (
                   <ToggleGroupItem key={mode} value={mode} size="sm">
                     {compareViewLabels[mode]}
                   </ToggleGroupItem>

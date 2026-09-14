@@ -204,24 +204,24 @@ export async function listPlayerTracks(type: "audio" | "sub"): Promise<PlayerTra
  * way back to it once switched away — this fixed set replaces it with an honest "not offered at
  * all" instead.
  */
-const AUDIO_TRACK_LANGUAGES: Record<string, string> = {
-  ar: "العربية",
-  ara: "العربية",
-  en: "الإنجليزية",
-  eng: "الإنجليزية",
-  ja: "اليابانية",
-  jpn: "اليابانية",
-  es: "الإسبانية",
-  spa: "الإسبانية",
-};
+const AUDIO_TRACK_LANGUAGES = new Map([
+  ["ar", "العربية"],
+  ["ara", "العربية"],
+  ["en", "الإنجليزية"],
+  ["eng", "الإنجليزية"],
+  ["ja", "اليابانية"],
+  ["jpn", "اليابانية"],
+  ["es", "الإسبانية"],
+  ["spa", "الإسبانية"],
+]);
 
 /** Arabic and English only, per the same "don't show other options" rule as the audio menu. */
-const SUBTITLE_TRACK_LANGUAGES: Record<string, string> = {
-  ar: "العربية",
-  ara: "العربية",
-  en: "الإنجليزية",
-  eng: "الإنجليزية",
-};
+const SUBTITLE_TRACK_LANGUAGES = new Map([
+  ["ar", "العربية"],
+  ["ara", "العربية"],
+  ["en", "الإنجليزية"],
+  ["eng", "الإنجليزية"],
+]);
 
 /**
  * Filters `tracks` down to the curated language set for `kind`, attaching the Arabic label to
@@ -233,7 +233,7 @@ export function knownLanguageTracks(
 ): Array<PlayerTrack & { label: string }> {
   const languages = kind === "audio" ? AUDIO_TRACK_LANGUAGES : SUBTITLE_TRACK_LANGUAGES;
   return tracks.flatMap((track) => {
-    const label = track.lang ? languages[track.lang.toLowerCase()] : undefined;
+    const label = track.lang ? languages.get(track.lang.toLowerCase()) : undefined;
     return label ? [{ ...track, label }] : [];
   });
 }

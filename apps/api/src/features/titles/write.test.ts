@@ -1,11 +1,44 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
+import { z } from "zod";
 import { app } from "../../app";
 import { database } from "../../database";
+import type { LegacyTitleWritePayload } from "./write";
 
 function assertDefined<T>(value: T | undefined, message: string): T {
   if (value === undefined) throw new Error(message);
   return value;
+}
+
+const createdTitleSchema = z.object({ id: z.string() });
+const titleValidationErrorSchema = z.object({
+  message: z.string(),
+  issues: z.array(z.unknown()),
+});
+
+/**
+ * The route's own accepted shape, widened for what these tests deliberately probe beyond it:
+ * `awards`, the one legacy field Stage 2 retired (a test sends it to confirm the route silently
+ * ignores it), and an explicit `null` on four fields the route must treat the same as "omitted"
+ * even though `LegacyTitleWritePayload` itself never declares them nullable.
+ */
+type LegacyTitlePayload = Omit<
+  LegacyTitleWritePayload,
+  "age" | "workflowStatus" | "qualityScore" | "curatorNotes"
+> & {
+  age?: LegacyTitleWritePayload["age"] | null;
+  workflowStatus?: LegacyTitleWritePayload["workflowStatus"] | null;
+  qualityScore?: number | null;
+  curatorNotes?: string | null;
+  awards?: unknown[];
+};
+
+async function postTitle(body: LegacyTitlePayload) {
+  return app.request("/api/v1/admin/titles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 /**
@@ -17,14 +50,6 @@ function assertDefined<T>(value: T | undefined, message: string): T {
 describe("POST /api/v1/admin/titles — validated write path", () => {
   const createdTitleIds: string[] = [];
 
-  async function postTitle(body: Record<string, unknown>) {
-    return app.request("/api/v1/admin/titles", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-  }
-
   afterAll(async () => {
     const sql = database().client;
     if (createdTitleIds.length) await sql`delete from titles where id in ${sql(createdTitleIds)}`;
@@ -34,7 +59,7 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
     const title = `Write Path Test ${randomUUID()}`;
     const response = await postTitle({ title, summary: "A test title." });
     expect(response.status).toBe(201);
-    const { id } = (await response.json()) as { id: string };
+    const { id } = createdTitleSchema.parse(await response.json());
     createdTitleIds.push(id);
 
     const row = assertDefined(
@@ -55,7 +80,7 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
   it("preserves age, quality score, and provenance across an update that doesn't send them", async () => {
     const title = `Preserve Fields Test ${randomUUID()}`;
     const createResponse = await postTitle({ title, summary: "Before." });
-    const { id } = (await createResponse.json()) as { id: string };
+    const { id } = createdTitleSchema.parse(await createResponse.json());
     createdTitleIds.push(id);
 
     // Simulate Stage 2's future Publishing tab having set these — the legacy client can't send
@@ -97,7 +122,7 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
       qualityScore: 55,
       curatorNotes: "keep me",
     });
-    const { id } = (await createResponse.json()) as { id: string };
+    const { id } = createdTitleSchema.parse(await createResponse.json());
     createdTitleIds.push(id);
 
     const updateResponse = await postTitle({
@@ -134,7 +159,7 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
       audience: "not-a-real-audience",
     });
     expect(response.status).toBe(400);
-    const body = (await response.json()) as { message: string; issues: unknown[] };
+    const body = titleValidationErrorSchema.parse(await response.json());
     expect(body.issues).toBeInstanceOf(Array);
     expect(body.issues.length).toBeGreaterThan(0);
     // Nothing should have been created.
@@ -152,7 +177,7 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
       aliases: ["An Alias"],
     });
     expect(response.status).toBe(201);
-    const { id } = (await response.json()) as { id: string };
+    const { id } = createdTitleSchema.parse(await response.json());
     createdTitleIds.push(id);
 
     const genres = await database().client`
@@ -170,7 +195,7 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
       trivia: ["الأصل والقصة: قصة أصلية.", "المكان: مكان خيالي.", "حقيقة بارزة."],
     });
     expect(response.status).toBe(201);
-    const { id } = (await response.json()) as { id: string };
+    const { id } = createdTitleSchema.parse(await response.json());
     createdTitleIds.push(id);
 
     const trivia = await database()
@@ -201,7 +226,7 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
       curation: { status: "verified", reviewedAt: "2024-01-01", notes: "looks good" },
     });
     expect(response.status).toBe(201);
-    const { id } = (await response.json()) as { id: string };
+    const { id } = createdTitleSchema.parse(await response.json());
     createdTitleIds.push(id);
 
     const row = assertDefined(
@@ -236,7 +261,7 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
       curation: { status: "provisional", reviewedAt: "2020-01-01", notes: "stale" },
     });
     expect(response.status).toBe(201);
-    const { id } = (await response.json()) as { id: string };
+    const { id } = createdTitleSchema.parse(await response.json());
     createdTitleIds.push(id);
 
     const row = assertDefined(
@@ -262,7 +287,7 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
       workflowStatus: "approved",
       verifiedAt: "2024-01-01T00:00:00.000Z",
     });
-    const { id } = (await createResponse.json()) as { id: string };
+    const { id } = createdTitleSchema.parse(await createResponse.json());
     createdTitleIds.push(id);
 
     const unverifyResponse = await postTitle({
@@ -298,7 +323,7 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
       malId: 5114,
     });
     expect(createResponse.status).toBe(201);
-    const { id } = (await createResponse.json()) as { id: string };
+    const { id } = createdTitleSchema.parse(await createResponse.json());
     createdTitleIds.push(id);
 
     const created = assertDefined(
@@ -367,7 +392,7 @@ describe("POST /api/v1/admin/titles — validated write path", () => {
       ],
     });
     expect(response.status).toBe(201);
-    const { id } = (await response.json()) as { id: string };
+    const { id } = createdTitleSchema.parse(await response.json());
     createdTitleIds.push(id);
 
     const recognitions = await database().client`

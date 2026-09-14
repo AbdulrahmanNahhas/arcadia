@@ -102,8 +102,8 @@ export function EntityDialog({
             <div className="mt-6">
               <h3 className="mb-3 font-heading text-sm font-semibold">آخر الأعمال</h3>
               <div className="flex gap-3 overflow-x-auto pb-2">
-                {[...entity.works]
-                  .sort((a, b) => (b.year ?? 0) - (a.year ?? 0))
+                {entity.works
+                  .toSorted((a, b) => (b.year ?? 0) - (a.year ?? 0))
                   .slice(0, 6)
                   .map((work) => (
                     <Link

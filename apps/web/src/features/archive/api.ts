@@ -67,7 +67,7 @@ export const recordHistory = (titleId: string) =>
 export const getSavedViews = () => apiFetch<SavedView[]>("/api/v1/me/saved-views");
 export const createSavedView = (input: {
   name: string;
-  query: Record<string, unknown>;
+  query: SavedView["query"];
   isDefault?: boolean;
   notifyNew?: boolean;
 }) =>

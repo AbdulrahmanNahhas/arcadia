@@ -72,27 +72,34 @@ export const app = new OpenAPIHono();
 // was no request logging of any kind before this, so a silently-rejected request (a CORS
 // mismatch, an unreachable origin) was indistinguishable from one that never left the client.
 app.use("*", logger());
-const trustedOrigins = new Set([
-  process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:23100",
-  "http://localhost:23100",
-  // A packaged Tauri app (not `tauri dev`, which really loads from the devUrl origin above)
-  // serves its frontend from a fixed origin that differs by platform, per
-  // AppManager::tauri_protocol_url in tauri 2.11.5: Windows and Android get
-  // `http(s)://tauri.localhost`, and every other target — including the Linux build this
-  // project actually ships — gets the `tauri://localhost` custom scheme. Both are listed
-  // because the origin is not configurable; without the matching one, every request from an
-  // installed build is silently CORS-rejected.
-  "tauri://localhost",
-  "http://tauri.localhost",
-  "https://tauri.localhost",
-]);
+// Read lazily (on first request) rather than at module load, so this never races a caller that
+// loads local environment variables (see apps/api/src/env.ts) after importing this module.
+let trustedOrigins: Set<string> | null = null;
+function resolveTrustedOrigins() {
+  if (trustedOrigins) return trustedOrigins;
+  trustedOrigins = new Set([
+    process.env.ARCADIA_WEB_URL ?? "http://127.0.0.1:23100",
+    "http://localhost:23100",
+    // A packaged Tauri app (not `tauri dev`, which really loads from the devUrl origin above)
+    // serves its frontend from a fixed origin that differs by platform, per
+    // AppManager::tauri_protocol_url in tauri 2.11.5: Windows and Android get
+    // `http(s)://tauri.localhost`, and every other target — including the Linux build this
+    // project actually ships — gets the `tauri://localhost` custom scheme. Both are listed
+    // because the origin is not configurable; without the matching one, every request from an
+    // installed build is silently CORS-rejected.
+    "tauri://localhost",
+    "http://tauri.localhost",
+    "https://tauri.localhost",
+  ]);
+  return trustedOrigins;
+}
 app.use(
   "*",
   cors({
     // Returning null omits Access-Control-Allow-Origin entirely, which is what an untrusted
     // origin should get. Echoing back some *other* trusted origin instead (what this used to do)
     // is the same rejection to the browser but reads like a working CORS setup when debugging.
-    origin: (origin) => (trustedOrigins.has(origin) ? origin : null),
+    origin: (origin) => (resolveTrustedOrigins().has(origin) ? origin : null),
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -155,6 +162,17 @@ app.route("/", archiveRoutes);
 app.route("/", socialRoutes);
 
 const errorSchema = z.object({ message: z.string() });
+
+/** Statistics rows come back as `key`/`value` (and `label_ar`) pairs from grouped counts. */
+type StatRow = { key?: unknown; value?: unknown; label_ar?: unknown };
+const pairs = (rows: readonly StatRow[]) =>
+  rows.map((row) => ({ key: String(row.key), value: Number(row.value) }));
+const ranked = (rows: readonly StatRow[]) =>
+  rows.map((row) => ({
+    key: String(row.key),
+    labelAr: String(row.label_ar),
+    value: Number(row.value),
+  }));
 type AdminScoreInput = Partial<{
   story: number | null;
   characters: number | null;
@@ -1633,14 +1651,6 @@ app.get("/api/v1/admin/statistics", async (context) => {
     sql`select mime_type as key, count(*)::int as value from media_assets group by mime_type`,
     sql`select r.slug as key, r.label_ar, count(*)::int as value from contributions c join roles r on r.id=c.role_id join titles t on t.id=c.title_id where ${titleFilter} group by r.id order by value desc limit 12`,
   ]);
-  const pairs = (rows: typeof visibilityRows) =>
-    rows.map((row) => ({ key: String(row.key), value: Number(row.value) }));
-  const ranked = (rows: typeof genreRows) =>
-    rows.map((row) => ({
-      key: String(row.key),
-      labelAr: String(row.label_ar),
-      value: Number(row.value),
-    }));
   const totals = assetTotals[0];
   const coverage = coverageRows[0];
   const payload = {

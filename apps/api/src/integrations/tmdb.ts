@@ -21,6 +21,8 @@ async function tmdbFetch<T>(path: string, params: Record<string, string | number
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
   if (!response.ok) return null;
+  // SAFETY: callers pass T matching the exact TMDB endpoint they request (SearchResponse for
+  // /search/*, ImagesResponse for /*/images below); a non-ok response already returned above.
   return (await response.json()) as T;
 }
 
@@ -80,11 +82,11 @@ export async function searchTmdbArtwork(input: {
   });
   if (!images) return { candidates: [], matchedId: matchId };
 
-  const byRole: Record<typeof input.role, TmdbImage[]> = {
+  const byRole = {
     poster: images.posters,
     banner: images.backdrops,
     logo: images.logos,
-  };
+  } satisfies Record<typeof input.role, TmdbImage[]>;
   const candidates: ArtworkCandidate[] = byRole[input.role].slice(0, 12).map((image) => ({
     provider: "tmdb",
     externalId: String(matchId),

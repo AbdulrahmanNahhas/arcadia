@@ -29,6 +29,8 @@ export async function fetchFanartMovieArtwork(input: {
     `https://webservice.fanart.tv/v3/movies/${input.tmdbId}?api_key=${apiKey}`,
   );
   if (!response.ok) return { candidates: [] };
+  // SAFETY: Fanart's movie endpoint responds with an object keyed by art-type slugs (or omits a
+  // key entirely when it has no art of that type); FanartMovieResponse models exactly that shape.
   const body = (await response.json()) as FanartMovieResponse;
 
   const images =

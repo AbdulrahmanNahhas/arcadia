@@ -122,7 +122,7 @@ function compareOptionalNumber(left: number | null | undefined, right: number | 
 }
 
 function sortWorks(works: Work[], sort: CatalogSort) {
-  return [...works].sort((left, right) => {
+  return works.toSorted((left, right) => {
     if (sort === "title") return titleOrder(left, right);
     if (sort === "ranked") {
       return (
@@ -336,7 +336,7 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
                   aria-label="مستوى عرض الكتالوج"
                   disabled={!interactive}
                   onValueChange={(values) => {
-                    values[0] && switchMode(values[0] as CatalogMode);
+                    if (values[0]) switchMode(values[0] as CatalogMode);
                   }}
                   className="hidden shrink-0 rounded-lg bg-background p-0.5 sm:flex"
                 >
@@ -398,7 +398,7 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
                 <Select
                   value={sort}
                   onValueChange={(value) => {
-                    value && setSort(value as CatalogSort);
+                    if (value) setSort(value as CatalogSort);
                   }}
                 >
                   <SelectTrigger className="h-9 w-full min-w-37.5 rounded-lg border-border bg-background text-xs sm:w-auto">
@@ -425,7 +425,7 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
                 <Select
                   value={groupBy}
                   onValueChange={(value) => {
-                    value && setGroupBy(value as CatalogGroupBy);
+                    if (value) setGroupBy(value as CatalogGroupBy);
                   }}
                 >
                   <SelectTrigger className="h-9 w-full min-w-35 rounded-lg border-border bg-background text-xs sm:w-auto">
@@ -460,7 +460,7 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
                     aria-label="طريقة عرض الأعمال"
                     disabled={!interactive}
                     onValueChange={(values) => {
-                      values[0] && setView(values[0] as CatalogView);
+                      if (values[0]) setView(values[0] as CatalogView);
                     }}
                     className="rounded-lg bg-background p-0.5"
                   >
@@ -546,7 +546,7 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
                   aria-label="مستوى عرض الكتالوج"
                   disabled={!interactive}
                   onValueChange={(values) => {
-                    values[0] && switchMode(values[0] as CatalogMode);
+                    if (values[0]) switchMode(values[0] as CatalogMode);
                   }}
                   className="flex w-full sm:hidden"
                 >

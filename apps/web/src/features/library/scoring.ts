@@ -21,14 +21,14 @@ export const scoreWeights = {
   craft: 0.2,
 } as const satisfies Record<ScoreCriterion, number>;
 
-export const scoreCriterionLabels: Record<ScoreCriterion, { ar: string; en: string }> = {
+export const scoreCriterionLabels = {
   story: { ar: "القصة", en: "Story" },
   characters: { ar: "الشخصيات", en: "Characters" },
   depth: { ar: "العمق والأفكار", en: "Depth & themes" },
   worldBuilding: { ar: "بناء العالم", en: "World-building" },
   originality: { ar: "الأصالة", en: "Originality" },
   craft: { ar: "الحِرفة", en: "Craft" },
-};
+} satisfies Record<ScoreCriterion, { ar: string; en: string }>;
 
 // "Craft" means something different for drawn work than for filmed work, so the criterion is
 // named after the format. The movie/series half doesn't change what's being judged.
@@ -40,12 +40,12 @@ const liveActionCraft = {
   ar: "الإخراج والحِرفة السمعية البصرية",
   en: "Direction & audiovisual craft",
 };
-const craftLabels: Record<WorkKind, { ar: string; en: string }> = {
+const craftLabels = {
   "animated-movie": animatedCraft,
   "animated-series": animatedCraft,
   "live-action-movie": liveActionCraft,
   "live-action-series": liveActionCraft,
-};
+} satisfies Record<WorkKind, { ar: string; en: string }>;
 
 export function scoreLabel(criterion: ScoreCriterion, kind: WorkKind) {
   return criterion === "craft" ? craftLabels[kind] : scoreCriterionLabels[criterion];

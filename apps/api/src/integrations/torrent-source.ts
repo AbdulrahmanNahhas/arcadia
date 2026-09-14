@@ -380,37 +380,37 @@ export function parseProvider(text: string): string | null {
 /** Flag emoji → ISO 639-1 code, for every country flag Torrentio is known to prefix a release
  *  with. Several codes have more than one flag (Arabic-speaking countries, Spanish-speaking
  *  ones) — any of them is as good a signal as another. */
-const flagLanguages: Record<string, string> = {
-  "🇬🇧": "en",
-  "🇺🇸": "en",
-  "🇦🇺": "en",
-  "🇨🇦": "en",
-  "🇮🇪": "en",
-  "🇳🇿": "en",
-  "🇸🇦": "ar",
-  "🇦🇪": "ar",
-  "🇪🇬": "ar",
-  "🇮🇶": "ar",
-  "🇲🇦": "ar",
-  "🇶🇦": "ar",
-  "🇯🇵": "ja",
-  "🇪🇸": "es",
-  "🇲🇽": "es",
-  "🇦🇷": "es",
-  "🇷🇺": "ru",
-  "🇫🇷": "fr",
-  "🇩🇪": "de",
-  "🇮🇹": "it",
-  "🇮🇳": "hi",
-  "🇰🇷": "ko",
-  "🇵🇹": "pt",
-  "🇧🇷": "pt",
-  "🇹🇷": "tr",
-  "🇵🇱": "pl",
-  "🇳🇱": "nl",
-  "🇨🇳": "zh",
-  "🇮🇷": "fa",
-};
+const flagLanguages = new Map<string, string>([
+  ["🇬🇧", "en"],
+  ["🇺🇸", "en"],
+  ["🇦🇺", "en"],
+  ["🇨🇦", "en"],
+  ["🇮🇪", "en"],
+  ["🇳🇿", "en"],
+  ["🇸🇦", "ar"],
+  ["🇦🇪", "ar"],
+  ["🇪🇬", "ar"],
+  ["🇮🇶", "ar"],
+  ["🇲🇦", "ar"],
+  ["🇶🇦", "ar"],
+  ["🇯🇵", "ja"],
+  ["🇪🇸", "es"],
+  ["🇲🇽", "es"],
+  ["🇦🇷", "es"],
+  ["🇷🇺", "ru"],
+  ["🇫🇷", "fr"],
+  ["🇩🇪", "de"],
+  ["🇮🇹", "it"],
+  ["🇮🇳", "hi"],
+  ["🇰🇷", "ko"],
+  ["🇵🇹", "pt"],
+  ["🇧🇷", "pt"],
+  ["🇹🇷", "tr"],
+  ["🇵🇱", "pl"],
+  ["🇳🇱", "nl"],
+  ["🇨🇳", "zh"],
+  ["🇮🇷", "fa"],
+]);
 
 /** Same language set as the flags above, reached through the addon's free-text words instead. */
 const wordLanguages: ReadonlyArray<{ pattern: RegExp; code: string }> = [
@@ -449,7 +449,7 @@ export function detectLanguages(text: string): string[] {
   const found = new Set<string>();
   const flags = text.match(/[\u{1F1E6}-\u{1F1FF}]{2}/gu) ?? [];
   for (const flag of flags) {
-    const code = flagLanguages[flag];
+    const code = flagLanguages.get(flag);
     if (code) found.add(code);
   }
   for (const { pattern, code } of wordLanguages) {

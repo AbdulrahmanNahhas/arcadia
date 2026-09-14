@@ -1,9 +1,12 @@
 import { CircleNotchIcon } from "@phosphor-icons/react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { type ReactNode, useEffect } from "react";
+import { z } from "zod";
 import { authClient } from "@/lib/auth-client";
 import { useThemeEffects } from "@/lib/theme";
 import { useCurrentAccount } from "./api";
+
+const offlinePlayerSearchSchema = z.object({ origin: z.string() }).partial();
 
 export function AuthBoundary({ children }: { children: ReactNode }) {
   const location = useRouterState({ select: (state) => state.location });
@@ -12,10 +15,10 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
   const session = authClient.useSession();
   // "/offline" is the saved-library fallback reached from the login form when no family server
   // is reachable at all — there is no session to gate it behind (see offline-library-page.tsx).
+  const offlinePlayerSearch = offlinePlayerSearchSchema.safeParse(location.search);
   const offlinePlayer =
     pathname.startsWith("/player/") &&
-    typeof location.search.origin === "string" &&
-    location.search.origin.startsWith("/offline/");
+    (offlinePlayerSearch.data?.origin?.startsWith("/offline/") ?? false);
   const isPublic =
     pathname === "/login" ||
     pathname.startsWith("/invite/") ||

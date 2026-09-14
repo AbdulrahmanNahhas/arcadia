@@ -64,10 +64,14 @@ export const catalogFacetKeys: CatalogFacetKey[] = [
 ];
 
 export function createCatalogFilters(): CatalogFilterState {
+  // SAFETY: the loop below assigns a `CatalogSelection` to every key in `catalogFacetKeys`
+  // (which enumerates all of `CatalogFacetKey`), so `facets` is fully populated on return.
+  const facets = {} as Record<CatalogFacetKey, CatalogSelection>;
+  for (const key of catalogFacetKeys) {
+    facets[key] = { include: [], exclude: [] };
+  }
   return {
-    facets: Object.fromEntries(
-      catalogFacetKeys.map((key) => [key, { include: [], exclude: [] }]),
-    ) as unknown as Record<CatalogFacetKey, CatalogSelection>,
+    facets,
     minimumRating: 0,
     minimumScores: {},
     yearFrom: null,
@@ -130,6 +134,9 @@ export function getCatalogFacetValues(work: Work, key: CatalogFacetKey): string[
     return [work.episodeCount !== null ? "season" : "standalone"];
   }
   if (key === "playableStates") return [work.isPlayable ? "playable" : "not-playable"];
+  // SAFETY: every other `CatalogFacetKey` returned above, so only "sexualityRisks" /
+  // "behavioralRisks" / "theologyRisks" reach here — stripping "Risks" from each always yields
+  // one of `Work["riskProfile"]`'s own keys.
   const dimension = key.replace("Risks", "") as keyof NonNullable<Work["riskProfile"]>;
   return [work.riskProfile?.[dimension] ?? "unknown"];
 }
@@ -186,6 +193,8 @@ export function workMatchesCatalogFilters(work: Work, filters: CatalogFilterStat
 }
 
 export function buildCatalogFacetOptions(works: Work[]): CatalogFacetOptions {
+  // SAFETY: `catalogFacetKeys` enumerates every `CatalogFacetKey`, so mapping each to a
+  // `[key, CatalogFacetOption[]]` entry covers every key `CatalogFacetOptions` needs.
   return Object.fromEntries(
     catalogFacetKeys.map((key) => {
       const counts = new Map<string, number>();
@@ -196,7 +205,7 @@ export function buildCatalogFacetOptions(works: Work[]): CatalogFacetOptions {
       }
       const options = [...counts.entries()]
         .map(([value, count]) => ({ value, count }))
-        .sort(
+        .toSorted(
           (left, right) => right.count - left.count || left.value.localeCompare(right.value, "ar"),
         );
       return [key, options];
@@ -229,6 +238,8 @@ export function setMinimumScore(
   return { ...scores, [criterion]: value };
 }
 
+const workKindSet: ReadonlySet<string> = new Set(workKinds);
+
 export function catalogKind(value: string): value is WorkKind {
-  return (workKinds as readonly string[]).includes(value);
+  return workKindSet.has(value);
 }

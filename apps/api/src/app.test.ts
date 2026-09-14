@@ -1,7 +1,31 @@
 import { watchHistoryItemSchema } from "@arcadia/contracts";
 import { afterAll, describe, expect, it } from "vitest";
+import { z } from "zod";
 import { app } from "./app";
 import { database } from "./database";
+
+const installmentsByReleaseSchema = z.object({
+  items: z.array(z.object({ releaseDate: z.string().nullable() })),
+});
+const installmentsByScoreSchema = z.object({
+  items: z.array(z.object({ rating: z.number().nullable() })),
+});
+const titlesPageSchema = z.object({
+  items: z.array(z.object({ id: z.string(), releaseStatus: z.string() })),
+});
+const installmentsPageSchema = z.object({
+  items: z.array(z.object({ titleId: z.string(), status: z.string() })),
+});
+const titlesByQuerySchema = z.object({ items: z.array(z.object({ id: z.string() })) });
+const installmentsByQuerySchema = z.object({
+  items: z.array(z.object({ titleId: z.string() })),
+});
+const adminOverviewSchema = z.object({
+  titles: z.number(),
+  installments: z.number(),
+  episodes: z.number(),
+  scored_installments: z.number(),
+});
 
 describe("Arcadia API contract", () => {
   it("reports database readiness", async () => {
@@ -24,27 +48,25 @@ describe("Arcadia API contract", () => {
     const releaseResponse = await app.request(
       "/api/v1/titles?mode=installments&sort=release&limit=100",
     );
-    const releaseBody = (await releaseResponse.json()) as {
-      items: Array<{ releaseDate: string | null }>;
-    };
+    const releaseBody = installmentsByReleaseSchema.parse(await releaseResponse.json());
     const dated = releaseBody.items.filter((item) => item.releaseDate);
     expect(dated).not.toHaveLength(0);
     expect(dated.map((item) => item.releaseDate)).toEqual(
-      [...dated]
-        .sort((left, right) => String(right.releaseDate).localeCompare(String(left.releaseDate)))
+      dated
+        .toSorted((left, right) =>
+          String(right.releaseDate).localeCompare(String(left.releaseDate)),
+        )
         .map((item) => item.releaseDate),
     );
 
     const scoreResponse = await app.request(
       "/api/v1/titles?mode=installments&sort=score&limit=100",
     );
-    const scoreBody = (await scoreResponse.json()) as {
-      items: Array<{ rating: number | null }>;
-    };
+    const scoreBody = installmentsByScoreSchema.parse(await scoreResponse.json());
     const scored = scoreBody.items.filter((item) => item.rating !== null);
     expect(scored.map((item) => item.rating)).toEqual(
-      [...scored]
-        .sort((left, right) => Number(right.rating) - Number(left.rating))
+      scored
+        .toSorted((left, right) => Number(right.rating) - Number(left.rating))
         .map((item) => item.rating),
     );
   });
@@ -57,16 +79,17 @@ describe("Arcadia API contract", () => {
       app.request("/api/v1/titles?mode=installments&limit=100&offset=100"),
       app.request("/api/v1/titles?mode=installments&limit=100&offset=200"),
     ]);
-    const titlePages = (await Promise.all([
-      titlesResponse.json(),
-      moreTitlesResponse.json(),
-    ])) as Array<{
-      items: Array<{ id: string; releaseStatus: string }>;
-    }>;
+    const titlePages = await Promise.all(
+      [titlesResponse, moreTitlesResponse].map(async (response) =>
+        titlesPageSchema.parse(await response.json()),
+      ),
+    );
     const titles = titlePages.flatMap((page) => page.items);
-    const installmentPages = (await Promise.all(
-      installmentResponses.map((response) => response.json()),
-    )) as Array<{ items: Array<{ titleId: string; status: string }> }>;
+    const installmentPages = await Promise.all(
+      installmentResponses.map(async (response) =>
+        installmentsPageSchema.parse(await response.json()),
+      ),
+    );
     const installments = installmentPages.flatMap((page) => page.items);
     const announcedTitleIds = titles
       .filter((item) => item.releaseStatus === "upcoming")
@@ -97,10 +120,8 @@ describe("Arcadia API contract", () => {
     const installmentResponse = await app.request(
       `/api/v1/titles?mode=installments&q=${encodeURIComponent(studioName)}&limit=100`,
     );
-    const titleBody = (await titleResponse.json()) as { items: Array<{ id: string }> };
-    const installmentBody = (await installmentResponse.json()) as {
-      items: Array<{ titleId: string }>;
-    };
+    const titleBody = titlesByQuerySchema.parse(await titleResponse.json());
+    const installmentBody = installmentsByQuerySchema.parse(await installmentResponse.json());
 
     expect(titleBody.items.map((item) => item.id)).toContain(titleId);
     expect(installmentBody.items.map((item) => item.titleId)).toContain(titleId);
@@ -109,12 +130,7 @@ describe("Arcadia API contract", () => {
   it("reports useful PostgreSQL v2 administrator metrics", async () => {
     const response = await app.request("/api/v1/admin/overview");
     expect(response.status).toBe(200);
-    const metrics = (await response.json()) as {
-      titles: number;
-      installments: number;
-      episodes: number;
-      scored_installments: number;
-    };
+    const metrics = adminOverviewSchema.parse(await response.json());
     expect(metrics.titles).toBeGreaterThan(0);
     expect(metrics.installments).toBeGreaterThanOrEqual(metrics.titles);
     expect(metrics.episodes).toBeGreaterThan(0);

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { effectivePolicy, isVisibleToPolicy, visibleTitleKindsSchema } from "./policy";
-import { type TitleKind, titleFormatOf, titleKindOf, titleKinds, titleShapeOf } from "./title-kind";
+import {
+  type TitleKind,
+  titleFormatOf,
+  titleKindOf,
+  titleKinds,
+  titleStructureOf,
+} from "./title-kind";
 
 const adult = {
   audience: "adult",
@@ -91,6 +97,6 @@ describe("titleKindOf", () => {
 
   it("round-trips back to the two axes it was built from", () => {
     for (const kind of titleKinds)
-      expect(titleKindOf(titleFormatOf(kind), titleShapeOf(kind))).toBe(kind);
+      expect(titleKindOf(titleFormatOf(kind), titleStructureOf(kind))).toBe(kind);
   });
 });

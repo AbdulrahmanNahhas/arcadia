@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { app } from "../../app";
 import { database } from "../../database";
+
+const meResponseSchema = z.object({
+  account: z.object({ id: z.string() }),
+  contentRestricted: z.boolean(),
+});
+const titlesBrowseResponseSchema = z.object({ total: z.number() });
 
 async function signIn(username: string, password: string) {
   const response = await app.request("/api/auth/sign-in/username", {
@@ -28,11 +35,8 @@ describe("account content-restriction visibility", () => {
       const initial = await app.request("/api/v1/me", {
         headers: { authorization: `Bearer ${token}` },
       });
-      const initialBody = (await initial.json()) as {
-        account: { id: string };
-        contentRestricted: boolean;
-      };
-      expect(typeof initialBody.contentRestricted).toBe("boolean");
+      const initialBody = meResponseSchema.parse(await initial.json());
+      expect(initialBody.contentRestricted).toBeTypeOf("boolean");
       const accountId = initialBody.account.id;
 
       const [ownBefore] = await sql`select audience, age, sexuality_risk as "sexualityRisk",
@@ -56,7 +60,7 @@ describe("account content-restriction visibility", () => {
         const restricted = await app.request("/api/v1/me", {
           headers: { authorization: `Bearer ${token}` },
         });
-        const restrictedBody = (await restricted.json()) as { contentRestricted: boolean };
+        const restrictedBody = meResponseSchema.parse(await restricted.json());
         expect(restrictedBody.contentRestricted).toBe(true);
       } finally {
         if (ownBefore) {
@@ -84,7 +88,7 @@ describe("account visible-title-kinds preference", () => {
     const sql = database().client;
     try {
       const me = await app.request("/api/v1/me", { headers: { authorization: `Bearer ${token}` } });
-      const { account } = (await me.json()) as { account: { id: string } };
+      const { account } = meResponseSchema.parse(await me.json());
       const [before] = await sql`select visible_title_kinds as "visibleTitleKinds"
         from account_preferences where account_id=${account.id}`;
 
@@ -98,7 +102,7 @@ describe("account visible-title-kinds preference", () => {
         const narrowed = await app.request("/api/v1/titles?limit=5", {
           headers: { authorization: `Bearer ${token}` },
         });
-        const narrowedBody = (await narrowed.json()) as { total: number };
+        const narrowedBody = titlesBrowseResponseSchema.parse(await narrowed.json());
         expect(narrowedBody.total).toBe(0);
 
         await sql`update account_preferences
@@ -107,7 +111,7 @@ describe("account visible-title-kinds preference", () => {
         const restored = await app.request("/api/v1/titles?limit=5", {
           headers: { authorization: `Bearer ${token}` },
         });
-        const restoredBody = (await restored.json()) as { total: number };
+        const restoredBody = titlesBrowseResponseSchema.parse(await restored.json());
         expect(restoredBody.total).toBeGreaterThan(0);
       } finally {
         if (before) {

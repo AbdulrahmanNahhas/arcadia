@@ -294,7 +294,20 @@ export async function getOrganizationRelationshipEditorData() {
     ],
   };
 }
-export async function createOrganizationRelationship({ data }: Data<Record<string, unknown>>) {
+type OrganizationRelationshipInput = {
+  sourceEntityId: string;
+  targetEntityId: string;
+  relationshipTypeId: string;
+  occurredOn: string | null;
+  datePrecision: "day" | "month" | "year" | "unknown";
+  description: string;
+  notes: string;
+  prominence: number;
+  people: Array<{ entityId: string; role: string }>;
+};
+export async function createOrganizationRelationship({
+  data,
+}: Data<OrganizationRelationshipInput>) {
   return apiFetch("/api/v1/admin/organization-relationships", {
     method: "POST",
     body: JSON.stringify(data),
@@ -313,7 +326,13 @@ export async function saveAdminPlanet({
     method: "POST",
     body: JSON.stringify(data),
   });
-  return { ...data, id: saved.id, works: [], workCount: 0, reviewCount: 0 } as PlanetWithWorks;
+  return {
+    ...data,
+    id: saved.id,
+    works: [],
+    workCount: 0,
+    reviewCount: 0,
+  } satisfies PlanetWithWorks;
 }
 export async function moveAdminWorksToPlanet({
   data,

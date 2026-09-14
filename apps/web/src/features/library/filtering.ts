@@ -1,5 +1,6 @@
+import { z } from "zod";
 import type { Work, WorkKind } from "./model";
-import type { ScoreComponents } from "./scoring";
+import type { ScoreComponents, ScoreCriterion } from "./scoring";
 import { scoreCriteria } from "./scoring";
 import { kindLabelsAr } from "./translations";
 import type { Sort, SortDirection } from "./view-types";
@@ -97,16 +98,16 @@ export function isWorkVisibleByDefault(work: Work) {
   return !work.isPrivate;
 }
 
+const scoreCriteriaSet: ReadonlySet<string> = new Set(scoreCriteria);
+
+/** `Sort` re-uses the score-criterion names as sort keys; this narrows one down to the other
+ *  without widening `scoreCriteria` to `string[]` first. */
+function isScoreCriterionSort(sort: Sort): sort is ScoreCriterion {
+  return scoreCriteriaSet.has(sort);
+}
+
 export function compareWorks(left: Work, right: Work, sort: Sort, direction: SortDirection) {
   let comparison = 0;
-  const scoreSorts = [
-    "story",
-    "characters",
-    "depth",
-    "worldBuilding",
-    "originality",
-    "craft",
-  ] as const;
   if (sort === "rating") {
     comparison = compareOptionalNumber(left.calculatedRating, right.calculatedRating, direction);
   } else if (sort === "recent") {
@@ -119,11 +120,10 @@ export function compareWorks(left: Work, right: Work, sort: Sort, direction: Sor
     comparison = (left.audience ?? "").localeCompare(right.audience ?? "", "en");
   } else if (sort === "kind") {
     comparison = kindLabels[left.kind].localeCompare(kindLabels[right.kind], "ar");
-  } else if ((scoreSorts as readonly string[]).includes(sort)) {
-    const criterion = sort as (typeof scoreSorts)[number];
+  } else if (isScoreCriterionSort(sort)) {
     comparison = compareOptionalNumber(
-      left.scoreComponents[criterion],
-      right.scoreComponents[criterion],
+      left.scoreComponents[sort],
+      right.scoreComponents[sort],
       direction,
     );
   }
@@ -148,28 +148,40 @@ function compareOptionalNumber(
 
 const facetKeys = facetDefinitions.map(({ key }) => key);
 
-export function createEmptyFacetFilters(): FacetFilters {
-  return Object.fromEntries(
-    facetKeys.map((key) => [key, { include: [], exclude: [] }]),
-  ) as unknown as FacetFilters;
+export function createEmptyFacetFilters() {
+  // SAFETY: the loop below assigns every key in `facetKeys` (which enumerates all of `FacetKey`)
+  // a `FacetSelection` before this function returns, so `empty` is fully populated on return.
+  const empty = {} as FacetFilters;
+  for (const key of facetKeys) {
+    empty[key] = { include: [], exclude: [] };
+  }
+  return empty;
 }
 
-export function normalizeFacetFilters(value: unknown): FacetFilters {
+/** Loose shape accepted from a persisted (e.g. `localStorage`) blob — parse untrusted JSON with
+ *  this schema before calling `normalizeFacetFilters`. */
+export const facetFiltersInputSchema = z.record(
+  z.string(),
+  z.union([
+    z.array(z.unknown()),
+    z.object({ include: z.unknown(), exclude: z.unknown() }).partial(),
+  ]),
+);
+export type FacetFiltersInput = z.infer<typeof facetFiltersInputSchema>;
+
+export function normalizeFacetFilters(value: FacetFiltersInput): FacetFilters {
   const empty = createEmptyFacetFilters();
-  if (!value || typeof value !== "object") return empty;
-  const source = value as Record<string, unknown>;
   for (const key of facetKeys) {
-    const selection = source[key];
+    const selection = value[key];
     if (Array.isArray(selection)) {
       empty[key].include = selection.filter((item): item is string => typeof item === "string");
-    } else if (selection && typeof selection === "object") {
-      const record = selection as Record<string, unknown>;
+    } else if (selection) {
       empty[key] = {
-        include: Array.isArray(record.include)
-          ? record.include.filter((item): item is string => typeof item === "string")
+        include: Array.isArray(selection.include)
+          ? selection.include.filter((item): item is string => typeof item === "string")
           : [],
-        exclude: Array.isArray(record.exclude)
-          ? record.exclude.filter((item): item is string => typeof item === "string")
+        exclude: Array.isArray(selection.exclude)
+          ? selection.exclude.filter((item): item is string => typeof item === "string")
           : [],
       };
     }
@@ -177,7 +189,10 @@ export function normalizeFacetFilters(value: unknown): FacetFilters {
   return empty;
 }
 
-export function cycleSelection(selection: FacetSelection, value: string): FacetSelection {
+export function cycleSelection<T extends string>(
+  selection: { include: T[]; exclude: T[] },
+  value: T,
+) {
   if (selection.include.includes(value)) {
     return {
       include: selection.include.filter((item) => item !== value),
@@ -193,13 +208,8 @@ export function cycleSelection(selection: FacetSelection, value: string): FacetS
   return { include: [...selection.include, value], exclude: selection.exclude };
 }
 
-export function cycleCategoricalValue<T extends string>(
-  include: T[],
-  exclude: T[],
-  value: T,
-): { include: T[]; exclude: T[] } {
-  const next = cycleSelection({ include, exclude }, value);
-  return { include: next.include as T[], exclude: next.exclude as T[] };
+export function cycleCategoricalValue<T extends string>(include: T[], exclude: T[], value: T) {
+  return cycleSelection({ include, exclude }, value);
 }
 
 export function getWorkFacetValues(work: Work, key: FacetKey): string[] {
@@ -261,18 +271,24 @@ export function matchesScoreFilters(scores: ScoreComponents, minimums: ScoreComp
   });
 }
 
+function countFacetValues(values: string[][]): FacetOption[] {
+  const counts = new Map<string, number>();
+  for (const value of values.flat()) {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([value, total]) => ({ value, count: total }))
+    .toSorted((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+}
+
 export function buildFacetOptions(works: Work[]): FacetOptions {
-  const count = (values: string[][]): FacetOption[] => {
-    const counts = new Map<string, number>();
-    for (const value of values.flat()) {
-      counts.set(value, (counts.get(value) ?? 0) + 1);
-    }
-    return [...counts.entries()]
-      .map(([value, total]) => ({ value, count: total }))
-      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
-  };
+  // SAFETY: `facetKeys` enumerates every `FacetKey`, so mapping each to a `[key, FacetOption[]]`
+  // entry and passing the full list to `Object.fromEntries` covers every key `FacetOptions` needs.
   return Object.fromEntries(
-    facetKeys.map((key) => [key, count(works.map((work) => getWorkFacetValues(work, key)))]),
+    facetKeys.map((key) => [
+      key,
+      countFacetValues(works.map((work) => getWorkFacetValues(work, key))),
+    ]),
   ) as FacetOptions;
 }
 

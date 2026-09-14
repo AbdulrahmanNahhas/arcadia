@@ -4,13 +4,20 @@ import { cn } from "@/lib/utils";
 import { kindLabels } from "../filtering";
 import type { Work } from "../model";
 
-const paletteClasses: Record<string, string> = {
-  ember: "from-orange-950 via-rose-900 to-amber-600",
-  forest: "from-emerald-950 via-teal-900 to-lime-700",
-  ocean: "from-slate-950 via-blue-950 to-cyan-700",
-  plum: "from-slate-950 via-violet-950 to-fuchsia-800",
-  signal: "from-zinc-950 via-red-950 to-red-600",
-};
+function paletteGradientFor(palette: string) {
+  switch (palette) {
+    case "ember":
+      return "from-orange-950 via-rose-900 to-amber-600";
+    case "forest":
+      return "from-emerald-950 via-teal-900 to-lime-700";
+    case "plum":
+      return "from-slate-950 via-violet-950 to-fuchsia-800";
+    case "signal":
+      return "from-zinc-950 via-red-950 to-red-600";
+    default:
+      return "from-slate-950 via-blue-950 to-cyan-700";
+  }
+}
 
 export function WorkArtwork({
   work,
@@ -38,7 +45,7 @@ export function WorkArtwork({
         artworkType === "logo" ? "aspect-square" : "aspect-2/3",
         artworkType === "logo" && path
           ? "bg-white/90 dark:bg-white/85"
-          : cn("bg-linear-to-br", paletteClasses[work.palette] ?? paletteClasses.ocean),
+          : cn("bg-linear-to-br", paletteGradientFor(work.palette)),
         compact ? "rounded-lg" : "rounded-xl",
         className,
       )}

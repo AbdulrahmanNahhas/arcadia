@@ -76,27 +76,28 @@ export const adminEpisodeInputSchema = z.object({
   runtimeMinutes: z.number().int().min(0).nullable().default(null),
 });
 
-export const adminInstallmentInputSchema = z.object({
-  /** Omit to create a new installment (season/movie/special); present updates it. */
-  id: z.string().uuid().optional(),
-  kind: installmentKindSchema.default("season"),
-  title: z.string().trim().min(1),
-  summary: z.string().default(""),
-  status: installmentStatusSchema.default("unknown"),
-  position: z.number().int().min(0),
-  releaseDate: isoDateSchema.nullable().default(null),
-  runtimeMinutes: z.number().int().min(0).nullable().default(null),
-  posterPath: z.string().nullable().default(null),
-  /** Per-installment classification overrides — null clears the override, absent leaves it as-is. */
-  audienceOverride: audienceSchema.nullable().default(null),
-  ageOverride: ageSchema.nullable().default(null),
-  sexualityRiskOverride: riskLevelSchema.nullable().default(null),
-  behavioralRiskOverride: riskLevelSchema.nullable().default(null),
-  theologyRiskOverride: riskLevelSchema.nullable().default(null),
-  score: scoreSchema.partial().optional(),
-  episodes: z.array(adminEpisodeInputSchema).default([]),
-  ...externalIdFieldsInputSchema.shape,
-});
+export const adminInstallmentInputSchema = z
+  .object({
+    /** Omit to create a new installment (season/movie/special); present updates it. */
+    id: z.string().uuid().optional(),
+    kind: installmentKindSchema.default("season"),
+    title: z.string().trim().min(1),
+    summary: z.string().default(""),
+    status: installmentStatusSchema.default("unknown"),
+    position: z.number().int().min(0),
+    releaseDate: isoDateSchema.nullable().default(null),
+    runtimeMinutes: z.number().int().min(0).nullable().default(null),
+    posterPath: z.string().nullable().default(null),
+    /** Per-installment classification overrides — null clears the override, absent leaves it as-is. */
+    audienceOverride: audienceSchema.nullable().default(null),
+    ageOverride: ageSchema.nullable().default(null),
+    sexualityRiskOverride: riskLevelSchema.nullable().default(null),
+    behavioralRiskOverride: riskLevelSchema.nullable().default(null),
+    theologyRiskOverride: riskLevelSchema.nullable().default(null),
+    score: scoreSchema.partial().optional(),
+    episodes: z.array(adminEpisodeInputSchema).default([]),
+  })
+  .merge(externalIdFieldsInputSchema);
 
 /**
  * Full-document replace payload for `PUT /api/v1/admin/titles/:titleId/structure` — promoted
@@ -149,60 +150,62 @@ export const adminContributorInputSchema = z.object({
  * session whenever `verifiedAt` changes; a curator must never be able to spoof who verified a
  * title.
  */
-export const adminTitleInputSchema = z.object({
-  id: z.string().uuid().optional(),
-  canonicalTitle: z.string().trim().min(1),
-  titleAr: z.string().trim().nullable().default(null),
-  summary: z.string().default(""),
-  contentWarnings: z.string().nullable().default(null),
-  analysisNotes: z.string().nullable().default(null),
-  releaseYear: z.number().int().min(1800).max(2200).nullable().default(null),
-  /** Animated vs. live action. The other half of the four-way catalog type (movie vs. series)
-   *  is derived from the title's installments and is never written here. */
-  format: titleFormatSchema.default("animated"),
-  isPrivate: z.boolean().default(false),
+export const adminTitleInputSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    canonicalTitle: z.string().trim().min(1),
+    titleAr: z.string().trim().nullable().default(null),
+    summary: z.string().default(""),
+    contentWarnings: z.string().nullable().default(null),
+    analysisNotes: z.string().nullable().default(null),
+    releaseYear: z.number().int().min(1800).max(2200).nullable().default(null),
+    /** Animated vs. live action. The other half of the four-way catalog type (movie vs. series)
+     *  is derived from the title's installments and is never written here. */
+    format: titleFormatSchema.default("animated"),
+    isPrivate: z.boolean().default(false),
 
-  audience: audienceSchema.default("general"),
-  age: ageSchema.default("all"),
-  sexualityRisk: riskLevelSchema.default("none"),
-  behavioralRisk: riskLevelSchema.default("none"),
-  theologyRisk: riskLevelSchema.default("none"),
+    audience: audienceSchema.default("general"),
+    age: ageSchema.default("all"),
+    sexualityRisk: riskLevelSchema.default("none"),
+    behavioralRisk: riskLevelSchema.default("none"),
+    theologyRisk: riskLevelSchema.default("none"),
 
-  /** Preserves today's create-time default of "draft" (not the DB column's "published" default) — new titles should not be visible before review. */
-  workflowStatus: workflowStatusSchema.default("draft"),
-  qualityScore: z.number().int().min(0).default(0),
-  curatorNotes: z.string().default(""),
-  provenance: z.record(z.string(), z.unknown()).default({}),
-  verifiedAt: z.string().datetime().nullable().default(null),
+    /** Preserves today's create-time default of "draft" (not the DB column's "published" default) — new titles should not be visible before review. */
+    workflowStatus: workflowStatusSchema.default("draft"),
+    qualityScore: z.number().int().min(0).default(0),
+    curatorNotes: z.string().default(""),
+    provenance: z.record(z.string(), z.unknown()).default({}),
+    verifiedAt: z.string().datetime().nullable().default(null),
 
-  aliases: z.array(z.string().trim().min(1)).default([]),
-  /** Ordered list of short Arabic trivia facts ("الأصل والقصة", "المكان", "حقائق بارزة") — see
-   *  `titleDetailSchema.trivia` in `./index.ts`. Order is preserved; the write path fully
-   *  replaces the list, like `aliases`. */
-  trivia: z.array(z.string().trim().min(1)).default([]),
-  genres: openVocabularyArray,
-  tones: openVocabularyArray,
-  tags: openVocabularyArray,
-  countries: openVocabularyArray,
-  planetId: z.string().uuid().nullable().default(null),
+    aliases: z.array(z.string().trim().min(1)).default([]),
+    /** Ordered list of short Arabic trivia facts ("الأصل والقصة", "المكان", "حقائق بارزة") — see
+     *  `titleDetailSchema.trivia` in `./index.ts`. Order is preserved; the write path fully
+     *  replaces the list, like `aliases`. */
+    trivia: z.array(z.string().trim().min(1)).default([]),
+    genres: openVocabularyArray,
+    tones: openVocabularyArray,
+    tags: openVocabularyArray,
+    countries: openVocabularyArray,
+    planetId: z.string().uuid().nullable().default(null),
 
-  contributors: z.array(adminContributorInputSchema).default([]),
-  relations: z.array(adminTitleRelationInputSchema).default([]),
-  externalIdentities: z.array(adminExternalIdentityInputSchema).default([]),
-  ...externalIdFieldsInputSchema.shape,
+    contributors: z.array(adminContributorInputSchema).default([]),
+    relations: z.array(adminTitleRelationInputSchema).default([]),
+    externalIdentities: z.array(adminExternalIdentityInputSchema).default([]),
+  })
+  .merge(externalIdFieldsInputSchema)
+  .extend({
+    imagePath: z.string().nullable().default(null),
+    bannerPath: z.string().nullable().default(null),
+    logoPath: z.string().nullable().default(null),
 
-  imagePath: z.string().nullable().default(null),
-  bannerPath: z.string().nullable().default(null),
-  logoPath: z.string().nullable().default(null),
-
-  initialInstallment: z
-    .object({
-      kind: installmentKindSchema,
-      status: installmentStatusSchema.default("unknown"),
-      runtimeMinutes: z.number().int().min(0).nullable().default(null),
-    })
-    .optional(),
-});
+    initialInstallment: z
+      .object({
+        kind: installmentKindSchema,
+        status: installmentStatusSchema.default("unknown"),
+        runtimeMinutes: z.number().int().min(0).nullable().default(null),
+      })
+      .optional(),
+  });
 
 export const adminAwardCeremonyInputSchema = z.object({
   id: z.string().uuid().optional(),

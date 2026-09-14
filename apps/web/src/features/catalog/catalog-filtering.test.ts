@@ -7,6 +7,8 @@ import {
   workMatchesCatalogFilters,
 } from "./catalog-filtering";
 
+// SAFETY: workMatchesCatalogFilters/buildCatalogFacetOptions only read the fields populated
+// below; Work's remaining required fields are irrelevant to catalog-filtering behavior.
 const work = {
   kind: "animated-series",
   releaseStatus: "completed",

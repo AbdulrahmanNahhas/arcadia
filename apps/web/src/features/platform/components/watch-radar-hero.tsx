@@ -48,6 +48,7 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
     <section className="relative isolate min-h-[92svh] overflow-hidden sm:min-h-[96svh]">
       {works.map((candidate, index) => {
         const artwork = candidate.bannerPath || candidate.imagePath;
+
         return artwork ? (
           <img
             key={candidate.id}
@@ -64,8 +65,10 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
           />
         ) : null;
       })}
-      <div className="absolute inset-0 -z-20 bg-linear-to-t sm:bg-linear-to-l from-background via-background/62 to-background/10" />
-      <div className="absolute inset-0 -z-20 bg-linear-to-t sm:bg-linear-to-t from-background via-background/15 to-background/30" />
+
+      <div className="absolute inset-0 -z-20 bg-linear-to-t from-background via-background/62 to-background/10 sm:bg-linear-to-l" />
+      <div className="absolute inset-0 -z-20 bg-linear-to-t from-background via-background/15 to-background/30" />
+
       <div
         className="absolute inset-y-0 inset-s-0 -z-10 w-2/3 bg-[radial-gradient(circle,var(--primary),transparent_70%)] opacity-15 blur-3xl"
         aria-hidden="true"
@@ -79,6 +82,7 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
         >
           <span className="absolute -inset-8 rounded-full border border-dashed border-primary/30" />
           <span className="absolute -inset-16 rounded-full border border-primary/10" />
+
           <img
             src={work.imagePath}
             alt=""
@@ -87,7 +91,7 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
         </div>
       ) : null}
 
-      <div className="relative mx-auto flex flex-col min-h-[92svh] max-w-400 items-start justify-end gap-6 px-5 pb-44 pt-28 sm:min-h-[96svh] sm:px-8 lg:pb-36">
+      <div className="relative mx-auto flex min-h-[92svh] max-w-400 flex-col items-start justify-end gap-6 px-5 pb-32 pt-28 sm:min-h-[96svh] sm:px-8 lg:pb-28">
         <div
           key={`copy-${work.id}`}
           className="max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-500"
@@ -103,6 +107,7 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
               <h1 className="max-w-xl font-heading text-4xl leading-tight font-semibold sm:text-6xl">
                 {work.arabicTitle || work.title}
               </h1>
+
               {work.arabicTitle ? (
                 <p className="mt-3 text-sm font-medium tracking-[0.08em] text-foreground/55 sm:text-base">
                   {work.title}
@@ -113,11 +118,13 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
 
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <Badge>{radarStatus(work)}</Badge>
+
             {work.calculatedRating !== null ? (
               <Badge variant="secondary">
                 <StarIcon weight="fill" /> {work.calculatedRating.toFixed(1)}
               </Badge>
             ) : null}
+
             <Badge variant="outline">{work.year ?? "موعد غير محدد"}</Badge>
             <Badge variant="outline">{kindLabel[work.kind]}</Badge>
           </div>
@@ -133,29 +140,28 @@ export function WatchRadarHero({ works }: { works: Work[] }) {
               <TooltipTrigger
                 render={<Button size="lg" className="rounded-full font-semibold" disabled />}
               >
-                <PlayIcon weight="fill" data-icon="inline-start" /> تشغيل
+                <PlayIcon weight="fill" data-icon="inline-start" />
+                تشغيل
               </TooltipTrigger>
-              {/*
-                Playback is torrent-first now, not Jellyfin-first — but it starts from a specific
-                film, and the radar shows whole titles. The work page is where the installment is
-                chosen, so that is where the play button lives.
-              */}
+
               <TooltipContent>افتح صفحة العمل لاختيار الفيلم وتشغيله</TooltipContent>
             </Tooltip>
+
             <Link
               to="/titles/$titleId"
               params={{ titleId: work.id }}
               className={cn(buttonVariants({ variant: "secondary", size: "lg" }), "rounded-full")}
             >
-              <CompassIcon data-icon="inline-start" /> تفاصيل العمل
+              <CompassIcon data-icon="inline-start" />
+              تفاصيل العمل
             </Link>
           </div>
         </div>
 
         {works.length > 1 ? (
           <nav
-            className="relative flex items-center gap-2"
-            aria-label={`قائمة الرادار · ${works.length} أعمال`}
+            className="flex items-center gap-2"
+            aria-label={`التنقل بين الأعمال · ${works.length}`}
           >
             {works.map((candidate, index) => {
               const selected = candidate.id === work.id;

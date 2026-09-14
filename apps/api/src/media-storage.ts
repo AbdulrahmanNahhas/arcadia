@@ -144,7 +144,11 @@ function safeSlug(value: string) {
 
 function sniffMimeType(bytes: Buffer): keyof typeof mimeDetails | null {
   for (const [mimeType, details] of Object.entries(mimeDetails)) {
-    if (details.signature(bytes)) return mimeType as keyof typeof mimeDetails;
+    if (details.signature(bytes)) {
+      // SAFETY: `mimeType` comes from `Object.entries(mimeDetails)`, so it is always one of
+      // `mimeDetails`'s own keys.
+      return mimeType as keyof typeof mimeDetails;
+    }
   }
   return null;
 }
@@ -202,6 +206,8 @@ export async function storeMedia(input: {
     input.dataUrl,
   );
   if (!match) throw new Error("Use a valid JPEG, PNG, WebP, or GIF image.");
+  // SAFETY: the regex's first capture group only matches the `image/(jpeg|png|webp|gif)`
+  // alternation, which is exactly `mimeDetails`'s key set.
   const mimeType = match[1] as keyof typeof mimeDetails;
   const encodedImage = match[2];
   if (!encodedImage) throw new Error("The image is empty.");

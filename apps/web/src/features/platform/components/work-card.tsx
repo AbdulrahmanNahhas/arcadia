@@ -1,4 +1,4 @@
-import { titleFormatLabels, titleFormatOf, titleShapeOf } from "@arcadia/domain";
+import { titleFormatLabels, titleFormatOf, titleStructureOf } from "@arcadia/domain";
 import { FilmSlateIcon, StarIcon, TelevisionSimpleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -40,7 +40,7 @@ function getTitleInfo(work: Work) {
 
 function getDurationText(work: Work) {
   if (work.episodeCount !== null && work.episodeCount >= 1) return `${work.episodeCount} حلقة`;
-  if (titleShapeOf(work.kind) === "movie" && work.runtimeMinutes && work.runtimeMinutes >= 1)
+  if (titleStructureOf(work.kind) === "movie" && work.runtimeMinutes && work.runtimeMinutes >= 1)
     return `${work.runtimeMinutes} دقيقة`;
   return null;
 }

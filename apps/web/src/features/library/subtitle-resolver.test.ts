@@ -23,7 +23,7 @@ const response: InstallmentSubtitles = {
 
 describe("getInstallmentSubtitles", () => {
   it("builds a query string from the optional matching hints", async () => {
-    const fetchMock = vi.fn(
+    const fetchMock = vi.fn<(url: string) => Promise<Response>>(
       async (_url: string) =>
         new Response(JSON.stringify(response), {
           status: 200,
@@ -45,7 +45,7 @@ describe("getInstallmentSubtitles", () => {
   });
 
   it("sends no query string when nothing is known yet", async () => {
-    const fetchMock = vi.fn(
+    const fetchMock = vi.fn<(url: string) => Promise<Response>>(
       async (_url: string) =>
         new Response(JSON.stringify(response), {
           status: 200,
@@ -96,6 +96,8 @@ describe("downloadInstallmentSubtitle", () => {
       vi.fn(async () => new Response(null, { status: 502 })),
     );
 
-    await expect(downloadInstallmentSubtitle(response.installmentId, 1)).rejects.toThrow();
+    await expect(downloadInstallmentSubtitle(response.installmentId, 1)).rejects.toThrow(
+      "تعذّر تنزيل ملف الترجمة.",
+    );
   });
 });

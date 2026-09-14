@@ -7,14 +7,14 @@ import type { WorkKind } from "./model";
 
 /** The one Arabic name for each catalog type — every surface (browse chips, group headers, the
  *  card badge, the admin table) reads it from here rather than keeping its own copy. */
-export const kindLabelsAr: Record<WorkKind, string> = {
+export const kindLabelsAr = {
   "animated-movie": titleKindLabels["animated-movie"].ar,
   "animated-series": titleKindLabels["animated-series"].ar,
   "live-action-movie": titleKindLabels["live-action-movie"].ar,
   "live-action-series": titleKindLabels["live-action-series"].ar,
-};
+} satisfies Record<WorkKind, string>;
 
-export const valueLabelsAr: Readonly<Record<string, string>> = {
+const valueLabelsArEntries = {
   upcoming: "قادم",
   airing: "يعرض الآن",
   returning: "مستمر",
@@ -47,15 +47,20 @@ export const valueLabelsAr: Readonly<Record<string, string>> = {
   publisher: "ناشر",
   person: "شخص",
   organization: "مؤسسة",
-};
+} satisfies Record<string, string>;
 
-const facetVocabulary: Partial<Record<FacetKey, string>> = {
-  genres: "genre",
-  tags: "tag",
-  tones: "tone",
-  countries: "country",
-  audiences: "audience",
-};
+/** Arabic label for a value that isn't tied to a specific facet's controlled vocabulary
+ *  (statuses, risk levels, curation states, role slugs, …). Keyed by arbitrary value strings,
+ *  so a `Map` rather than an object dictionary keeps the lookup honest about that shape. */
+export const valueLabelsAr = new Map(Object.entries(valueLabelsArEntries));
+
+const facetVocabulary = new Map<FacetKey, string>([
+  ["genres", "genre"],
+  ["tags", "tag"],
+  ["tones", "tone"],
+  ["countries", "country"],
+  ["audiences", "audience"],
+]);
 
 // `@arcadia/domain`'s taxonomy (genres/tones/tags) is keyed in the plural, but browse facets
 // use the singular vocabulary name (matching the `vocabulary_terms`-style DB rows). Map back to
@@ -67,7 +72,7 @@ function canonicalVocabulary(vocabulary: string) {
   return vocabulary;
 }
 
-export const facetLabelsAr: Record<FacetKey, string> = {
+export const facetLabelsAr = {
   genres: "التصنيفات",
   tags: "الوسوم والموضوعات",
   tones: "الطابع",
@@ -87,7 +92,7 @@ export const facetLabelsAr: Record<FacetKey, string> = {
   creatorRoles: "أدوار صنّاع العمل",
   externalProviders: "المصادر الخارجية",
   structureStates: "بنية التتبع",
-};
+} satisfies Record<FacetKey, string>;
 
 export function useArabicTranslations() {
   const { data: terms = [] } = useQuery({
@@ -109,8 +114,8 @@ export function useArabicTranslations() {
     vocabularyFallbackLabel("ar", canonicalVocabulary(vocabulary), value);
 
   const facetValueLabel = (facet: FacetKey, value: string) => {
-    const vocabulary = facetVocabulary[facet];
-    return vocabulary ? taxonomyLabel(vocabulary, value) : (valueLabelsAr[value] ?? value);
+    const vocabulary = facetVocabulary.get(facet);
+    return vocabulary ? taxonomyLabel(vocabulary, value) : (valueLabelsAr.get(value) ?? value);
   };
 
   return { taxonomyLabel, facetValueLabel };

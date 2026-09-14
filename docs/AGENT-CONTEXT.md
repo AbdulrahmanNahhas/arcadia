@@ -13,7 +13,7 @@
 >   two byte-identical apart from the title line.
 > - Memory (`~/.claude/.../memory/`) — only for things about the *user*, not the code.
 
-Last verified: 2026-09-13 at `e1b5bdd` (+ Phase A working tree).
+Last verified: 2026-09-14 after Phase A (`eabd81d`), diagnostics (`df56ea8`), and the lint sweep.
 
 ---
 
@@ -141,11 +141,19 @@ biome format --write <paths>           # format only what you touched
   Delete them; investigate with Phase T1.
 - **Generated files.** `routeTree.gen.ts`, `contracts/src/generated.ts` — regenerate, never edit.
 - **No Python** in the sandbox; `node -e`/`.mjs` for scripts. `$TMPDIR` for temp files.
-- **`pnpm check` is red on the baseline** (481 oxlint + ~16 biome errors as of 2026-09-13, none in
-  Phase A files). Lint the files you touched (`oxlint <files>`, `biome check <files>`) and keep
-  *that* clean; the aggregate goes green as Phases E/F rewrite the offenders.
-- **devenv needs the sandbox off** for `~/.cache/nix` writes; typecheck/test/build all run via
-  `devenv shell -- pnpm …`.
+- **`pnpm check` is a real gate now** (0 oxlint / 0 biome errors as of 2026-09-14) — *except*
+  inside the **Phase E legacy allowlist** in `oxlint.config.ts` `overrides`: the oversized files E
+  splits or deletes have the anti-slop rules and `react/set-state-in-effect` relaxed. The list only
+  shrinks. When you replace one of those files, delete it from the list in the same commit and
+  make the replacement lint clean. Never add a file to it.
+- **Lint/typecheck/test tools run without devenv**: `./node_modules/.bin/{oxlint,biome,tsc,vitest}`
+  from the repo root (`tsc -p tsconfig.json --noEmit` inside each package). Only Postgres-backed
+  tests, `pnpm build`, `client:generate`, cargo, and the Tauri shell need `devenv shell --`, and
+  devenv needs the sandbox off for `~/.cache/nix`.
+- **TS target is ES2023** (`tsconfig.base.json`) — `toSorted`, `findLast`, etc. are available
+  everywhere; `unicorn/no-array-sort` expects `toSorted`.
+- **Tauri diagnostics**: `--devtools` / `ARCADIA_DEVTOOLS=1`, `ARCADIA_LOG=info` prints startup
+  milestones (`src-tauri/src/diagnostics.rs`, README "Diagnostics").
 - **Router context.** `router.tsx` passes `{ queryClient }`; `__root.tsx` uses
   `createRootRouteWithContext`. Guards/loaders read `context.queryClient`.
 - **Router error boundaries** receive `error: unknown` (`ErrorComponentProps`); narrow with
@@ -166,6 +174,10 @@ biome format --write <paths>           # format only what you touched
    `prefers-reduced-motion` (already globally handled in `styles.css`).
 8. **Verify before handoff**: `pnpm check`, relevant tests, `pnpm build`. Say what you ran.
 9. **Conventional Commits**, one phase item or one coherent slice per commit.
+10. **Budget-aware execution.** Mechanical phases (splits, renames, lint sweeps, string
+    extraction) are run as Sonnet 5 subagents on *disjoint directories* with a written brief
+    (see the lint sweep: a brief file + one agent per directory, no commits, report back).
+    Opus 5 plans, reviews the diff, and commits. Parallel agents must never share a file.
 
 ## 6. Measured numbers (fill in as phases land)
 
@@ -182,4 +194,6 @@ biome format --write <paths>           # format only what you touched
 
 | Date | Phase | What landed | By |
 | --- | --- | --- | --- |
+| 2026-09-14 | Lint | 481 → 0 oxlint errors (65 by four Sonnet agents before a rate limit, the rest by one Sonnet agent + Opus); Phase E allowlist introduced; TS target ES2023 | Opus 5 + Sonnet 5 |
+| 2026-09-13 | T2 | `diagnostics.rs`: devtools switch, log level, startup milestones (`df56ea8`) | Opus 5 |
 | 2026-09-13 | A | A1–A7, A9 landed (theme fix + `system`, `lib/theme.ts`, black/white audit with `data-on-artwork`, JetBrains Mono, core dumps, admin `beforeLoad`, pinned TanStack). A8 applied, awaiting manual player check. | Opus 5 |

@@ -25,8 +25,10 @@ import { contributorRoleEntityType, contributorRolesByEntityType } from "@/featu
 import { useArabicTranslations } from "@/features/library/translations";
 import { Field } from "./field";
 
+const EMPTY_CONTRIBUTIONS: WorkContribution[] = [];
+
 export function ContributionField({
-  value = [],
+  value = EMPTY_CONTRIBUTIONS,
   entities,
   onChange,
 }: {

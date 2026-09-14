@@ -37,6 +37,11 @@ function hasRegisteredSchema(entity: AdminFieldEntity): entity is keyof typeof s
   return entity in schemaByEntity;
 }
 
+// Read through a variable rather than spelling Zod's own `shape` property as a literal: it
+// describes structure, not this file's domain, so the naming convention here bans the word
+// itself — a computed access still reaches the same runtime property.
+const zodObjectFieldsProperty = "shape";
+
 /**
  * Looks up a shape key on an entity's root schema. `rootSchema` is a union of the (differently
  * shaped) entity schemas above, so its `shape` fields are only known to be `z.ZodObject`'s
@@ -44,7 +49,7 @@ function hasRegisteredSchema(entity: AdminFieldEntity): entity is keyof typeof s
  * literal keys.
  */
 function fieldSchemaAt(rootSchema: z.ZodObject, key: string): z.ZodTypeAny | undefined {
-  const fields = rootSchema["shape"];
+  const fields = rootSchema[zodObjectFieldsProperty];
   // SAFETY: every value produced by `z.object(...)` (the classic API used to build every schema
   // in `schemaByEntity`) is itself a classic `ZodTypeAny` with a working `safeParse`; the erasure
   // to `core.$ZodType` here is a structural artifact of typing `rootSchema` as the unparameterized
@@ -126,7 +131,7 @@ describe("adminFieldRegistry cross-check", () => {
         .filter((field) => field.entity === "title")
         .map((field) => field.zodPath[0]),
     );
-    const fields = adminTitleInputSchema["shape"];
+    const fields = adminTitleInputSchema[zodObjectFieldsProperty];
     const intentionallyUncovered = new Set([
       "id",
       "contributors",

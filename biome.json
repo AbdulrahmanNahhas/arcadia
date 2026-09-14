@@ -9,6 +9,8 @@
     "includes": [
       "**",
       "!apps/web/src/routeTree.gen.ts",
+      "!packages/contracts/src/generated.ts",
+      "!packages/database/drizzle/meta",
       "!tools/oxlint/anti-slop/*",
       "!.agents/skills/install-anti-slop/assets/anti-slop/*"
     ]
