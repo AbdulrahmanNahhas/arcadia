@@ -1,3 +1,4 @@
+mod diagnostics;
 mod error;
 mod player;
 mod torrent;
@@ -263,6 +264,7 @@ async fn shutdown(state: Arc<AppState>) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  let started_at = diagnostics::StartedAt(std::time::Instant::now());
   let state = Arc::new(AppState {
     torrent: Mutex::new(None),
     player: Mutex::new(None),
@@ -275,6 +277,8 @@ pub fn run() {
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
     .manage(state.clone())
+    .manage(started_at)
+    .on_page_load(|webview, payload| diagnostics::on_page_load(webview, payload.event()))
     .invoke_handler(tauri::generate_handler![
       player_subscribe,
       player_init,
@@ -292,13 +296,21 @@ pub fn run() {
     .setup({
       let state = state.clone();
       move |app| {
-        if cfg!(debug_assertions) {
-          app.handle().plugin(
-            tauri_plugin_log::Builder::default()
-              .level(log::LevelFilter::Info)
-              .build(),
-          )?;
-        }
+        // Always registered so a release build can be asked for logs; the level is the only
+        // thing that differs between debug and release (see diagnostics.rs).
+        app.handle().plugin(
+          tauri_plugin_log::Builder::default()
+            .level(diagnostics::log_level())
+            .build(),
+        )?;
+        log::info!(
+          "setup at +{} ms",
+          app
+            .state::<diagnostics::StartedAt>()
+            .0
+            .elapsed()
+            .as_millis()
+        );
 
         // Streaming data is disposable, so it belongs in the cache directory, not the data
         // directory: different lifetime, different backup expectations. Phase 3's kept

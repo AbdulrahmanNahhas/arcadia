@@ -132,6 +132,18 @@ directory it was launched from — usually the repo root under `devenv up`. They
 delete them (`rm core.*`) and, if they keep appearing, inspect the latest one with
 `gdb -c core.<pid>` to find the faulting library before filing it under `docs/v0.3.5.md` Phase T.
 
+### Diagnostics
+
+The shell has two launch-time switches that work in release builds too (`src-tauri/src/diagnostics.rs`):
+
+| Switch | Effect |
+| --- | --- |
+| `--devtools` or `ARCADIA_DEVTOOLS=1` | opens the WebKit inspector on the main window once the page has loaded |
+| `ARCADIA_LOG=trace\|debug\|info\|warn\|error\|off` | log level (release default `warn`, debug default `info`) |
+
+At `info` the log prints startup milestones as `+<ms>` since process start (`setup`, `page load
+started`, `page loaded`) — the cold-start number `docs/v0.3.5.md` Phase T1 asks for.
+
 ### Playback runtime
 
 The embedded player links against **libmpv** and decodes in hardware where it can
