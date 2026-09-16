@@ -3,7 +3,6 @@ import {
   NotePencilIcon,
   PlusIcon,
   SelectionPlusIcon,
-  SidebarSimpleIcon,
   TrashIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -35,7 +34,6 @@ import {
 import { CatalogFilterDrawer } from "@/features/catalog/catalog-filters";
 import type { Work } from "@/features/library/model";
 import { kindLabelsAr as kindLabels } from "@/features/library/translations";
-import { cn } from "@/lib/utils";
 import { deleteWorks, getAdminWorks } from "@/server/library.functions";
 import { AdminPageHeader } from "../components/admin-page-header";
 
@@ -49,7 +47,6 @@ export function AdminCatalogPage() {
   const [filters, setFilters] = useState(createCatalogFilters);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const facetOptions = useMemo(() => buildCatalogFacetOptions(works), [works]);
   const visible = useMemo(() => {
@@ -205,25 +202,10 @@ export function AdminCatalogPage() {
               </InputGroup>
             </Field>
             <CatalogFilterDrawer {...filterProps} />
-            <Button
-              variant={showFilters ? "secondary" : "outline"}
-              className="hidden lg:inline-flex"
-              aria-pressed={showFilters}
-              onClick={() => setShowFilters((current) => !current)}
-            >
-              <SidebarSimpleIcon data-icon="inline-start" />
-              {showFilters ? "إخفاء المرشحات" : "إظهار المرشحات"}
-            </Button>
           </div>
         </CardHeader>
         <CardContent className="px-0">
-          <div
-            className={cn(
-              "grid items-start gap-6 px-6 pb-6 relative",
-              // showFilters && "lg:grid-cols-[19rem_minmax(0,1fr)]",
-            )}
-          >
-            {/*{showFilters ? <CatalogFilterSidebar {...filterProps} /> : null}*/}
+          <div className="grid items-start gap-6 px-6 pb-6 relative">
             {visible.length ? (
               <div className="min-w-0">
                 <div className="mb-5 flex w-fit items-center gap-2 text-sm text-muted-foreground">
