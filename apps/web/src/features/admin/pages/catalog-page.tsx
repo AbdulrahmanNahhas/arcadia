@@ -32,7 +32,7 @@ import {
   createCatalogFilters,
   workMatchesCatalogFilters,
 } from "@/features/catalog/catalog-filtering";
-import { CatalogFilterSheet, CatalogFilterSidebar } from "@/features/catalog/catalog-filters";
+import { CatalogFilterDrawer } from "@/features/catalog/catalog-filters";
 import type { Work } from "@/features/library/model";
 import { kindLabelsAr as kindLabels } from "@/features/library/translations";
 import { cn } from "@/lib/utils";
@@ -204,7 +204,7 @@ export function AdminCatalogPage() {
                 </InputGroupAddon>
               </InputGroup>
             </Field>
-            <CatalogFilterSheet {...filterProps} />
+            <CatalogFilterDrawer {...filterProps} />
             <Button
               variant={showFilters ? "secondary" : "outline"}
               className="hidden lg:inline-flex"
@@ -220,10 +220,10 @@ export function AdminCatalogPage() {
           <div
             className={cn(
               "grid items-start gap-6 px-6 pb-6 relative",
-              showFilters && "lg:grid-cols-[19rem_minmax(0,1fr)]",
+              // showFilters && "lg:grid-cols-[19rem_minmax(0,1fr)]",
             )}
           >
-            {showFilters ? <CatalogFilterSidebar {...filterProps} /> : null}
+            {/*{showFilters ? <CatalogFilterSidebar {...filterProps} /> : null}*/}
             {visible.length ? (
               <div className="min-w-0">
                 <div className="mb-5 flex w-fit items-center gap-2 text-sm text-muted-foreground">

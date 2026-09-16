@@ -226,7 +226,7 @@ async function writeManualPlayed(
   await transaction`insert into account_playback_states
     (account_id, installment_id, episode_id, is_played, played_manually, played_at)
     values (${accountId}, ${target.installmentId}, ${target.episodeId}, ${isPlayed}, true,
-      ${isPlayed ? new Date() : null})
+      ${isPlayed ? new Date().toISOString() : null})
     on conflict (account_id, installment_id, episode_id) do update set
       is_played=excluded.is_played, played_manually=true, played_at=excluded.played_at,
       updated_at=now()`;
@@ -254,7 +254,11 @@ socialRoutes.put("/api/v1/me/playback", async (context) => {
     previouslyPlayedManually: Boolean(existing?.played_manually),
     previouslyIsPlayed: wasPlayed,
   });
-  const playedAt = isPlayed ? (wasPlayed ? existing?.played_at : new Date()) : null;
+  const playedAt = isPlayed
+    ? wasPlayed
+      ? ((existing?.played_at as Date | null | undefined)?.toISOString() ?? null)
+      : new Date().toISOString()
+    : null;
   const [saved] = await database().client`insert into account_playback_states
     (account_id, installment_id, episode_id, position_seconds, duration_seconds, is_played, played_at, subtitle_offset_ms)
     values (${current.account.id}, ${input.installmentId}, ${input.episodeId},
@@ -527,7 +531,53 @@ socialRoutes.get("/api/v1/me/continue-watching", async (context) => {
     order by c.title_id, c.i_pos, c.e_pos
     limit 12`;
 
-  const allTitleIds = [...inProgressRows, ...upNextRows].map((row) => String(row.titleId));
+  // Shared by both watched-state queries below: every "trackable unit" in the catalog that has
+  // actually released, one row per movie/special installment and one row per episode of a season
+  // installment. An announced/future installment (a season 4 that doesn't exist in the catalog
+  // yet, or — the case this excludes — an upcoming movie sitting beside two already-watched
+  // seasons) must not count, or a title/season can never read as "watched" until something
+  // unreleasable gets released. Mirrors the `hasReleased` check `repository.ts` uses for
+  // `isPlayable`, so "watched" and "playable" agree on what counts as released.
+  const trackableUnits = sql`
+    (select id as installment_id, title_id, null::uuid as episode_id
+      from installments
+      where kind in ('movie','special')
+        and status <> 'announced' and release_date is not null and release_date <= current_date
+      union all
+      select i.id as installment_id, i.title_id, e.id as episode_id
+      from installments i join episodes e on e.installment_id = i.id
+      where i.kind = 'season'
+        and (i.status = 'completed'
+          or (i.status <> 'announced' and i.release_date is not null and i.release_date <= current_date)))`;
+
+  const watchedTitleRows = await sql`
+    with units as ${trackableUnits}
+    select u.title_id as "titleId"
+    from units u
+    left join account_playback_states ps
+      on ps.account_id = ${accountId}
+        and ps.installment_id = u.installment_id
+        and ps.episode_id is not distinct from u.episode_id
+    group by u.title_id
+    having bool_and(coalesce(ps.is_played, false))`;
+
+  const watchedInstallmentRows = await sql`
+    with units as ${trackableUnits}
+    select u.installment_id as "installmentId", u.title_id as "titleId"
+    from units u
+    left join account_playback_states ps
+      on ps.account_id = ${accountId}
+        and ps.installment_id = u.installment_id
+        and ps.episode_id is not distinct from u.episode_id
+    group by u.installment_id, u.title_id
+    having bool_and(coalesce(ps.is_played, false))`;
+
+  const allTitleIds = [
+    ...inProgressRows,
+    ...upNextRows,
+    ...watchedTitleRows,
+    ...watchedInstallmentRows,
+  ].map((row) => String(row.titleId));
   const visible = await visibleTitleIdsForAccount(accountId, allTitleIds);
   return context.json(
     continueWatchingResponseSchema.parse({
@@ -537,6 +587,12 @@ socialRoutes.get("/api/v1/me/continue-watching", async (context) => {
       upNext: upNextRows
         .filter((row) => visible.has(String(row.titleId)))
         .map(continueWatchingItemFromRow),
+      watchedTitleIds: watchedTitleRows
+        .map((row) => String(row.titleId))
+        .filter((titleId) => visible.has(titleId)),
+      watchedInstallmentIds: watchedInstallmentRows
+        .filter((row) => visible.has(String(row.titleId)))
+        .map((row) => String(row.installmentId)),
     }),
   );
 });

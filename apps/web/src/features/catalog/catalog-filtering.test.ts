@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Work } from "../library/model";
 import {
   buildCatalogFacetOptions,
+  type CatalogWatchContext,
+  countCatalogFilters,
   createCatalogFilters,
   cycleCatalogSelection,
   workMatchesCatalogFilters,
@@ -156,6 +158,51 @@ describe("catalog filtering", () => {
     filters.facets.playableStates.include = ["playable"];
     expect(workMatchesCatalogFilters(work, filters)).toBe(true);
     expect(workMatchesCatalogFilters(unplayableWork, filters)).toBe(false);
+  });
+
+  it("does not count the resting 'playable only' default as a chosen filter", () => {
+    const filters = createCatalogFilters();
+    expect(countCatalogFilters(filters)).toBe(0);
+    filters.facets.playableStates = { include: [], exclude: [] };
+    expect(countCatalogFilters(filters)).toBe(0);
+    filters.facets.playableStates = { include: ["not-playable"], exclude: [] };
+    expect(countCatalogFilters(filters)).toBe(1);
+  });
+
+  it("filters by the account's watched / in-progress / unwatched state", () => {
+    const seasonCard = { ...work, id: "series", installmentId: "season-2" };
+    const context: CatalogWatchContext = {
+      watchedTitleIds: new Set(["done-title"]),
+      watchedInstallmentIds: new Set(["season-1"]),
+      inProgressTitleIds: new Set(["series"]),
+      inProgressInstallmentIds: new Set(["season-2"]),
+    };
+    const doneTitle = { ...work, id: "done-title" };
+    const options = buildCatalogFacetOptions([work, seasonCard, doneTitle], context);
+    expect(options.watchStates).toEqual(
+      expect.arrayContaining([
+        { value: "unwatched", count: 1 },
+        { value: "in-progress", count: 1 },
+        { value: "watched", count: 1 },
+      ]),
+    );
+
+    const filters = createCatalogFilters();
+    filters.facets.watchStates.include = ["watched"];
+    expect(workMatchesCatalogFilters(doneTitle, filters, context)).toBe(true);
+    expect(workMatchesCatalogFilters(seasonCard, filters, context)).toBe(false);
+    filters.facets.watchStates.include = ["in-progress"];
+    expect(workMatchesCatalogFilters(seasonCard, filters, context)).toBe(true);
+    expect(workMatchesCatalogFilters(work, filters, context)).toBe(false);
+
+    // A season card reads its own installment, never the parent title's aggregate.
+    const finishedSeason = { ...work, id: "series", installmentId: "season-1" };
+    filters.facets.watchStates.include = ["watched"];
+    expect(workMatchesCatalogFilters(finishedSeason, filters, context)).toBe(true);
+
+    // Without an account context the facet has nothing to say and matches everything.
+    expect(buildCatalogFacetOptions([work]).watchStates).toEqual([]);
+    expect(workMatchesCatalogFilters(work, filters)).toBe(true);
   });
 
   it("defaults to public works and supports all/private admin visibility", () => {

@@ -741,6 +741,12 @@ export const continueWatchingResponseSchema = z.object({
   inProgress: z.array(continueWatchingItemSchema),
   /** The next unwatched unit per followed title that has no in-progress row of its own. */
   upNext: z.array(continueWatchingItemSchema),
+  /** Titles where every trackable unit (movie/special, or every episode of every season) is
+   *  marked played for this account — drives the watched badge on title-mode catalog cards. */
+  watchedTitleIds: z.array(z.string().uuid()),
+  /** Installments (a movie/special, or a season) whose own trackable units are all marked played
+   *  — drives the watched badge on installment-mode catalog cards (the flattened browse view). */
+  watchedInstallmentIds: z.array(z.string().uuid()),
 });
 export const watchHistoryItemSchema = continueWatchingItemSchema.extend({
   isPlayed: z.boolean(),

@@ -10,7 +10,6 @@ import {
 import {
   ArrowsDownUpIcon,
   FilmStripIcon,
-  FunnelSimpleIcon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
   SquaresFourIcon,
@@ -46,13 +45,15 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCurrentAccount } from "@/features/accounts/api";
+import { archiveKeys, getContinueWatching } from "@/features/archive/api";
 import {
   buildCatalogFacetOptions,
+  type CatalogWatchContext,
   countCatalogFilters,
   createCatalogFilters,
   workMatchesCatalogFilters,
 } from "@/features/catalog/catalog-filtering";
-import { CatalogFilterSheet, CatalogFilterSidebar } from "@/features/catalog/catalog-filters";
+import { CatalogFilterDrawer } from "@/features/catalog/catalog-filters";
 import {
   type CatalogGroupBy,
   catalogGroupByOptions,
@@ -225,7 +226,6 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
     "none",
   );
   const [tableColumns, setTableColumns] = useWorkTableColumns();
-  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(createCatalogFilters);
 
   const catalogWorks = useMemo(() => {
@@ -233,17 +233,40 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
     const installmentSource = isAdmin && adminInstallments ? adminInstallments : publicInstallments;
     return mode === "titles" ? titleSource : installmentSource;
   }, [adminInstallments, adminWorks, isAdmin, mode, publicInstallments, publicWorks]);
-  const filterOptions = useMemo(() => buildCatalogFacetOptions(catalogWorks), [catalogWorks]);
+  // The same per-account request every card's seal badge and resume bar already share — the
+  // "watched / in progress / unwatched" facet reads it as id sets so filtering stays pure.
+  const { data: continueWatching } = useQuery({
+    queryKey: archiveKeys.continueWatching,
+    queryFn: getContinueWatching,
+    staleTime: 30_000,
+  });
+  const watchContext = useMemo<CatalogWatchContext>(
+    () => ({
+      watchedTitleIds: new Set(continueWatching?.watchedTitleIds ?? []),
+      watchedInstallmentIds: new Set(continueWatching?.watchedInstallmentIds ?? []),
+      inProgressTitleIds: new Set(continueWatching?.inProgress.map((item) => item.titleId) ?? []),
+      inProgressInstallmentIds: new Set(
+        continueWatching?.inProgress.map((item) => item.installmentId) ?? [],
+      ),
+    }),
+    [continueWatching],
+  );
+  const filterOptions = useMemo(
+    () => buildCatalogFacetOptions(catalogWorks, watchContext),
+    [catalogWorks, watchContext],
+  );
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleWorks = useMemo(
     () =>
       sortWorks(
         catalogWorks.filter(
-          (work) => workMatchesCatalogFilters(work, filters) && matchesQuery(work, normalizedQuery),
+          (work) =>
+            workMatchesCatalogFilters(work, filters, watchContext) &&
+            matchesQuery(work, normalizedQuery),
         ),
         sort,
       ),
-    [catalogWorks, filters, normalizedQuery, sort],
+    [catalogWorks, filters, normalizedQuery, sort, watchContext],
   );
   const groups = useMemo(
     () => groupWorks(visibleWorks, groupBy, sort !== "oldest", planetsById),
@@ -279,13 +302,7 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
   return (
     <PlatformShell immersive sticky>
       <section className="mx-auto max-w-400 px-5 pb-12 pt-0 sm:px-8">
-        <div
-          className={cn(
-            "grid items-start gap-7",
-            showFilters && "lg:grid-cols-[19rem_minmax(0,1fr)]",
-          )}
-        >
-          {showFilters ? <CatalogFilterSidebar {...filterProps} /> : null}
+        <div className="grid items-start gap-7">
           <div className="min-w-0 pb-4">
             <div className="w-full space-y-3 py-2 dir-rtl">
               {/* Primary Action Bar: Search, Scope Mode, Main Filter Actions */}
@@ -355,32 +372,8 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
                   </ToggleGroupItem>
                 </ToggleGroup>
 
-                {/* Mobile Filter Sheet Trigger */}
-                <CatalogFilterSheet {...filterProps} className="shrink-0 lg:hidden" />
-
-                {/* Desktop Filter Toggle Button */}
-                <Button
-                  variant={showFilters ? "secondary" : "outline"}
-                  size="sm"
-                  className={cn(
-                    "hidden h-10 shrink-0 gap-2 rounded-xl px-4 text-xs font-medium border-border/60 transition-all lg:inline-flex",
-                    showFilters && "bg-secondary/80 font-semibold shadow-xs",
-                  )}
-                  disabled={!interactive}
-                  aria-pressed={showFilters}
-                  onClick={() => setShowFilters((current) => !current)}
-                >
-                  <FunnelSimpleIcon className="size-4 text-muted-foreground" />
-                  <span>{showFilters ? "إخفاء المرشحات" : "المرشحات"}</span>
-                  {activeFilterCount > 0 && (
-                    <Badge
-                      variant="default"
-                      className="ms-1 size-5 justify-center rounded-full p-0 text-[10px] font-bold"
-                    >
-                      {activeFilterCount}
-                    </Badge>
-                  )}
-                </Button>
+                {/* Filter drawer below the desktop breakpoint; the sidebar takes over at lg. */}
+                <CatalogFilterDrawer {...filterProps} />
 
                 {/* Admin Indicator Badge */}
                 {isAdmin && (

@@ -1,5 +1,5 @@
 import { titleFormatLabels, titleFormatOf, titleStructureOf } from "@arcadia/domain";
-import { FilmSlateIcon, StarIcon, TelevisionSimpleIcon } from "@phosphor-icons/react";
+import { CheckIcon, FilmSlateIcon, StarIcon, TelevisionSimpleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState } from "react";
@@ -269,6 +269,54 @@ function useResumeProgress(titleId: string) {
 }
 
 /**
+ * Same cached `/me/continue-watching` request `useResumeProgress` already reads — this just looks
+ * at the `watchedTitleIds`/`watchedInstallmentIds` half of the response instead of `inProgress`,
+ * so a card never fires a second request to learn whether it's fully watched.
+ *
+ * A `Work` is either a title-mode card (`installmentId` null — every season/movie under it must be
+ * watched) or an installment-mode card from the flattened browse view (one specific season or
+ * movie) — checking the wrong set would show a season card as "watched" only once the *entire*
+ * series is, or vice versa, so which set to check follows `installmentId` exactly the same way the
+ * mark-watched write path below does.
+ */
+export function useWorkWatched(work: Pick<Work, "id" | "installmentId">) {
+  const { data } = useQuery({
+    queryKey: archiveKeys.continueWatching,
+    queryFn: getContinueWatching,
+    staleTime: 30_000,
+  });
+  return work.installmentId
+    ? (data?.watchedInstallmentIds.includes(work.installmentId) ?? false)
+    : (data?.watchedTitleIds.includes(work.id) ?? false);
+}
+
+/**
+ * A seal, not a label: every other overlay chip on the card is a glass pill because it's reporting
+ * a number or a category, but "watched" is binary and permanent, so it gets its own shape —
+ * a small stamped disc rather than a badge that has to hold text. Emerald is the one color no
+ * other card state borrows (the app's own primary is indigo-leaning, ratings use it too), so the
+ * seal reads as "done" at a glance in a row of a dozen posters without needing a caption. Icon-only
+ * by design — the ring/glow/shape already say "completed" three different ways.
+ */
+function WatchedBadge({ watched }: { watched: boolean }) {
+  if (!watched) return null;
+  return (
+    <div
+      data-on-artwork
+      role="img"
+      aria-label="تمّت مشاهدته بالكامل"
+      className={cn(
+        "absolute inset-s-2 top-2 flex size-5 items-center justify-center rounded-full",
+        "bg-emerald-500/30 text-emerald-400 ring-1 ring-emerald-400/70 backdrop-blur-md",
+        "shadow-[0_0_0_1px_rgba(16,185,129,0.15),0_0_10px_-1px_rgba(16,185,129,0.85)]",
+      )}
+    >
+      <CheckIcon weight="bold" className="size-3" />
+    </div>
+  );
+}
+
+/**
  * Unlike the rest of the overlay furniture this shows at rest, because "you were partway through
  * this" is the one fact that changes which card you pick — hiding it until hover would mean
  * hovering every card in a row to find the one you left.
@@ -414,15 +462,20 @@ export function WorkCard({
   const facts = factsOf(work, frame.facts);
   const KindIcon = kindIcon[work.kind];
   const resume = useResumeProgress(work.id);
+  const watched = useWorkWatched(work);
 
   return (
     // `data-card-focused` mirrors the anchor's own `data-focused` onto the card as a whole, so the
     // overlay layer stacked beside the anchor can style itself from remote focus too. It is a
     // separate attribute rather than a second `data-focused` because exactly one element on the
     // page carries that one — it is how the spatial engine's current target is identified.
+    // `data-watched` does the same job for the seal's emerald ring/glow below, which lives on the
+    // artwork wrapper rather than on `WatchedBadge` itself so it can react to the whole card's
+    // hover/focus state, not just its own.
     <article
       data-card-focused={focused || undefined}
       data-actions-open={actionsOpen || undefined}
+      data-watched={watched || undefined}
       className={cn("group/card relative min-w-0", frame.width, className)}
     >
       <Link
@@ -440,6 +493,9 @@ export function WorkCard({
             "relative overflow-hidden bg-muted shadow-md shadow-foreground/15 ring-1 ring-border/70",
             "group-hover/card:shadow-2xl group-hover/card:shadow-foreground/25",
             "group-data-[card-focused=true]/card:shadow-2xl group-data-[card-focused=true]/card:shadow-foreground/25",
+            "group-data-[watched=true]/card:ring-emerald-500/30 group-data-[watched=true]/card:ring-2",
+            "group-data-[watched=true]/card:group-hover/card:shadow-emerald-500/30 group-data-[watched=true]/card:group-hover/card:ring-emerald-400/60",
+            "group-data-[watched=true]/card:group-data-[card-focused=true]/card:shadow-emerald-500/30 group-data-[watched=true]/card:group-data-[card-focused=true]/card:ring-emerald-400/60",
             FOCUS_RING,
             frame.aspect,
             frame.radius,
@@ -452,6 +508,7 @@ export function WorkCard({
             <FallbackArt title={displayTitle} compact={variant === "logo"} />
           )}
           <ArtworkScrim />
+          <WatchedBadge watched={watched} />
           <ResumeIndicator titleId={work.id} />
         </div>
 
@@ -490,6 +547,7 @@ export function WorkCard({
           {frame.actions && (
             <WorkCardActionTray
               titleId={work.id}
+              installmentId={work.installmentId ?? null}
               title={displayTitle}
               open={actionsOpen}
               onOpenChange={setActionsOpen}

@@ -64,6 +64,8 @@ import type { Entity, Work, WorkSeasonDetail, WorkStructure } from "@/features/l
 import { tagLabelsAr, taxonomyLabels } from "@/features/library/model";
 import { useIsOnline } from "@/features/library/offline-store";
 import {
+  hasEpisodeReleased,
+  hasInstallmentReleased,
   PlayEpisodeButton,
   PlayFilmButton,
   unplayableEpisodeReason,
@@ -244,22 +246,43 @@ export function WorkDetailPage({
     queryKey: socialKeys.playbackByTitle(workId),
     queryFn: () => getPlaybackForTitle(workId),
   });
-  const invalidatePlayback = () =>
-    queryClient.invalidateQueries({ queryKey: socialKeys.playbackByTitle(workId) });
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
+  // Every watched-mutation below has to invalidate both read models: this page's own
+  // `playbackByTitle` (the episode/season toggles right here) and `continueWatching` (the seal
+  // badge and resume bar on every `WorkCard` — browse grid, rails, My Space) — otherwise marking
+  // something watched here leaves stale "not watched" badges on this same page's related-works
+  // rail until an unrelated refetch happens to run.
+  const invalidatePlayback = () => {
+    setPlaybackError(null);
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: socialKeys.playbackByTitle(workId) }),
+      queryClient.invalidateQueries({ queryKey: archiveKeys.continueWatching }),
+    ]);
+  };
+  const onPlaybackError = (error: unknown) =>
+    setPlaybackError(error instanceof Error ? error.message : "تعذّر حفظ حالة المشاهدة.");
   const setEpisodePlayed = useMutation({
     mutationFn: (input: { installmentId: string; episodeId: string; isPlayed: boolean }) =>
       markPlayed(input.installmentId, input.episodeId, input.isPlayed),
     onSuccess: invalidatePlayback,
+    onError: onPlaybackError,
   });
   const setMoviePlayed = useMutation({
     mutationFn: (input: { installmentId: string; isPlayed: boolean }) =>
       markPlayed(input.installmentId, null, input.isPlayed),
     onSuccess: invalidatePlayback,
+    onError: onPlaybackError,
   });
   const setSeasonPlayed = useMutation({
     mutationFn: (input: { installmentId: string | null; isPlayed: boolean }) =>
       bulkMarkPlayed(workId, input.installmentId, input.isPlayed),
     onSuccess: invalidatePlayback,
+    onError: onPlaybackError,
+  });
+  const setWorkPlayed = useMutation({
+    mutationFn: (isPlayed: boolean) => bulkMarkPlayed(workId, null, isPlayed),
+    onSuccess: invalidatePlayback,
+    onError: onPlaybackError,
   });
   const [selectedInstallmentId, setSelectedInstallmentId] = useState(initialInstallmentId ?? "");
   const [activeTab, setActiveTab] = useState<TitleTabId>(
@@ -357,20 +380,35 @@ export function WorkDetailPage({
       playbackByUnit,
     ),
   );
+  // An announced/future installment — a season not in the catalog yet, or an upcoming movie
+  // sitting beside two already-finished, fully-watched seasons — must not block "watched": it
+  // isn't a trackable unit at all until it actually releases (`hasInstallmentReleased`/
+  // `hasEpisodeReleased`, the same "has this released" rule the play buttons use).
   const trackableUnitsBySeason = structure.seasons.map((season) => {
     const isMovie = season.installmentKind === "movie" || season.installmentKind === "special";
+    if (isMovie) {
+      const released = hasInstallmentReleased({
+        releaseStatus: season.releaseStatus,
+        releaseAt: season.releaseAt,
+      });
+      return {
+        seasonId: season.id,
+        total: released ? 1 : 0,
+        watched: released && playedInstallmentIds.has(season.id) ? 1 : 0,
+      };
+    }
+    const releasedUnits = season.units.filter((unit) =>
+      hasEpisodeReleased({ releaseStatus: season.releaseStatus, releaseAt: unit.releaseAt }),
+    );
     return {
       seasonId: season.id,
-      total: isMovie ? 1 : season.units.length,
-      watched: isMovie
-        ? playedInstallmentIds.has(season.id)
-          ? 1
-          : 0
-        : season.units.filter((unit) => playedEpisodeIds.has(unit.id)).length,
+      total: releasedUnits.length,
+      watched: releasedUnits.filter((unit) => playedEpisodeIds.has(unit.id)).length,
     };
   });
   const totalTrackableUnits = trackableUnitsBySeason.reduce((sum, item) => sum + item.total, 0);
   const watchedUnitsCount = trackableUnitsBySeason.reduce((sum, item) => sum + item.watched, 0);
+  const isWorkFullyWatched = totalTrackableUnits > 0 && watchedUnitsCount === totalTrackableUnits;
 
   const tabs = [
     {
@@ -437,6 +475,9 @@ export function WorkDetailPage({
         planet={planet?.planet ?? null}
         audienceLabel={audienceLabel}
         heroTarget={heroTarget}
+        canMarkPlayed={totalTrackableUnits > 0}
+        isFullyWatched={isWorkFullyWatched}
+        onToggleWorkPlayed={(isPlayed) => setWorkPlayed.mutate(isPlayed)}
       />
 
       <Tabs
@@ -480,6 +521,7 @@ export function WorkDetailPage({
                   structure={structure}
                   selectedId={selectedInstallmentId}
                   onSelectedIdChange={setSelectedInstallmentId}
+                  playbackError={playbackError}
                   playedInstallmentIds={playedInstallmentIds}
                   playedEpisodeIds={playedEpisodeIds}
                   playbackByUnit={playbackByUnit}
@@ -699,11 +741,17 @@ function WorkHero({
   planet,
   audienceLabel,
   heroTarget,
+  canMarkPlayed,
+  isFullyWatched,
+  onToggleWorkPlayed,
 }: {
   work: Work;
   planet: PlanetInfo;
   audienceLabel: string | null;
   heroTarget: { unit: HeroUnit; label: string } | null;
+  canMarkPlayed: boolean;
+  isFullyWatched: boolean;
+  onToggleWorkPlayed: (isPlayed: boolean) => void;
 }) {
   const glow = planet?.primaryColor ?? "#7c8cf8";
   const heroAward =
@@ -992,6 +1040,26 @@ function WorkHero({
             >
               <BookmarkSimpleIcon weight={savedOffline ? "fill" : "regular"} />
             </Button>
+
+            {canMarkPlayed && (
+              <Button
+                size="icon-lg"
+                variant="outline"
+                aria-label={
+                  isFullyWatched ? "إلغاء علامة العمل كاملاً" : "وضع علامة على العمل كاملاً كمُشاهَد"
+                }
+                aria-pressed={isFullyWatched}
+                onClick={() => onToggleWorkPlayed(!isFullyWatched)}
+                data-on-artwork
+                className={cn(
+                  "border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20",
+                  isFullyWatched &&
+                    "border-primary/60 bg-primary/25 text-primary hover:bg-primary/35",
+                )}
+              >
+                <CheckCircleIcon weight={isFullyWatched ? "fill" : "regular"} />
+              </Button>
+            )}
           </div>
           {heroTarget && heroTarget.unit.positionSeconds > 0 ? (
             <fieldset className="mt-4 max-w-sm space-y-2">
@@ -1676,6 +1744,7 @@ function EpisodesSection({
   structure,
   selectedId,
   onSelectedIdChange,
+  playbackError,
   playedInstallmentIds,
   playedEpisodeIds,
   playbackByUnit,
@@ -1689,6 +1758,7 @@ function EpisodesSection({
   structure: WorkStructure;
   selectedId: string;
   onSelectedIdChange: (id: string) => void;
+  playbackError: string | null;
   playedInstallmentIds: Set<string>;
   playedEpisodeIds: Set<string>;
   playbackByUnit: ReadonlyMap<string, AccountPlaybackState>;
@@ -1727,6 +1797,11 @@ function EpisodesSection({
 
   return (
     <div className="flex flex-col gap-4">
+      {playbackError && (
+        <Alert variant="destructive">
+          <AlertTitle>{playbackError}</AlertTitle>
+        </Alert>
+      )}
       <section aria-label="اختيار الجزء">
         <div
           data-spatial-rail
@@ -2350,7 +2425,7 @@ function RadarScoreCard({ work }: { work: Work }) {
         <ChartContainer
           config={config}
           data-spatial-navigation="off"
-          className="mx-auto aspect-square max-h-80 w-full"
+          className="mx-auto aspect-square max-h-120 w-full"
         >
           <RadarChart data={data}>
             <ChartTooltip content={<ChartTooltipContent hideLabel />} />

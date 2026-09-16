@@ -23,11 +23,26 @@ export type CatalogFacetKey =
   | "warningStates"
   | "structureStates"
   | "playableStates"
+  | "watchStates"
   | "sexualityRisks"
   | "behavioralRisks"
   | "theologyRisks";
 
 export type CatalogSelection = { include: string[]; exclude: string[] };
+
+export type CatalogWatchState = "watched" | "in-progress" | "unwatched";
+
+/**
+ * The signed-in account's playback picture, as id sets — what `watchStates` reads. Built from the
+ * same `/me/continue-watching` response every card badge already uses; absent (admin catalog, no
+ * session) the facet simply has no options and matches everything.
+ */
+export type CatalogWatchContext = {
+  watchedTitleIds: ReadonlySet<string>;
+  watchedInstallmentIds: ReadonlySet<string>;
+  inProgressTitleIds: ReadonlySet<string>;
+  inProgressInstallmentIds: ReadonlySet<string>;
+};
 export type CatalogFacetOption = { value: string; count: number };
 export type CatalogFacetOptions = Record<CatalogFacetKey, CatalogFacetOption[]>;
 
@@ -58,6 +73,7 @@ export const catalogFacetKeys: CatalogFacetKey[] = [
   "warningStates",
   "structureStates",
   "playableStates",
+  "watchStates",
   "sexualityRisks",
   "behavioralRisks",
   "theologyRisks",
@@ -101,7 +117,25 @@ export function cycleCatalogSelection(
   return { include: [...selection.include, value], exclude: selection.exclude };
 }
 
-export function getCatalogFacetValues(work: Work, key: CatalogFacetKey): string[] {
+export function catalogWatchState(
+  work: Pick<Work, "id" | "installmentId">,
+  context: CatalogWatchContext,
+): CatalogWatchState {
+  const watched = work.installmentId
+    ? context.watchedInstallmentIds.has(work.installmentId)
+    : context.watchedTitleIds.has(work.id);
+  if (watched) return "watched";
+  const inProgress = work.installmentId
+    ? context.inProgressInstallmentIds.has(work.installmentId)
+    : context.inProgressTitleIds.has(work.id);
+  return inProgress ? "in-progress" : "unwatched";
+}
+
+export function getCatalogFacetValues(
+  work: Work,
+  key: CatalogFacetKey,
+  context?: CatalogWatchContext,
+): string[] {
   if (key === "kinds") {
     // A series title that also contains a film (a season plus a movie installment) belongs under
     // the movie type as well, so filtering by e.g. "فيلم رسوم متحركة" still finds it. Only the
@@ -136,6 +170,7 @@ export function getCatalogFacetValues(work: Work, key: CatalogFacetKey): string[
     return [work.episodeCount !== null ? "season" : "standalone"];
   }
   if (key === "playableStates") return [work.isPlayable ? "playable" : "not-playable"];
+  if (key === "watchStates") return context ? [catalogWatchState(work, context)] : [];
   // SAFETY: every other `CatalogFacetKey` returned above, so only "sexualityRisks" /
   // "behavioralRisks" / "theologyRisks" reach here — stripping "Risks" from each always yields
   // one of `Work["riskProfile"]`'s own keys.
@@ -150,7 +185,11 @@ function matchesSelection(selection: CatalogSelection, values: string[]) {
   );
 }
 
-export function workMatchesCatalogFilters(work: Work, filters: CatalogFilterState) {
+export function workMatchesCatalogFilters(
+  work: Work,
+  filters: CatalogFilterState,
+  context?: CatalogWatchContext,
+) {
   if (filters.privacy === "public" && work.isPrivate) return false;
   if (filters.privacy === "private" && !work.isPrivate) return false;
   if (filters.yearFrom !== null && (work.year === null || work.year < filters.yearFrom))
@@ -189,19 +228,24 @@ export function workMatchesCatalogFilters(work: Work, filters: CatalogFilterStat
   ) {
     return false;
   }
-  return catalogFacetKeys.every((key) =>
-    matchesSelection(filters.facets[key], getCatalogFacetValues(work, key)),
+  return catalogFacetKeys.every(
+    (key) =>
+      (key === "watchStates" && !context) ||
+      matchesSelection(filters.facets[key], getCatalogFacetValues(work, key, context)),
   );
 }
 
-export function buildCatalogFacetOptions(works: Work[]): CatalogFacetOptions {
+export function buildCatalogFacetOptions(
+  works: Work[],
+  context?: CatalogWatchContext,
+): CatalogFacetOptions {
   // SAFETY: `catalogFacetKeys` enumerates every `CatalogFacetKey`, so mapping each to a
   // `[key, CatalogFacetOption[]]` entry covers every key `CatalogFacetOptions` needs.
   return Object.fromEntries(
     catalogFacetKeys.map((key) => {
       const counts = new Map<string, number>();
       for (const work of works) {
-        for (const value of new Set(getCatalogFacetValues(work, key))) {
+        for (const value of new Set(getCatalogFacetValues(work, key, context))) {
           counts.set(value, (counts.get(value) ?? 0) + 1);
         }
       }
@@ -215,12 +259,27 @@ export function buildCatalogFacetOptions(works: Work[]): CatalogFacetOptions {
   ) as CatalogFacetOptions;
 }
 
+/** Whether `playableStates` is still the out-of-the-box "playable only" default. */
+export function isDefaultPlayableSelection(selection: CatalogSelection) {
+  return (
+    selection.include.length === 1 &&
+    selection.include[0] === "playable" &&
+    selection.exclude.length === 0
+  );
+}
+
+/**
+ * How many filters the user has actually chosen. The "playable only" default is the resting
+ * state of the page, not a decision the user made, so it does not count — a "1" badge on the
+ * filters button before anything has been touched reads as a bug, not as information.
+ */
 export function countCatalogFilters(filters: CatalogFilterState) {
   return (
-    Object.values(filters.facets).reduce(
-      (total, selection) => total + selection.include.length + selection.exclude.length,
-      0,
-    ) +
+    catalogFacetKeys.reduce((total, key) => {
+      const selection = filters.facets[key];
+      if (key === "playableStates" && isDefaultPlayableSelection(selection)) return total;
+      return total + selection.include.length + selection.exclude.length;
+    }, 0) +
     Number(filters.minimumRating > 0) +
     Object.keys(filters.minimumScores).length +
     Number(filters.yearFrom !== null || filters.yearTo !== null) +

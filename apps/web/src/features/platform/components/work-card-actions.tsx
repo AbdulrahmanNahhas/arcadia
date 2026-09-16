@@ -1,5 +1,6 @@
 import {
   BookmarkSimpleIcon,
+  CheckCircleIcon,
   DotsThreeVerticalIcon,
   HeartIcon,
   PaperPlaneTiltIcon,
@@ -12,9 +13,10 @@ import { Separator } from "@/components/ui/separator";
 import { archiveKeys, getLibrary } from "@/features/archive/api";
 import { RecommendDialog } from "@/features/archive/recommend-dialog";
 import { syncTitleOfflineCache } from "@/features/library/saved-offline";
-import { updateTitleState } from "@/features/social/api";
+import { bulkMarkPlayed, socialKeys, updateTitleState } from "@/features/social/api";
 import { RatingStars } from "@/features/social/rating-stars";
 import { cn } from "@/lib/utils";
+import { useWorkWatched } from "./work-card";
 
 type PersonalState = { isFavorite: boolean; personalRating: number | null; savedOffline: boolean };
 const untouched: PersonalState = { isFavorite: false, personalRating: null, savedOffline: false };
@@ -56,6 +58,31 @@ export function useWorkPersonalState(titleId: string) {
     pending: mutation.isPending,
     update: mutation.mutate,
   };
+}
+
+/**
+ * The watched toggle, scoped to whatever this card actually represents: `installmentId` set means
+ * one season or movie from the flattened installments browse view, `null` means the whole title —
+ * exactly the same branch `bulkMarkPlayed` itself uses server-side (`installmentId: null` marks
+ * every installment under the title). Reusing `useWorkWatched` keeps the menu row's checked state
+ * and the card's own seal badge reading the same bit, so they can never disagree.
+ */
+export function useWorkWatchedToggle(work: { id: string; installmentId: string | null }) {
+  const queryClient = useQueryClient();
+  const watched = useWorkWatched(work);
+  const mutation = useMutation({
+    mutationFn: (isPlayed: boolean) => bulkMarkPlayed(work.id, work.installmentId, isPlayed),
+    // Both read models: `continueWatching` for every card's own badge, `playbackByTitle` in case
+    // this title's own detail page is mounted elsewhere in the same session (`work-detail-page.tsx`
+    // invalidates the same pair in the other direction).
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: archiveKeys.continueWatching }),
+        queryClient.invalidateQueries({ queryKey: socialKeys.playbackByTitle(work.id) }),
+      ]),
+  });
+
+  return { watched, pending: mutation.isPending, error: mutation.error, toggle: mutation.mutate };
 }
 
 /**
@@ -117,12 +144,14 @@ function TrayButton({
  */
 export function WorkCardActionTray({
   titleId,
+  installmentId,
   title,
   open,
   onOpenChange,
   className,
 }: {
   titleId: string;
+  installmentId: string | null;
   title: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -150,7 +179,13 @@ export function WorkCardActionTray({
       >
         <BookmarkSimpleIcon weight={state.savedOffline ? "fill" : "regular"} />
       </TrayButton>
-      <WorkCardActions titleId={titleId} title={title} open={open} onOpenChange={onOpenChange} />
+      <WorkCardActions
+        titleId={titleId}
+        installmentId={installmentId}
+        title={title}
+        open={open}
+        onOpenChange={onOpenChange}
+      />
     </div>
   );
 }
@@ -197,13 +232,10 @@ function MenuRow({
 }
 
 /**
- * The one card-action pattern (favorite / save-offline / rate / recommend) — same icons, labels,
- * and behavior as the My Space library grid (`archive/components/library-panel.tsx`'s
- * `LibraryCard`), reused
- * wherever a `WorkCard` appears (rails, browse grid, related-works, search) rather than each
- * surface growing its own buttons. Watched/unwatched is deliberately not here: that toggle needs
- * per-installment playback data a generic catalog card doesn't have loaded, and already has a
- * consistent home on the title/episode surfaces that do (`work-detail-page.tsx`).
+ * The one card-action pattern (watched / favorite / save-offline / rate / recommend) — same icons,
+ * labels, and behavior as the My Space library grid (`archive/components/library-panel.tsx`'s
+ * `LibraryCard`), reused wherever a `WorkCard` appears (rails, browse grid, related-works, search)
+ * rather than each surface growing its own buttons.
  *
  * The menu names the work it is about in its own header: opened from a rail of a dozen posters,
  * the popover otherwise floats free of whatever was clicked, and "أضف إلى المفضلة" alone never
@@ -211,12 +243,14 @@ function MenuRow({
  */
 export function WorkCardActions({
   titleId,
+  installmentId,
   title,
   className,
   open: controlledOpen,
   onOpenChange: setControlledOpen,
 }: {
   titleId: string;
+  installmentId: string | null;
   title: string;
   className?: string;
   /** Lets a long-press on the card itself (`work-card.tsx`) open the same menu the visible
@@ -225,6 +259,7 @@ export function WorkCardActions({
   onOpenChange?: (open: boolean) => void;
 }) {
   const { state, pending, update } = useWorkPersonalState(titleId);
+  const watchedState = useWorkWatchedToggle({ id: titleId, installmentId });
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = controlledOpen ?? uncontrolledOpen;
   const setOpen = setControlledOpen ?? setUncontrolledOpen;
@@ -262,6 +297,21 @@ export function WorkCardActions({
           <Separator />
           <div className="flex flex-col py-1">
             <MenuRow
+              icon={CheckCircleIcon}
+              label={
+                watchedState.watched
+                  ? installmentId
+                    ? "إلغاء علامة الجزء كمُشاهَد"
+                    : "إلغاء علامة العمل كاملاً كمُشاهَد"
+                  : installmentId
+                    ? "وضع علامة على الجزء كمُشاهَد"
+                    : "وضع علامة على العمل كاملاً كمُشاهَد"
+              }
+              active={watchedState.watched}
+              disabled={watchedState.pending}
+              onClick={() => watchedState.toggle(!watchedState.watched)}
+            />
+            <MenuRow
               icon={HeartIcon}
               label={state.isFavorite ? "إزالة من المفضلة" : "أضف إلى المفضلة"}
               active={state.isFavorite}
@@ -284,6 +334,9 @@ export function WorkCardActions({
               }}
             />
           </div>
+          {watchedState.error && (
+            <p className="px-3 pb-2 text-xs text-destructive">{watchedState.error.message}</p>
+          )}
           <Separator />
           <div className="flex items-center justify-between gap-2.5 px-3 py-1.5">
             <span className="text-sm text-muted-foreground">تقييمك</span>

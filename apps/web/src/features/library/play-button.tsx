@@ -28,11 +28,21 @@ export interface PlayableInstallment {
  * that there's nothing to watch yet. Only once something has actually released does a missing
  * IMDb/TMDB id become the reason — that one is a cataloging gap, not a release-calendar fact.
  */
-export function unplayableReason(installment: PlayableInstallment): string | null {
+/**
+ * Whether a movie/special installment has actually released — the same "announced, or no date
+ * yet, or the date is still ahead" rule {@link unplayableReason} uses to decide playability, split
+ * out so anything computing a *watched* rollup (a whole work, a season) can ask the identical
+ * question without re-deriving it or drifting from the play button's own definition.
+ */
+export function hasInstallmentReleased(installment: PlayableInstallment): boolean {
   const releasedAt = installment.releaseAt ?? null;
-  const hasReleased =
-    installment.releaseStatus !== "announced" && releasedAt !== null && releasedAt <= Date.now();
-  if (!hasReleased) return "لم يُصدر بعد";
+  return (
+    installment.releaseStatus !== "announced" && releasedAt !== null && releasedAt <= Date.now()
+  );
+}
+
+export function unplayableReason(installment: PlayableInstallment): string | null {
+  if (!hasInstallmentReleased(installment)) return "لم يُصدر بعد";
   if (!installment.imdbId && !installment.tmdbId) return "لا يتوفر معرّف تشغيل بعد";
   return null;
 }
@@ -165,17 +175,26 @@ export interface PlayableEpisode {
   episodeNumber: number | null;
 }
 
-export function unplayableEpisodeReason(episode: PlayableEpisode): string | null {
+/**
+ * Whether an episode has actually released, the {@link hasInstallmentReleased} sibling for the
+ * season case: a season marked "completed" has, by definition, already fully aired — most
+ * catalogued seasons only carry a season-level release date, not one per episode, so requiring an
+ * individual `releaseAt` here would leave every episode of an otherwise-finished season stuck
+ * reading as unreleased. `releaseAt` still decides it for an "airing"/"unknown" season, where only
+ * some episodes are out yet.
+ */
+export function hasEpisodeReleased(
+  episode: Pick<PlayableEpisode, "releaseStatus" | "releaseAt">,
+): boolean {
   const releasedAt = episode.releaseAt ?? null;
-  // A season marked "completed" has, by definition, already fully aired — most catalogued
-  // seasons only carry a season-level release date, not one per episode, so requiring an
-  // individual `releaseAt` here would leave every episode of an otherwise-finished season stuck
-  // reading as unreleased. `releaseAt` still decides it for an "airing"/"unknown" season, where
-  // only some episodes are out yet.
-  const hasReleased =
+  return (
     episode.releaseStatus === "completed" ||
-    (episode.releaseStatus !== "announced" && releasedAt !== null && releasedAt <= Date.now());
-  if (!hasReleased) return "لم تُصدر بعد";
+    (episode.releaseStatus !== "announced" && releasedAt !== null && releasedAt <= Date.now())
+  );
+}
+
+export function unplayableEpisodeReason(episode: PlayableEpisode): string | null {
+  if (!hasEpisodeReleased(episode)) return "لم تُصدر بعد";
   if (!episode.titleImdbId && !episode.titleTmdbId) return "لا يتوفر معرّف تشغيل بعد";
   if (episode.episodeNumber === null || !Number.isInteger(episode.episodeNumber))
     return "رقم حلقة غير صالح للتشغيل";

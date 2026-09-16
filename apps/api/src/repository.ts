@@ -204,8 +204,17 @@ export async function visibleTitleIdsForAccount(accountId: string, titleIds: str
   if (!titleIds.length) return new Set<string>();
   const policy = await visibilityPolicyForAccount(accountId);
   if (!policy) return new Set<string>();
-  const rows = await database()
-    .client`select * from titles where id in ${database().client(titleIds)} and not is_private`;
+  const sql = database().client;
+  // Private titles are catalog drafts, not a per-profile restriction: an owner/editor account
+  // should see (and mark watched, favorite, etc.) its own drafts everywhere a title can appear,
+  // the same way the title-detail route already does via `includePrivate`. Every other role stays
+  // blind to them regardless of classification/blocklist policy.
+  const [account] = await sql`
+    select u.role from accounts a join auth_users u on u.id=a.auth_user_id where a.id=${accountId}`;
+  const canSeePrivate = account?.role === "owner" || account?.role === "editor";
+  const rows = await sql`
+    select * from titles
+    where id in ${sql(titleIds)} and (not is_private or ${canSeePrivate})`;
   const data = await relatedData(rows.map((row) => String(row.id)));
   return new Set(
     rows.filter((row) => isTitleVisible(row, data, policy)).map((row) => String(row.id)),
