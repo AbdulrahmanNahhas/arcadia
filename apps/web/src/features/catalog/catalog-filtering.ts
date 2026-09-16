@@ -64,12 +64,14 @@ export const catalogFacetKeys: CatalogFacetKey[] = [
 ];
 
 export function createCatalogFilters(): CatalogFilterState {
-  // SAFETY: the loop below assigns a `CatalogSelection` to every key in `catalogFacetKeys`
-  // (which enumerates all of `CatalogFacetKey`), so `facets` is fully populated on return.
+  // SAFETY: `catalogFacetKeys` lists every member of `CatalogFacetKey`, and the loop right below
+  // assigns each one before `facets` is read anywhere, so the object is fully populated by the
+  // time this function returns.
   const facets = {} as Record<CatalogFacetKey, CatalogSelection>;
   for (const key of catalogFacetKeys) {
     facets[key] = { include: [], exclude: [] };
   }
+  facets.playableStates = { include: ["playable"], exclude: [] };
   return {
     facets,
     minimumRating: 0,

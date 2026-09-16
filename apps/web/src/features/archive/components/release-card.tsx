@@ -1,39 +1,45 @@
 import type { ReleaseCalendarItem } from "@arcadia/contracts";
 import { BellIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { dayFormat, installmentKindLabel, monthFormat } from "./shared";
 
 /**
- * One dated release: the same 2:3 poster frame, ring, shadow, and hover lift as `WorkCard`'s
- * `poster` variant, with the release day/month and installment kind overlaid instead of the
- * rating/audience chips a released title would show. This is what lets a rail mix "already out"
- * and "not out yet" cards without one style reading as an afterthought next to the other — sizing
- * is entirely the caller's job (a `RailScroller` track or a CSS grid), never this component's own
- * width. The follow button only appears when `onToggleFollow` is given (the full calendar tab);
- * every lighter "what's next" preview just links straight to the title.
+ * One dated release: the same 2:3 poster frame, ring, shadow, and hover lift as `PlaybackTile` —
+ * one card design language across the archive instead of a bespoke recipe per surface — with the
+ * release day/month and installment kind overlaid as glass chips instead of the rating/audience
+ * chips a released title would show. This is what lets a rail mix "already out" and "not out yet"
+ * cards without one style reading as an afterthought next to the other. `className` sets sizing —
+ * a `RailScroller` track's auto-columns, or a plain width in a wrapping grid — never this
+ * component's own call, so the same card fits a scrolling shelf and a wrapped calendar grid alike.
+ * The follow button only appears when `onToggleFollow` is given (the full calendar tab); every
+ * lighter "what's next" preview just links straight to the title.
  */
 export function ReleaseCard({
   item,
   onToggleFollow,
   pending = false,
+  className,
 }: {
   item: ReleaseCalendarItem;
   onToggleFollow?: () => void;
   pending?: boolean;
+  className?: string;
 }) {
   const date = new Date(item.releaseDate);
   return (
-    <div className="group/card flex min-w-0 flex-col gap-2.5">
+    <div className={cn("group/card flex min-w-0 flex-col gap-2.5", className)}>
       <Link to="/titles/$titleId" params={{ titleId: item.titleId }} className="block outline-none">
         <div
           className={cn(
-            "relative aspect-2/3 overflow-hidden rounded-2xl bg-muted shadow-md shadow-black/20 ring-1 ring-foreground/10",
-            "transform-gpu transition-[transform,box-shadow] duration-300 motion-reduce:transition-none",
-            "group-hover/card:-translate-y-1 group-hover/card:scale-[1.02] group-hover/card:shadow-2xl group-hover/card:shadow-black/40",
-            "group-has-[:focus-visible]/card:ring-[3px] group-has-[:focus-visible]/card:ring-primary group-has-[:focus-visible]/card:ring-offset-2 group-has-[:focus-visible]/card:ring-offset-background",
+            "relative aspect-2/3 overflow-hidden rounded-2xl bg-muted",
+            "ring-1 ring-border/70",
+            "transition-all duration-300",
+            "group-hover/card:-translate-y-1 group-hover/card:scale-[1.02] group-hover/card:shadow-xl group-hover/card:shadow-foreground/15",
+            "group-focus-within/card:ring-2 group-focus-within/card:ring-ring",
+            "group-focus-within/card:shadow-xl group-focus-within/card:shadow-foreground/20",
+            "motion-reduce:transition-none motion-reduce:transform-none",
           )}
         >
           {item.posterPath ? (
@@ -43,8 +49,10 @@ export function ReleaseCard({
               loading="lazy"
               decoding="async"
               className={cn(
-                "size-full object-cover transition-transform duration-500 motion-reduce:transition-none",
-                "group-hover/card:scale-[1.06]",
+                "size-full object-cover",
+                "transition-transform duration-500",
+                "group-hover/card:scale-[1.045]",
+                "motion-reduce:transition-none",
               )}
             />
           ) : (
@@ -54,24 +62,22 @@ export function ReleaseCard({
               </span>
             </div>
           )}
+
           <div
             data-on-artwork
-            className="absolute inset-x-0 top-0 h-1/2 bg-linear-to-b from-black/60 to-transparent"
-          />
-          <div
-            data-on-artwork
-            className="absolute start-2 top-2 flex flex-col items-center justify-center rounded-xl bg-black/70 px-2 py-1 leading-none text-white ring-1 ring-white/15"
+            className="absolute inset-s-2 top-2 flex flex-col items-center justify-center rounded-xl bg-background/80 px-2 py-1 leading-none text-foreground ring-1 ring-border/70 backdrop-blur-md"
           >
             <strong className="text-sm">{dayFormat.format(date)}</strong>
-            <span className="mt-0.5 text-[10px]">{monthFormat.format(date)}</span>
+            <span className="mt-0.5 text-[10px] text-muted-foreground">
+              {monthFormat.format(date)}
+            </span>
           </div>
-          <Badge
-            variant="secondary"
+          <span
             data-on-artwork
-            className="absolute end-2 top-2 bg-black/65 text-white"
+            className="absolute inset-e-2 top-2 inline-flex items-center rounded-full bg-background/75 px-2.5 py-1 text-[0.6875rem] font-medium text-foreground ring-1 ring-border/70 backdrop-blur-md"
           >
             {installmentKindLabel[item.kind]}
-          </Badge>
+          </span>
         </div>
       </Link>
 

@@ -60,6 +60,13 @@ function isAutomaticTarget(element: HTMLElement) {
   return element.getClientRects().length > 0;
 }
 
+/** Moves spatial focus to `focusKey` if it's currently registered; a silent no-op otherwise. */
+export function focusSpatialKey(focusKey: string) {
+  if (SpatialNavigation.doesFocusableExist(focusKey)) {
+    void SpatialNavigation.setFocus(focusKey);
+  }
+}
+
 export function revealSpatialTarget(node: HTMLElement) {
   const bounds = node.getBoundingClientRect();
   const headerBottom = document
@@ -68,8 +75,18 @@ export function revealSpatialTarget(node: HTMLElement) {
   const safeTop = Math.max((headerBottom ?? 0) + 24, window.innerHeight * 0.18);
   const safeBottom = window.innerHeight * 0.82;
   const outsideVerticalSafeArea = bounds.top < safeTop || bounds.bottom > safeBottom;
-  const outsideHorizontalSafeArea =
-    bounds.left < window.innerWidth * 0.08 || bounds.right > window.innerWidth * 0.92;
+
+  // A narrow rail (a sidebar preview strip, not a full-width shelf) can clip its own first/last
+  // card well inside the window's 8%/92% margins — those margins alone would never fire for a
+  // card sitting mid-page in a two-column layout, even though the rail's own `overflow-x-auto`
+  // has scrolled it out of sight. Checking the nearest `[data-spatial-rail]` track's own bounds
+  // first catches that clipping; only a target outside any rail falls back to the window-relative
+  // check (a full-bleed shelf, or a plain focusable that isn't inside a scroller at all).
+  const rail = node.closest<HTMLElement>("[data-spatial-rail]");
+  const railBounds = rail?.getBoundingClientRect();
+  const outsideHorizontalSafeArea = railBounds
+    ? bounds.left < railBounds.left || bounds.right > railBounds.right
+    : bounds.left < window.innerWidth * 0.08 || bounds.right > window.innerWidth * 0.92;
 
   if (!outsideVerticalSafeArea && !outsideHorizontalSafeArea) return;
 
@@ -92,7 +109,7 @@ export function revealSpatialTarget(node: HTMLElement) {
  * geometry entirely; if the panel has nothing focusable in it, returning `null` falls back to the
  * library's own default behavior exactly as before.
  */
-function resolveTabPanelEscape(
+export function resolveTabPanelEscape(
   direction: Direction,
   _focusKey: string,
   siblings: FocusableComponent[],
@@ -111,6 +128,38 @@ function resolveTabPanelEscape(
   return inPanel.reduce((topmost, entry) => (entry.top < topmost.top ? entry : topmost)).sibling;
 }
 
+/**
+ * Pressing "down" from an episode card in the bottom row of the (`data-spatial-episode-grid`)
+ * preview grid should reach the centered "show all episodes" control right below it
+ * (`data-spatial-episode-actions`) — a `sm:grid-cols-2 xl:grid-cols-3` grid means most cards in
+ * that row don't sit under the centered button at all, and the default distance search skips right
+ * past it to whatever's next down the page (a recommendations rail, `docs/v0.3-roadmap.md`'s same
+ * "not obviously below" problem `resolveTabPanelEscape` solves for the tab strip). Only actually
+ * redirects when nothing else registered inside the grid sits below the pressed card, i.e. this
+ * really is the bottom row; every other "down" press inside the grid still moves row to row
+ * normally.
+ */
+export function resolveEpisodeGridDownEscape(
+  direction: Direction,
+  focusKey: string,
+  siblings: FocusableComponent[],
+): FocusableComponent | null {
+  if (direction !== "down") return null;
+  const me = siblings.find((sibling) => sibling.focusKey === focusKey);
+  if (!me?.node) return null;
+  const grid = me.node.closest<HTMLElement>("[data-spatial-episode-grid]");
+  if (!grid) return null;
+  const actions = document.querySelector<HTMLElement>("[data-spatial-episode-actions]");
+  if (!actions) return null;
+  const myBottom = me.node.getBoundingClientRect().bottom;
+  const hasCardBelow = siblings.some((sibling) => {
+    if (!sibling.node || sibling.node === me.node || !grid.contains(sibling.node)) return false;
+    return sibling.node.getBoundingClientRect().top > myBottom - 8;
+  });
+  if (hasCardBelow) return null;
+  return siblings.find((sibling) => sibling.node && actions.contains(sibling.node)) ?? null;
+}
+
 function registerAutomaticTarget(element: HTMLElement, focusKey: string, forceFocus: boolean) {
   element.dataset.spatialAuto = "true";
   element.dataset.spatialFocusKey = focusKey;
@@ -123,8 +172,18 @@ function registerAutomaticTarget(element: HTMLElement, focusKey: string, forceFo
     onEnterRelease: () => undefined,
     onArrowPress: () => true,
     onArrowRelease: () => undefined,
-    onFocus: () => revealSpatialTarget(element),
-    onBlur: () => undefined,
+    // `data-focused` is what the `[data-spatial-auto="true"][data-focused="true"]` rule in
+    // styles.css keys off — without setting it here, every plain `<a>`/`<button>` card that only
+    // ever gets *automatic* registration (no explicit `useSpatialFocusable`) shows no focus ring
+    // at all while its own `className` still suppresses the native outline (`outline-none`),
+    // which read as "the card doesn't move with the d-pad" even though it did.
+    onFocus: () => {
+      element.dataset.focused = "true";
+      revealSpatialTarget(element);
+    },
+    onBlur: () => {
+      delete element.dataset.focused;
+    },
     onUpdateFocus: () => undefined,
     onUpdateHasFocusedChild: () => undefined,
     saveLastFocusedChild: false,

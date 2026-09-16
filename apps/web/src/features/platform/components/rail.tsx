@@ -117,7 +117,7 @@ export const posterTrackClass =
  *  poster ladder on purpose: a 16:9 frame at poster width would be a stamp, and the whole reason
  *  a resume card is landscape is to give the progress bar and "يتبقى ..." line room to read. */
 export const bannerTrackClass =
-  "auto-cols-[78%] gap-3 pb-5 sm:auto-cols-[50%] md:auto-cols-[38%] lg:auto-cols-[30%] xl:auto-cols-[25%]";
+  "auto-cols-[78%] gap-3 pb-5 pt-2.5 sm:auto-cols-[50%] md:auto-cols-[38%] lg:auto-cols-[30%] xl:auto-cols-[25%]";
 
 /** The scrolling track itself. `className` sets the per-rail column sizing and gap. */
 export function RailScroller({ className, children }: { className?: string; children: ReactNode }) {

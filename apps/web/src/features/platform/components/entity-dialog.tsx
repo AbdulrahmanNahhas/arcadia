@@ -20,6 +20,7 @@ export function EntityDialog({
   onOpenChange,
   triggerClassName,
   triggerStyle,
+  triggerProps,
 }: {
   entity: Entity;
   children?: ReactNode;
@@ -27,6 +28,15 @@ export function EntityDialog({
   onOpenChange?: (open: boolean) => void;
   triggerClassName?: string;
   triggerStyle?: CSSProperties;
+  /** Extra props (a spatial-nav `ref`, `data-*`, `tabIndex`, …) spread onto the trigger `<button>`
+   * itself, for callers that need to drive its focus state from outside — e.g. wiring it through
+   * `useSpatialFocusable` for a custom d-pad focus treatment instead of the generic automatic one.
+   * Widened with a `data-*` index signature because `ComponentProps<"button">` alone only allows
+   * `data-*` attributes JSX recognizes as a special case on literal elements, not on a plain object
+   * built separately and spread in. */
+  triggerProps?: React.ComponentProps<"button"> & {
+    [dataAttribute: `data-${string}`]: string | boolean | undefined;
+  };
 }) {
   const isStudio = entity.entityType === "organization";
   const FallbackIcon = isStudio ? BuildingsIcon : UserIcon;
@@ -42,6 +52,7 @@ export function EntityDialog({
               type="button"
               className={cn("text-start", triggerClassName)}
               style={triggerStyle}
+              {...triggerProps}
             />
           }
         >

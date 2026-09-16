@@ -21,7 +21,8 @@ export function UpcomingRail() {
     .slice(0, 7);
   if (!upcoming.length) return null;
   return (
-    <section className="scroll-mt-24 overflow-hidden" aria-labelledby="upcoming-rail-title">
+    // No `overflow-hidden` here — it clipped the top off every card's hover/focus lift.
+    <section className="scroll-mt-24" aria-labelledby="upcoming-rail-title">
       <RailHeader
         id="upcoming-rail-title"
         title="الإصدارات القادمة"

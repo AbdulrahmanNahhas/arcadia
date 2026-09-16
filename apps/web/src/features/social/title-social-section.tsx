@@ -65,6 +65,14 @@ import {
   updateTitleState,
 } from "./api";
 
+/**
+ * Matches the frosted-glass treatment `work-detail-page.tsx` gives every card on the title page
+ * this section renders inside of (`glassCard` there) — a translucent `bg-card` plus its own
+ * `backdrop-blur` so the page's ambient background shows through consistently instead of this
+ * section's cards reading as flat, opaque sheets next to everything else.
+ */
+const glassCard = "border-border/40 bg-card/45 backdrop-blur-xl";
+
 const reactions = [
   ["heart", HeartIcon, "أحببته"],
   ["clap", HandsClappingIcon, "أحسنت"],
@@ -181,10 +189,10 @@ export function TitleSocialSection({
   ).slice(0, 5);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 ontop">
       {(mode === "all" || mode === "quick") && (
         <div className="flex flex-wrap items-center justify-between gap-5">
-          <div className="min-w-52 flex-1 rounded-2xl border bg-card/45 px-4 py-3">
+          <div className={cn("min-w-52 flex-1 rounded-2xl px-4 py-3", glassCard)}>
             <div className="flex flex-wrap items-center gap-3">
               <StarPicker
                 value={reviewRating}
@@ -213,7 +221,7 @@ export function TitleSocialSection({
 
       {(mode === "all" || mode === "reviews") && (
         <>
-          <Card size="sm">
+          <Card size="sm" className={glassCard}>
             <CardHeader className="border-b sm:flex sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle>{ownReview ? "عدّل مراجعتك" : "اكتب مراجعتك"}</CardTitle>
@@ -292,15 +300,14 @@ export function TitleSocialSection({
       )}
 
       {(mode === "all" || mode === "discussion") && (
-        <section aria-labelledby="family-discussion-heading" className="flex flex-col gap-8">
-          <header className="flex flex-col gap-5 border-b pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <section aria-labelledby="family-discussion-heading" className="flex flex-col gap-6">
+          <header className="flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="flex items-center gap-3">
                 <span className="flex size-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
                   <ChatCircleDotsIcon weight="duotone" />
                 </span>
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">حديث صغير حول العمل</p>
                   <h2
                     id="family-discussion-heading"
                     className="mt-0.5 font-heading text-2xl font-semibold"
@@ -351,7 +358,7 @@ export function TitleSocialSection({
                 <FieldLabel htmlFor="family-comment" className="sr-only">
                   اكتب تعليقاً
                 </FieldLabel>
-                <InputGroup>
+                <InputGroup className="border-border/70 bg-card/60 shadow-xs backdrop-blur-md">
                   <InputGroupTextarea
                     id="family-comment"
                     rows={discussionComposerOpen ? 3 : 1}
@@ -457,7 +464,7 @@ export function TitleSocialSection({
               ))}
             </div>
           ) : (
-            <Empty className="min-h-44 border bg-muted/20 p-8">
+            <Empty className={cn("min-h-44 p-8", glassCard)}>
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <ChatCircleDotsIcon weight="duotone" />
@@ -601,7 +608,7 @@ function ReviewCard({
   onChanged: () => Promise<unknown>;
 }) {
   return (
-    <Card size="sm">
+    <Card size="sm" className={glassCard}>
       <CardHeader className="flex-row items-start gap-3">
         <AccountAvatar avatarKey={review.author.avatarKey} label={review.author.displayName} />
         <div className="min-w-0 flex-1">

@@ -216,7 +216,7 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
     [planets],
   );
   const [query, setQuery] = useState(initialQuery);
-  const [mode, setMode] = useState<CatalogMode>("titles");
+  const [mode, setMode] = useState<CatalogMode>("installments");
   const [sort, setSort] = useState<CatalogSort>("newest");
   const [view, setView] = usePersistedState<CatalogView>("arcadia:browse:view", "poster");
   const [density, setDensity] = usePersistedState<CatalogDensity>("arcadia:browse:density", 3);
@@ -287,20 +287,18 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
         >
           {showFilters ? <CatalogFilterSidebar {...filterProps} /> : null}
           <div className="min-w-0 pb-4">
-            <div className="w-full space-y-2 pt-2 pb-4">
-              {/* ═══════════════════════════════════════════════
-                PRIMARY CONTROL BAR: SEARCH & SCOPE
-                ═══════════════════════════════════════════════ */}
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="w-full space-y-3 py-2 dir-rtl">
+              {/* Primary Action Bar: Search, Scope Mode, Main Filter Actions */}
+              <div className="flex flex-wrap items-center gap-2.5">
                 {/* Search Input */}
                 <InputGroup
                   className={cn(
-                    "h-10 min-w-60 flex-1 rounded-lg border-border bg-muted/50 shadow-none transition-colors",
-                    "focus-within:border-ring focus-within:bg-background",
+                    "h-10 min-w-42 flex-1 rounded-full border-border/60 bg-muted/40 shadow-xs transition-all duration-200",
+                    "focus-within:border-primary/50 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/20",
                   )}
                 >
-                  <InputGroupAddon className="text-muted-foreground">
-                    <MagnifyingGlassIcon className="size-4" />
+                  <InputGroupAddon className="ps-3 text-muted-foreground">
+                    <MagnifyingGlassIcon className="size-4 shrink-0" />
                   </InputGroupAddon>
 
                   <InputGroupInput
@@ -308,25 +306,25 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="عنوان، موسم، اسم بديل، استوديو أو صانع…"
                     aria-label="البحث في قاعدة البيانات"
-                    className="h-10 text-sm"
+                    className="h-10 text-sm placeholder:text-muted-foreground/70"
                   />
 
-                  {query ? (
-                    <InputGroupAddon align="inline-end">
+                  {query && (
+                    <InputGroupAddon align="inline-end" className="pe-1.5">
                       <InputGroupButton
                         size="icon-xs"
                         variant="ghost"
                         onClick={() => setQuery("")}
                         aria-label="مسح البحث"
-                        className="rounded-md text-muted-foreground hover:text-foreground"
+                        className="size-6 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                       >
                         <XIcon className="size-3.5" />
                       </InputGroupButton>
                     </InputGroupAddon>
-                  ) : null}
+                  )}
                 </InputGroup>
 
-                {/* Catalog Scope Mode (Desktop) */}
+                {/* Catalog Scope Mode (Desktop & Tablet) */}
                 <ToggleGroup
                   value={[mode]}
                   multiple={false}
@@ -338,205 +336,66 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
                   onValueChange={(values) => {
                     if (values[0]) switchMode(values[0] as CatalogMode);
                   }}
-                  className="hidden shrink-0 rounded-lg bg-background p-0.5 sm:flex"
+                  className="hidden h-10 shrink-0 rounded-xl bg-muted/30 p-1 border border-border/50 sm:flex"
                 >
-                  <ToggleGroupItem value="titles" className="h-9 gap-1.5 rounded-md px-3 text-xs">
+                  <ToggleGroupItem
+                    value="titles"
+                    className="h-8 gap-2 rounded-lg px-3.5 text-xs font-medium transition-all data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-xs"
+                  >
                     <FilmStripIcon className="size-4" />
                     <span>العناوين</span>
                   </ToggleGroupItem>
 
                   <ToggleGroupItem
                     value="installments"
-                    className="h-9 gap-1.5 rounded-md px-3 text-xs"
+                    className="h-8 gap-2 rounded-lg px-3.5 text-xs font-medium transition-all data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-xs"
                   >
                     <StackIcon className="size-4" />
                     <span>المواسم والإصدارات</span>
                   </ToggleGroupItem>
                 </ToggleGroup>
 
-                {/* Filter Buttons */}
+                {/* Mobile Filter Sheet Trigger */}
                 <CatalogFilterSheet {...filterProps} className="shrink-0 lg:hidden" />
 
+                {/* Desktop Filter Toggle Button */}
                 <Button
                   variant={showFilters ? "secondary" : "outline"}
                   size="sm"
                   className={cn(
-                    "hidden h-10 shrink-0 gap-2 rounded-lg px-3.5 lg:inline-flex",
-                    "border-border",
+                    "hidden h-10 shrink-0 gap-2 rounded-xl px-4 text-xs font-medium border-border/60 transition-all lg:inline-flex",
+                    showFilters && "bg-secondary/80 font-semibold shadow-xs",
                   )}
                   disabled={!interactive}
                   aria-pressed={showFilters}
                   onClick={() => setShowFilters((current) => !current)}
                 >
-                  <FunnelSimpleIcon className="size-4" />
+                  <FunnelSimpleIcon className="size-4 text-muted-foreground" />
                   <span>{showFilters ? "إخفاء المرشحات" : "المرشحات"}</span>
                   {activeFilterCount > 0 && (
                     <Badge
                       variant="default"
-                      className="ms-1 size-5 justify-center rounded-full p-0 text-[10px]"
+                      className="ms-1 size-5 justify-center rounded-full p-0 text-[10px] font-bold"
                     >
                       {activeFilterCount}
                     </Badge>
                   )}
                 </Button>
 
-                {/* Result Count Badge */}
-                <Badge
-                  variant="secondary"
-                  className="hidden h-10 shrink-0 rounded-lg border border-border px-3 font-normal tabular-nums text-muted-foreground xl:flex"
-                >
-                  <span className="me-1 font-semibold text-foreground">{visibleWorks.length}</span>
-                  عمل
-                </Badge>
+                {/* Admin Indicator Badge */}
+                {isAdmin && (
+                  <Badge
+                    variant="outline"
+                    className="h-10 gap-1.5 rounded-xl border-amber-500/30 bg-amber-500/10 px-3 text-xs font-medium text-amber-600 dark:text-amber-400 shrink-0"
+                  >
+                    <ShieldCheckIcon className="size-4" />
+                    <span>وضع المدير</span>
+                  </Badge>
+                )}
               </div>
 
-              {/* ═══════════════════════════════════════════════
-                SECONDARY CONTROL BAR: DISPLAY, SORTING & LAYOUT
-                ═══════════════════════════════════════════════ */}
-              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/20 p-1.5 border border-border/40">
-                {/* Sort Dropdown */}
-                <Select
-                  value={sort}
-                  onValueChange={(value) => {
-                    if (value) setSort(value as CatalogSort);
-                  }}
-                >
-                  <SelectTrigger className="h-9 w-full min-w-37.5 rounded-lg border-border bg-background text-xs sm:w-auto">
-                    <div className="flex items-center gap-2 truncate">
-                      <ArrowsDownUpIcon className="size-3.5 text-muted-foreground shrink-0" />
-                      <SelectValue>
-                        {sortOptions.find((option) => option.value === sort)?.label}
-                      </SelectValue>
-                    </div>
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    <SelectGroup>
-                      {sortOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value} className="text-xs">
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-
-                {/* Group Dropdown */}
-                <Select
-                  value={groupBy}
-                  onValueChange={(value) => {
-                    if (value) setGroupBy(value as CatalogGroupBy);
-                  }}
-                >
-                  <SelectTrigger className="h-9 w-full min-w-35 rounded-lg border-border bg-background text-xs sm:w-auto">
-                    <div className="flex items-center gap-2 truncate">
-                      <SquaresFourIcon className="size-3.5 text-muted-foreground shrink-0" />
-                      <SelectValue>
-                        {catalogGroupByOptions.find((option) => option.value === groupBy)?.label}
-                      </SelectValue>
-                    </div>
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    <SelectGroup>
-                      {catalogGroupByOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value} className="text-xs">
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-
-                {/* View Mode Toggle Group */}
-                <div className="hidden items-center gap-2 sm:flex">
-                  <div className="h-4 w-px bg-border/60" />
-                  <ToggleGroup
-                    value={[view]}
-                    multiple={false}
-                    variant="outline"
-                    size="sm"
-                    spacing={0}
-                    aria-label="طريقة عرض الأعمال"
-                    disabled={!interactive}
-                    onValueChange={(values) => {
-                      if (values[0]) setView(values[0] as CatalogView);
-                    }}
-                    className="rounded-lg bg-background p-0.5"
-                  >
-                    <ToggleGroupItem
-                      value="poster"
-                      aria-label="ملصقات"
-                      className="size-8 rounded-md p-0"
-                    >
-                      <ImageIcon className="size-4" />
-                    </ToggleGroupItem>
-
-                    <ToggleGroupItem
-                      value="banner"
-                      aria-label="لافتات"
-                      className="size-8 rounded-md p-0"
-                    >
-                      <PanoramaIcon className="size-4" />
-                    </ToggleGroupItem>
-
-                    <ToggleGroupItem
-                      value="logo"
-                      aria-label="شعارات"
-                      className="size-8 rounded-md p-0"
-                    >
-                      <ImageSquareIcon className="size-4" />
-                    </ToggleGroupItem>
-
-                    <ToggleGroupItem
-                      value="table"
-                      aria-label="جدول"
-                      className="size-8 rounded-md p-0"
-                    >
-                      <TableIcon className="size-4" />
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </div>
-
-                {/* Density Slider or Table Column Picker */}
-                {view !== "table" ? (
-                  <div
-                    className={cn(
-                      "hidden h-9 w-36 shrink-0 items-center gap-2 rounded-lg border px-2.5 sm:flex",
-                      "border-border bg-background",
-                    )}
-                    title="حجم البطاقات"
-                  >
-                    <SlidersHorizontalIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                    <Slider
-                      value={[density]}
-                      min={1}
-                      max={5}
-                      step={1}
-                      disabled={!interactive}
-                      aria-label="حجم بطاقات الشبكة"
-                      onValueChange={(value) => {
-                        const next = Array.isArray(value) ? value[0] : value;
-                        setDensity(next as CatalogDensity);
-                      }}
-                      className="
-                      ltr!
-                      min-w-0 flex-1
-                      **:data-[slot=slider-track]:bg-muted
-                      **:data-[slot=slider-range]:bg-primary
-                      **:data-[slot=slider-thumb]:size-3
-                      **:data-[slot=slider-thumb]:border-background
-                      **:data-[slot=slider-thumb]:bg-primary
-                    "
-                    />
-                  </div>
-                ) : (
-                  <div className="hidden shrink-0 sm:block">
-                    <WorkTableColumnPicker visible={tableColumns} onChange={setTableColumns} />
-                  </div>
-                )}
-
-                {/* Mobile Mode Switch */}
+              {/* Mobile Catalog Scope Toggle (Visible only on small screens) */}
+              <div className="flex sm:hidden">
                 <ToggleGroup
                   value={[mode]}
                   multiple={false}
@@ -548,52 +407,182 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
                   onValueChange={(values) => {
                     if (values[0]) switchMode(values[0] as CatalogMode);
                   }}
-                  className="flex w-full sm:hidden"
+                  className="w-full rounded-xl bg-muted/40 p-1 border border-border/50"
                 >
-                  <ToggleGroupItem value="titles" className="h-9 flex-1 gap-1.5 rounded-lg text-xs">
+                  <ToggleGroupItem
+                    value="titles"
+                    className="h-8 flex-1 gap-1.5 rounded-lg text-xs font-medium data-[state=on]:bg-background data-[state=on]:shadow-xs"
+                  >
                     <FilmStripIcon className="size-3.5" />
                     <span>العناوين</span>
                   </ToggleGroupItem>
 
                   <ToggleGroupItem
                     value="installments"
-                    className="h-9 flex-1 gap-1.5 rounded-lg text-xs"
+                    className="h-8 flex-1 gap-1.5 rounded-lg text-xs font-medium data-[state=on]:bg-background data-[state=on]:shadow-xs"
                   >
                     <StackIcon className="size-3.5" />
                     <span>المواسم</span>
                   </ToggleGroupItem>
                 </ToggleGroup>
+              </div>
 
-                {/* Active Filters Reset Button */}
-                {activeFilterCount > 0 ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    onClick={resetFilters}
+              {/* Secondary View Toolbar: Sort, Grouping, Layout, Density Slider & Results */}
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-card/60 p-1.5 backdrop-blur-xs shadow-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Sort Selector */}
+                  <Select
+                    value={sort}
+                    onValueChange={(value) => value && setSort(value as CatalogSort)}
                   >
-                    <XCircleIcon className="size-4" />
-                    <span>مسح {activeFilterCount} مرشح</span>
-                  </Button>
-                ) : null}
+                    <SelectTrigger className="h-8.5 w-auto min-w-35 rounded-lg border-border/50 bg-background/80 text-xs font-medium transition-colors hover:bg-background">
+                      <div className="flex items-center gap-2 truncate">
+                        <ArrowsDownUpIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                        <SelectValue>
+                          {sortOptions.find((option) => option.value === sort)?.label}
+                        </SelectValue>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      <SelectGroup>
+                        {sortOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value} className="text-xs">
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
 
-                {/* Admin Badge */}
-                {isAdmin ? (
-                  <Badge
-                    variant="outline"
-                    className="h-7 gap-1 rounded-md border-amber-500/30 bg-amber-500/10 text-xs text-amber-600 dark:text-amber-400"
+                  {/* Grouping Selector */}
+                  <Select
+                    value={groupBy}
+                    onValueChange={(value) => value && setGroupBy(value as CatalogGroupBy)}
                   >
-                    <ShieldCheckIcon className="size-3.5" />
-                    <span>وضع المدير</span>
-                  </Badge>
-                ) : null}
+                    <SelectTrigger className="h-8.5 w-auto min-w-32.5 rounded-lg border-border/50 bg-background/80 text-xs font-medium transition-colors hover:bg-background">
+                      <div className="flex items-center gap-2 truncate">
+                        <SquaresFourIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                        <SelectValue>
+                          {catalogGroupByOptions.find((option) => option.value === groupBy)?.label}
+                        </SelectValue>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      <SelectGroup>
+                        {catalogGroupByOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value} className="text-xs">
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
 
-                {/* Mobile/Tablet Result Counter */}
-                <div className="ms-auto flex items-center gap-1.5 text-xs text-muted-foreground xl:hidden">
-                  <span className="font-semibold tabular-nums text-foreground">
+                  <div className="hidden h-4 w-px bg-border/60 sm:block" />
+
+                  {/* View Mode Toggle Group */}
+                  <div className="hidden items-center gap-2 sm:flex">
+                    <ToggleGroup
+                      value={[view]}
+                      multiple={false}
+                      variant="outline"
+                      size="sm"
+                      spacing={0}
+                      aria-label="طريقة عرض الأعمال"
+                      disabled={!interactive}
+                      onValueChange={(values) => {
+                        if (values[0]) setView(values[0] as CatalogView);
+                      }}
+                      className="rounded-lg bg-background/80 p-0.5 border border-border/50"
+                    >
+                      <ToggleGroupItem
+                        value="poster"
+                        aria-label="ملصقات"
+                        className="size-7.5 rounded-md p-0 data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+                      >
+                        <ImageIcon className="size-3.5" />
+                      </ToggleGroupItem>
+
+                      <ToggleGroupItem
+                        value="banner"
+                        aria-label="لافتات"
+                        className="size-7.5 rounded-md p-0 data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+                      >
+                        <PanoramaIcon className="size-3.5" />
+                      </ToggleGroupItem>
+
+                      <ToggleGroupItem
+                        value="logo"
+                        aria-label="شعارات"
+                        className="size-7.5 rounded-md p-0 data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+                      >
+                        <ImageSquareIcon className="size-3.5" />
+                      </ToggleGroupItem>
+
+                      <ToggleGroupItem
+                        value="table"
+                        aria-label="جدول"
+                        className="size-7.5 rounded-md p-0 data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+                      >
+                        <TableIcon className="size-3.5" />
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+
+                  {/* Grid Density Slider or Table Column Picker */}
+                  {view !== "table" ? (
+                    <div
+                      className="hidden h-8.5 w-32 shrink-0 items-center gap-2 rounded-lg border border-border/50 bg-background/80 px-2.5 sm:flex"
+                      title="حجم البطاقات"
+                    >
+                      <SlidersHorizontalIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                      <Slider
+                        value={[density]}
+                        min={1}
+                        max={5}
+                        step={1}
+                        disabled={!interactive}
+                        aria-label="حجم بطاقات الشبكة"
+                        onValueChange={(value) => {
+                          const next = Array.isArray(value) ? value[0] : value;
+                          setDensity(next as CatalogDensity);
+                        }}
+                        className="
+                        ltr! flex-1
+                        **:data-[slot=slider-track]:bg-muted
+                        **:data-[slot=slider-range]:bg-primary
+                        **:data-[slot=slider-thumb]:size-3
+                        **:data-[slot=slider-thumb]:border-background
+                        **:data-[slot=slider-thumb]:bg-primary
+                      "
+                      />
+                    </div>
+                  ) : (
+                    <div className="hidden shrink-0 sm:block">
+                      <WorkTableColumnPicker visible={tableColumns} onChange={setTableColumns} />
+                    </div>
+                  )}
+
+                  {/* Clear Active Filters Button */}
+                  {activeFilterCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8.5 gap-1.5 rounded-lg px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={resetFilters}
+                    >
+                      <XCircleIcon className="size-3.5" />
+                      <span>مسح المرشحات ({activeFilterCount})</span>
+                    </Button>
+                  )}
+                </div>
+
+                {/* Result Count Status */}
+                <div className="ms-auto flex items-center gap-1.5 px-2 text-xs font-medium text-muted-foreground">
+                  <span className="font-bold tabular-nums text-foreground">
                     {visibleWorks.length}
                   </span>
-                  <span>نتيجة</span>
+                  <span>عمل</span>
                 </div>
               </div>
             </div>

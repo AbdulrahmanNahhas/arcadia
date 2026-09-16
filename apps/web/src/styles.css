@@ -330,10 +330,18 @@
     background: oklch(0.67 0.12 267 / 0.35);
   }
 
+  /*
+   * `!important` here isn't decorative: Tailwind v4's `utilities` layer always outranks this
+   * `base` layer regardless of selector specificity, and plenty of automatically-registered cards
+   * (plain `<a>`/`<button>` elements never wired through `useSpatialFocusable`) carry an
+   * `outline-none` of their own to silence the native focus ring on pointer clicks. Without
+   * `!important`, that utility would keep winning here and this rule would visually do nothing on
+   * exactly the elements it exists for.
+   */
   html:not([data-input-modality="pointer"]) [data-spatial-auto="true"][data-focused="true"] {
-    outline: 3px solid var(--primary);
-    outline-offset: 4px;
-    box-shadow: 0 0 0 1px oklch(1 0 0 / 0.2);
+    outline: 3px solid var(--primary) !important;
+    outline-offset: 4px !important;
+    box-shadow: 0 0 0 1px oklch(1 0 0 / 0.2) !important;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -367,4 +375,9 @@
 .ltr\!,
 .ltr\! * {
   direction: ltr !important;
+}
+
+.ontop,
+.ontop * {
+  z-index: 20 !important;
 }

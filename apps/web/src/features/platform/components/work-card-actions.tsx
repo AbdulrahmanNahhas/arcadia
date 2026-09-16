@@ -95,7 +95,7 @@ function TrayButton({
       }}
       onPointerDown={stopCardNavigation}
       className={cn(
-        "border-border/60 shadow-md shadow-black/25 hover:scale-110 motion-reduce:hover:scale-100",
+        "border-border/60 shadow-md shadow-foreground/20 hover:scale-110 motion-reduce:hover:scale-100",
         pressed && "text-primary",
         className,
       )}
@@ -244,7 +244,7 @@ export function WorkCardActions({
               onClick={stopCardNavigation}
               onPointerDown={stopCardNavigation}
               className={cn(
-                "border-border/60 shadow-md shadow-black/25 hover:scale-110 data-popup-open:text-primary motion-reduce:hover:scale-100",
+                "border-border/60 shadow-md shadow-foreground/20 hover:scale-110 data-popup-open:text-primary motion-reduce:hover:scale-100",
                 className,
               )}
             />

@@ -67,28 +67,49 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
   });
   return (
     <div className="group/card relative">
-      <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted">
+      <div
+        className={cn(
+          "relative aspect-2/3 overflow-hidden rounded-2xl bg-muted",
+          "ring-1 ring-border/70",
+          "transition-[box-shadow,ring-color,transform] duration-300",
+          "group-hover/card:-translate-y-1 group-hover/card:scale-[1.02] group-hover/card:shadow-xl group-hover/card:shadow-foreground/15",
+          "group-focus-within/card:ring-2 group-focus-within/card:ring-ring",
+          "group-focus-within/card:shadow-xl group-focus-within/card:shadow-foreground/20",
+          "motion-reduce:transition-none motion-reduce:transform-none",
+        )}
+      >
         <Link
           to="/titles/$titleId"
           params={{ titleId: item.titleId }}
-          className="absolute inset-0 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute inset-0 outline-none"
         >
           {item.posterPath ? (
             <img
               src={item.posterPath}
               alt=""
-              className="size-full object-cover transition-transform duration-300 group-hover/card:scale-105"
+              loading="lazy"
+              decoding="async"
+              className={cn(
+                "size-full object-cover",
+                "transition-transform duration-500",
+                "group-hover/card:scale-[1.045]",
+                "motion-reduce:transition-none",
+              )}
             />
           ) : null}
           <div
             data-on-artwork
-            className="absolute inset-0 bg-linear-to-t from-black/90 via-black/10 to-transparent opacity-0 transition-opacity duration-200 group-hover/card:opacity-100 group-focus-within/card:opacity-100"
+            className={cn(
+              "absolute inset-0 bg-linear-to-t from-background/90 via-background/15 to-transparent",
+              "opacity-0 transition-opacity duration-200 motion-reduce:transition-none",
+              "group-hover/card:opacity-100 group-focus-within/card:opacity-100",
+            )}
           />
         </Link>
         {item.positionSeconds && progress !== null ? (
           <div
             data-on-artwork
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-black/40"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-background/50"
           >
             <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
           </div>
@@ -96,18 +117,18 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
         {item.savedOffline ? (
           <span
             data-on-artwork
-            className="pointer-events-none absolute top-2 inset-s-2 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
+            className="pointer-events-none absolute top-2 inset-s-2 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground ring-1 ring-border/70 backdrop-blur-md"
           >
             <BookmarkSimpleIcon weight="fill" className="size-3.5" />
           </span>
         ) : null}
         {/* Sibling of the poster `Link`, not a descendant — the rating stars are real buttons of
          *  their own, and nesting them inside the anchor would fire a navigation on every click. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-1 items-center justify-between gap-1 px-2 pb-2 opacity-0 transition-all duration-200 group-hover/card:translate-y-0 group-hover/card:opacity-100 group-focus-within/card:translate-y-0 group-focus-within/card:opacity-100">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-1 items-center justify-between gap-1 px-2 pb-2 opacity-0 transition-all duration-200 motion-reduce:transition-none group-hover/card:translate-y-0 group-hover/card:opacity-100 group-focus-within/card:translate-y-0 group-focus-within/card:opacity-100">
           {progress !== null ? (
             <span
               data-on-artwork
-              className="flex items-center gap-1 text-[0.6875rem] font-medium text-white"
+              className="flex items-center gap-1 text-[0.6875rem] font-medium text-foreground"
             >
               <PlayIcon weight="fill" className="size-3" />
               {progress}٪
@@ -131,7 +152,7 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
       >
         <h3 className="line-clamp-1 text-sm font-medium hover:text-primary">{item.title}</h3>
       </Link>
-      <div className="absolute end-1.5 top-1.5 flex flex-col gap-1 opacity-0 transition-opacity duration-200 group-hover/card:opacity-100 group-focus-within/card:opacity-100">
+      <div className="absolute inset-e-1.5 top-1.5 flex flex-col gap-1 opacity-0 transition-opacity duration-200 motion-reduce:transition-none group-hover/card:opacity-100 group-focus-within/card:opacity-100">
         <button
           type="button"
           aria-label={item.isFavorite ? "إزالة من المفضلة" : "أضف إلى المفضلة"}
@@ -143,7 +164,7 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
           }}
           data-on-artwork
           className={cn(
-            "flex size-7 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80",
+            "flex size-7 items-center justify-center rounded-full bg-background/80 text-foreground ring-1 ring-border/70 backdrop-blur-md transition hover:bg-accent hover:text-accent-foreground",
             item.isFavorite && "text-primary",
           )}
         >
@@ -160,7 +181,7 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
           }}
           data-on-artwork
           className={cn(
-            "flex size-7 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80",
+            "flex size-7 items-center justify-center rounded-full bg-background/80 text-foreground ring-1 ring-border/70 backdrop-blur-md transition hover:bg-accent hover:text-accent-foreground",
             item.savedOffline && "text-primary",
           )}
         >
@@ -183,7 +204,7 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
             });
           }}
           data-on-artwork
-          className="flex size-7 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-destructive"
+          className="flex size-7 items-center justify-center rounded-full bg-background/80 text-foreground ring-1 ring-border/70 backdrop-blur-md transition hover:bg-destructive hover:text-destructive-foreground"
         >
           <TrashIcon className="size-3.5" />
         </button>

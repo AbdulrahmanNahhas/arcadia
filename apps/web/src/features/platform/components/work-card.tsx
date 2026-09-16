@@ -125,7 +125,7 @@ function useWorkCardSpatialNavigation(work: Work, focusKey?: string, onOpenActio
 // focus, on remote focus, or while its own action menu is open. Coarse pointers have no hover to
 // reveal anything with, so there the overlays simply stay on.
 const FADE_IN = cn(
-  "opacity-0 transition-opacity duration-300 motion-reduce:transition-none",
+  "opacity-0 transition-all duration-300 motion-reduce:transition-none",
   EASE,
   "group-hover/card:opacity-100 group-focus-within/card:opacity-100",
   "group-data-[card-focused=true]/card:opacity-100 group-data-[actions-open=true]/card:opacity-100",
@@ -137,7 +137,7 @@ const FADE_IN = cn(
 // read as one movement instead of two things starting at once.
 const RISE_IN = cn(
   FADE_IN,
-  "translate-y-1 transition-[opacity,transform] delay-75 motion-reduce:transform-none",
+  "translate-y-1 transition-all delay-75 motion-reduce:transform-none",
   "group-hover/card:translate-y-0 group-focus-within/card:translate-y-0",
   "group-data-[card-focused=true]/card:translate-y-0 group-data-[actions-open=true]/card:translate-y-0",
   "pointer-coarse:translate-y-0",
@@ -172,31 +172,38 @@ const MOTION = cn(
   "motion-reduce:transform-none motion-reduce:transition-none",
   EASE,
   "group-hover/card:-translate-y-0 group-hover/card:scale-[1] transition-all!",
-  "group-data-[actions-open=true]/card:-translate-y-1 group-data-[actions-open=true]/card:scale-[1.03]",
-  "group-data-[card-focused=true]/card:-translate-y-1 group-data-[card-focused=true]/card:scale-[1.04]",
+  "group-data-[actions-open=true]/card:-translate-y-1 group-data-[actions-open=true]/card:scale-[1.0]",
+  "group-data-[card-focused=true]/card:-translate-y-1 group-data-[card-focused=true]/card:scale-[1.0]",
 );
 
 /**
- * A chip over artwork. The overlay colors are fixed rather than themed on purpose: this sits on a
- * photograph, not on a themed surface, so it has to stay legible over both a bright poster and a
- * dark one regardless of which theme the app is in. Everything else — shape, height, type scale,
- * icon sizing — still comes from `Badge`.
+ * A chip over artwork. Frosted glass — a translucent, blurred `background`/`foreground` pill —
+ * rather than a flat color: the blur does the legibility work against whatever the photo behind it
+ * looks like, so the chip can stay themed (light glass in light mode, dark glass in dark mode)
+ * instead of needing a color fixed against the theme. Everything else — shape, height, type scale,
+ * icon sizing — still comes from `Badge`. Matches the glass chips on `PlaybackTile` and
+ * `ReleaseCard`, the same overlay language across every catalog card.
  */
 function OverlayBadge({ className, ...props }: React.ComponentProps<typeof Badge>) {
   return (
     <Badge
       variant="secondary"
       data-on-artwork
-      className={cn("bg-black/65 text-white backdrop-blur-sm", className)}
+      className={cn(
+        "bg-background/75 text-foreground ring-1 ring-border/70 backdrop-blur-md",
+        className,
+      )}
       {...props}
     />
   );
 }
 
 /**
- * One gradient carries both overlay corners: enough darkness at the bottom for the action tray to
- * read against a bright poster, a lighter wash at the top for the rating and age chips, and
- * nothing in the middle where the artwork should stay itself.
+ * A soft themed vignette, darkest at the corners where the chips and the action tray sit, clear
+ * through the middle where the artwork should stay itself. Not load-bearing for legibility — the
+ * chips and tray buttons are already opaque/glass on their own — this is the same "a little glassy"
+ * depth treatment the rest of the interface uses, so it tracks light/dark mode instead of assuming
+ * every poster needs a black wash.
  */
 function ArtworkScrim() {
   return (
@@ -204,7 +211,7 @@ function ArtworkScrim() {
       aria-hidden="true"
       data-on-artwork
       className={cn(
-        "absolute inset-0 bg-linear-to-t from-black/85 via-black/10 to-black/35 -bottom-1.5 -left-1",
+        "absolute inset-0 bg-linear-to-t from-background/70 via-transparent to-background/25 -bottom-1.5 -left-1",
         FADE_IN,
       )}
     />
@@ -228,7 +235,7 @@ function OverlayChips({ work }: { work: Work }) {
     <div className="absolute inset-e-2 top-2 flex items-center gap-1.5">
       {work.calculatedRating !== null && (
         <OverlayBadge className="font-semibold">
-          <StarIcon weight="fill" className="text-amber-300" />
+          <StarIcon weight="fill" className="text-primary" />
           {work.calculatedRating.toFixed(1)}
         </OverlayBadge>
       )}
@@ -281,14 +288,16 @@ function ResumeIndicator({ titleId }: { titleId: string }) {
   return (
     <div
       role="progressbar"
-      aria-label={`تقدّم المشاهدة ${resume.progress}٪`}
+      aria-label={`تقدم المشاهدة ${resume.progress}٪`}
       aria-valuenow={resume.progress}
       aria-valuemin={0}
       aria-valuemax={100}
-      data-on-artwork
-      className="absolute inset-x-0 bottom-0 h-0.75 bg-black/50"
+      className="absolute inset-x-3 bottom-2.5 rounded-full h-1 overflow-hidden bg-background/70 ltr"
     >
-      <div className="h-full bg-primary" style={{ width: `${resume.progress}%` }} />
+      <div
+        className="h-full rounded-full bg-primary transition-[width] duration-500 motion-reduce:transition-none"
+        style={{ width: `${Math.max(resume.progress, 2)}%` }}
+      />
     </div>
   );
 }
@@ -324,7 +333,7 @@ function Artwork({ src, className }: { src: string; className: string }) {
       loading="lazy"
       decoding="async"
       className={cn(
-        "size-full transition-[opacity,transform] duration-500",
+        "size-full transition-all duration-500",
         "motion-reduce:transform-none motion-reduce:transition-none",
         EASE,
         loaded ? "opacity-100" : "opacity-0",
@@ -362,7 +371,7 @@ const variants = {
   banner: {
     art: (work: Work) => work.bannerPath || work.imagePath,
     aspect: "aspect-video",
-    radius: "rounded-2xl",
+    radius: "rounded-xl",
     fit: cn("object-cover", ART_ZOOM),
     width: "",
     facts: 3,
@@ -404,6 +413,7 @@ export function WorkCard({
   const artwork = frame.art(work);
   const facts = factsOf(work, frame.facts);
   const KindIcon = kindIcon[work.kind];
+  const resume = useResumeProgress(work.id);
 
   return (
     // `data-card-focused` mirrors the anchor's own `data-focused` onto the card as a whole, so the
@@ -427,9 +437,9 @@ export function WorkCard({
       >
         <div
           className={cn(
-            "relative overflow-hidden bg-muted shadow-md shadow-black/20 ring-1 ring-foreground/10",
-            "group-hover/card:shadow-2xl group-hover/card:shadow-black/40",
-            "group-data-[card-focused=true]/card:shadow-2xl group-data-[card-focused=true]/card:shadow-black/40",
+            "relative overflow-hidden bg-muted shadow-md shadow-foreground/15 ring-1 ring-border/70",
+            "group-hover/card:shadow-2xl group-hover/card:shadow-foreground/25",
+            "group-data-[card-focused=true]/card:shadow-2xl group-data-[card-focused=true]/card:shadow-foreground/25",
             FOCUS_RING,
             frame.aspect,
             frame.radius,
@@ -453,7 +463,7 @@ export function WorkCard({
             id={headingId}
             className={cn(
               "truncate font-heading text-sm font-semibold text-foreground",
-              "transition-colors duration-200 motion-reduce:transition-none",
+              "transition-all duration-200 motion-reduce:transition-none",
               EASE,
               "group-hover/card:text-primary group-data-[card-focused=true]/card:text-primary",
               variant === "poster" && "sm:text-[0.9375rem]",
@@ -483,7 +493,11 @@ export function WorkCard({
               title={displayTitle}
               open={actionsOpen}
               onOpenChange={setActionsOpen}
-              className={cn("absolute inset-s-2 bottom-2", REVEAL_POINTER)}
+              className={cn(
+                "absolute inset-s-2 bottom-3",
+                REVEAL_POINTER,
+                resume?.progress && "bottom-5",
+              )}
             />
           )}
         </div>

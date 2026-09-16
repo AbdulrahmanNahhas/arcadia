@@ -60,7 +60,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { archiveKeys, recordHistory } from "@/features/archive/api";
 // import { WorkFamilyActions } from "@/features/archive/work-family-actions";
-import type { Entity, Work, WorkStructure } from "@/features/library/model";
+import type { Entity, Work, WorkSeasonDetail, WorkStructure } from "@/features/library/model";
 import { tagLabelsAr, taxonomyLabels } from "@/features/library/model";
 import { useIsOnline } from "@/features/library/offline-store";
 import {
@@ -89,7 +89,7 @@ import { getPlatformWorkDetail } from "@/server/platform.functions";
 import { EntityDialog } from "./components/entity-dialog";
 import { PlatformShell } from "./components/platform-shell";
 import { WorkCard } from "./components/work-card";
-import { revealSpatialTarget, useSpatialFocusable } from "./spatial-navigation";
+import { focusSpatialKey, revealSpatialTarget, useSpatialFocusable } from "./spatial-navigation";
 
 type PlanetInfo = { slug: string; icon: string; nameAr: string; primaryColor: string } | null;
 type TitleTabId = "overview" | "episodes" | "cast" | "scores" | "reviews" | "details";
@@ -114,11 +114,11 @@ function TitleTabTrigger({
   const { ref, focused } = useSpatialFocusable<object, HTMLButtonElement>({
     focusKey: `title:${workId}:tab:${tab.id}`,
     accessibilityLabel: tab.title,
+    // Only Enter/click switches the visible panel. Focus alone used to switch it too, which meant
+    // arrowing *past* a tab, or landing here from elsewhere on the page, silently changed what the
+    // rest of the page was showing — see the "auto focus the selected one" fix in `WorkDetailPage`.
     onEnterPress: () => onSelect(tab.id),
-    onFocus: ({ node }) => {
-      revealSpatialTarget(node);
-      onSelect(tab.id);
-    },
+    onFocus: ({ node }) => revealSpatialTarget(node),
   });
   return (
     <TabsTrigger
@@ -128,11 +128,68 @@ function TitleTabTrigger({
       data-spatial-managed
       data-spatial-focus-key={`title:${workId}:tab:${tab.id}`}
       data-focused={focused || undefined}
-      className="h-9 flex-none rounded-full! px-4! text-sm hover:bg-accent!"
+      className="h-9 flex-none px-4! text-sm hover:bg-accent!  focus:bg-accent!  rounded-3xl!  duration-200! transition-all!"
     >
       <tab.icon data-icon="inline-start" />
       {tab.label}
     </TabsTrigger>
+  );
+}
+
+/**
+ * The banner directly under the tab strip (icon, title, description, summary badge) — also a
+ * jump-link back up to the strip. Explicitly wired instead of left to automatic scanning so it
+ * gets the plain `data-focused:` ring the rest of the page's non-artwork surfaces use, not the
+ * automatic scanner's generic big outline.
+ *
+ * (An earlier version of this also carried a `nextFocusResolver` to redirect "down" presses
+ * straight into the tab's own panel content — norigin only reads that resolver off the *parent* of
+ * the node leaving, never off the node itself, so making it work meant regrouping this whole
+ * region under one shared parent focus scope. That regrouping broke plain sibling-to-sibling
+ * navigation for cards across the page and was reverted; the "down from here can land on the
+ * sidebar's metadata card instead of the panel" issue it was meant to fix is still open.)
+ */
+function TabHeroBanner({
+  workId,
+  activeTabDetails,
+}: {
+  workId: string;
+  activeTabDetails: TitleTab;
+}) {
+  const focusKey = `title:${workId}:hero`;
+  const { ref, focused } = useSpatialFocusable<object, HTMLAnchorElement>({
+    focusKey,
+    accessibilityLabel: activeTabDetails.title,
+    onEnterPress: () => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLAnchorElement) activeElement.click();
+    },
+    onFocus: ({ node }) => revealSpatialTarget(node),
+  });
+  return (
+    <a
+      ref={ref}
+      href="#title-sections"
+      data-spatial-managed
+      data-spatial-focus-key={focusKey}
+      data-focused={focused || undefined}
+      className="grid gap-5 border-b py-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end ontop px-2 my-4 rounded-xl outline-none transition-shadow data-focused:ring-1 data-focused:ring-primary/70"
+    >
+      <div className="flex min-w-0 items gap-4 items-center">
+        <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+          <activeTabDetails.icon weight="duotone" className="size-8" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-heading text-xl font-bold sm:text-2xl">{activeTabDetails.title}</h2>
+          <p className="mt-1 max-w-2xl leading-6 text-muted-foreground">
+            {activeTabDetails.description}
+          </p>
+        </div>
+      </div>
+      <Badge variant="outline" className="h-8 w-fit px-3 flex gap-4">
+        {activeTabDetails.summary}
+      </Badge>
+    </a>
   );
 }
 
@@ -215,7 +272,47 @@ export function WorkDetailPage({
     if (!initialInstallmentId) return;
     setSelectedInstallmentId(initialInstallmentId);
     setActiveTab("episodes");
+    // Always reached via a specific installment link (a season card, "continue watching", …), so
+    // the hero above the tabs is never what the click was actually for — land on the tab region
+    // instead of wherever the route change's own scroll restoration would otherwise leave it
+    // (normally the top of the page). Deferred a frame so it runs after that restoration, not
+    // before it.
+    const frame = requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document
+        .getElementById("title-sections")
+        ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [initialInstallmentId]);
+  /**
+   * Arriving at the tab strip from *outside* it (pressing "up" from the sidebar, from a season
+   * card, from anywhere below) should land on whichever tab is actually showing, not on whichever
+   * tab trigger happens to sit geometrically closest — the default distance-based resolution
+   * regularly picks a neighboring tab instead. Moving *within* the strip (left/right between
+   * triggers) is left alone so browsing the other tabs before committing still works; the check is
+   * simply "did focus come from inside `#title-sections`".
+   */
+  useEffect(() => {
+    // `TitleTabTrigger` keys its focusKey off `work.id` (the canonical id the fetched payload
+    // resolved to), not the `workId` prop above — that prop is whatever the route matched
+    // (an alias included), which isn't always the same string. `data` can still be `null` here
+    // (the "not available" branch below hasn't run yet, hooks can't follow it), hence the guard.
+    const activeWorkId = data?.work.id;
+    const strip = document.getElementById("title-sections");
+    if (!strip || !activeWorkId) return;
+    const activeFocusKey = `title:${activeWorkId}:tab:${activeTab}`;
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.matches("[role='tab']")) return;
+      if (target.dataset.spatialFocusKey === activeFocusKey) return;
+      const related = event.relatedTarget;
+      if (related instanceof HTMLElement && strip.contains(related)) return;
+      focusSpatialKey(activeFocusKey);
+    };
+    strip.addEventListener("focusin", onFocusIn);
+    return () => strip.removeEventListener("focusin", onFocusIn);
+  }, [data?.work.id, activeTab]);
   if (!data)
     return (
       <PlatformShell immersive>
@@ -334,7 +431,7 @@ export function WorkDetailPage({
   if (!activeTabDetails) return null;
 
   return (
-    <PlatformShell>
+    <PlatformShell immersive>
       <WorkHero
         work={work}
         planet={planet?.planet ?? null}
@@ -352,7 +449,7 @@ export function WorkDetailPage({
       >
         <div
           id="title-sections"
-          className="scroll-fade-x sticky top-14 z-30 -mx-5 overflow-x-auto border-y bg-background/95 px-5 overflow-y-clip! sm:-mx-8 sm:px-8"
+          className="scroll-fade-x relative top-0 z-30 -mx-5 overflow-x-auto border-y bg-background/40 px-5 backdrop-blur-xl overflow-y-clip! sm:-mx-8 sm:px-8"
         >
           <TabsList variant="line" className="h-12! min-w-max justify-start gap-0 p-0">
             {tabs.map((tab) => (
@@ -361,28 +458,11 @@ export function WorkDetailPage({
           </TabsList>
         </div>
 
-        <header className="grid gap-5 border-b py-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-          <div className="flex min-w-0 items gap-4 items-center">
-            <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-              <activeTabDetails.icon weight="duotone" className="size-8" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="font-heading text-xl font-bold sm:text-2xl">
-                {activeTabDetails.title}
-              </h2>
-              <p className="mt-1 max-w-2xl leading-6 text-muted-foreground">
-                {activeTabDetails.description}
-              </p>
-            </div>
-          </div>
-          <Badge variant="outline" className="h-8 w-fit px-3 flex gap-4">
-            {activeTabDetails.summary}
-          </Badge>
-        </header>
+        <TabHeroBanner workId={work.id} activeTabDetails={activeTabDetails} />
 
-        <div className="grid gap-10 py-8 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12">
-          <main className="min-w-0">
-            <TabsContent value="overview" className="mt-0 focus-visible:outline-none">
+        <div className="grid gap-10 py-8 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12 ontop">
+          <main className="min-w-0 ">
+            <TabsContent value="overview" className="ontop mt-0 focus-visible:outline-none">
               <OverviewSection
                 work={work}
                 structure={structure}
@@ -392,7 +472,7 @@ export function WorkDetailPage({
             </TabsContent>
 
             {hasMedia && (
-              <TabsContent value="episodes" className="mt-0 focus-visible:outline-none">
+              <TabsContent value="episodes" className="ontop mt-0 focus-visible:outline-none">
                 <EpisodesSection
                   workId={work.id}
                   titleImdbId={work.imdbId}
@@ -417,22 +497,22 @@ export function WorkDetailPage({
             )}
 
             {hasCast && (
-              <TabsContent value="cast" className="mt-0 focus-visible:outline-none">
+              <TabsContent value="cast" className="ontop mt-0 focus-visible:outline-none">
                 <CastSection people={people} studios={studios} />
               </TabsContent>
             )}
 
-            <TabsContent value="scores" className="mt-0 focus-visible:outline-none">
+            <TabsContent value="scores" className="ontop mt-0 focus-visible:outline-none">
               <ScoreSection work={work} structure={structure} />
             </TabsContent>
 
             {!work.isPrivate && (
-              <TabsContent value="reviews" className="mt-0 focus-visible:outline-none">
+              <TabsContent value="reviews" className="ontop mt-0 focus-visible:outline-none">
                 <TitleSocialSection titleId={work.id} mode="reviews" />
               </TabsContent>
             )}
 
-            <TabsContent value="details" className="mt-0 focus-visible:outline-none">
+            <TabsContent value="details" className="ontop mt-0 focus-visible:outline-none">
               <WorkDetails work={work} structure={structure} taxonomyLabel={catalogTermLabel} />
             </TabsContent>
           </main>
@@ -455,8 +535,8 @@ export function WorkDetailPage({
       )}
 
       {!work.isPrivate && (
-        <section id="family-discussion" className="border-t bg-muted/15">
-          <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-18">
+        <section id="family-discussion" className="border-t bg-muted/15 backdrop-blur-xl">
+          <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
             <TitleSocialSection titleId={work.id} mode="discussion" />
           </div>
         </section>
@@ -677,294 +757,317 @@ function WorkHero({
       : null;
 
   return (
-    <>
-      <section className="relative isolate min-h-[92svh] overflow-hidden bg-background">
-        {work.bannerPath || work.imagePath ? (
-          <img
-            src={work.bannerPath || work.imagePath || undefined}
-            alt=""
-            width={1600}
-            height={900}
-            className="absolute inset-0 -z-30 size-full object-cover"
-          />
-        ) : null}
-
-        {/* ambient color wash from the planet's identity — kept faint, it should read as light, not decoration */}
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-20"
-          style={{
-            background: `radial-gradient(65% 60% at 82% 8%, ${glow}2e, transparent 65%)`,
-          }}
+    <section className="relative isolate min-h-[92svh] overflow-hidden bg-transparent!">
+      {work.bannerPath || work.imagePath ? (
+        <img
+          src={work.bannerPath || work.imagePath || undefined}
+          alt=""
+          width={1600}
+          height={900}
+          className="absolute inset-0 -z-30! size-full object-cover"
         />
+      ) : null}
 
-        {/* layered scrim: this is the actual Netflix/Prime/Apple TV trick — three gradients doing
+      {/* Background - amazing effect, want texts to be above it */}
+      {work.bannerPath || work.imagePath ? (
+        <img
+          src={work.bannerPath || work.imagePath || undefined}
+          alt=""
+          width={1600}
+          height={900}
+          className="fixed top-0 left-0 blur-3xl opacity-10 z-1! size-full object-cover"
+        />
+      ) : null}
+
+      {/* ambient color wash from the planet's identity — kept faint, it should read as light, not decoration */}
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-20!"
+        style={{
+          background: `radial-gradient(65% 60% at 82% 8%, ${glow}2e, transparent 65%)`,
+        }}
+      />
+
+      {/* layered scrim: this is the actual Netflix/Prime/Apple TV trick — three gradients doing
             three different jobs, instead of one flat wash trying to do all of them */}
-        <div className="absolute inset-0 -z-10 bg-linear-to-t from-background via-background/70 via-45% to-transparent" />
-        <div className="absolute inset-0 -z-10 bg-linear-to-l from-background/90 via-background/10 to-transparent lg:from-background/80" />
-        <div className="absolute inset-x-0 top-0 -z-10 h-40 bg-linear-to-b from-background/60 to-transparent" />
+      <div className="absolute inset-0 -z-10! bg-linear-to-t from-background via-background/70 via-45% to-transparent" />
+      <div className="absolute inset-0 -z-10! bg-linear-to-l from-background/90 via-background/10 to-transparent lg:from-background/80" />
+      <div className="absolute inset-x-0 top-0 -z-10! h-40 bg-linear-to-b from-background/60 to-transparent" />
 
-        <div className="mx-auto grid min-h-[88svh] max-w-400 items-end gap-10 px-5 pb-10 pt-32 sm:px-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:pb-14">
-          <div className="max-w-3xl">
-            {planet && (
-              <Link
-                to="/planets/$planetSlug"
-                params={{ planetSlug: planet.slug }}
-                className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold backdrop-blur-md transition hover:brightness-110"
-                style={{
-                  borderColor: `${glow}55`,
-                  color: glow,
-                  backgroundColor: `${glow}14`,
-                }}
+      <div className="mx-auto grid min-h-[88svh] max-w-400 items-end gap-10 px-5 z-99 ontop pb-10 pt-32 sm:px-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:pb-14">
+        <div className="max-w-3xl">
+          {planet && (
+            <Link
+              to="/planets/$planetSlug"
+              params={{ planetSlug: planet.slug }}
+              className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold backdrop-blur-md transition hover:brightness-110"
+              style={{
+                borderColor: `${glow}55`,
+                color: glow,
+                backgroundColor: `${glow}14`,
+              }}
+            >
+              <span>{planet.icon}</span>
+              {planet.nameAr}
+            </Link>
+          )}
+
+          <h1 className="text-balance font-heading text-4xl leading-[1.15] font-semibold drop-shadow-[0_2px_24px_rgb(0_0_0/0.35)] sm:text-6xl lg:text-7xl">
+            {work.logoPath ? (
+              <img
+                src={work.logoPath}
+                alt={work.arabicTitle || work.title}
+                className="h-24! max-w-full object-contain drop-shadow-[0_4px_30px_rgb(0_0_0/0.4)] sm:h-32! md:h-36! xl:h-48!"
+              />
+            ) : (
+              work.arabicTitle || work.title
+            )}
+          </h1>
+          <p className="mt-3 font-mono text-base text-muted-foreground sm:text-lg flex gap-2 items-center">
+            {work.logoPath ? work.arabicTitle : work.arabicTitle && work.title}
+            <Popover>
+              <PopoverTrigger render={<Button variant="outline" size={"icon-xs"} />}>
+                <InfoIcon />
+              </PopoverTrigger>
+              <PopoverContent
+                side="left"
+                className="max-w-none! w-full bg-primary! text-primary-foreground! py-2"
               >
-                <span>{planet.icon}</span>
-                {planet.nameAr}
-              </Link>
-            )}
+                {work.title}
+              </PopoverContent>
+            </Popover>
+          </p>
 
-            <h1 className="text-balance font-heading text-4xl leading-[1.15] font-semibold drop-shadow-[0_2px_24px_rgb(0_0_0/0.35)] sm:text-6xl lg:text-7xl">
-              {work.logoPath ? (
-                <img
-                  src={work.logoPath}
-                  alt={work.arabicTitle || work.title}
-                  className="h-24! max-w-full object-contain drop-shadow-[0_4px_30px_rgb(0_0_0/0.4)] sm:h-32! md:h-36! xl:h-48!"
-                />
-              ) : (
-                work.arabicTitle || work.title
-              )}
-            </h1>
-            <p className="mt-3 font-mono text-base text-muted-foreground sm:text-lg" dir="ltr">
-              {/*{work.logoPath ? work.arabicTitle : work.arabicTitle && work.title}*/}
-              {work.title}
-            </p>
-
-            <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-foreground/80 sm:text-base">
-              {!isOnline && (
-                <span className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 font-semibold text-amber-500">
-                  <BookmarkSimpleIcon weight="fill" />
-                  غير متصل — من المحفوظات
-                </span>
-              )}
-              {work.calculatedRating !== null && (
-                <span
-                  className="flex items-center gap-1.5 rounded-md border px-2 py-1 font-semibold text-foreground"
-                  style={{ borderColor: `${glow}55`, backgroundColor: `${glow}12` }}
-                >
-                  <StarIcon weight="fill" style={{ color: glow }} />
-                  {work.calculatedRating.toFixed(1)}
-                  {work.scoreCoverage && (
-                    <span className="text-xs font-normal text-muted-foreground">
-                      ({work.scoreCoverage.scored} من {work.scoreCoverage.total})
-                    </span>
-                  )}
-                </span>
-              )}
-              {work.year && <span>{work.year}</span>}
-              <span>{kindLabels[work.kind]}</span>
-              {work.runtimeMinutes && (
-                <span className="flex items-center gap-1">
-                  <ClockIcon /> {work.runtimeMinutes} د
-                </span>
-              )}
-              {audienceLabel && <Badge variant="outline">{audienceLabel}</Badge>}
-              <span className="flex items-center gap-1 text-foreground/70">
-                <CheckCircleIcon /> {releaseLabels[work.releaseStatus]}
+          <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-foreground/80 sm:text-base">
+            {!isOnline && (
+              <span className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 font-semibold text-amber-500">
+                <BookmarkSimpleIcon weight="fill" />
+                غير متصل — من المحفوظات
               </span>
-            </div>
+            )}
+            {work.calculatedRating !== null && (
+              <span
+                className="flex items-center gap-1.5 rounded-md border px-2 py-1 font-semibold text-foreground"
+                style={{ borderColor: `${glow}55`, backgroundColor: `${glow}12` }}
+              >
+                <StarIcon weight="fill" style={{ color: glow }} />
+                {work.calculatedRating.toFixed(1)}
+                {work.scoreCoverage && (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    ({work.scoreCoverage.scored} من {work.scoreCoverage.total})
+                  </span>
+                )}
+              </span>
+            )}
+            {work.year && <span>{work.year}</span>}
+            <span>{kindLabels[work.kind]}</span>
+            {work.runtimeMinutes && (
+              <span className="flex items-center gap-1">
+                <ClockIcon /> {work.runtimeMinutes} د
+              </span>
+            )}
+            {audienceLabel && <Badge variant="outline">{audienceLabel}</Badge>}
+            <span className="flex items-center gap-1 text-foreground/70">
+              <CheckCircleIcon /> {releaseLabels[work.releaseStatus]}
+            </span>
+          </div>
 
-            {work.summary && (
-              <p className="mt-6 line-clamp-3 max-w-2xl text-sm leading-8 text-foreground/80 sm:text-base">
-                {work.summary}
-              </p>
+          {work.summary && (
+            <p className="mt-6 line-clamp-3 max-w-2xl text-sm leading-8 text-foreground/80 sm:text-base">
+              {work.summary}
+            </p>
+          )}
+
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            {heroTarget?.unit.kind === "movie" ? (
+              <PlayFilmButton
+                size="lg"
+                className="px-4 font-semibold"
+                installmentId={heroTarget.unit.installmentId}
+                titleId={work.id}
+                label={heroTarget.label}
+                releaseStatus={heroTarget.unit.releaseStatus}
+                releaseAt={heroTarget.unit.releaseAt}
+                imdbId={heroTarget.unit.imdbId}
+                tmdbId={heroTarget.unit.tmdbId}
+              />
+            ) : heroTarget?.unit.kind === "episode" ? (
+              <PlayEpisodeButton
+                size="lg"
+                className="px-4 font-semibold"
+                installmentId={heroTarget.unit.installmentId}
+                episodeId={heroTarget.unit.episodeId}
+                titleId={work.id}
+                label={heroTarget.label}
+                releaseStatus={heroTarget.unit.releaseStatus}
+                releaseAt={heroTarget.unit.releaseAt}
+                titleImdbId={work.imdbId}
+                titleTmdbId={work.tmdbId}
+                episodeNumber={heroTarget.unit.number}
+              />
+            ) : (
+              <Button
+                size="lg"
+                className="px-4 font-semibold"
+                nativeButton={false}
+                render={<a href="#family-progress" />}
+              >
+                <PlayIcon weight="fill" data-icon="inline-start rotate-90" /> ابدأ بالمشاهدة
+              </Button>
             )}
 
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              {heroTarget?.unit.kind === "movie" ? (
-                <PlayFilmButton
-                  size="lg"
-                  className="px-4 font-semibold"
-                  installmentId={heroTarget.unit.installmentId}
-                  titleId={work.id}
-                  label={heroTarget.label}
-                  releaseStatus={heroTarget.unit.releaseStatus}
-                  releaseAt={heroTarget.unit.releaseAt}
-                  imdbId={heroTarget.unit.imdbId}
-                  tmdbId={heroTarget.unit.tmdbId}
-                />
-              ) : heroTarget?.unit.kind === "episode" ? (
-                <PlayEpisodeButton
-                  size="lg"
-                  className="px-4 font-semibold"
-                  installmentId={heroTarget.unit.installmentId}
-                  episodeId={heroTarget.unit.episodeId}
-                  titleId={work.id}
-                  label={heroTarget.label}
-                  releaseStatus={heroTarget.unit.releaseStatus}
-                  releaseAt={heroTarget.unit.releaseAt}
-                  titleImdbId={work.imdbId}
-                  titleTmdbId={work.tmdbId}
-                  episodeNumber={heroTarget.unit.number}
-                />
+            {trailerLink ? (
+              trailerEmbedUrl ? (
+                <Dialog>
+                  <DialogTrigger
+                    render={
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        data-on-artwork
+                        className="border-white/25 bg-white/10 font-semibold backdrop-blur-md hover:bg-white/20"
+                      />
+                    }
+                  >
+                    <FilmSlateIcon weight="fill" data-icon="inline-start" /> شاهد الإعلان
+                  </DialogTrigger>
+                  <DialogContent
+                    showCloseButton={false}
+                    className="max-w-3xl! gap-0 overflow-hidden rounded-2xl p-0"
+                  >
+                    <div data-on-artwork className="aspect-video bg-black">
+                      <iframe
+                        src={trailerEmbedUrl}
+                        title="الإعلان الرسمي"
+                        allow="autoplay; encrypted-media; picture-in-picture"
+                        allowFullScreen
+                        sandbox="allow-scripts allow-presentation allow-popups"
+                        className="size-full"
+                      />
+                    </div>
+                  </DialogContent>
+                </Dialog>
               ) : (
                 <Button
                   size="lg"
-                  className="px-4 font-semibold"
+                  variant="outline"
+                  data-on-artwork
+                  className="border-white/25 bg-white/10 font-semibold backdrop-blur-md hover:bg-white/20"
                   nativeButton={false}
-                  render={<a href="#family-progress" />}
+                  render={<a href={trailerLink.url} target="_blank" rel="noreferrer" />}
                 >
-                  <PlayIcon weight="fill" data-icon="inline-start rotate-90" /> ابدأ بالمشاهدة
+                  <FilmSlateIcon weight="fill" data-icon="inline-start" /> شاهد الإعلان
                 </Button>
-              )}
-
-              {trailerLink ? (
-                trailerEmbedUrl ? (
-                  <Dialog>
-                    <DialogTrigger
-                      render={
-                        <Button
-                          size="lg"
-                          variant="outline"
-                          data-on-artwork
-                          className="border-white/25 bg-white/10 font-semibold backdrop-blur-md hover:bg-white/20"
-                        />
-                      }
-                    >
-                      <FilmSlateIcon weight="fill" data-icon="inline-start" /> شاهد الإعلان
-                    </DialogTrigger>
-                    <DialogContent
-                      showCloseButton={false}
-                      className="max-w-3xl! gap-0 overflow-hidden rounded-2xl p-0"
-                    >
-                      <div data-on-artwork className="aspect-video bg-black">
-                        <iframe
-                          src={trailerEmbedUrl}
-                          title="الإعلان الرسمي"
-                          allow="autoplay; encrypted-media; picture-in-picture"
-                          allowFullScreen
-                          sandbox="allow-scripts allow-presentation allow-popups"
-                          className="size-full"
-                        />
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                ) : (
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    data-on-artwork
-                    className="border-white/25 bg-white/10 font-semibold backdrop-blur-md hover:bg-white/20"
-                    nativeButton={false}
-                    render={<a href={trailerLink.url} target="_blank" rel="noreferrer" />}
-                  >
-                    <FilmSlateIcon weight="fill" data-icon="inline-start" /> شاهد الإعلان
-                  </Button>
-                )
-              ) : null}
-
-              <Button
-                size="icon-lg"
-                variant="outline"
-                aria-label={isFavorite ? "إزالة من المفضلة" : "أضف إلى المفضلة"}
-                aria-pressed={isFavorite}
-                disabled={favoriteMutation.isPending}
-                onClick={() => favoriteMutation.mutate(!isFavorite)}
-                data-on-artwork
-                className={cn(
-                  "border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20",
-                  isFavorite && "border-primary/60 bg-primary/25 text-primary hover:bg-primary/35",
-                )}
-              >
-                <HeartIcon weight={isFavorite ? "fill" : "regular"} />
-              </Button>
-
-              <Button
-                size="icon-lg"
-                variant="outline"
-                aria-label={savedOffline ? "إزالة من المحفوظات" : "احفظ للمشاهدة دون اتصال"}
-                aria-pressed={savedOffline}
-                disabled={saveOfflineMutation.isPending}
-                onClick={() => saveOfflineMutation.mutate(!savedOffline)}
-                data-on-artwork
-                className={cn(
-                  "border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20",
-                  savedOffline &&
-                    "border-primary/60 bg-primary/25 text-primary hover:bg-primary/35",
-                )}
-              >
-                <BookmarkSimpleIcon weight={savedOffline ? "fill" : "regular"} />
-              </Button>
-            </div>
-            {heroTarget && heroTarget.unit.positionSeconds > 0 ? (
-              <fieldset className="mt-4 max-w-sm space-y-2">
-                <legend className="sr-only">تقدم المشاهدة</legend>
-                <div className="flex items-center justify-between gap-3 text-xs text-foreground/75">
-                  <span>
-                    {progressPercent === null
-                      ? `بدأت المشاهدة · ${Math.floor(heroTarget.unit.positionSeconds / 60)} د محفوظة`
-                      : `${Math.floor(heroTarget.unit.positionSeconds / 60)} من ${Math.ceil(
-                          (heroTarget.unit.durationSeconds ?? 0) / 60,
-                        )} د`}
-                  </span>
-                  {heroTarget.unit.updatedAt ? (
-                    <time dateTime={heroTarget.unit.updatedAt}>
-                      آخر تشغيل{" "}
-                      {new Intl.DateTimeFormat("ar", { dateStyle: "medium" }).format(
-                        new Date(heroTarget.unit.updatedAt),
-                      )}
-                    </time>
-                  ) : null}
-                </div>
-                {progressPercent === null ? null : (
-                  <Progress value={progressPercent} aria-label={`اكتمل ${progressPercent}٪`} />
-                )}
-              </fieldset>
+              )
             ) : null}
+
+            <Button
+              size="icon-lg"
+              variant="outline"
+              aria-label={isFavorite ? "إزالة من المفضلة" : "أضف إلى المفضلة"}
+              aria-pressed={isFavorite}
+              disabled={favoriteMutation.isPending}
+              onClick={() => favoriteMutation.mutate(!isFavorite)}
+              data-on-artwork
+              className={cn(
+                "border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20",
+                isFavorite && "border-primary/60 bg-primary/25 text-primary hover:bg-primary/35",
+              )}
+            >
+              <HeartIcon weight={isFavorite ? "fill" : "regular"} />
+            </Button>
+
+            <Button
+              size="icon-lg"
+              variant="outline"
+              aria-label={savedOffline ? "إزالة من المحفوظات" : "احفظ للمشاهدة دون اتصال"}
+              aria-pressed={savedOffline}
+              disabled={saveOfflineMutation.isPending}
+              onClick={() => saveOfflineMutation.mutate(!savedOffline)}
+              data-on-artwork
+              className={cn(
+                "border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20",
+                savedOffline && "border-primary/60 bg-primary/25 text-primary hover:bg-primary/35",
+              )}
+            >
+              <BookmarkSimpleIcon weight={savedOffline ? "fill" : "regular"} />
+            </Button>
           </div>
-
-          {heroAward ? <AwardLaurel recognition={heroAward} /> : null}
-        </div>
-      </section>
-
-      {/* floating glass action row, overlapping the hero like Apple TV+'s "My List" bar —
-          replaces the settings-card look with something that reads as part of the same scene */}
-
-      {/* TODO: GET THIS BACK (With CHanges & Redesign)
-        <section
-        id="family-progress"
-        className={cn(
-          "relative z-10 mx-auto -mt-14 max-w-400 px-5 sm:px-8",
-          work.isPrivate && "max-w-200",
-        )}
-      >
-        <div className="overflow-hidden rounded-3xl border bg-background/85 shadow-2xl shadow-black/25 backdrop-blur-xl">
-          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <div className="flex items-center gap-3">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
-                <SparkleIcon weight="duotone" className="size-5" />
-              </span>
-              <div>
-                <p className="font-heading text-base font-semibold sm:text-lg">مساحتك مع العمل</p>
-                <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-                  قيّم، احفظ، أو شارك العنوان مع العائلة.
-                </p>
+          {heroTarget && heroTarget.unit.positionSeconds > 0 ? (
+            <fieldset className="mt-4 max-w-sm space-y-2">
+              <legend className="sr-only">تقدم المشاهدة</legend>
+              <div className="flex items-center justify-between gap-3 text-xs text-foreground/75">
+                <span>
+                  {progressPercent === null
+                    ? `بدأت المشاهدة · ${Math.floor(heroTarget.unit.positionSeconds / 60)} د محفوظة`
+                    : `${Math.floor(heroTarget.unit.positionSeconds / 60)} من ${Math.ceil(
+                        (heroTarget.unit.durationSeconds ?? 0) / 60,
+                      )} د`}
+                </span>
+                {heroTarget.unit.updatedAt ? (
+                  <time dateTime={heroTarget.unit.updatedAt}>
+                    آخر تشغيل{" "}
+                    {new Intl.DateTimeFormat("ar", { dateStyle: "medium" }).format(
+                      new Date(heroTarget.unit.updatedAt),
+                    )}
+                  </time>
+                ) : null}
               </div>
-            </div>
-            <WorkFamilyActions titleId={work.id} title={work.arabicTitle || work.title} />
-          </div>
-          {!work.isPrivate && (
-            <div className="border-t bg-muted/10 p-5 sm:p-6">
-              <TitleSocialSection titleId={work.id} mode="quick" />
-            </div>
-          )}
+              {progressPercent === null ? null : (
+                <Progress value={progressPercent} aria-label={`اكتمل ${progressPercent}٪`} />
+              )}
+            </fieldset>
+          ) : null}
         </div>
-      </section>*/}
-    </>
+
+        {heroAward ? <AwardLaurel recognition={heroAward} /> : null}
+      </div>
+    </section>
   );
 }
 
 // ---------------------------------------------------------------------------
 // Shared bits
 // ---------------------------------------------------------------------------
+
+/**
+ * Every card-like surface on this page — `Card`, section panels, entity tiles — sits above
+ * `WorkHero`'s fixed, blurred backdrop (the faint full-page banner echo behind everything). A
+ * flat `bg-card` reads as a solid sheet dropped on top of that effect; a translucent background
+ * plus its own `backdrop-blur` lets the ambient blur read through consistently instead, which is
+ * what makes the page feel like one glass surface rather than opaque cards floating over it.
+ */
+const glassCard = "border-border/40 bg-card/45 backdrop-blur-xl";
+
+/**
+ * Makes an otherwise inert info panel — `DetailGroup`, `MetadataPanel`, `ParentGuideCard`, the
+ * content-warning/analysis-notes `Alert`s — a real d-pad stop. None of these are links or
+ * buttons, so neither the automatic scanner nor a screen reader's landmark navigation would ever
+ * land on them without this. The focus effect stays deliberately plain — the surface's own
+ * border/ring turns primary-colored, see `focusableSurfaceClasses`/`focusableCardRingClasses`
+ * below — since there's nothing to activate here, only something to read.
+ */
+function useFocusableSurface<E extends HTMLElement = HTMLDivElement>(
+  focusKey: string,
+  accessibilityLabel: string,
+) {
+  return useSpatialFocusable<object, E>({
+    focusKey,
+    accessibilityLabel,
+    onEnterPress: () => undefined,
+    onFocus: ({ node }) => revealSpatialTarget(node),
+  });
+}
+
+// For the content-warning/analysis-notes `Alert`s: `Alert`'s own base classes include a literal
+// `border`, so swapping just its color on focus is enough to read clearly.
+const focusableSurfaceClasses =
+  "outline-none transition-colors duration-200 data-focused:border-primary/70";
+// For `Card`-based surfaces: `Card` draws its resting "border" as `ring-1 ring-foreground/10`, not
+// an actual `border`, so the focus effect has to swap the *ring* color instead — a `border-*`
+// class here would set a color with no width to show it.
+const focusableCardRingClasses =
+  "outline-none transition-shadow duration-200 data-focused:ring-primary/70";
 
 function Subsection({
   title,
@@ -996,10 +1099,10 @@ const riskRank: Record<RiskAssessment["level"], number> = {
 };
 
 const riskSurfaceClasses: Record<RiskAssessment["level"], string> = {
-  none: "border-border/40 bg-muted/20",
-  low: "border-primary/20 bg-primary/5",
-  medium: "border-classification-caution/30 bg-classification-caution/10",
-  high: "border-destructive/30 bg-destructive/10",
+  none: "border-border/40 bg-muted/20 backdrop-blur-md",
+  low: "border-primary/20 bg-primary/5 backdrop-blur-md",
+  medium: "border-classification-caution/30 bg-classification-caution/10 backdrop-blur-md",
+  high: "border-destructive/30 bg-destructive/10 backdrop-blur-md",
 };
 
 function strongestRisk(risks: RiskAssessment[]): RiskAssessment["level"] {
@@ -1012,6 +1115,99 @@ function strongestRisk(risks: RiskAssessment[]): RiskAssessment["level"] {
 // ---------------------------------------------------------------------------
 // Overview tab
 // ---------------------------------------------------------------------------
+
+/** One fact in "حقائق ومعلومات" — plain text, so the same `useFocusableSurface` treatment as the
+ * other non-link info cards on this page (a primary-colored border on focus, nothing heavier). */
+function TriviaCard({ fact, index }: { fact: string; index: number }) {
+  const { ref, focused } = useFocusableSurface<HTMLLIElement>(`overview:trivia:${index}`, fact);
+  return (
+    <li
+      ref={ref}
+      tabIndex={-1}
+      data-focused={focused || undefined}
+      className="flex gap-3 rounded-lg border border-border/40 bg-muted/20 backdrop-blur-md p-4 text-sm leading-7 text-foreground/80 outline-none transition-colors duration-200 data-focused:border-primary/70"
+    >
+      <LightbulbIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      <span>{fact}</span>
+    </li>
+  );
+}
+
+/**
+ * One season/movie poster in "الأجزاء والمواسم" — a real link, so this gets the same
+ * shadow-lift-ring treatment as `WorkCard`/`EpisodeCard` (`SEASON_MOTION`/`SEASON_FOCUS_RING`,
+ * defined near `InstallmentPickerCard` below) instead of the automatic scanner's generic outline.
+ */
+function SeasonCard({
+  workId,
+  installment,
+  seasonNumber,
+  index,
+}: {
+  workId: string;
+  installment: WorkSeasonDetail;
+  seasonNumber: number | null;
+  index: number;
+}) {
+  const focusKey = `season:${installment.id}`;
+  const { ref, focused } = useSpatialFocusable<object, HTMLAnchorElement>({
+    focusKey,
+    accessibilityLabel: installment.title || `الجزء ${index + 1}`,
+    onEnterPress: () => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLAnchorElement) activeElement.click();
+    },
+    onFocus: ({ node }) => revealSpatialTarget(node),
+  });
+  return (
+    <Link
+      ref={ref}
+      to="/titles/$titleId/installments/$installmentId"
+      params={{ titleId: workId, installmentId: installment.id }}
+      data-spatial-managed
+      data-spatial-focus-key={focusKey}
+      data-card-focused={focused || undefined}
+      className="group/season w-36 shrink-0 snap-start text-start outline-none sm:w-44"
+    >
+      <div
+        className={cn(
+          "relative aspect-2/3 overflow-hidden rounded-2xl bg-muted shadow-md shadow-foreground/15 ring-1 ring-border/70",
+          "group-hover/season:shadow-2xl group-hover/season:shadow-foreground/25",
+          "group-data-[card-focused=true]/season:shadow-2xl group-data-[card-focused=true]/season:shadow-foreground/25",
+          SEASON_FOCUS_RING,
+          SEASON_MOTION,
+        )}
+      >
+        {installment.posterPath ? (
+          <img
+            src={installment.posterPath}
+            alt={installment.title}
+            className="size-full object-cover transition duration-500 group-hover/season:scale-105"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex size-full flex-col items-center justify-center gap-3 p-4 text-center text-muted-foreground">
+            <FilmStripIcon className="size-8" weight="duotone" />
+            <span className="text-xs">لا يوجد ملصق</span>
+          </div>
+        )}
+        <Badge className="absolute top-2 inset-s-2" variant="secondary">
+          {seasonNumber === null ? "فيلم" : `موسم ${seasonNumber}`}
+        </Badge>
+      </div>
+      <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-6">
+        {installment.title || `الجزء ${index + 1}`}
+      </h3>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {installment.units.length > 0
+          ? `${installment.units.length} حلقة`
+          : installment.runtimeMinutes
+            ? `${installment.runtimeMinutes} دقيقة`
+            : `الجزء ${index + 1}`}
+      </p>
+    </Link>
+  );
+}
 
 function OverviewSection({
   work,
@@ -1036,10 +1232,33 @@ function OverviewSection({
     risks.filter((risk) => risk.slug === "sexuality" || risk.slug === "behavioral"),
   );
   const theologyRisk = strongestRisk(risks.filter((risk) => risk.slug === "theology"));
+  const { ref: contentWarningRef, focused: contentWarningFocused } = useFocusableSurface(
+    "overview:content-warning",
+    "تنبيه المحتوى",
+  );
+  const { ref: analysisNotesRef, focused: analysisNotesFocused } = useFocusableSurface(
+    "overview:analysis-notes",
+    "ملاحظات التحليل",
+  );
+  // The summary is the first real content under the tab banner, but — unlike every other block on
+  // this tab — it was plain text with no card around it, so it was never a d-pad stop. That left a
+  // gap in the column the down-arrow could jump across on its way to the sidebar's metadata card
+  // instead of reaching the content-warning alert right below; making it focusable (still visually
+  // transparent at rest — a real `border-transparent` so the primary-colored one has something to
+  // replace on focus, not the missing `border` a plain `border-primary` swap would need) closes it.
+  const { ref: summaryRef, focused: summaryFocused } = useFocusableSurface(
+    "overview:summary",
+    "الملخص التحريري",
+  );
 
   return (
     <div className="flex flex-col gap-12">
-      <section>
+      <section
+        ref={summaryRef}
+        tabIndex={-1}
+        data-focused={summaryFocused || undefined}
+        className="-m-3 rounded-xl border border-transparent p-3 outline-none transition-colors duration-200 data-focused:border-primary/70"
+      >
         <p className="max-w-4xl text-lg xl:text-2xl leading-10 xl:leading-11 text-foreground/80">
           {work.summary || "لم يُضف ملخص تحريري بعد."}
         </p>
@@ -1063,7 +1282,12 @@ function OverviewSection({
       {(work.contentWarnings || work.analysisNotes) && (
         <section className="grid gap-4 md:grid-cols-2">
           {work.contentWarnings && (
-            <Alert className={cn("p-5", riskSurfaceClasses[contentRisk])}>
+            <Alert
+              ref={contentWarningRef}
+              tabIndex={-1}
+              data-focused={contentWarningFocused || undefined}
+              className={cn("p-5", riskSurfaceClasses[contentRisk], focusableSurfaceClasses)}
+            >
               <AlertTitle className="flex items-center justify-between gap-3">
                 <span>تنبيه المحتوى</span>
                 <RiskBadge level={contentRisk} />
@@ -1074,7 +1298,12 @@ function OverviewSection({
             </Alert>
           )}
           {work.analysisNotes && (
-            <Alert className={cn("p-5", riskSurfaceClasses[theologyRisk])}>
+            <Alert
+              ref={analysisNotesRef}
+              tabIndex={-1}
+              data-focused={analysisNotesFocused || undefined}
+              className={cn("p-5", riskSurfaceClasses[theologyRisk], focusableSurfaceClasses)}
+            >
               <AlertTitle className="flex items-center justify-between gap-3">
                 <span>ملاحظات التحليل</span>
                 <RiskBadge level={theologyRisk} />
@@ -1091,14 +1320,8 @@ function OverviewSection({
         <section>
           <Subsection title="حقائق ومعلومات" description="خلفية العمل ومصدره وأبرز حقائق إنتاجه." />
           <ul className="grid gap-3 sm:grid-cols-2">
-            {work.trivia.map((fact) => (
-              <li
-                key={fact}
-                className="flex gap-3 rounded-lg border border-border/40 bg-muted/20 p-4 text-sm leading-7 text-foreground/80"
-              >
-                <LightbulbIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <span>{fact}</span>
-              </li>
+            {work.trivia.map((fact, index) => (
+              <TriviaCard key={fact} fact={fact} index={index} />
             ))}
           </ul>
         </section>
@@ -1110,7 +1333,10 @@ function OverviewSection({
             title="الأجزاء والمواسم"
             description="كل فيلم أو موسم داخل هذا العنوان، بملصقه وترتيبه في السلسلة."
           />
-          <div className="scroll-fade-x -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-3 sm:-mx-8 sm:px-8">
+          <div
+            data-spatial-rail
+            className="scroll-fade-x -mx-5 pt-2 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-5 px-5 pb-3 sm:-mx-8 sm:scroll-px-8 sm:px-8"
+          >
             {structure.seasons.map((installment, index) => {
               const isSeason =
                 (installment.installmentKind ?? installment.installmentKind) === "season";
@@ -1122,41 +1348,13 @@ function OverviewSection({
                 : null;
 
               return (
-                <Link
+                <SeasonCard
                   key={installment.id}
-                  to="/titles/$titleId/installments/$installmentId"
-                  params={{ titleId: work.id, installmentId: installment.id }}
-                  className="group w-36 shrink-0 snap-start text-start outline-none sm:w-44"
-                >
-                  <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-muted ring-1 ring-foreground/10">
-                    {installment.posterPath ? (
-                      <img
-                        src={installment.posterPath}
-                        alt={installment.title}
-                        className="size-full object-cover transition duration-500 group-hover:scale-105"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="flex size-full flex-col items-center justify-center gap-3 p-4 text-center text-muted-foreground">
-                        <FilmStripIcon className="size-8" weight="duotone" />
-                        <span className="text-xs">لا يوجد ملصق</span>
-                      </div>
-                    )}
-                    <Badge className="absolute top-2 inset-s-2" variant="secondary">
-                      {seasonNumber === null ? "فيلم" : `موسم ${seasonNumber}`}
-                    </Badge>
-                  </div>
-                  <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-6">
-                    {installment.title || `الجزء ${index + 1}`}
-                  </h3>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {installment.units.length > 0
-                      ? `${installment.units.length} حلقة`
-                      : installment.runtimeMinutes
-                        ? `${installment.runtimeMinutes} دقيقة`
-                        : `الجزء ${index + 1}`}
-                  </p>
-                </Link>
+                  workId={work.id}
+                  installment={installment}
+                  seasonNumber={seasonNumber}
+                  index={index}
+                />
               );
             })}
           </div>
@@ -1169,7 +1367,10 @@ function OverviewSection({
             title="مكانه في السلسلة"
             description="العلاقات التالية تأتي من السجل الفعلي، وبنوعها واتجاهها المحفوظين."
           />
-          <div className="scroll-fade-x -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:-mx-8 sm:px-8">
+          <div
+            data-spatial-rail
+            className="scroll-fade-x -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-5 px-5 pb-2 sm:-mx-8 sm:scroll-px-8 sm:px-8"
+          >
             {work.relations.map((relation) => (
               <Link
                 key={relation.id}
@@ -1251,7 +1452,7 @@ function AwardLaurel({ recognition }: { recognition: AwardRecognition }) {
 function AwardsSection({ awards, className }: { awards: AwardRecognition[]; className?: string }) {
   const winners = awards.filter((recognition) => recognition.result === "winner").length;
   return (
-    <Card className={className}>
+    <Card className={cn(glassCard, className)}>
       <CardHeader className="border-b sm:flex sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle>سجل الجوائز</CardTitle>
@@ -1366,6 +1567,108 @@ function seasonContinueCta(episodes: EpisodePreview[]) {
   };
 }
 
+// The same shadow-lift-ring language as `WorkCard` (`components/work-card.tsx`), reused by cards
+// below that front real artwork (`SeasonCard` in `OverviewSection`, `EpisodeCard`) via a
+// `group/<name>` + `data-card-focused` attribute rather than plain CSS `:hover`, so remote/d-pad
+// focus gets the identical treatment hover does. `InstallmentPickerCard` deliberately does *not*
+// use this — its poster is a small 14-wide thumbnail beside a text label, not the card's whole
+// identity the way a poster/still is here, so the heavier shadow-and-ring treatment read as noise
+// rather than polish; it keeps the plain border-color focus every non-artwork surface on this page
+// uses instead. Kept local instead of imported from `work-card.tsx` because these differ enough in
+// structure (extra sibling controls, no overlay layer) that sharing the exact implementation
+// wasn't worth coupling the files over — and duplicated per group name rather than built by a
+// helper because Tailwind's class scanner needs each full utility name literally in source; a
+// helper that interpolated the group name into a template string would build a real string at
+// runtime, but the class would never make it into the generated CSS.
+const EPISODE_EASE = "ease-[cubic-bezier(0.16,1,0.3,1)]";
+const SEASON_MOTION = cn(
+  "transform-gpu transition-[transform,box-shadow] duration-300 motion-reduce:transform-none motion-reduce:transition-none",
+  EPISODE_EASE,
+  "group-hover/season:-translate-y-0.5 group-data-[card-focused=true]/season:-translate-y-0.5",
+);
+const SEASON_FOCUS_RING = cn(
+  "group-data-[card-focused=true]/season:ring-[3px] group-data-[card-focused=true]/season:ring-primary",
+  "group-data-[card-focused=true]/season:ring-offset-2 group-data-[card-focused=true]/season:ring-offset-background",
+  "group-has-[:focus-visible]/season:ring-[3px] group-has-[:focus-visible]/season:ring-primary",
+  "group-has-[:focus-visible]/season:ring-offset-2 group-has-[:focus-visible]/season:ring-offset-background",
+);
+const EPISODE_MOTION = cn(
+  "transform-gpu transition-[transform,box-shadow] duration-300 motion-reduce:transform-none motion-reduce:transition-none",
+  EPISODE_EASE,
+  "group-hover/episode:-translate-y-1 group-data-[card-focused=true]/episode:-translate-y-1",
+);
+const EPISODE_FOCUS_RING = cn(
+  "group-data-[card-focused=true]/episode:ring-[3px] group-data-[card-focused=true]/episode:ring-primary",
+  "group-data-[card-focused=true]/episode:ring-offset-2 group-data-[card-focused=true]/episode:ring-offset-background",
+  "group-has-[:focus-visible]/episode:ring-[3px] group-has-[:focus-visible]/episode:ring-primary",
+  "group-has-[:focus-visible]/episode:ring-offset-2 group-has-[:focus-visible]/episode:ring-offset-background",
+);
+
+function InstallmentPickerCard({
+  installment,
+  isSelected,
+  watched,
+  onSelect,
+  count,
+}: {
+  installment: WorkSeasonDetail;
+  isSelected: boolean;
+  watched: boolean;
+  onSelect: () => void;
+  count: number;
+}) {
+  const { ref, focused } = useSpatialFocusable<object, HTMLButtonElement>({
+    focusKey: `installment:${installment.id}`,
+    accessibilityLabel: installment.title,
+    onEnterPress: () => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLButtonElement) activeElement.click();
+    },
+    onFocus: ({ node }) => revealSpatialTarget(node),
+  });
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={onSelect}
+      data-spatial-managed
+      data-spatial-focus-key={`installment:${installment.id}`}
+      data-focused={focused || undefined}
+      className={cn(
+        "relative flex min-w-64 shrink-0 snap-start items-center gap-3 rounded-2xl border p-2 text-start backdrop-blur-md transition-[border-color,box-shadow,background-color]",
+        "outline-none focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "data-[focused=true]:border-primary data-[focused=true]:ring-2 data-[focused=true]:ring-primary/50",
+        count <= 1 && "w-full",
+        count === 2 && "w-3/7",
+        count === 3 && "w-[30%]",
+        count >= 4 && "w-64",
+        isSelected
+          ? "border-primary bg-primary/10"
+          : "border-border bg-card/45 hover:border-primary/30 hover:bg-card",
+      )}
+    >
+      {watched && (
+        <CheckCircleIcon
+          weight="fill"
+          className="absolute top-2 inset-e-2 size-5 text-primary"
+          aria-label="تمّت مشاهدته"
+        />
+      )}
+      <span className="aspect-2/3 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+        {installment.posterPath ? (
+          <img src={installment.posterPath} alt="" className="size-full object-cover" />
+        ) : null}
+      </span>
+      <span className="min-w-0">
+        <strong className="line-clamp-2 text-sm">{installment.title}</strong>
+        <span className="mt-1 block text-xs text-muted-foreground">
+          {installment.installmentKind === "season" ? `${installment.units.length} حلقة` : "فيلم"}
+        </span>
+      </span>
+    </button>
+  );
+}
+
 function EpisodesSection({
   workId,
   titleImdbId,
@@ -1424,8 +1727,11 @@ function EpisodesSection({
 
   return (
     <div className="flex flex-col gap-4">
-      <section aria-label="اختيار الجزء" className="pb-0!">
-        <div className="scroll-fade-x flex  gap-3 overflow-x-auto px-2  pb-2">
+      <section aria-label="اختيار الجزء">
+        <div
+          data-spatial-rail
+          className="scroll-fade-x flex overflow-y-visible! gap-3 overflow-x-auto scroll-px-4 px-2 py-3 -top-4 relative"
+        >
           {seasons.map((installment) => {
             const installmentIsMovie =
               installment.installmentKind === "movie" || installment.installmentKind === "special";
@@ -1434,48 +1740,24 @@ function EpisodesSection({
               : installment.units.length > 0 &&
                 installment.units.every((unit) => playedEpisodeIds.has(unit.id));
             return (
-              <button
+              <InstallmentPickerCard
                 key={installment.id}
-                type="button"
-                onClick={() => {
+                installment={installment}
+                isSelected={selected?.id === installment.id}
+                watched={watched}
+                count={seasons.length}
+                onSelect={() => {
                   onSelectedIdChange(installment.id);
                   setExpandedInline(false);
                 }}
-                className={cn(
-                  "relative flex w-64 shrink-0 snap-start items-center gap-3 rounded-2xl border p-2 text-start transition",
-                  selected?.id === installment.id
-                    ? "border-primary bg-primary/10 ring-1 ring-primary/30"
-                    : "border-border bg-card/45 hover:border-primary/30 hover:bg-card",
-                )}
-              >
-                {watched && (
-                  <CheckCircleIcon
-                    weight="fill"
-                    className="absolute top-2 inset-e-2 size-5 text-primary"
-                    aria-label="تمّت مشاهدته"
-                  />
-                )}
-                <span className="aspect-2/3 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
-                  {installment.posterPath ? (
-                    <img src={installment.posterPath} alt="" className="size-full object-cover" />
-                  ) : null}
-                </span>
-                <span className="min-w-0">
-                  <strong className="line-clamp-2 text-sm">{installment.title}</strong>
-                  <span className="mt-1 block text-xs text-muted-foreground">
-                    {installment.installmentKind === "season"
-                      ? `${installment.units.length} حلقة`
-                      : "فيلم"}
-                  </span>
-                </span>
-              </button>
+              />
             );
           })}
         </div>
       </section>
 
       {selected && (
-        <section className="overflow-hidden rounded-3xl border bg-card/35">
+        <section className={cn("overflow-hidden rounded-3xl border", glassCard)}>
           <div className="grid gap-6 p-5 sm:grid-cols-[8rem_1fr] sm:p-7">
             <div className="aspect-2/3 overflow-hidden rounded-2xl bg-muted">
               {selected.posterPath ? (
@@ -1586,7 +1868,10 @@ function EpisodesSection({
       )}
 
       {!isMovie && episodes.length > 0 && (
-        <div className="grid gap-x-4 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
+        <div
+          data-spatial-episode-grid
+          className="grid gap-x-4 gap-y-6 sm:grid-cols-2 xl:grid-cols-3"
+        >
           {visibleEpisodes.map((episode) => (
             <EpisodeCard
               image={selected.posterPath}
@@ -1594,6 +1879,7 @@ function EpisodesSection({
               episode={episode}
               installmentId={selected?.id ?? ""}
               titleId={workId}
+              contextKey="grid"
               onTogglePlayed={() =>
                 onToggleEpisodePlayed(selected?.id ?? "", episode.id, !episode.watched)
               }
@@ -1603,7 +1889,7 @@ function EpisodesSection({
       )}
 
       {!isMovie && episodes.length === 0 && (
-        <Empty className="min-h-64 border border-dashed">
+        <Empty className={cn("min-h-64 border border-dashed", glassCard)}>
           <EmptyHeader>
             <EmptyTitle>لا توجد حلقات في هذا الموسم</EmptyTitle>
             <EmptyDescription>الموسم محفوظ، لكن لم تُضف إليه حلقات بعد.</EmptyDescription>
@@ -1612,7 +1898,7 @@ function EpisodesSection({
       )}
 
       {!isMovie && hasMoreThanPreview && (
-        <div className="mt-8 flex flex-wrap justify-center gap-2">
+        <div data-spatial-episode-actions className="mt-8 flex flex-wrap justify-center gap-2">
           <Button variant="outline" onClick={() => setExpandedInline((value) => !value)}>
             {expandedInline
               ? "عرض أقل"
@@ -1642,6 +1928,7 @@ function EpisodesSection({
                         episode={episode}
                         installmentId={selected?.id ?? ""}
                         titleId={workId}
+                        contextKey="dialog"
                         onTogglePlayed={() =>
                           onToggleEpisodePlayed(selected?.id ?? "", episode.id, !episode.watched)
                         }
@@ -1663,6 +1950,7 @@ function EpisodeCard({
   episode,
   installmentId,
   titleId,
+  contextKey,
   onTogglePlayed,
   className,
 }: {
@@ -1670,6 +1958,9 @@ function EpisodeCard({
   episode: EpisodePreview;
   installmentId: string;
   titleId: string;
+  /** Disambiguates the focus key when the same episode is mounted twice at once — the inline
+   * preview grid stays mounted behind the "show all episodes" dialog rather than unmounting. */
+  contextKey: string;
   onTogglePlayed: () => void;
   className?: string;
 }) {
@@ -1679,9 +1970,28 @@ function EpisodeCard({
     episode.durationSeconds && episode.durationSeconds > 0
       ? Math.min(100, Math.round((episode.positionSeconds / episode.durationSeconds) * 100))
       : null;
+  const { ref, focused } = useSpatialFocusable<object, HTMLAnchorElement>({
+    focusKey: `episode:${contextKey}:${installmentId}:${episode.id}`,
+    accessibilityLabel: `تشغيل الحلقة ${episode.number}: ${episode.title}`,
+    // Same idiom as `useWorkCardSpatialNavigation`: the focused node *is* `document.activeElement`
+    // by the time Enter fires, so there's no need to close over `ref` itself here.
+    onEnterPress: () => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLAnchorElement) activeElement.click();
+    },
+    onFocus: ({ node }) => revealSpatialTarget(node),
+  });
   const content = (
     <>
-      <div className="relative aspect-video overflow-hidden rounded-xl bg-muted ring-1 ring-border/10 transition group-hover:ring-primary/50">
+      <div
+        className={cn(
+          "relative aspect-video overflow-hidden rounded-xl bg-muted shadow-md shadow-foreground/15 ring-1 ring-border/70",
+          "group-hover/episode:shadow-2xl group-hover/episode:shadow-foreground/25",
+          "group-data-[card-focused=true]/episode:shadow-2xl group-data-[card-focused=true]/episode:shadow-foreground/25",
+          EPISODE_FOCUS_RING,
+          EPISODE_MOTION,
+        )}
+      >
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40">
           {image ? (
             <div className="flex size-full items-center justify-center">
@@ -1694,7 +2004,13 @@ function EpisodeCard({
             </div>
           )}
         </div>
-        <div className="absolute inset-0 flex items-center justify-center bg-background/0 opacity-0 transition group-hover:bg-background/55 group-hover:opacity-100 group-focus-within:bg-background/55 group-focus-within:opacity-100">
+        <div
+          className={cn(
+            "absolute inset-0 flex items-center justify-center bg-background/0 opacity-0 transition",
+            "group-hover/episode:bg-background/55 group-hover/episode:opacity-100",
+            "group-data-[card-focused=true]/episode:bg-background/55 group-data-[card-focused=true]/episode:opacity-100",
+          )}
+        >
           <span className="flex size-11 items-center justify-center rounded-lg bg-primary/90 text-primary-foreground">
             <PlayIcon weight="fill" />
           </span>
@@ -1713,7 +2029,15 @@ function EpisodeCard({
           />
         )}
       </div>
-      <h4 className="mt-3 truncate font-heading text-sm font-semibold">{episode.title}</h4>
+      <h4
+        className={cn(
+          "mt-3 truncate font-heading text-sm font-semibold transition-colors duration-200",
+          EPISODE_EASE,
+          "group-hover/episode:text-primary group-data-[card-focused=true]/episode:text-primary",
+        )}
+      >
+        {episode.title}
+      </h4>
       {episode.positionSeconds > 0 && !episode.watched ? (
         <p className="mt-1 text-[11px] text-primary">
           {progressPercent === null ? "بدأت المشاهدة" : `متابعة من ${progressPercent}٪`}
@@ -1741,13 +2065,20 @@ function EpisodeCard({
   );
 
   return (
-    <div className={cn("group relative flex min-w-0 flex-col rounded-xl", className)}>
+    <div
+      data-card-focused={focused || undefined}
+      className={cn("group/episode relative flex min-w-0 flex-col", className)}
+    >
       {playable ? (
         <Link
+          ref={ref}
           to="/player/$installmentId"
           params={{ installmentId }}
           search={{ titleId, episodeId: episode.id, origin }}
-          className="flex min-w-0 flex-col text-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          data-spatial-managed
+          data-spatial-focus-key={`episode:${contextKey}:${installmentId}:${episode.id}`}
+          data-focused={focused || undefined}
+          className="flex min-w-0 flex-col text-start outline-none focus-visible:outline-none"
           aria-label={`تشغيل الحلقة ${episode.number}`}
         >
           {content}
@@ -1764,7 +2095,8 @@ function EpisodeCard({
         </button>
       )}
       {/* Independent of the play affordance above: watched/unwatched is tracked whether or not
-          this episode can be played yet. */}
+          this episode can be played yet. A real, separate `<button>` — never nested inside the
+          link above — so the automatic spatial scanner still reaches it as its own d-pad stop. */}
       <button
         type="button"
         onClick={onTogglePlayed}
@@ -1775,7 +2107,7 @@ function EpisodeCard({
           "absolute top-2 inset-e-2 flex size-7 items-center justify-center rounded-full backdrop-blur-md transition focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
           episode.watched
             ? "bg-primary text-primary-foreground"
-            : "bg-background/70 text-foreground/70 opacity-0 group-hover:opacity-100 hover:bg-background/90 focus-visible:opacity-100",
+            : "bg-background/70 text-foreground/70 opacity-0 group-hover/episode:opacity-100 hover:bg-background/90 focus-visible:opacity-100",
         )}
       >
         <CheckCircleIcon weight={episode.watched ? "fill" : "regular"} className="size-4" />
@@ -1791,6 +2123,94 @@ function EpisodeCard({
 // type CastEntity = { id: string; name: string; imagePath: string | null };
 type Credited = { entity: Entity; credit: Work["contributors"][number] };
 
+/**
+ * One credited person/studio, opening `EntityDialog` on click. The automatic scanner would
+ * otherwise pick up the trigger `<button>` on its own and give it the generic big outline —
+ * exactly the "broken" focus effect being replaced — so this wires it through
+ * `useSpatialFocusable` explicitly instead, driving the *same* `border-primary/30` + `bg-card`
+ * treatment the card already uses on hover (via `EntityDialog`'s `triggerProps` passthrough).
+ */
+function CreditCard({
+  entity,
+  credit,
+  variant,
+}: {
+  entity: Entity;
+  credit: Work["contributors"][number];
+  variant: "person" | "studio";
+}) {
+  const focusKey = `credit:${variant}:${entity.id}:${credit.role}`;
+  const { ref, focused } = useSpatialFocusable<object, HTMLButtonElement>({
+    focusKey,
+    accessibilityLabel: entity.name,
+    onEnterPress: () => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLButtonElement) activeElement.click();
+    },
+    onFocus: ({ node }) => revealSpatialTarget(node),
+  });
+  const cardClasses = cn(
+    "flex min-w-0 items-center gap-4 rounded-2xl border border-border/40 bg-card/45 backdrop-blur-md p-4 text-start transition",
+    "hover:border-primary/30 hover:bg-card",
+    "group-data-[credit-focused=true]/credit:border-primary/30 group-data-[credit-focused=true]/credit:bg-card",
+    variant === "person" && "w-full",
+  );
+  return (
+    <EntityDialog
+      entity={entity}
+      triggerClassName="group/credit w-full"
+      triggerProps={{
+        ref,
+        "data-spatial-managed": true,
+        "data-spatial-focus-key": focusKey,
+        "data-credit-focused": focused || undefined,
+      }}
+    >
+      {variant === "person" ? (
+        <span className={cardClasses}>
+          <Avatar
+            className={cn(
+              "size-20 ring-1 ring-border/40 transition",
+              "group-hover/credit:ring-primary/60 group-data-[credit-focused=true]/credit:ring-primary/60",
+            )}
+          >
+            {entity.imagePath && <AvatarImage src={entity.imagePath} alt="" />}
+            <AvatarFallback>{entity.name.slice(0, 1)}</AvatarFallback>
+          </Avatar>
+          <span className="min-w-0">
+            <strong className="block truncate font-heading text-base font-semibold">
+              {entity.name}
+            </strong>
+            <span className="mt-1 block truncate text-sm text-muted-foreground">
+              {roleLabels[credit.role] ?? credit.role}
+            </span>
+          </span>
+        </span>
+      ) : (
+        <span className={cardClasses}>
+          <span className="size-24 shrink-0 overflow-hidden rounded-xl bg-muted">
+            {entity.imagePath ? (
+              <img src={entity.imagePath} alt="" className="size-full object-cover" />
+            ) : (
+              <span className="flex size-full items-center justify-center font-heading text-lg text-muted-foreground">
+                {entity.name.slice(0, 1)}
+              </span>
+            )}
+          </span>
+          <span className="min-w-0">
+            <strong className="block truncate font-heading text-lg font-semibold">
+              {entity.name}
+            </strong>
+            <span className="mt-1 block text-sm text-muted-foreground">
+              {roleLabels[credit.role] ?? credit.role}
+            </span>
+          </span>
+        </span>
+      )}
+    </EntityDialog>
+  );
+}
+
 function CastSection({ people, studios }: { people: Credited[]; studios: Credited[] }) {
   return (
     <div className="flex flex-col gap-12">
@@ -1798,22 +2218,12 @@ function CastSection({ people, studios }: { people: Credited[]; studios: Credite
         <section aria-label="الأشخاص المرتبطون بالعمل">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {people.map(({ entity, credit }) => (
-              <EntityDialog key={`${entity.id}:${credit.role}`} entity={entity}>
-                <span className="group flex min-w-0 w-full items-center gap-4 rounded-2xl border border-border/40 bg-card/45 p-4 text-start transition hover:border-primary/30 hover:bg-card">
-                  <Avatar className="size-20 ring-1 ring-border/40 transition group-hover:ring-primary/60">
-                    {entity.imagePath && <AvatarImage src={entity.imagePath} alt="" />}
-                    <AvatarFallback>{entity.name.slice(0, 1)}</AvatarFallback>
-                  </Avatar>
-                  <span className="min-w-0">
-                    <strong className="block truncate font-heading text-base font-semibold">
-                      {entity.name}
-                    </strong>
-                    <span className="mt-1 block truncate text-sm text-muted-foreground">
-                      {roleLabels[credit.role] ?? credit.role}
-                    </span>
-                  </span>
-                </span>
-              </EntityDialog>
+              <CreditCard
+                key={`${entity.id}:${credit.role}`}
+                entity={entity}
+                credit={credit}
+                variant="person"
+              />
             ))}
           </div>
         </section>
@@ -1827,27 +2237,12 @@ function CastSection({ people, studios }: { people: Credited[]; studios: Credite
           />
           <div className="grid gap-4 sm:grid-cols-2">
             {studios.map(({ entity, credit }) => (
-              <EntityDialog key={`${entity.id}:${credit.role}`} entity={entity}>
-                <span className="flex min-w-0 items-center gap-4 rounded-2xl border border-border/40 bg-card/45 p-4 transition hover:border-primary/30 hover:bg-card">
-                  <span className="size-24 shrink-0 overflow-hidden rounded-xl bg-muted">
-                    {entity.imagePath ? (
-                      <img src={entity.imagePath} alt="" className="size-full object-cover" />
-                    ) : (
-                      <span className="flex size-full items-center justify-center font-heading text-lg text-muted-foreground">
-                        {entity.name.slice(0, 1)}
-                      </span>
-                    )}
-                  </span>
-                  <span className="min-w-0">
-                    <strong className="block truncate font-heading text-lg font-semibold">
-                      {entity.name}
-                    </strong>
-                    <span className="mt-1 block text-sm text-muted-foreground">
-                      {roleLabels[credit.role] ?? credit.role}
-                    </span>
-                  </span>
-                </span>
-              </EntityDialog>
+              <CreditCard
+                key={`${entity.id}:${credit.role}`}
+                entity={entity}
+                credit={credit}
+                variant="studio"
+              />
             ))}
           </div>
         </section>
@@ -1868,7 +2263,10 @@ function SimilarSection({ recommendations }: { recommendations: Recommendation[]
         title="قد يعجبك أيضًا"
         description="أعمال قريبة في النبرة والموضوع والطاقم، رتبت لتسهيل الاستكشاف التالي."
       />
-      <div className="scroll-fade-x flex gap-4 overflow-x-auto overflow-y-visible px-5 md:px-8 py-4 pb-5">
+      <div
+        data-spatial-rail
+        className="scroll-fade-x flex gap-4 overflow-x-auto overflow-y-visible scroll-px-5 px-5 py-4 pb-5 md:scroll-px-8 md:px-8"
+      >
         {recommendations.map((recommendation) => (
           <div key={recommendation.work.id} className="relative w-36 shrink-0 sm:w-44 lg:w-48">
             <WorkCard work={recommendation.work} />
@@ -1933,15 +2331,27 @@ function RadarScoreCard({ work }: { work: Work }) {
     value: work.scoreComponents[criterion] ?? 0,
     weight: Math.round(scoreWeights[criterion] * 100),
   }));
+  const { ref, focused } = useFocusableSurface("scores:radar", "بصمة التقييم");
 
   return (
-    <Card>
+    <Card
+      ref={ref}
+      tabIndex={-1}
+      data-focused={focused || undefined}
+      className={cn(glassCard, focusableCardRingClasses)}
+    >
       <CardHeader className="border-b">
         <CardTitle>بصمة التقييم</CardTitle>
         <CardDescription>شكل توزّع الدرجات على المعايير الستّة قبل تطبيق أوزانها.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-center">
-        <ChartContainer config={config} className="mx-auto aspect-square max-h-80 w-full">
+        {/* The card itself is the one d-pad stop for this whole block — the chart's own SVG
+            shouldn't add a second, unstyled one. */}
+        <ChartContainer
+          config={config}
+          data-spatial-navigation="off"
+          className="mx-auto aspect-square max-h-80 w-full"
+        >
           <RadarChart data={data}>
             <ChartTooltip content={<ChartTooltipContent hideLabel />} />
             <PolarGrid stroke="var(--border)" />
@@ -1994,15 +2404,21 @@ function InstallmentScoreTrendCard({
       { label: scoreLabel(criterion, work.kind).ar, color: criterionColor[criterion] },
     ]),
   ) satisfies ChartConfig;
+  const { ref, focused } = useFocusableSurface("scores:trend", "تطوّر كل معيار عبر الأجزاء");
 
   return (
-    <Card>
+    <Card
+      ref={ref}
+      tabIndex={-1}
+      data-focused={focused || undefined}
+      className={cn(glassCard, focusableCardRingClasses)}
+    >
       <CardHeader className="border-b">
         <CardTitle>تطوّر كل معيار عبر الأجزاء</CardTitle>
         <CardDescription>درجة كل معيار في كل جزء على حدة، بترتيب صدورها.</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={config} className="max-h-80 w-full">
+        <ChartContainer config={config} data-spatial-navigation="off" className="max-h-80 w-full">
           <LineChart data={data} margin={{ right: 8 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="label" tickLine={false} axisLine={false} />
@@ -2055,13 +2471,17 @@ function ScoreSection({ work, structure }: { work: Work; structure: WorkStructur
       originality: season.score?.originality ?? null,
       craft: season.score?.craft ?? null,
     }));
+  const { ref: computedRef, focused: computedFocused } = useFocusableSurface(
+    "scores:computed",
+    "النتيجة المحسوبة",
+  );
 
   return (
     <div className="flex flex-col gap-4">
       {trendData.length >= 2 ? <InstallmentScoreTrendCard work={work} data={trendData} /> : null}
 
       {availableCriteria.length === 0 ? (
-        <Empty className="border border-border/40 bg-card/30">
+        <Empty className={cn("border", glassCard)}>
           <EmptyHeader>
             <EmptyTitle>لم يُقيّم هذا العمل بعد</EmptyTitle>
             <EmptyDescription>
@@ -2073,7 +2493,12 @@ function ScoreSection({ work, structure }: { work: Work; structure: WorkStructur
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <RadarScoreCard work={work} />
 
-          <Card>
+          <Card
+            ref={computedRef}
+            tabIndex={-1}
+            data-focused={computedFocused || undefined}
+            className={cn(glassCard, focusableCardRingClasses)}
+          >
             <CardHeader className="border-b">
               <CardTitle>النتيجة المحسوبة</CardTitle>
               <CardDescription>مجموع مساهمة كل معيار بعد تطبيق وزنه.</CardDescription>
@@ -2168,10 +2593,15 @@ function WorkDetails({
     ...(work.publication?.imprint ? [["علامة النشر", work.publication.imprint] as const] : []),
   ];
   const hasTaxonomy = work.genres.length > 0 || work.tone.length > 0 || work.tags.length > 0;
+  const { ref: taxonomyRef, focused: taxonomyFocused } = useFocusableSurface(
+    "details:taxonomy",
+    "التصنيف والموضوعات",
+  );
 
   return (
     <div className="grid items-start gap-4 md:grid-cols-2">
       <DetailGroup
+        focusKey="details:identity"
         title="الهوية والعناوين"
         description="العنوان الأصلي، البدائل، وبلدان الإنتاج."
         items={primaryDetails}
@@ -2179,6 +2609,7 @@ function WorkDetails({
       <div className="flex flex-col gap-4">
         {formatDetails.length > 0 && (
           <DetailGroup
+            focusKey="details:format"
             title="الحجم والصيغة"
             description="مدة العمل وحجمه وفق نوعه."
             items={formatDetails}
@@ -2186,6 +2617,7 @@ function WorkDetails({
         )}
         {releaseDetails.length > 0 && (
           <DetailGroup
+            focusKey="details:source"
             title="المصدر والنشر"
             description="أصل المادة وبيانات النشر الممتدة."
             items={releaseDetails}
@@ -2193,7 +2625,12 @@ function WorkDetails({
         )}
       </div>
       {hasTaxonomy && (
-        <Card className="md:col-span-2">
+        <Card
+          ref={taxonomyRef}
+          tabIndex={-1}
+          data-focused={taxonomyFocused || undefined}
+          className={cn(glassCard, focusableCardRingClasses, "md:col-span-2")}
+        >
           <CardHeader className="border-b">
             <CardTitle>التصنيف والموضوعات</CardTitle>
             <CardDescription>المفردات التي تصف النوع والنبرة والموضوع.</CardDescription>
@@ -2252,18 +2689,26 @@ function TaxonomyBadges({
 }
 
 function DetailGroup({
+  focusKey,
   title,
   description,
   items,
   className,
 }: {
+  focusKey: string;
   title: string;
   description: string;
   items: Array<readonly [string, string]>;
   className?: string;
 }) {
+  const { ref, focused } = useFocusableSurface(focusKey, title);
   return (
-    <Card className={className}>
+    <Card
+      ref={ref}
+      tabIndex={-1}
+      data-focused={focused || undefined}
+      className={cn(glassCard, focusableCardRingClasses, className)}
+    >
       <CardHeader className="border-b">
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -2306,9 +2751,16 @@ function MetadataPanel({
     ["الجمهور", audienceLabel],
     ...(work.curation?.reviewedAt ? [["آخر تحقق", work.curation.reviewedAt] as const] : []),
   ] as const;
+  const { ref, focused } = useFocusableSurface("sidebar:metadata", "بطاقة السجل");
   return (
-    <Card size="sm" className="border-border/40 bg-card/45 py-0! gap-2!">
-      <CardHeader className="border-b border-border/40 bg-card pt-4!">
+    <Card
+      ref={ref}
+      tabIndex={-1}
+      data-focused={focused || undefined}
+      size="sm"
+      className={cn(glassCard, focusableCardRingClasses, "py-0! gap-2!")}
+    >
+      <CardHeader className="border-b border-border/40 bg-card/70 backdrop-blur-sm pt-4!">
         <CardTitle>بطاقة السجل</CardTitle>
         <CardDescription className="text-xs">أهم بيانات الكتالوج في لمحة واحدة.</CardDescription>
       </CardHeader>
@@ -2360,10 +2812,17 @@ function RiskBadge({ level }: { level: RiskAssessment["level"] }) {
 
 function ParentGuideCard({ risks }: { risks: RiskAssessment[] }) {
   const highRiskCount = risks.filter((risk) => risk.level === "high").length;
+  const { ref, focused } = useFocusableSurface("sidebar:parent-guide", "دليل الوالدين");
 
   return (
-    <Card size="sm" className="border-border/40 bg-card/45 py-0! gap-2! relative">
-      <CardHeader className="border-b border-border/40 bg-card pt-4!">
+    <Card
+      ref={ref}
+      tabIndex={-1}
+      data-focused={focused || undefined}
+      size="sm"
+      className={cn(glassCard, focusableCardRingClasses, "py-0! gap-2! relative")}
+    >
+      <CardHeader className="border-b border-border/40 bg-card/70 backdrop-blur-sm pt-4!">
         <CardTitle>دليل الوالدين</CardTitle>
         <CardDescription className="text-xs">
           نظرة سريعة على الموضوعات الحساسة قبل المشاهدة.
@@ -2400,7 +2859,7 @@ function ParentGuideCard({ risks }: { risks: RiskAssessment[] }) {
             );
           })
         ) : (
-          <Empty className="border p-6">
+          <Empty className={cn("border p-6", glassCard)}>
             <EmptyHeader>
               <EmptyTitle className="text-base">لا توجد تنبيهات مسجلة</EmptyTitle>
               <EmptyDescription>لم تُضف تقييمات منظمة لهذا العمل بعد.</EmptyDescription>

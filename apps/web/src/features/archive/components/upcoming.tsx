@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RailScroller } from "@/features/platform/components/rail";
+import { cn } from "@/lib/utils";
 import { archiveKeys, getCalendar, getFamilyEvents, getNotifications, toggleFollow } from "../api";
 import { ReleaseCard } from "./release-card";
 import {
@@ -35,15 +36,16 @@ function upcomingOnly(items: ReleaseCalendarItem[] | undefined) {
     .toSorted((a, b) => a.releaseDate.localeCompare(b.releaseDate));
 }
 
+/** The one card width every calendar entry wraps at, in both the skeleton and the real grid — a
+ *  fixed width lets sparse months (most of them: one release, not a full row) take up only the
+ *  space they need instead of stretching across empty grid tracks. */
+const CALENDAR_CARD_WIDTH = "w-36 xs:w-40 sm:w-44";
+
 function CalendarSkeleton() {
   return (
-    <div
-      role="status"
-      aria-label="جارٍ تحميل التقويم"
-      className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-    >
+    <div role="status" aria-label="جارٍ تحميل التقويم" className="flex flex-wrap gap-4">
       {[0, 1, 2, 3, 4].map((item) => (
-        <div key={item} className="flex flex-col gap-2.5">
+        <div key={item} className={cn("flex flex-col gap-2.5", CALENDAR_CARD_WIDTH)}>
           <Skeleton className="aspect-2/3 w-full rounded-2xl" />
           <Skeleton className="h-4 w-4/5" />
           <Skeleton className="h-3 w-2/5" />
@@ -79,13 +81,17 @@ export function CalendarPanel() {
               <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
                 {monthYearFormat.format(new Date(items[0]?.releaseDate ?? month))}
               </h3>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {/* `flex-wrap`, not a grid: most months here carry a single release (never a full
+               *  row), so a fixed card width lets those months take up only their own width
+               *  instead of stretching across grid tracks that stay empty either way. */}
+              <div className="flex flex-wrap gap-4">
                 {items.map((item) => (
                   <ReleaseCard
                     key={item.installmentId}
                     item={item}
                     pending={follow.isPending}
                     onToggleFollow={() => follow.mutate(item.titleId)}
+                    className={CALENDAR_CARD_WIDTH}
                   />
                 ))}
               </div>
@@ -177,7 +183,7 @@ export function ComingNextPreview() {
         </Link>
       ) : null}
       {upcoming.length ? (
-        <RailScroller className="auto-cols-[7.5rem] gap-3 px-0.5 pb-1">
+        <RailScroller className="auto-cols-30 gap-3 px-0.5 pb-1">
           {upcoming.map((item) => (
             <ReleaseCard key={item.installmentId} item={item} />
           ))}

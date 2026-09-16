@@ -15,7 +15,7 @@ export function StudiosRail() {
   const studios = query.data ?? [];
   if (!studios.length) return null;
   return (
-    <section className="scroll-mt-24 overflow-hidden" aria-labelledby="studios-rail-title">
+    <section className="scroll-mt-24" aria-labelledby="studios-rail-title">
       <RailHeader
         id="studios-rail-title"
         title="الاستوديوهات"

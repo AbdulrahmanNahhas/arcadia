@@ -112,8 +112,9 @@ function PlanetIndex({ planets }: { planets: PlanetWithWorks[] }) {
           </p>
         </div>
 
-        {/* Horizontal planet rail */}
-        <div className="mt-7 overflow-hidden">
+        {/* Horizontal planet rail. No `overflow-hidden` wrapper — it clipped the top off every
+         *  card's hover lift; the inner `overflow-x-auto` track already contains the scroll. */}
+        <div className="mt-7">
           <div className="flex scroll-fade-x gap-3 overflow-x-auto pb-4 scrollbar-none pt-2">
             {sortedPlanets.map((planet, index) => {
               const artwork = planet.works[0]?.bannerPath || planet.works[0]?.imagePath;
@@ -132,7 +133,7 @@ function PlanetIndex({ planets }: { planets: PlanetWithWorks[] }) {
                     hover:-translate-y-1
                     hover:border-border
                     hover:bg-card
-                    hover:shadow-xl hover:shadow-black/5
+                    hover:shadow-xl hover:shadow-foreground/10
                     focus-visible:outline-none
                     focus-visible:ring-2 focus-visible:ring-ring
                     motion-reduce:transition-none

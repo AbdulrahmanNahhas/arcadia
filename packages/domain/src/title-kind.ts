@@ -49,5 +49,5 @@ export const titleKindLabels = {
 
 export const titleFormatLabels = {
   animated: { ar: "رسوم متحركة", en: "Animated" },
-  "live-action": { ar: "تمثيل واقعي", en: "Live Action" },
+  "live-action": { ar: "واقعي", en: "Live Action" },
 } satisfies Record<TitleFormat, { ar: string; en: string }>;
