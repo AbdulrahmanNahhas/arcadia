@@ -275,6 +275,12 @@ systemctl --user enable --now arcadia-backup.timer       # nightly pg_dump into 
 Give the box a stable address (a DHCP reservation on the router, or a static IP): the desktop
 app remembers it.
 
+**Image visibility.** GHCR packages a workflow creates start out *private*. Either make
+`arcadia-api` and `arcadia-web` public once (GitHub → your profile → Packages → package →
+Package settings → Change visibility) — no login needed on the box, nothing in the images is
+secret — or log the box in with a classic token that has `read:packages`:
+`podman login ghcr.io -u AbdulrahmanNahhas` (Podman stores it for the auto-update timer too).
+
 ### 3. Restore the catalog and start
 
 ```bash
