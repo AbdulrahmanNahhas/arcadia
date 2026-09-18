@@ -23,10 +23,19 @@ function readApiUrlOverride(): string | null {
   }
 }
 
+/**
+ * `VITE_API_URL=same-origin` is what the container image is built with (apps/web/Dockerfile):
+ * nginx serves the bundle and proxies `/api`, `/media` and `/openapi.json` to the API, so the
+ * app talks to whatever origin it was loaded from and one image serves every server address.
+ * Meaningless for the desktop shell (its origin is the bundled app) — that build keeps a real URL.
+ */
+const sameOrigin = "same-origin";
+
 function resolveApiBaseUrl() {
   const configured =
     readApiUrlOverride() || import.meta.env.VITE_API_URL || "http://127.0.0.1:23101";
-  if (import.meta.env.SSR) return configured;
+  if (import.meta.env.SSR) return configured === sameOrigin ? "" : configured;
+  if (configured === sameOrigin) return window.location.origin;
 
   const url = new URL(configured);
   const loopbackHosts = new Set(["127.0.0.1", "localhost", "::1"]);
@@ -39,7 +48,10 @@ function resolveApiBaseUrl() {
 export const apiBaseUrl = resolveApiBaseUrl();
 
 /** The build-time default, for a settings UI to show what "reset" would fall back to. */
-export const apiBaseUrlDefault = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:23101";
+export const apiBaseUrlDefault =
+  import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== sameOrigin
+    ? import.meta.env.VITE_API_URL
+    : "http://127.0.0.1:23101";
 
 /**
  * Persists (or, given `null`, clears) the API URL override and reloads the page so every

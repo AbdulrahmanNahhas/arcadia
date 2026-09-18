@@ -1,0 +1,45 @@
+# Rendered by the nginx image's entrypoint with envsubst (only ${ARCADIA_API_UPSTREAM} is
+# substituted — every other `$` below is nginx's own).
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+
+  # Artwork uploads go through /api; keep the ceiling above media-storage.ts's 10 MiB image cap.
+  client_max_body_size 32m;
+
+  # TanStack Router does client-side routing — any path that isn't a real static file falls
+  # through to index.html so the router can take over, instead of nginx 404ing a deep link.
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+
+  location /assets/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+  }
+
+  # Same-origin API: the bundle was built with VITE_API_URL=same-origin, so /api, /media and the
+  # OpenAPI document are served from this origin and proxied to the API container. Cookies stay
+  # first-party and there is no CORS to configure.
+  location /api/ {
+    proxy_pass http://${ARCADIA_API_UPSTREAM};
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 120s;
+  }
+
+  location /media/ {
+    proxy_pass http://${ARCADIA_API_UPSTREAM};
+    proxy_set_header Host $host;
+    expires 30d;
+    add_header Cache-Control "public";
+  }
+
+  location = /openapi.json {
+    proxy_pass http://${ARCADIA_API_UPSTREAM};
+    proxy_set_header Host $host;
+  }
+}
