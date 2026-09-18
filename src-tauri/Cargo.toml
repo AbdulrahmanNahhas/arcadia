@@ -1,6 +1,6 @@
 [package]
 name = "arcadia"
-version = "0.1.0"
+version = "0.3.5"
 description = "Arcadia desktop shell — Arabic-first family media archive."
 authors = ["AbdulrahmanNahhas"]
 license = "MIT"

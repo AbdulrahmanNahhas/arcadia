@@ -131,17 +131,18 @@ export function DownloadsPage() {
                 تغيير المجلد يؤثر على التنزيلات الجديدة فقط؛ الملفات الموجودة تبقى حيث هي. كل عمل
                 يحصل على مجلد فرعي باسمه.
               </p>
-              <label className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-                <span className="text-xs text-muted-foreground">
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+                <label htmlFor="device-name" className="text-xs text-muted-foreground">
                   اسم هذا الجهاز كما يراه أفراد العائلة
-                </span>
+                </label>
                 <Input
+                  id="device-name"
                   className="h-8 max-w-56"
                   value={deviceName}
                   onChange={(event) => setDeviceName(event.target.value)}
                   onBlur={() => writeDeviceName(deviceName)}
                 />
-              </label>
+              </div>
             </section>
 
             {sorted.length === 0 ? (
