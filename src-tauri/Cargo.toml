@@ -30,6 +30,9 @@ tauri-plugin-log = "2"
 # a signed update; tauri-plugin-process restarts the app into the new version afterward.
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+# Download location picker and "show the file" for kept downloads (see src/downloads).
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
 # Playback and transfer (see docs/player-torrent-roadmap.md). librqbit downloads sequentially by
 # default and re-prioritises pieces on seek; libmpv2 is the maintained binding to the libmpv the
 # Nix/Fedora runtime provides.

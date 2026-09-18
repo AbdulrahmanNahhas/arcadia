@@ -27,6 +27,9 @@ pub enum PlayerError {
   /// A downloaded subtitle file could not be written to the cache directory.
   #[error("subtitle file unavailable: {0}")]
   SubtitleUnavailable(String),
+  /// A kept download could not be started, changed, or written (see `downloads/mod.rs`).
+  #[error("download failed: {0}")]
+  Download(String),
 }
 
 impl PlayerError {

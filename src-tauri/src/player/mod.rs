@@ -146,6 +146,13 @@ const PLAYBACK_OPTIONS: &[(&str, &str)] = &[
   ("input-vo-keyboard", "no"),
   ("keep-open", "yes"),
   ("idle", "yes"),
+  // No Lua/JS scripts and no youtube-dl hook: the only code that ever touches a stream is the
+  // demuxer/decoder (docs/security-and-debrid.md §1).
+  ("load-scripts", "no"),
+  ("ytdl", "no"),
+  // A kept download keeps its subtitles beside the video as `<stem>.<lang>.srt`; fuzzy matching
+  // loads them without a sub-add.
+  ("sub-auto", "fuzzy"),
   // Network cache. mpv's defaults assume a CDN; a torrent-backed HTTP source behaves nothing like
   // one, and an undersized demuxer buffer is the single most common cause of periodic stuttering
   // on this kind of stream. Start from these, then measure.

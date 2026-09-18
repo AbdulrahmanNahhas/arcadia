@@ -1,4 +1,5 @@
 mod diagnostics;
+mod downloads;
 mod error;
 mod player;
 mod torrent;
@@ -9,6 +10,8 @@ use tauri::ipc::Channel;
 use tauri::{Manager, RunEvent, State, WindowEvent};
 use tokio::sync::Mutex;
 
+use downloads::registry::{DownloadItem, DownloadTarget};
+use downloads::{DownloadEvent, DownloadManager, DownloadSnapshot};
 use error::{PlayerError, PlayerResult};
 use player::surface::{UiRect, VideoLayout, attach_video_surface, refresh_video_layout};
 use player::{EventSink, MpvEngine, PlayerEvent, new_event_sink};
@@ -20,6 +23,8 @@ use torrent::{StartedStream, StreamCandidate, TorrentEngine};
 pub struct AppState {
   /// One long-lived librqbit session, built once during `setup` on Tauri's own runtime.
   torrent: Mutex<Option<Arc<TorrentEngine>>>,
+  /// Kept downloads on the same session; ready right after the torrent engine is.
+  downloads: Mutex<Option<Arc<DownloadManager>>>,
   /// Created on the first `player_init`: the video surface needs a realized window to attach to.
   player: Mutex<Option<Arc<MpvEngine>>>,
   events: EventSink,
@@ -37,6 +42,15 @@ impl AppState {
       .await
       .clone()
       .ok_or_else(|| PlayerError::EngineUnavailable("the player is not initialised".into()))
+  }
+
+  async fn downloads(&self) -> PlayerResult<Arc<DownloadManager>> {
+    self
+      .downloads
+      .lock()
+      .await
+      .clone()
+      .ok_or_else(|| PlayerError::Download("the download manager is not ready".into()))
   }
 
   async fn transfers(&self) -> PlayerResult<Arc<TorrentEngine>> {
@@ -213,9 +227,106 @@ async fn player_stop(state: State<'_, Arc<AppState>>) -> PlayerResult<()> {
     engine.stop()?;
   }
   if let Some(transfers) = state.torrent.lock().await.clone() {
-    transfers.stop_stream().await;
+    match state.downloads.lock().await.clone() {
+      Some(downloads) => downloads.finish_stream(&transfers).await,
+      None => transfers.stop_stream().await,
+    }
   }
   Ok(())
+}
+
+/// Plays a file from disk (a kept download) — mpv takes a path exactly like a URL.
+#[tauri::command]
+async fn player_load_path(state: State<'_, Arc<AppState>>, path: String) -> PlayerResult<()> {
+  stop_progress_pump(&state).await;
+  if !std::path::Path::new(&path).is_file() {
+    return Err(PlayerError::Download(format!("file not found: {path}")));
+  }
+  state.engine().await?.load(&path)
+}
+
+#[tauri::command]
+async fn downloads_subscribe(
+  state: State<'_, Arc<AppState>>,
+  on_event: Channel<DownloadEvent>,
+) -> PlayerResult<DownloadSnapshot> {
+  let downloads = state.downloads().await?;
+  downloads.subscribe(on_event);
+  Ok(downloads.snapshot().await)
+}
+
+#[tauri::command]
+async fn downloads_list(state: State<'_, Arc<AppState>>) -> PlayerResult<DownloadSnapshot> {
+  Ok(state.downloads().await?.snapshot().await)
+}
+
+#[tauri::command]
+async fn downloads_start(
+  state: State<'_, Arc<AppState>>,
+  target: DownloadTarget,
+  candidates: Vec<StreamCandidate>,
+) -> PlayerResult<DownloadItem> {
+  state.downloads().await?.start(target, &candidates).await
+}
+
+#[tauri::command]
+async fn downloads_pause(state: State<'_, Arc<AppState>>, id: String) -> PlayerResult<()> {
+  state.downloads().await?.pause(&id).await
+}
+
+#[tauri::command]
+async fn downloads_resume(state: State<'_, Arc<AppState>>, id: String) -> PlayerResult<()> {
+  state.downloads().await?.resume(&id).await
+}
+
+#[tauri::command]
+async fn downloads_remove(
+  state: State<'_, Arc<AppState>>,
+  id: String,
+  delete_files: bool,
+) -> PlayerResult<()> {
+  state.downloads().await?.remove(&id, delete_files).await
+}
+
+/// The finished download for a catalog unit, if this device has one — the resolver's first stop.
+#[tauri::command]
+async fn downloads_find(
+  state: State<'_, Arc<AppState>>,
+  installment_id: String,
+  episode_id: Option<String>,
+) -> PlayerResult<Option<DownloadItem>> {
+  Ok(
+    state
+      .downloads()
+      .await?
+      .find_completed(&installment_id, episode_id.as_deref())
+      .await,
+  )
+}
+
+#[tauri::command]
+async fn downloads_set_dir(
+  state: State<'_, Arc<AppState>>,
+  path: String,
+) -> PlayerResult<std::path::PathBuf> {
+  state.downloads().await?.set_dir(path.into()).await
+}
+
+/// Same bytes-plus-filename shape as `player_load_subtitle`, written beside the video instead of
+/// into the cache, so it is still there when the file plays offline.
+#[tauri::command]
+async fn downloads_save_subtitle(
+  state: State<'_, Arc<AppState>>,
+  id: String,
+  bytes: Vec<u8>,
+  language: String,
+  filename: String,
+) -> PlayerResult<std::path::PathBuf> {
+  state
+    .downloads()
+    .await?
+    .save_subtitle(&id, &bytes, &language, &filename)
+    .await
 }
 
 fn publish_event(sink: &EventSink, event: PlayerEvent) {
@@ -257,7 +368,10 @@ async fn shutdown(state: Arc<AppState>) {
   if let Some(engine) = state.player.lock().await.take() {
     let _ = engine.stop();
   }
+  state.downloads.lock().await.take();
   if let Some(transfers) = state.torrent.lock().await.take() {
+    // Kept downloads stay in librqbit's persistence and resume on the next launch; only the
+    // stream is deleted here.
     transfers.shutdown().await;
   }
 }
@@ -267,6 +381,7 @@ pub fn run() {
   let started_at = diagnostics::StartedAt(std::time::Instant::now());
   let state = Arc::new(AppState {
     torrent: Mutex::new(None),
+    downloads: Mutex::new(None),
     player: Mutex::new(None),
     events: new_event_sink(),
     layout: Mutex::new(None),
@@ -276,6 +391,9 @@ pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
+    // Folder picker for the download location, and "show in file manager" for a finished file.
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_opener::init())
     .manage(state.clone())
     .manage(started_at)
     .on_page_load(|webview, payload| diagnostics::on_page_load(webview, payload.event()))
@@ -292,6 +410,16 @@ pub fn run() {
       player_get_property,
       player_load_subtitle,
       player_stop,
+      player_load_path,
+      downloads_subscribe,
+      downloads_list,
+      downloads_start,
+      downloads_pause,
+      downloads_resume,
+      downloads_remove,
+      downloads_find,
+      downloads_set_dir,
+      downloads_save_subtitle,
     ])
     .setup({
       let state = state.clone();
@@ -312,16 +440,33 @@ pub fn run() {
             .as_millis()
         );
 
-        // Streaming data is disposable, so it belongs in the cache directory, not the data
-        // directory: different lifetime, different backup expectations. Phase 3's kept
-        // downloads will use `app_data_dir()` instead.
+        // Streaming data is disposable, so it belongs in the cache directory (wiped on every
+        // start). Kept downloads and the session's resume state are data: they live under
+        // app_data_dir() and, by default, ~/Videos/Arcadia — see README "Where Arcadia keeps
+        // data on your device".
         let cache_dir = app.path().app_cache_dir()?.join("streams");
+        let data_dir = app.path().app_data_dir()?;
+        let persistence_dir = data_dir.join("torrent-session");
+        let registry_path = data_dir.join("downloads.json");
+        let default_download_dir = app
+          .path()
+          .video_dir()
+          .map(|videos| videos.join("Arcadia"))
+          .unwrap_or_else(|_| data_dir.join("downloads"));
         let state = state.clone();
         // Tauri's runtime *is* tokio; a second one would mean two thread pools competing
         // for cores during playback.
         tauri::async_runtime::spawn(async move {
-          match TorrentEngine::start(cache_dir).await {
-            Ok(engine) => *state.torrent.lock().await = Some(Arc::new(engine)),
+          match TorrentEngine::start(cache_dir, persistence_dir).await {
+            Ok(engine) => {
+              let engine = Arc::new(engine);
+              let downloads =
+                DownloadManager::new(engine.session(), registry_path, default_download_dir);
+              downloads.reconcile().await;
+              downloads.spawn_pump();
+              *state.torrent.lock().await = Some(engine);
+              *state.downloads.lock().await = Some(downloads);
+            }
             Err(error) => log::error!("torrent session unavailable: {error}"),
           }
         });

@@ -11,6 +11,7 @@ use librqbit::{
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
+use crate::downloads::registry::is_allowed_video;
 use crate::error::{PlayerError, PlayerResult};
 use magnet::build_magnet;
 use stream_server::StreamServer;
@@ -71,6 +72,19 @@ pub struct StreamProgress {
 struct ActiveStream {
   torrent_id: usize,
   handle: ManagedTorrentHandle,
+  file_idx: usize,
+  magnet: String,
+}
+
+/// What `stop_stream_keeping_files` hands the download manager: enough to re-add the torrent in
+/// the download folder and let librqbit's initial check reuse every piece already on disk.
+#[derive(Debug, Clone)]
+pub struct StoppedStream {
+  pub info_hash: String,
+  pub file_idx: usize,
+  pub magnet: String,
+  pub output_folder: PathBuf,
+  pub relative_file: PathBuf,
 }
 
 pub struct TorrentEngine {
@@ -81,16 +95,17 @@ pub struct TorrentEngine {
 }
 
 impl TorrentEngine {
-  pub async fn start(cache_dir: PathBuf) -> PlayerResult<Self> {
+  /// `cache_dir` holds streaming data and is wiped on every start; `persistence_dir` survives
+  /// restarts so kept downloads resume where they stopped (see `downloads/mod.rs`).
+  pub async fn start(cache_dir: PathBuf, persistence_dir: PathBuf) -> PlayerResult<Self> {
     clear_cache_dir(&cache_dir);
     std::fs::create_dir_all(&cache_dir)
       .map_err(|error| PlayerError::TorrentRejected(error.to_string()))?;
 
     let options = SessionOptions {
       fastresume: true,
-      // Set now so Phase 3's restart-resume is a config change rather than a rewrite.
       persistence: Some(SessionPersistenceConfig::Json {
-        folder: Some(cache_dir.join("session")),
+        folder: Some(persistence_dir),
       }),
       peer_limit: Some(PEER_LIMIT),
       disable_upload: DISABLE_UPLOAD,
@@ -106,6 +121,18 @@ impl TorrentEngine {
       server,
       active: Mutex::new(None),
     })
+  }
+
+  /// The one librqbit session in the process; the download manager adds its kept torrents here.
+  pub fn session(&self) -> Arc<Session> {
+    self.session.clone()
+  }
+
+  pub async fn active_info_hash(&self) -> Option<String> {
+    let active = self.active.lock().await;
+    active
+      .as_ref()
+      .map(|stream| stream.handle.info_hash().as_string())
   }
 
   /// Walks the ranked candidate list until one actually plays.
@@ -164,7 +191,7 @@ impl TorrentEngine {
     };
     let response = self
       .session
-      .add_torrent(AddTorrent::from_url(magnet), Some(options))
+      .add_torrent(AddTorrent::from_url(magnet.as_str()), Some(options))
       .await
       .map_err(|error| PlayerError::TorrentRejected(error.to_string()))?;
     let handle = response
@@ -185,6 +212,19 @@ impl TorrentEngine {
         .ok_or_else(|| PlayerError::TorrentStalled("torrent contains no playable file".into()))?,
     };
 
+    // Refused before a byte is transferred: the family archive plays video, and a torrent whose
+    // "film" is an installer or an archive is exactly the malware vector torrents are known for.
+    if !file_is_allowed_video(&handle, file_idx) {
+      self
+        .session
+        .delete(handle.id().into(), /* delete_files */ true)
+        .await
+        .ok();
+      return Err(PlayerError::TorrentRejected(
+        "the selected file is not a video".into(),
+      ));
+    }
+
     self.wait_for_first_bytes(&handle).await?;
 
     let torrent_id = handle.id();
@@ -192,6 +232,8 @@ impl TorrentEngine {
     *self.active.lock().await = Some(ActiveStream {
       torrent_id,
       handle: handle.clone(),
+      file_idx,
+      magnet,
     });
     Ok(StartedStream {
       candidate_id: candidate.id.clone(),
@@ -250,6 +292,38 @@ impl TorrentEngine {
     }
   }
 
+  /// Stops the active stream but leaves its pieces on disk, handing back what the download
+  /// manager needs to continue the same torrent in the download folder (roadmap Phase 3's
+  /// "promotion path": a download started mid-film must not start from zero).
+  pub async fn stop_stream_keeping_files(&self) -> Option<StoppedStream> {
+    let active = self.active.lock().await.take()?;
+    let relative_file = active
+      .handle
+      .with_metadata(|metadata| {
+        metadata
+          .file_infos
+          .get(active.file_idx)
+          .map(|info| info.relative_filename.clone())
+      })
+      .ok()
+      .flatten()?;
+    let stopped = StoppedStream {
+      info_hash: active.handle.info_hash().as_string(),
+      file_idx: active.file_idx,
+      magnet: active.magnet.clone(),
+      output_folder: active.handle.output_folder().to_path_buf(),
+      relative_file,
+    };
+    if let Err(error) = self
+      .session
+      .delete(active.torrent_id.into(), /* delete_files */ false)
+      .await
+    {
+      log::warn!("failed to detach torrent {}: {error}", active.torrent_id);
+    }
+    Some(stopped)
+  }
+
   /// Torn down on `CloseRequested` and on `ExitRequested` (`lib.rs`). There is deliberately no
   /// `Drop` backstop here — librqbit's own `delete()` is genuinely async (it pauses the torrent,
   /// touches its persistence database, and only then removes files), so replicating it
@@ -261,6 +335,17 @@ impl TorrentEngine {
     self.stop_stream().await;
     self.session.stop().await;
   }
+}
+
+fn file_is_allowed_video(handle: &ManagedTorrentHandle, file_idx: usize) -> bool {
+  handle
+    .with_metadata(|metadata| {
+      metadata
+        .file_infos
+        .get(file_idx)
+        .is_some_and(|info| is_allowed_video(&info.relative_filename))
+    })
+    .unwrap_or(false)
 }
 
 fn largest_file_index(handle: &ManagedTorrentHandle) -> Option<usize> {
@@ -278,7 +363,8 @@ fn largest_file_index(handle: &ManagedTorrentHandle) -> Option<usize> {
 }
 
 /// Startup-time full wipe of the streaming cache — the crash/force-kill backstop `shutdown`'s own
-/// comment points to.
+/// comment points to. Kept downloads never live here (they go to the download folder, and the
+/// session's persistence lives in the app data directory), so wiping is always safe.
 ///
 /// Everything under this directory is disposable streaming data by construction: `stop_stream`
 /// deletes a torrent's files the moment it stops, only one stream is ever active at a time (Phase
