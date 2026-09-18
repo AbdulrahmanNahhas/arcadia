@@ -80,7 +80,13 @@ Plain local disk + a Docker volume is the right amount of engineering here.
 
 ---
 
-## 2. What's actually "on Docker"
+## 2. What's actually "on Docker" — superseded 2026-09-18
+
+> The supported server deployment is now **Podman Quadlet on Fedora Atomic pulling GHCR images**
+> (`deploy/quadlet/`, README "Self-hosting on Fedora Atomic", `docs/v0.3.5.md` Phase S). The web
+> image no longer bakes `VITE_API_URL` (same-origin + nginx proxy) and the API image migrates its
+> own database (`node dist/migrate.js`). `docker-compose.yml` remains for Docker hosts and runs the
+> same images. The sketch below is kept as the original reasoning.
 
 ```
 docker-compose.yml
@@ -327,5 +333,7 @@ updates" for the one-time secret/variable setup it depends on
     run the still-outstanding Phase 1 acceptance pass from `player-torrent-roadmap.md` (10-film
     sample, real hardware-decode confirmation) — the first real-hardware milestone, same one
     flagged earlier.
-12. [ ] Phase 3 (download-to-local, real offline video) whenever ready — explicitly out of scope
-    for this pass.
+12. [x] Phase 3 (download-to-local, real offline video) — built 2026-09-18, see
+    `player-torrent-roadmap.md` Phase 3 and `v0.3.5.md` Phase P3.
+13. [x] **Fedora Atomic deployment** (Quadlet + GHCR + backups + migration guide) — 2026-09-18,
+    `v0.3.5.md` Phase S. The first run on the box itself is the remaining human step.

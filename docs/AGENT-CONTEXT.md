@@ -13,7 +13,7 @@
 >   two byte-identical apart from the title line.
 > - Memory (`~/.claude/.../memory/`) — only for things about the *user*, not the code.
 
-Last verified: 2026-09-14 after Phase A (`eabd81d`), diagnostics (`df56ea8`), and the lint sweep.
+Last verified: 2026-09-18 after Phases S/O/P3 (self-hosting, offline, downloads) and the 0.3.5 release.
 
 ---
 
@@ -32,6 +32,10 @@ Last verified: 2026-09-14 after Phase A (`eabd81d`), diagnostics (`df56ea8`), an
 | Web stack | React 19.2, TanStack Router 1.170 / Start 1.168 / Query 5.102 (see A9 for pins), Tailwind 4, shadcn on Base UI 1.6, Phosphor icons, Zod 4 |
 | Lint/format | Biome (authoritative), oxlint + local `anti-slop` plugin (`tools/oxlint/anti-slop/`) |
 | Tests | Vitest 4 (`*.test.ts(x)` beside units), Playwright in `apps/web/tests/*.spec.ts` |
+| Desktop data (Linux, id `com.arcadia.desktop`) | downloads `~/Videos/Arcadia/<title>/` (configurable), registry `~/.local/share/com.arcadia.desktop/downloads.json`, torrent resume `…/torrent-session/`, IndexedDB + localStorage in the WebKitGTK profile under the same dir, stream cache `~/.cache/com.arcadia.desktop/streams` (wiped every launch) — full table in README "Where Arcadia keeps data" |
+| Family server (Fedora Atomic) | rootless Podman Quadlet: units in `~/.config/containers/systemd/`, env `~/.config/arcadia/arcadia.env`, media `~/arcadia/media`, backups `~/arcadia/backups`, Postgres in the `arcadia-pgdata` volume; images `ghcr.io/abdulrahmannahhas/arcadia-{api,web}` |
+| Docker on the laptop | daemon works but only outside the sandbox and only with `--network=host` (the host resolver is loopback-only); `docker build --network=host -f apps/api/Dockerfile .` |
+| Versions | `Cargo.toml`/`tauri.conf.json` carry the release version (0.3.5); root `package.json` stays `2.0.0` (it names the v2 line) |
 
 ## 2. Commands that matter (all from repo root)
 
@@ -45,6 +49,10 @@ devenv shell -- pnpm client:generate   # after any packages/contracts change tha
 devenv shell -- pnpm tauri dev         # the desktop shell against the running API
 devenv up                              # postgres + api + tauri dev
 biome format --write <paths>           # format only what you touched
+docker build --network=host -f apps/api/Dockerfile -t arcadia-api:check .   # server images (see §1)
+docker run --rm --network=host -e DATABASE_URL=postgresql://aqua@127.0.0.1:23102/<db> arcadia-api:check node dist/migrate.js
+NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/features/downloads   # session-backed API tests
+# On the Fedora box (README "Self-hosting"): systemctl --user {start,status} arcadia-{db,api,web,migrate}
 ```
 
 - `pnpm check` runs `cargo clippy -D warnings` — Rust warnings fail the build.
@@ -71,6 +79,8 @@ biome format --write <paths>           # format only what you touched
 | `features/platform/` | Home, browse (`database-page.tsx`), detail (`work-detail-page.tsx`, 2454 lines), entities pages, `spatial-navigation.tsx` (the D-pad engine to be replaced in Phase C), `components/` (work-card, rails, platform-shell, global-search) | |
 | `features/archive/` | My Space (`archive-hub-page.tsx`), `api.ts` (`archiveKeys`) | duplicates three Platform rails — E4 |
 | `features/library/` | `player/` (see below), compare, offline, `model.ts` (v1 types, dies with compat) | player lifecycle/IPC is the best-engineered code in the repo; don't rewrite it |
+| `features/library/downloads/` | `api.ts` (Tauri bridge + one process-wide snapshot store, `useDownloads`, `startDownload` with sidecar subtitles), `download-button.tsx`, `downloads-page.tsx` (`/downloads`), `mirror.ts` (best-effort `/me/downloads` sync, mounted in `PlatformShell`) | desktop-only; renders nothing / an empty state in a browser |
+| `features/library/playback-resolver.ts` | `resolvePlayback`: **local download first** (`LocalLookup`, injectable), then cached candidates, then the API | `noLocalLookup` for callers that must hit the network |
 | `features/library/player/` | `player-page.tsx` composes only; `hooks/` (`use-player-session` lifecycle+IPC, `use-player-actions` transport, `use-player-shortcuts` keyboard/D-pad model, `use-overlay-regions` X11 cut-outs, `use-controls-visibility`, `use-progress-persistence`, `use-playhead-paint`), `components/` (top bar, control bar, timeline, mobile transport, overlays), `panels/` (`panel-shell` modal + D-pad walk; tracks, subtitles, speed, source, episodes, more), `languages.ts` (flags/labels/aliases), `track-groups.ts` (group-by-language + show-all), `episodes.ts` | every panel is a `PanelShell`; every focusable control carries `data-player-control` and sits in a `data-control-row`; anything drawn over the picture carries `data-video-overlay` |
 | `features/admin/` | `admin-shell.tsx` (role gate), `pages/`, `components/editor-form/` (2434 lines), `json-editor/` | |
 | `features/profiles/` | `settings-page.tsx` (theme UI at the "appearance" tab), `profiles-page.tsx` | |
@@ -87,6 +97,8 @@ biome format --write <paths>           # format only what you touched
 | `repository.ts` (675) | `browse()` (JS pagination — D1a), `titleDetail()` (N+1 — D1c), visibility helpers |
 | `auth.ts` | Better Auth server + `isTestAuthBypass()` (never weaken) |
 | `features/accounts/routes.ts` | `/api/v1/me` GET/PATCH; `defaultPreferences` at line ~43; `account_preferences` upsert at ~282 |
+| `features/downloads/routes.ts` | `/api/v1/me/downloads` GET/PUT/DELETE — mirror of each device's registry (`account_downloads`, migration 0028); plain session routes, not in OpenAPI |
+| `migrate.ts` | `dist/migrate.js`: media backfill pass + `runMigrations()` — the container migration entry |
 | `integrations/` | tmdb, anilist, fanart, opensubtitles, torrent-source |
 | `media-storage.ts` | sha256 content-addressed uploads |
 
@@ -97,7 +109,10 @@ biome format --write <paths>           # format only what you touched
 | `packages/contracts/src/index.ts` (1137) | all Zod schemas; `accountPreferencesSchema` ~line 497 (`theme` enum lives here) |
 | `packages/contracts/src/generated.ts` | OpenAPI types — regenerate, never edit |
 | `packages/database/src/schema.ts` (1530) | Drizzle schema; `account_preferences.theme` is `text` default `'dark'` (no DB enum → adding a theme value needs **no migration**) |
-| `packages/database/drizzle/` | the only migration history |
+| `packages/database/drizzle/` | the only migration history (latest `0028_windy_marvel_zombies`, `account_downloads`) |
+| `packages/database/src/{client,media-backfill,run-migrations}.ts` | `createDatabase`, `prepareMediaBackfill` (was the top-level `prepare-media-backfill.ts` script), `runMigrations` (drizzle-orm migrator, same journal/table as drizzle-kit) |
+| `deploy/quadlet/`, `deploy/systemd/`, `deploy/arcadia.env.example` | Fedora Atomic units + backup timer + env template; `docker-compose.yml` runs the same images for Docker hosts |
+| `.github/workflows/publish-images.yml` | GHCR images on push to master / `v*` tags |
 | `packages/domain/` | classification, policy, scoring, taxonomy — framework-free |
 | `packages/i18n/` | Arabic/English labels; under-used (F4) |
 | `packages/cli/` | `./bin/arcadia` — direct Postgres access, `--json` output |
@@ -111,7 +126,8 @@ biome format --write <paths>           # format only what you touched
 | `src/lib.rs` | `AppState`, all `player_*` commands, torrent session in `setup`, shutdown on close |
 | `src/player/mod.rs` | `MpvEngine` (libmpv2), 4 Hz event tick over a `Channel<PlayerEvent>` |
 | `src/player/surface.rs` | native X11 child window **above** the webview, shaped with cut-outs for controls; the doc comment at the top explains the Tauri widget-tree constraint — read it before touching GTK |
-| `src/torrent/` | librqbit session + axum stream server |
+| `src/torrent/` | librqbit session + axum stream server; persistence now under `app_data_dir()/torrent-session`; video extension allowlist (`downloads::registry::is_allowed_video`); `stop_stream_keeping_files` for promotion |
+| `src/downloads/{mod,registry}.rs` | `DownloadManager` (queue of 3, 1 Hz snapshot channel, `reconcile()` on launch, `finish_stream` promotion) + the JSON registry; commands `downloads_*`, `player_load_path` in `lib.rs` |
 
 ## 4. Gotchas (things that cost a session to rediscover)
 
@@ -161,6 +177,19 @@ biome format --write <paths>           # format only what you touched
   milestones (`src-tauri/src/diagnostics.rs`, README "Diagnostics").
 - **Router context.** `router.tsx` passes `{ queryClient }`; `__root.tsx` uses
   `createRootRouteWithContext`. Guards/loaders read `context.queryClient`.
+- **Downloads share the stream session.** Adding a torrent that is currently streaming returns
+  `AlreadyManaged`; the manager queues it under `promotions` and `finish_stream` (called from
+  `player_stop`) moves the pieces and re-adds it in the download folder. Never call
+  `transfers.stop_stream()` directly from a command path that could carry a promotion.
+- **Web image is address-free.** `VITE_API_URL=same-origin` → `apiBaseUrl = window.location.origin`;
+  nginx proxies `/api`, `/media`, `/openapi.json` to `ARCADIA_API_UPSTREAM`. Do not reintroduce a
+  build-arg address. The desktop app still needs a real URL (settings override / `ARCADIA_API_URL`).
+- **Quadlet quoting.** `Exec=` lines are systemd command lines: `$$` for a shell `$`, `%%` for a
+  literal `%`. `.timer` files go to `~/.config/systemd/user/`, not the Quadlet folder. Bind
+  mounts need `:Z` on Fedora (SELinux).
+- **JS `String.replace` with a string replacement expands `$$`, `$&`, `$\``** — when scripting
+  doc edits with node, pass a function (`s.replace(a, () => b)`). This file was duplicated once
+  by exactly that.
 - **Router error boundaries** receive `error: unknown` (`ErrorComponentProps`); narrow with
   `instanceof Error` at the call site — the anti-slop plugin forbids `unknown` parameters and
   `typeof` narrowing in helpers.
@@ -199,6 +228,7 @@ biome format --write <paths>           # format only what you touched
 
 | Date | Phase | What landed | By |
 | --- | --- | --- | --- |
+| 2026-09-18 | S, O, P3, release 0.3.5 | Security/debrid doc; address-free web image + bundled migrate entry + Node 26 Dockerfile fix + GHCR workflow; Quadlet units, backup timer, Fedora migration guide; download engine (Rust) + `/downloads` UI + local playback + `account_downloads` (0028); on-disk locations doc; `ci.yml` on master; version bump | Opus 5 |
 | 2026-09-14 | Lint | 481 → 0 oxlint errors (65 by four Sonnet agents before a rate limit, the rest by one Sonnet agent + Opus); Phase E allowlist introduced; TS target ES2023 | Opus 5 + Sonnet 5 |
 | 2026-09-13 | T2 | `diagnostics.rs`: devtools switch, log level, startup milestones (`df56ea8`) | Opus 5 |
 | 2026-09-13 | A | A1–A7, A9 landed (theme fix + `system`, `lib/theme.ts`, black/white audit with `data-on-artwork`, JetBrains Mono, core dumps, admin `beforeLoad`, pinned TanStack). A8 applied, awaiting manual player check. | Opus 5 |

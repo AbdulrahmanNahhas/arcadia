@@ -851,8 +851,19 @@ response is the identical JSON shape `parseStreams`/`rankCandidates` already han
 
 # Phase 3 — Download-to-local
 
-**Status:** Not started
+**Status:** Built 2026-09-18 (see `docs/v0.3.5.md` Phase P3); the acceptance run on real hardware
+is still owed.
 **Done when:** a downloaded film plays from disk with no network, and shows as available offline.
+
+**How it landed** (decisions that differ from the checklist below): downloads are recorded in a
+per-device registry (`app_data_dir()/downloads.json`) mirrored to a new `account_downloads`
+table, not in `media_files` — a download is a fact about one device, and `media_files` models a
+server-side file for Phase 5. The default folder is `~/Videos/Arcadia/<title>/` (configurable
+from the Downloads page); librqbit's persistence moved out of the wiped stream cache into
+`app_data_dir()/torrent-session`. Promotion from an active stream keeps the pieces: when the
+film stops, the files are moved into the download folder and the torrent re-added there, so
+librqbit's initial check resumes from what was already fetched. Security notes (extension
+allowlist, mpv flags) are in `security-and-debrid.md`.
 
 **Not to be confused with "save for offline"** (`docs/deployment-and-release-roadmap.md` §4,
 scoped 2026-09-04) — that's a separate, smaller, independent feature: saving a title caches its
@@ -863,23 +874,18 @@ saved without ever being downloaded, and (today) a title can be downloaded witho
 explicitly "saved" first — the two states are independent, though the UI should probably imply one
 from the other once both exist.
 
-- [ ] "Download" switches that torrent from streaming to a full download (all pieces, all files if
-      wanted).
-- [ ] On completion, move into a managed media folder.
-- [ ] Insert a `media_files` row (`origin: "torrent"`, `torrent_info_hash`) — **and build the read
-      path**, since nothing reads that table today.
-- [ ] Resolver prefers the local file; mpv opens the path directly instead of over HTTP.
-- [ ] "متاح دون اتصال" badge in the library.
-- [ ] Downloads screen: pause, resume, remove, disk usage, configurable disk budget.
-- [ ] Dedupe by `torrent_info_hash`.
-- [ ] Resume partial downloads across app restarts — `SessionOptions { fastresume: true,
-    persistence: Some(SessionPersistenceConfig::…) }`, already set in Phase 1.4 if that step was
-      followed.
-- [ ] Promotion path: a download started from an active stream must **reuse** the running torrent
-      (switch `only_files` to all files via `api_torrent_action_update_only_files`), not restart it
-      from zero.
-- [ ] Document the per-OS download location, and make it configurable — a family archive is exactly
-      the case where the media lives on a second drive.
+- [x] "Download" keeps the selected file (one file per download, never a whole pack).
+- [x] Written straight into the managed folder (`<dir>/<title>/`), no post-completion move.
+- [x] Recorded in the device registry + `account_downloads` (see "How it landed" — not
+      `media_files`).
+- [x] Resolver prefers the local file (`kind: "local"`); mpv opens the path directly.
+- [x] "متاح دون اتصال" on the title page/episode cards and a chip on My Space cards.
+- [x] Downloads screen: pause, resume, remove (+files), used bytes, folder picker. Disk *budget*
+      not built — the folder is the family's own drive; a free-space readout is a follow-up.
+- [x] Dedupe by info hash + file index.
+- [x] Resume across restarts (persistence relocated to app data; `reconcile()` on launch).
+- [x] Promotion reuses the fetched pieces (move + re-add with initial check) — see above.
+- [x] Location documented (README "Where Arcadia keeps data on your device"), configurable.
 
 ---
 
@@ -996,7 +1002,10 @@ is hand-curated, and a sync tool is a real feature of its own.
 
 # Phase 6 — Debrid
 
-**Status:** Not started
+**Status:** Not started. How debrid works, what it does and does not protect against, and the
+"one public IP at a time" rule are explained in [`security-and-debrid.md`](./security-and-debrid.md);
+the one-line server-side enablement (`ARCADIA_STREAM_ADDON_CONFIG=…|realdebrid=KEY`) already works
+with the existing `direct` candidate handling.
 
 Torrentio has debrid support built into its config: adding `realdebrid=KEY` (or `alldebrid=`,
 `premiumize=`) to the config segment makes the addon return streams carrying a **direct `url`**
