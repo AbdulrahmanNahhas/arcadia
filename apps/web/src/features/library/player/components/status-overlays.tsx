@@ -16,8 +16,10 @@ export function busyLabel(
   status: PlayerStatus,
   attempt: { index: number; total: number } | null,
   peers: number | null,
+  local = false,
 ) {
   if (attempt) return `جارٍ تجربة المصدر ${attempt.index} من ${attempt.total}…`;
+  if (local && status !== "buffering") return "جارٍ فتح الملف من هذا الجهاز…";
   if (status === "resolving") return "جارٍ العثور على مصدر للتشغيل…";
   if (status === "buffering") {
     return peers === 0 ? "لا يوجد أقران متصلون — التحميل متوقف." : "جارٍ التخزين المؤقت…";

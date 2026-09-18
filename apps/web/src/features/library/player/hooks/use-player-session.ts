@@ -68,6 +68,9 @@ export function usePlayerSession({
   const resumeSubtitleOffsetMs = useRef<number | null>(null);
   /** A manual source switch replaces the file; mpv reports the old one as "ended", which is not. */
   const switchingSource = useRef(false);
+  /** mpv can tick (idle/pause observations) before `fileLoaded`; until then there is no picture
+   *  and the loading badge must stay — a local AV1 file takes a visible moment to open. */
+  const fileLoaded = useRef(false);
   // Read once at start-up, through a ref: the account preference can arrive after the stream is
   // already up, and that must not restart it.
   const autoplayRef = useRef(autoplay);
@@ -109,6 +112,14 @@ export function usePlayerSession({
     (event: PlayerEvent) => {
       switch (event.type) {
         case "tick":
+          if (!fileLoaded.current) {
+            // A stream can already be stalled on its cache before mpv reports the file open;
+            // say so, but never claim "playing" without a picture.
+            if (event.buffering) {
+              setStatus((current) => (current === "error" ? current : "buffering"));
+            }
+            break;
+          }
           tick.current = {
             position: event.position,
             duration: event.duration,
@@ -122,6 +133,7 @@ export function usePlayerSession({
           break;
         case "fileLoaded": {
           switchingSource.current = false;
+          fileLoaded.current = true;
           setHasPicture(true);
           setDuration(event.duration ?? 0);
           setStatus("playing");
@@ -203,6 +215,7 @@ export function usePlayerSession({
         void loadResume();
 
         setStatus("resolving");
+        fileLoaded.current = false;
         const cachedStreams = await getOfflineStreams(installmentId, episodeId).catch(() => null);
         const source = await resolvePlayback(installmentId, episodeId, cachedStreams);
         if (cancelled) return;
@@ -256,6 +269,7 @@ export function usePlayerSession({
         resumePositionSeconds.current = tick.current.position;
       }
       switchingSource.current = true;
+      fileLoaded.current = false;
       setStatus("resolving");
       setAttempt(null);
       const ordered = [chosen, ...candidates.filter((candidate) => candidate.id !== candidateId)];

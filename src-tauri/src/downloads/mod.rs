@@ -151,6 +151,8 @@ impl DownloadManager {
           if let Ok(id) = hash_id(&item.info_hash) {
             let _ = self.session.delete(id, false).await;
           }
+          // Placeholders a pack left behind before pruning existed (or after a crash).
+          self.prune_pack_files_without_session(&item);
         }
       }
     }
@@ -180,14 +182,22 @@ impl DownloadManager {
         };
         let stats = handle.stats();
         let live = stats.live.as_ref();
-        item.downloaded_bytes = stats.progress_bytes;
-        item.size_bytes = stats.total_bytes;
+        // Per *file*, not per torrent: two episodes of one season pack share a torrent, and
+        // each must finish on its own. `size_bytes` came from the metadata in `run_add`.
+        let file_done = item
+          .file_idx
+          .and_then(|idx| stats.file_progress.get(idx).copied())
+          .unwrap_or(stats.progress_bytes);
+        item.downloaded_bytes = file_done.min(item.size_bytes.max(file_done));
+        if item.size_bytes == 0 {
+          item.size_bytes = stats.total_bytes;
+        }
         item.download_rate_bps = live.map(|live| live.download_speed.as_bytes()).unwrap_or(0);
         item.peers_connected = live.map(|live| live.snapshot.peer_stats.live).unwrap_or(0);
         if let Some(error) = stats.error.as_ref() {
           item.state = DownloadState::Failed;
           item.error = Some(error.clone());
-        } else if stats.finished {
+        } else if stats.finished || (item.size_bytes > 0 && file_done >= item.size_bytes) {
           finished.push(item.id.clone());
         }
         changed = true;
@@ -287,6 +297,13 @@ impl DownloadManager {
             self.publish().await;
             return Ok(());
           }
+          // Another episode of the same season pack: one torrent, one more selected file.
+          let wanted = self.selected_files_for(&item.info_hash).await;
+          self
+            .session
+            .update_only_files(&handle, &wanted)
+            .await
+            .map_err(download_error)?;
           self
             .session
             .unpause(&handle)
@@ -352,15 +369,90 @@ impl DownloadManager {
   }
 
   async fn complete(&self, id: &str) {
-    let info_hash = match self.registry.lock().await.find(id) {
-      Some(item) => item.info_hash.clone(),
-      None => return,
+    let (item, siblings_active) = {
+      let registry = self.registry.lock().await;
+      let Some(item) = registry.find(id).cloned() else {
+        return;
+      };
+      let active = registry.items.iter().any(|other| {
+        other.id != id
+          && other.info_hash.eq_ignore_ascii_case(&item.info_hash)
+          && !matches!(
+            other.state,
+            DownloadState::Completed | DownloadState::Failed
+          )
+      });
+      (item, active)
     };
-    // Out of the session (uploading is off, so there is nothing left to do) but the files stay.
-    if let Ok(hash) = hash_id(&info_hash) {
+    self.prune_pack_files(&item).await;
+    // Out of the session (uploading is off, so there is nothing left to do) but the files stay —
+    // unless another episode of the same pack is still using this torrent.
+    if !siblings_active && let Ok(hash) = hash_id(&item.info_hash) {
       let _ = self.session.delete(hash, false).await;
     }
     self.set_state(id, DownloadState::Completed, None).await;
+  }
+
+  /// Every file index any non-finished registry item wants from this torrent.
+  async fn selected_files_for(&self, info_hash: &str) -> HashSet<usize> {
+    self
+      .registry
+      .lock()
+      .await
+      .items
+      .iter()
+      .filter(|item| {
+        item.info_hash.eq_ignore_ascii_case(info_hash)
+          && !matches!(item.state, DownloadState::Completed | DownloadState::Failed)
+      })
+      .filter_map(|item| item.file_idx)
+      .collect()
+  }
+
+  /// librqbit creates every file of a multi-file torrent up front (zero-length placeholders)
+  /// and writes the pieces that straddle the selected file's boundaries into its neighbours, so a
+  /// season pack leaves a dozen stubs beside the one episode asked for. Removes every file of
+  /// the torrent that no registry item claims.
+  async fn prune_pack_files(&self, item: &DownloadItem) {
+    let Some(handle) = self.handle_for(&item.info_hash) else {
+      return;
+    };
+    let files: Vec<PathBuf> = handle
+      .with_metadata(|metadata| {
+        metadata
+          .file_infos
+          .iter()
+          .map(|info| info.relative_filename.clone())
+          .collect()
+      })
+      .unwrap_or_default();
+    let claimed: HashSet<PathBuf> = self
+      .registry
+      .lock()
+      .await
+      .items
+      .iter()
+      .filter_map(|entry| entry.path.clone())
+      .collect();
+    for relative in files {
+      let path = item.folder.join(&relative);
+      if claimed.contains(&path) {
+        continue;
+      }
+      match std::fs::remove_file(&path) {
+        Ok(()) => log::info!("pruned unselected pack file {}", path.display()),
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+          log::warn!("could not prune {}: {error}", path.display());
+        }
+        Err(_) => {}
+      }
+      // Pack sub-folders (Extras/, Subs/) left empty go too.
+      if let Some(parent) = path.parent()
+        && parent != item.folder
+      {
+        let _ = std::fs::remove_dir(parent);
+      }
+    }
   }
 
   /// Queues a download for the first torrent candidate the API ranked. Returns the existing
@@ -464,14 +556,33 @@ impl DownloadManager {
       .lock()
       .await
       .remove(&item.info_hash.to_ascii_lowercase());
+    let shared = self
+      .registry
+      .lock()
+      .await
+      .items
+      .iter()
+      .any(|other| other.id != id && other.info_hash.eq_ignore_ascii_case(&item.info_hash));
     if let Ok(hash) = hash_id(&item.info_hash)
-      && self.session.get(hash).is_some()
+      && let Some(handle) = self.session.get(hash)
     {
-      self
-        .session
-        .delete(hash, delete_files)
-        .await
-        .map_err(download_error)?;
+      if shared {
+        // Another episode of the same pack keeps the torrent; just stop wanting this file.
+        let mut wanted = self.selected_files_for(&item.info_hash).await;
+        if let Some(idx) = item.file_idx {
+          wanted.remove(&idx);
+        }
+        if !wanted.is_empty() {
+          let _ = self.session.update_only_files(&handle, &wanted).await;
+        }
+      } else {
+        // Files are removed by hand below so the pack's stubs go with them.
+        self
+          .session
+          .delete(hash, false)
+          .await
+          .map_err(download_error)?;
+      }
     }
     if delete_files {
       if let Some(path) = &item.path {
@@ -479,6 +590,9 @@ impl DownloadManager {
       }
       for subtitle in &item.subtitles {
         let _ = std::fs::remove_file(&subtitle.path);
+      }
+      if !shared {
+        self.prune_pack_files_without_session(&item);
       }
       // A now-empty title folder goes too; a shared one (another episode) stays.
       let _ = std::fs::remove_dir(&item.folder);
@@ -625,6 +739,27 @@ impl DownloadManager {
       .find(id)
       .map(|item| item.info_hash.clone())
       .ok_or_else(|| PlayerError::Download("unknown download".into()))
+  }
+}
+
+impl DownloadManager {
+  /// After the torrent left the session there is no file list to consult, so only the
+  /// zero-length placeholders in the item's folder are safe to remove (nothing else in that
+  /// folder is ours to judge).
+  fn prune_pack_files_without_session(&self, item: &DownloadItem) {
+    let Ok(entries) = std::fs::read_dir(&item.folder) else {
+      return;
+    };
+    for entry in entries.flatten() {
+      let path = entry.path();
+      let empty = entry
+        .metadata()
+        .map(|meta| meta.is_file() && meta.len() == 0)
+        .unwrap_or(false);
+      if empty {
+        let _ = std::fs::remove_file(&path);
+      }
+    }
   }
 }
 

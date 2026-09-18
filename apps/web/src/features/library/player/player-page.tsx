@@ -54,8 +54,10 @@ export function PlayerPage({
   const chrome = useRef<HTMLElement>(null);
   const [panel, setPanel] = useState<PanelKind | null>(null);
   const closePanel = useCallback(() => setPanel(null), []);
-  const canSwitchSubtitles = (preferences?.subtitleMode ?? "off") !== "off";
-  const canSwitchAudio = preferences?.canSwitchTracks ?? false;
+  // No account answer at all (playing a kept download with no server reachable) is not a
+  // "locked profile" — the family-safety gates only mean something when a profile is known.
+  const canSwitchSubtitles = preferences ? preferences.subtitleMode !== "off" : true;
+  const canSwitchAudio = preferences ? preferences.canSwitchTracks : true;
   const showTracks = canSwitchSubtitles || canSwitchAudio;
   /** The `c` shortcut and the bar button share one gate: a locked profile never sees the panel. */
   const openPanel = useCallback(
@@ -215,7 +217,12 @@ export function PlayerPage({
     );
   }
 
-  const label = busyLabel(session.status, session.attempt, session.peers);
+  const label = busyLabel(
+    session.status,
+    session.attempt,
+    session.peers,
+    session.localPath !== null,
+  );
   const activeVideoHash =
     session.candidates.find((candidate) => candidate.id === session.activeCandidateId)?.videoHash ??
     null;

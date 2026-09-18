@@ -1,7 +1,9 @@
 import type { TitleDetail } from "@arcadia/contracts";
 import {
   ArrowRightIcon,
+  CloudArrowDownIcon,
   FilmSlateIcon,
+  HardDriveIcon,
   PlayIcon,
   StarIcon,
   WifiSlashIcon,
@@ -14,6 +16,7 @@ import { taxonomyArabicLabel, taxonomyLabels, type WorkStructure } from "@/featu
 import { kindLabelsAr, valueLabelsAr } from "@/features/library/translations";
 import { cn } from "@/lib/utils";
 import { detailToStructure, titleToWork } from "@/server/compat";
+import { useDownloadFor } from "./downloads/api";
 import { getOfflineTitle } from "./offline-store";
 
 const riskDimensionLabels = {
@@ -189,10 +192,8 @@ export function OfflineTitlePage({ titleId }: { titleId: string }) {
                 episodeId={firstTarget.episodeId}
                 titleId={detail.id}
                 className="mt-5"
-              >
-                <PlayIcon weight="fill" />
-                مشاهدة الآن
-              </OfflinePlayLink>
+                hero
+              />
             )}
           </div>
         </div>
@@ -408,19 +409,31 @@ function firstPlaybackTarget(detail: TitleDetail) {
   return null;
 }
 
+/**
+ * Says *how* the unit would play, because offline that is the whole question: a kept download
+ * plays from disk with no network at all; anything else needs the torrent swarm (not Arcadia's
+ * server — the candidates were cached at save time — but an internet connection).
+ */
 function OfflinePlayLink({
   installmentId,
   episodeId,
   titleId,
   className,
+  hero = false,
   children,
 }: {
   installmentId: string;
   episodeId: string | null;
   titleId: string;
   className?: string;
-  children: ReactNode;
+  hero?: boolean;
+  children?: ReactNode;
 }) {
+  const download = useDownloadFor(installmentId, episodeId);
+  const local = download?.state === "completed" && Boolean(download.path);
+  const title = local
+    ? `من هذا الجهاز — ${download?.path ?? ""}`
+    : "عبر التورنت — يحتاج اتصالاً بالإنترنت، لا بخادم العائلة";
   return (
     <Link
       to="/player/$installmentId"
@@ -430,12 +443,23 @@ function OfflinePlayLink({
         episodeId,
         origin: `/offline/${titleId}`,
       }}
+      title={title}
       className={cn(
-        "inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90",
+        "inline-flex items-center gap-2 rounded-full text-sm font-semibold transition-colors",
+        hero ? "h-10 px-5" : "h-8 px-3 text-xs",
+        local
+          ? "bg-primary text-primary-foreground hover:bg-primary/90"
+          : "border border-border bg-background/60 text-foreground hover:bg-accent",
         className,
       )}
     >
-      {children}
+      {children ?? (
+        <>
+          {local ? <HardDriveIcon weight="fill" /> : <CloudArrowDownIcon />}
+          {hero ? "مشاهدة الآن" : "تشغيل"}
+          <span className="font-normal opacity-80">{local ? "· من الجهاز" : "· تورنت"}</span>
+        </>
+      )}
     </Link>
   );
 }
@@ -533,10 +557,7 @@ function StructureList({ detail, structure }: { detail: TitleDetail; structure: 
                             installmentId={season.id}
                             episodeId={unit.id}
                             titleId={detail.id}
-                          >
-                            <PlayIcon weight="fill" />
-                            تشغيل
-                          </OfflinePlayLink>
+                          />
                         )}
                       </div>
                     </li>
