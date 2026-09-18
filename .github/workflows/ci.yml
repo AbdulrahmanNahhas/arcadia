@@ -69,11 +69,13 @@ jobs:
       - name: Run database migrations
         run: pnpm db:migrate
 
-      # oxlint/Biome carry pre-existing debt from before this workflow existed (tracked
-      # separately) — informational for now so it does not block an otherwise-green PR. Typecheck,
-      # tests, the Rust checks, and the production build are the real gates.
-      - name: Lint (informational)
-        continue-on-error: true
+      # The API suites sign in as the seeded demo accounts and read seeded vocabularies
+      # (ARCADIA_SEED_DEMO_ACCOUNTS=true above), exactly like a fresh `devenv up` machine.
+      - name: Seed the test database
+        run: pnpm db:seed
+
+      # Lint debt reached zero on 2026-09-14 (docs/v0.3.5.md §1.0); `pnpm check` is a real gate.
+      - name: Lint
         run: pnpm lint:oxlint && pnpm exec biome check .
 
       - name: Typecheck
