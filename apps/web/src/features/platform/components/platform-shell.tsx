@@ -33,6 +33,7 @@ import {
 import { AccountAvatar } from "@/features/accounts/account-avatar";
 import { useCurrentAccount } from "@/features/accounts/api";
 import { rememberDeviceProfile } from "@/features/accounts/device-profiles";
+import { useDownloadMirror } from "@/features/library/downloads/mirror";
 import { useIsDesktopShell } from "@/features/library/play-button";
 import { signOut as clearSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,7 @@ export function PlatformShell({
   const account = data?.account;
   const isAdmin = account?.role === "owner" || account?.role === "editor";
   const desktop = useIsDesktopShell();
+  useDownloadMirror();
 
   useEffect(() => {
     if (account) rememberDeviceProfile(account, window.localStorage);

@@ -32,6 +32,7 @@ import { database, databaseReady } from "./database";
 import { accountRoutes, currentFamilyAccount } from "./features/accounts/routes";
 import { archiveRoutes } from "./features/archive/routes";
 import { awardRoutes } from "./features/awards/routes";
+import { downloadRoutes } from "./features/downloads/routes";
 import { socialRoutes } from "./features/social/routes";
 import {
   applyTitleWrite,
@@ -159,6 +160,7 @@ app.use("/api/v1/admin/*", async (context, next) => {
 app.route("/", accountRoutes);
 app.route("/", awardRoutes);
 app.route("/", archiveRoutes);
+app.route("/", downloadRoutes);
 app.route("/", socialRoutes);
 
 const errorSchema = z.object({ message: z.string() });

@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -1064,6 +1065,46 @@ export const accountTitleStates = pgTable(
     check(
       "account_title_states_rating_check",
       sql`${t.personalRating} is null or ${t.personalRating} between 1 and 5`,
+    ),
+  ],
+);
+/**
+ * Kept downloads, mirrored from each device's own registry (`src-tauri/src/downloads`). The
+ * file lives on one device — `path` is that device's path and `device_id` its install id — so
+ * this table never decides what plays; it only lets another device (or the admin) see that "the
+ * living-room box has episode 3 on disk". Rows are written best-effort by the desktop app and
+ * disappear when it removes the download.
+ */
+export const accountDownloads = pgTable(
+  "account_downloads",
+  {
+    ...id,
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    installmentId: uuid("installment_id")
+      .notNull()
+      .references(() => installments.id, { onDelete: "cascade" }),
+    episodeId: uuid("episode_id").references(() => episodes.id, { onDelete: "cascade" }),
+    deviceId: text("device_id").notNull(),
+    deviceName: text("device_name").notNull().default(""),
+    path: text("path").notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }).notNull().default(0),
+    state: text("state").notNull().default("completed"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("account_downloads_unit_uq").on(
+      t.accountId,
+      t.deviceId,
+      t.installmentId,
+      sql`coalesce(${t.episodeId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
+    ),
+    index("account_downloads_installment_idx").on(t.installmentId),
+    index("account_downloads_episode_idx").on(t.episodeId),
+    check(
+      "account_downloads_state_check",
+      sql`${t.state} in ('queued', 'downloading', 'paused', 'completed', 'failed')`,
     ),
   ],
 );

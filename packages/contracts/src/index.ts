@@ -662,6 +662,26 @@ export const titleCommentSchema = z.object({
   updatedAt: z.string(),
 });
 export const socialReactionSchema = z.enum(["heart", "clap", "laugh", "wow", "think"]);
+export const downloadStateSchema = z.enum([
+  "queued",
+  "downloading",
+  "paused",
+  "completed",
+  "failed",
+]);
+/** One device's kept download of a film or episode — see `account_downloads` in schema.ts. */
+export const accountDownloadSchema = z.object({
+  id: z.string().uuid(),
+  installmentId: z.string().uuid(),
+  episodeId: z.string().uuid().nullable(),
+  deviceId: z.string().min(1).max(64),
+  deviceName: z.string().max(120),
+  path: z.string().max(4096),
+  sizeBytes: z.number().int().min(0),
+  state: downloadStateSchema,
+  updatedAt: z.string(),
+});
+export const upsertDownloadInputSchema = accountDownloadSchema.omit({ id: true, updatedAt: true });
 export const upsertTitleStateInputSchema = z.object({
   isFavorite: z.boolean().optional(),
   personalRating: z.number().int().min(1).max(5).nullable().optional(),
@@ -1106,6 +1126,8 @@ export type CreateInviteInput = z.infer<typeof createInviteInputSchema>;
 export type AdminUpdateAccountInput = z.infer<typeof adminUpdateAccountInputSchema>;
 export type AccountRestrictionEditor = z.infer<typeof accountRestrictionEditorSchema>;
 export type AccountTitleState = z.infer<typeof accountTitleStateSchema>;
+export type AccountDownload = z.infer<typeof accountDownloadSchema>;
+export type UpsertDownloadInput = z.infer<typeof upsertDownloadInputSchema>;
 export type UpsertPlaybackInput = z.infer<typeof upsertPlaybackInputSchema>;
 export type AccountPlaybackState = z.infer<typeof accountPlaybackStateSchema>;
 export type MarkPlayedInput = z.infer<typeof markPlayedInputSchema>;

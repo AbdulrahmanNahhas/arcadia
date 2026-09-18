@@ -18,6 +18,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import { PlatformShell } from "@/features/platform/components/platform-shell";
 import { cn } from "@/lib/utils";
 import { useIsDesktopShell } from "../play-button";
@@ -32,6 +33,7 @@ import {
   revealDownload,
   useDownloads,
 } from "./api";
+import { readDeviceName, writeDeviceName } from "./mirror";
 
 /**
  * `/downloads` — every video this device keeps on disk, with the exact path of each file. The
@@ -41,6 +43,7 @@ export function DownloadsPage() {
   const desktop = useIsDesktopShell();
   const { dir, items } = useDownloads();
   const [dirError, setDirError] = useState<string | null>(null);
+  const [deviceName, setDeviceName] = useState(() => (desktop ? readDeviceName() : ""));
 
   const sorted = items.toSorted((a, b) => b.createdAtMs - a.createdAtMs);
   const usedBytes = items.reduce((sum, item) => sum + item.downloadedBytes, 0);
@@ -128,6 +131,17 @@ export function DownloadsPage() {
                 تغيير المجلد يؤثر على التنزيلات الجديدة فقط؛ الملفات الموجودة تبقى حيث هي. كل عمل
                 يحصل على مجلد فرعي باسمه.
               </p>
+              <label className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+                <span className="text-xs text-muted-foreground">
+                  اسم هذا الجهاز كما يراه أفراد العائلة
+                </span>
+                <Input
+                  className="h-8 max-w-56"
+                  value={deviceName}
+                  onChange={(event) => setDeviceName(event.target.value)}
+                  onBlur={() => writeDeviceName(deviceName)}
+                />
+              </label>
             </section>
 
             {sorted.length === 0 ? (
