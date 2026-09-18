@@ -429,7 +429,7 @@ const variants = {
     art: (work: Work) => work.logoPath || work.imagePath,
     aspect: "aspect-square",
     radius: "rounded-xl",
-    fit: "object-contain p-5",
+    fit: "object-contain p-2",
     width: "",
     facts: 2,
     actions: false,

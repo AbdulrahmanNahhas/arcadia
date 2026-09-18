@@ -536,7 +536,7 @@ function SettingsSection({
 }
 
 /** English/Arabic/Spanish/Japanese — the same curated set the player's own audio-track picker
- *  already limits itself to (`knownLanguageTracks` in `desktop-player.ts`). */
+ *  the player offers by default (`CURATED_AUDIO_LANGUAGES` in `library/player/languages.ts`). */
 const audioLanguageOptions = [
   ["none", "بدون"],
   ["en", "الإنجليزية"],

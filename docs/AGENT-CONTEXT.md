@@ -70,7 +70,8 @@ biome format --write <paths>           # format only what you touched
 | `features/accounts/` | `api.ts` (`accountKeys`, `useCurrentAccount`), `auth-boundary.tsx`, login/invite pages | |
 | `features/platform/` | Home, browse (`database-page.tsx`), detail (`work-detail-page.tsx`, 2454 lines), entities pages, `spatial-navigation.tsx` (the D-pad engine to be replaced in Phase C), `components/` (work-card, rails, platform-shell, global-search) | |
 | `features/archive/` | My Space (`archive-hub-page.tsx`), `api.ts` (`archiveKeys`) | duplicates three Platform rails — E4 |
-| `features/library/` | player (`player-page.tsx`, `player-controls.tsx`), compare, offline, `model.ts` (v1 types, dies with compat) | player is the best-engineered code in the repo; don't rewrite it |
+| `features/library/` | `player/` (see below), compare, offline, `model.ts` (v1 types, dies with compat) | player lifecycle/IPC is the best-engineered code in the repo; don't rewrite it |
+| `features/library/player/` | `player-page.tsx` composes only; `hooks/` (`use-player-session` lifecycle+IPC, `use-player-actions` transport, `use-player-shortcuts` keyboard/D-pad model, `use-overlay-regions` X11 cut-outs, `use-controls-visibility`, `use-progress-persistence`, `use-playhead-paint`), `components/` (top bar, control bar, timeline, mobile transport, overlays), `panels/` (`panel-shell` modal + D-pad walk; tracks, subtitles, speed, source, episodes, more), `languages.ts` (flags/labels/aliases), `track-groups.ts` (group-by-language + show-all), `episodes.ts` | every panel is a `PanelShell`; every focusable control carries `data-player-control` and sits in a `data-control-row`; anything drawn over the picture carries `data-video-overlay` |
 | `features/admin/` | `admin-shell.tsx` (role gate), `pages/`, `components/editor-form/` (2434 lines), `json-editor/` | |
 | `features/profiles/` | `settings-page.tsx` (theme UI at the "appearance" tab), `profiles-page.tsx` | |
 | `features/social/`, `features/awards/`, `features/catalog/`, `features/entities/` | as named | |
@@ -135,8 +136,12 @@ biome format --write <paths>           # format only what you touched
 - **Artwork chips.** Elements sitting on posters/banners intentionally use `black`/`white`
   utilities regardless of theme. They carry `data-on-artwork` (A4). Grep for it before
   "fixing" them.
-- **Player.** `player-page.tsx` uses refs + rAF for the playhead and a Rust-side 4 Hz tick. Don't
-  convert it to state. `body.arcadia-player-open` paints the body opaque black.
+- **Player.** `player/hooks/use-playhead-paint.ts` uses refs + rAF for the playhead and a Rust-side
+  4 Hz tick. Don't convert it to state. `body.arcadia-player-open` paints the body opaque black.
+  Panels are opaque (`bg-neutral-900`) on purpose — the X11 surface cannot blend, so there is no
+  glass over the video. The spatial-navigation engine `preventDefault`s Enter/arrows window-wide,
+  so player key handling clicks focused controls itself (`use-player-shortcuts.ts`,
+  `panel-shell.tsx`). `GET ./subtitles?languages=all` lifts the ar/en default filter.
 - **Core dumps.** `core.*` in the repo root are gitignored crash dumps from the Tauri shell.
   Delete them; investigate with Phase T1.
 - **Generated files.** `routeTree.gen.ts`, `contracts/src/generated.ts` — regenerate, never edit.

@@ -59,7 +59,7 @@ import {
   catalogGroupByOptions,
   groupWorks,
 } from "@/features/catalog/catalog-grouping";
-import type { Work } from "@/features/library/model";
+import { type Work, type WorkKind, workKinds } from "@/features/library/model";
 import { scoreCriterionLabels } from "@/features/library/scoring";
 import { usePersistedState } from "@/lib/use-persisted-state";
 import { cn } from "@/lib/utils";
@@ -70,6 +70,7 @@ import {
   getPlatformCatalogInstallments,
   getPlatformCatalogWorks,
 } from "@/server/platform.functions";
+import { kindLabels } from "../library/filtering";
 import { PlatformShell } from "./components/platform-shell";
 import { WorkCard } from "./components/work-card";
 import { useWorkTableColumns, WorkTable, WorkTableColumnPicker } from "./components/work-table";
@@ -77,7 +78,9 @@ import { useWorkTableColumns, WorkTable, WorkTableColumnPicker } from "./compone
 type CatalogGridView = "poster" | "banner" | "logo";
 type CatalogView = CatalogGridView | "table";
 type CatalogDensity = 1 | 2 | 3 | 4 | 5;
+
 type CatalogMode = "titles" | "installments";
+type CatalogKind = "all" | WorkKind;
 type CatalogSort =
   | "newest"
   | "oldest"
@@ -218,6 +221,7 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
   );
   const [query, setQuery] = useState(initialQuery);
   const [mode, setMode] = useState<CatalogMode>("installments");
+  const [kind, setKind] = useState<CatalogKind>("all");
   const [sort, setSort] = useState<CatalogSort>("newest");
   const [view, setView] = usePersistedState<CatalogView>("arcadia:browse:view", "poster");
   const [density, setDensity] = usePersistedState<CatalogDensity>("arcadia:browse:density", 3);
@@ -261,12 +265,13 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
       sortWorks(
         catalogWorks.filter(
           (work) =>
+            (kind === "all" || work.kind === kind) &&
             workMatchesCatalogFilters(work, filters, watchContext) &&
             matchesQuery(work, normalizedQuery),
         ),
         sort,
       ),
-    [catalogWorks, filters, normalizedQuery, sort, watchContext],
+    [catalogWorks, filters, kind, normalizedQuery, sort, watchContext],
   );
   const groups = useMemo(
     () => groupWorks(visibleWorks, groupBy, sort !== "oldest", planetsById),
@@ -569,6 +574,37 @@ export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
                     </Button>
                   )}
                 </div>
+
+                <ToggleGroup
+                  value={[kind]}
+                  multiple={false}
+                  variant="outline"
+                  size="sm"
+                  spacing={0}
+                  aria-label="نوع العنوان"
+                  disabled={!interactive}
+                  onValueChange={(values) => {
+                    if (values[0]) setKind(values[0] as CatalogKind);
+                  }}
+                  className="hidden h-10 shrink-0 rounded-xl border border-border/50 bg-muted/30 p-1 sm:flex"
+                >
+                  <ToggleGroupItem
+                    value="all"
+                    className="h-8 rounded-lg px-3.5 text-xs font-medium transition-all data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-xs"
+                  >
+                    الكل
+                  </ToggleGroupItem>
+
+                  {workKinds.map((workKind) => (
+                    <ToggleGroupItem
+                      key={workKind}
+                      value={workKind}
+                      className="h-8 rounded-lg px-3.5 text-xs font-medium transition-all data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-xs"
+                    >
+                      {kindLabels[workKind]}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
 
                 {/* Result Count Status */}
                 <div className="ms-auto flex items-center gap-1.5 px-2 text-xs font-medium text-muted-foreground">

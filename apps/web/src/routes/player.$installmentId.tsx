@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { PlayerPage } from "@/features/library/player-page";
+import { PlayerPage } from "@/features/library/player/player-page";
 
 /**
  * The player is deliberately outside the platform shell: it renders over a transparent document

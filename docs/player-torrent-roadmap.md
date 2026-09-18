@@ -911,12 +911,16 @@ Because the video is a native surface inside our own window, PiP is a window-sta
 
 **Status:** Not started (not the primary source yet)
 
-**Catalog note (2026-08-29):** the user has decided the ~49 titles below — mostly older
-dubbed/classic children's anime and a few long-runners — should be **Jellyfin-only**: no torrent
-IMDb/TMDB id backfill effort should be spent on them, since they are expected to be served from
-the family's own Jellyfin library once this phase lands, not resolved through Torrentio. Recorded
-here rather than left only in chat so Phase 0.5-style backfill work and this phase both know to
-skip them:
+**Catalog note (2026-08-29, revised 2026-09-18):** the user has decided the 54 titles below —
+mostly older dubbed/classic children's anime and a few long-runners — should be **Jellyfin-only**:
+no torrent IMDb/TMDB id backfill effort should be spent on them, since they are expected to be
+served from the family's own Jellyfin library once this phase lands, not resolved through
+Torrentio. Recorded here rather than left only in chat so Phase 0.5-style backfill work and this
+phase both know to skip them. On 2026-09-18 the user gave a revised list: 7 titles added (Hello!
+Sandybell, Jungle Book Shounen Mowgli, Magical Princess Minky Momo, My Big Big Friend, My Daddy
+Long Legs, Tales of Tatonka, The Mischievous Twins) and 2 dropped from the original 49 (Haikyuu!!,
+The Marshmallow Times) — those two are **not** on the new list and so are back in scope for normal
+IMDb/TMDB backfill, not Jellyfin-only, unless the user says otherwise:
 
 Aesop's Fables (`c8baa5ea-1710-4aec-b15d-5208ef40aae8`), Anne of Green Gables
 (`24a409c2-998e-46a1-ba0a-c38a9a752339`), Arabian Nights: Sinbad's Adventures
@@ -931,16 +935,22 @@ Doraemon (2005) (`7a488b30-ee91-40d1-997f-babdf90dc3e7`), Dragon Quest: The Adve
 (`434abafb-9780-43f9-bc91-045116331738`), Eon Kid / Iron Kid
 (`95848c30-981b-4351-a191-a607fa2dab23`), Fairy Tales of the World
 (`6ace250e-21e6-4eee-a74e-16ba3c39b558`), Future Boy Conan (`0410de35-536d-4906-a402-d977661dfa47`),
-Grimm's Fairy Tale Classics (`710865f5-a426-4336-9d23-301245213dca`), Haikyuu!!
-(`81099275-5496-4ac8-b0d7-e82b3d1aeeeb`), Hamtaro (`6375a3ff-94a5-4a84-84d8-50500d4df740`), Heidi,
-Girl of the Alps (`9ceaf29f-e8bb-4bab-89b3-f992e505c87b`), Hello Anne: Before Green Gables
-(`cec4fee8-134b-4412-9225-d6f352b8f6ab`), Inazuma Eleven (`1154237d-77be-4153-b195-f2156c8d4f4f`),
-LBX: Little Battlers eXperience (`74fac49f-e90b-41c0-b655-2334b1d585b7`), Les Misérables: Shoujo
+Grimm's Fairy Tale Classics (`710865f5-a426-4336-9d23-301245213dca`), Hamtaro
+(`6375a3ff-94a5-4a84-84d8-50500d4df740`), Heidi, Girl of the Alps
+(`9ceaf29f-e8bb-4bab-89b3-f992e505c87b`), Hello Anne: Before Green Gables
+(`cec4fee8-134b-4412-9225-d6f352b8f6ab`), Hello! Sandybell
+(`a6548134-511c-470e-9285-88dae50ef7d7`), Inazuma Eleven
+(`1154237d-77be-4153-b195-f2156c8d4f4f`), Jungle Book Shounen Mowgli
+(`514a1a57-bfd6-4c16-af65-7a551babcd58`), LBX: Little Battlers eXperience
+(`74fac49f-e90b-41c0-b655-2334b1d585b7`), Les Misérables: Shoujo
 Cosette (`537cd6c8-3c4f-4cc0-85f6-123952b03a93`), Little Women II: Jo's Boys
 (`76c0a584-9eee-438e-a3f7-f371467cacdf`), Lucy-May of the Southern Rainbow
-(`eaf49135-ab76-44f4-abf8-e809d1690ca4`), Mama is a 4th Grader
+(`eaf49135-ab76-44f4-abf8-e809d1690ca4`), Magical Princess Minky Momo
+(`94825a9b-64d3-4ecb-a3b2-3c5f42f771cd`), Mama is a 4th Grader
 (`95d1fb66-bc4c-42d0-903e-f76248d2b030`), Maya the Bee (`6eab6fe1-4a9b-4d0e-8d36-b887c4722ea7`),
-Muka Muka Paradise (`9991f774-fe29-47a8-8449-3aebb67779c2`), Once Upon a Time... Life
+Muka Muka Paradise (`9991f774-fe29-47a8-8449-3aebb67779c2`), My Big Big Friend
+(`34de0233-41db-4f0e-985e-c2d302049dd2`), My Daddy Long Legs
+(`5c9d515c-421f-442a-a880-ff1c89360de0`), Once Upon a Time... Life
 (`915bce4c-2ae6-4664-bcd4-eee7867baaa6`), Pipero's Adventures
 (`f0095a23-d6da-49e8-9485-e77bf6203555`), Princess Sara / Little Princess Sara
 (`da40457e-a75e-4aff-8daf-49729cc26581`), Remi, Nobody's Girl
@@ -948,9 +958,10 @@ Muka Muka Paradise (`9991f774-fe29-47a8-8449-3aebb67779c2`), Once Upon a Time...
 (`30ddb323-9c7b-4bcb-949d-e606a9304114`), Romance of the Three Kingdoms
 (`a8d4cc64-2176-4781-83e1-6b697114f2b2`), Romeo and the Black Brothers
 (`b36c5e34-807f-449a-a274-ccc7726e1744`), Sonic X (`7130871c-ca7e-4a45-baaf-bebfe2a49aba`), Tales
-of Little Women (`76842f99-bf52-40a9-a4ee-dd5c1af64177`), The Adventures of Tom Sawyer
-(`1f9f7e15-fdac-491a-8003-b6209b8a0d58`), The Marshmallow Times
-(`4c266c72-8f87-4fc0-8363-16fe9fa6693f`), The Mysterious Cities of Gold
+of Little Women (`76842f99-bf52-40a9-a4ee-dd5c1af64177`), Tales of Tatonka
+(`589083e2-aced-4b7e-85bb-0b91e60de9fb`), The Adventures of Tom Sawyer
+(`1f9f7e15-fdac-491a-8003-b6209b8a0d58`), The Mischievous Twins
+(`df98df69-7873-4e7b-803d-ff522473d23c`), The Mysterious Cities of Gold
 (`cc81178f-922e-4867-89b5-0da1107b320d`), The Secret Garden (`c1108174-490e-4b73-bf5d-0b2a75dd38cf`),
 The Story of Pollyanna, Girl of Love (`703df859-8870-4fa8-aa7e-81b0db895add`), The Swiss Family
 Robinson: Flone of the Mysterious Island (`12a766e3-88ac-4f8e-b77c-325f5365509d`), The World's Most

@@ -36,7 +36,7 @@ export function ValidationPage() {
         </CardHeader>
         <CardContent className="min-w-0">
           {issues.length ? (
-            <Table className="min-w-[58rem]">
+            <Table className="min-w-232">
               <TableHeader>
                 <TableRow>
                   <TableHead>المستوى</TableHead>

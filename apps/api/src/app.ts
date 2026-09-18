@@ -861,7 +861,13 @@ app.openapi(installmentSubtitlesRoute, async (context) => {
     episode,
     videoHash: videoHash ?? null,
     videoSize: null,
-    languages: languages ? languages.split(",").map((value: string) => value.trim()) : ["ar", "en"],
+    // `all` lifts the default filter: the player's "search every language" toggle.
+    languages:
+      languages === "all"
+        ? []
+        : languages
+          ? languages.split(",").map((value: string) => value.trim())
+          : ["ar", "en"],
   });
   if (!candidates) {
     return context.json(

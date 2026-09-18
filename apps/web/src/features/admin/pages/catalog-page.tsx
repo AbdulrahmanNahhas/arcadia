@@ -6,7 +6,7 @@ import {
   TrashIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +26,10 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
 import { BulkEditDialog } from "@/features/admin/components/bulk-edit";
+import { archiveKeys, getContinueWatching } from "@/features/archive/api";
 import {
   buildCatalogFacetOptions,
+  type CatalogWatchContext,
   createCatalogFilters,
   workMatchesCatalogFilters,
 } from "@/features/catalog/catalog-filtering";
@@ -48,19 +50,40 @@ export function AdminCatalogPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
-  const facetOptions = useMemo(() => buildCatalogFacetOptions(works), [works]);
+  // Same per-account request the public browse page's watch-state facet reads — an admin's own
+  // watched/in-progress titles, so the catalog table can filter by them too.
+  const { data: continueWatching } = useQuery({
+    queryKey: archiveKeys.continueWatching,
+    queryFn: getContinueWatching,
+    staleTime: 30_000,
+  });
+  const watchContext = useMemo<CatalogWatchContext>(
+    () => ({
+      watchedTitleIds: new Set(continueWatching?.watchedTitleIds ?? []),
+      watchedInstallmentIds: new Set(continueWatching?.watchedInstallmentIds ?? []),
+      inProgressTitleIds: new Set(continueWatching?.inProgress.map((item) => item.titleId) ?? []),
+      inProgressInstallmentIds: new Set(
+        continueWatching?.inProgress.map((item) => item.installmentId) ?? [],
+      ),
+    }),
+    [continueWatching],
+  );
+  const facetOptions = useMemo(
+    () => buildCatalogFacetOptions(works, watchContext),
+    [works, watchContext],
+  );
   const visible = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return works.filter(
       (work) =>
-        workMatchesCatalogFilters(work, filters) &&
+        workMatchesCatalogFilters(work, filters, watchContext) &&
         (!query ||
           [work.title, work.arabicTitle ?? "", ...work.aliases]
             .join(" ")
             .toLocaleLowerCase()
             .includes(query)),
     );
-  }, [filters, search, works]);
+  }, [filters, search, works, watchContext]);
   const visibleIds = visible.map(({ id }) => id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const refresh = async () => {

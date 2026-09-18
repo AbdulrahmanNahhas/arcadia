@@ -194,50 +194,6 @@ export async function listPlayerTracks(type: "audio" | "sub"): Promise<PlayerTra
   return tracks;
 }
 
-/**
- * The only languages the family actually wants offered in the audio/subtitle menus, keyed by
- * every code mpv/ffmpeg is known to report for them (ISO 639-1 and 639-2, both seen in the wild
- * across different muxers) — a track in any other language exists in the file but is hidden from
- * the menu entirely, not shown-and-disabled the way an `allowedAudio` restriction used to. That
- * restriction was cut from this picker for exactly this bug: a language outside it stayed visibly
- * "selected" (mpv itself may default to a Japanese dub, say) yet permanently unclickable, with no
- * way back to it once switched away — this fixed set replaces it with an honest "not offered at
- * all" instead.
- */
-const AUDIO_TRACK_LANGUAGES = new Map([
-  ["ar", "العربية"],
-  ["ara", "العربية"],
-  ["en", "الإنجليزية"],
-  ["eng", "الإنجليزية"],
-  ["ja", "اليابانية"],
-  ["jpn", "اليابانية"],
-  ["es", "الإسبانية"],
-  ["spa", "الإسبانية"],
-]);
-
-/** Arabic and English only, per the same "don't show other options" rule as the audio menu. */
-const SUBTITLE_TRACK_LANGUAGES = new Map([
-  ["ar", "العربية"],
-  ["ara", "العربية"],
-  ["en", "الإنجليزية"],
-  ["eng", "الإنجليزية"],
-]);
-
-/**
- * Filters `tracks` down to the curated language set for `kind`, attaching the Arabic label to
- * show instead of the raw ISO code or (often absent/unhelpful) container title.
- */
-export function knownLanguageTracks(
-  tracks: PlayerTrack[],
-  kind: "audio" | "sub",
-): Array<PlayerTrack & { label: string }> {
-  const languages = kind === "audio" ? AUDIO_TRACK_LANGUAGES : SUBTITLE_TRACK_LANGUAGES;
-  return tracks.flatMap((track) => {
-    const label = track.lang ? languages.get(track.lang.toLowerCase()) : undefined;
-    return label ? [{ ...track, label }] : [];
-  });
-}
-
 /** Fullscreen is a core Tauri API, so it is the one thing here that needs a capability entry. */
 export async function setFullscreen(fullscreen: boolean): Promise<void> {
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
