@@ -911,16 +911,17 @@ Because the video is a native surface inside our own window, PiP is a window-sta
 
 **Status:** Not started (not the primary source yet)
 
-**Catalog note (2026-08-29, revised 2026-09-18):** the user has decided the 54 titles below —
+**Catalog note (2026-08-29, revised 2026-09-18):** the user has decided the 56 titles below —
 mostly older dubbed/classic children's anime and a few long-runners — should be **Jellyfin-only**:
 no torrent IMDb/TMDB id backfill effort should be spent on them, since they are expected to be
 served from the family's own Jellyfin library once this phase lands, not resolved through
 Torrentio. Recorded here rather than left only in chat so Phase 0.5-style backfill work and this
 phase both know to skip them. On 2026-09-18 the user gave a revised list: 7 titles added (Hello!
 Sandybell, Jungle Book Shounen Mowgli, Magical Princess Minky Momo, My Big Big Friend, My Daddy
-Long Legs, Tales of Tatonka, The Mischievous Twins) and 2 dropped from the original 49 (Haikyuu!!,
-The Marshmallow Times) — those two are **not** on the new list and so are back in scope for normal
-IMDb/TMDB backfill, not Jellyfin-only, unless the user says otherwise:
+Long Legs, Tales of Tatonka, The Mischievous Twins), 2 dropped from the original 49 (Haikyuu!!, The
+Marshmallow Times), then in the same session the user put Haikyuu!! back plus added My Hero
+Academia — both are Jellyfin-only again. The Marshmallow Times remains dropped (in scope for
+normal IMDb/TMDB backfill) unless the user says otherwise:
 
 Aesop's Fables (`c8baa5ea-1710-4aec-b15d-5208ef40aae8`), Anne of Green Gables
 (`24a409c2-998e-46a1-ba0a-c38a9a752339`), Arabian Nights: Sinbad's Adventures
@@ -935,7 +936,8 @@ Doraemon (2005) (`7a488b30-ee91-40d1-997f-babdf90dc3e7`), Dragon Quest: The Adve
 (`434abafb-9780-43f9-bc91-045116331738`), Eon Kid / Iron Kid
 (`95848c30-981b-4351-a191-a607fa2dab23`), Fairy Tales of the World
 (`6ace250e-21e6-4eee-a74e-16ba3c39b558`), Future Boy Conan (`0410de35-536d-4906-a402-d977661dfa47`),
-Grimm's Fairy Tale Classics (`710865f5-a426-4336-9d23-301245213dca`), Hamtaro
+Grimm's Fairy Tale Classics (`710865f5-a426-4336-9d23-301245213dca`), Haikyuu!!
+(`81099275-5496-4ac8-b0d7-e82b3d1aeeeb`), Hamtaro
 (`6375a3ff-94a5-4a84-84d8-50500d4df740`), Heidi, Girl of the Alps
 (`9ceaf29f-e8bb-4bab-89b3-f992e505c87b`), Hello Anne: Before Green Gables
 (`cec4fee8-134b-4412-9225-d6f352b8f6ab`), Hello! Sandybell
@@ -950,7 +952,8 @@ Cosette (`537cd6c8-3c4f-4cc0-85f6-123952b03a93`), Little Women II: Jo's Boys
 (`95d1fb66-bc4c-42d0-903e-f76248d2b030`), Maya the Bee (`6eab6fe1-4a9b-4d0e-8d36-b887c4722ea7`),
 Muka Muka Paradise (`9991f774-fe29-47a8-8449-3aebb67779c2`), My Big Big Friend
 (`34de0233-41db-4f0e-985e-c2d302049dd2`), My Daddy Long Legs
-(`5c9d515c-421f-442a-a880-ff1c89360de0`), Once Upon a Time... Life
+(`5c9d515c-421f-442a-a880-ff1c89360de0`), My Hero Academia
+(`0ffb0164-99af-40da-a3f6-93b985c3094d`), Once Upon a Time... Life
 (`915bce4c-2ae6-4664-bcd4-eee7867baaa6`), Pipero's Adventures
 (`f0095a23-d6da-49e8-9485-e77bf6203555`), Princess Sara / Little Princess Sara
 (`da40457e-a75e-4aff-8daf-49729cc26581`), Remi, Nobody's Girl
