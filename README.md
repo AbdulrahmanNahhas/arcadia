@@ -173,6 +173,26 @@ can't execute on a non-NixOS machine at all, and Tauri's own AppImage step downl
 produces something runnable on a real standard-distro machine — locally, `pnpm tauri dev` is the
 supported way to run the app; for an actual installable bundle, see "Releases and updates" below.
 
+### Where Arcadia keeps data on your device
+
+Nothing is hidden inside the app bundle; every byte the desktop app keeps is a plain file under
+one of these directories (Linux paths; the Tauri identifier is `com.arcadia.desktop`):
+
+| What | Where | Lifetime |
+| --- | --- | --- |
+| **Downloaded videos** (Downloads page) | `~/Videos/Arcadia/<title>/…` by default — change it from التنزيلات → تغيير المجلد. Subtitles sit beside each video as `<name>.ar.srt` / `<name>.en.srt`. | Yours; only "إزالة وحذف الملف" removes them |
+| Download registry (what is kept, where, state) | `~/.local/share/com.arcadia.desktop/downloads.json` | With the app data |
+| Torrent resume state for unfinished downloads | `~/.local/share/com.arcadia.desktop/torrent-session/` | Deleted when a download finishes or is removed |
+| Saved titles (metadata + posters, "احفظ دون اتصال") | The WebKitGTK profile under `~/.local/share/com.arcadia.desktop/` (IndexedDB database `arcadia-offline`) | Until unsaved from the title/card/My Space |
+| Session token, server address, theme, device name | `localStorage` in the same profile (`arcadia:*` keys) | Until sign-out / reset |
+| Streaming cache (the film being watched right now) | `~/.cache/com.arcadia.desktop/streams/` | Wiped when playback stops and on every launch |
+| Downloaded subtitle files for streams | `~/.cache/com.arcadia.desktop/subtitles/` | Cache |
+| Crash dumps | `core.<pid>` next to the launch directory | Delete them (see "Desktop (Tauri)") |
+
+In a plain browser (`pnpm dev`, or the web container) the saved-titles store and the `arcadia:*`
+keys live in that browser's own profile; downloads are desktop-only. On the server, artwork is
+`~/arcadia/media` and the database is the `arcadia-pgdata` volume (see "Self-hosting").
+
 ### Releases and updates
 
 `.github/workflows/release.yml` builds the desktop bundle on `ubuntu-latest`, signs it, creates a
