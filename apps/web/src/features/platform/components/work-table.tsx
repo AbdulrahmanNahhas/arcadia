@@ -25,6 +25,8 @@ import { usePersistedState } from "@/lib/use-persisted-state";
 import { kindLabel as workKindLabel } from "./work-card";
 
 type ColumnId =
+  | "title"
+  | "arabicTitle"
   | "kind"
   | "year"
   | "releaseStatus"
@@ -37,7 +39,10 @@ type ColumnId =
   | "studios"
   | "country"
   | "tags"
-  | "warnings";
+  | "warnings"
+  | "behavioral"
+  | "sexuality"
+  | "theology";
 
 type ColumnDef = {
   label: string;
@@ -45,6 +50,8 @@ type ColumnDef = {
 };
 
 const optionalColumns: readonly ColumnId[] = [
+  "title",
+  "arabicTitle",
   "kind",
   "year",
   "releaseStatus",
@@ -58,9 +65,14 @@ const optionalColumns: readonly ColumnId[] = [
   "country",
   "tags",
   "warnings",
+  "behavioral",
+  "sexuality",
+  "theology",
 ];
 
 const defaultVisibleColumns: readonly ColumnId[] = [
+  "title",
+  "arabicTitle",
   "kind",
   "year",
   "releaseStatus",
@@ -79,8 +91,10 @@ function durationText(work: Work) {
 
 function ListPreview({ values, max = 2 }: { values: string[]; max?: number }) {
   if (!values.length) return <span className="text-muted-foreground">—</span>;
+
   const shown = values.slice(0, max);
   const rest = values.length - shown.length;
+
   return (
     <div className="flex flex-wrap items-center gap-1">
       {shown.map((value) => (
@@ -93,15 +107,86 @@ function ListPreview({ values, max = 2 }: { values: string[]; max?: number }) {
   );
 }
 
+type RiskLevel = "none" | "low" | "medium" | "high";
+
+const riskLabels: Record<RiskLevel, string> = {
+  none: "none",
+  low: "low",
+  medium: "medium",
+  high: "high",
+};
+
+const riskClasses: Record<RiskLevel, string> = {
+  none: [
+    "border-slate-300/60",
+    "bg-slate-100/70",
+    "text-slate-600",
+    "dark:border-slate-700",
+    "dark:bg-slate-800/60",
+    "dark:text-slate-300",
+  ].join(" "),
+
+  low: [
+    "border-emerald-300/60",
+    "bg-emerald-50",
+    "text-emerald-700",
+    "dark:border-emerald-800/60",
+    "dark:bg-emerald-950/40",
+    "dark:text-emerald-300",
+  ].join(" "),
+
+  medium: [
+    "border-amber-300/70",
+    "bg-amber-50",
+    "text-amber-800",
+    "dark:border-amber-800/10",
+    "dark:bg-amber-950/40",
+    "dark:text-amber-300",
+  ].join(" "),
+
+  high: [
+    "border-red-300/70",
+    "bg-red-50",
+    "text-red-700",
+    "dark:border-red-800/10",
+    "dark:bg-red-950/40",
+    "dark:text-red-300",
+  ].join(" "),
+};
+
+function RiskBadge({ value }: { value?: RiskLevel | null }) {
+  if (!value) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+
+  return (
+    <Badge variant="outline" className={riskClasses[value]}>
+      {riskLabels[value]}
+    </Badge>
+  );
+}
+
 const columns = {
+  title: {
+    label: "العنوان بالإنجليزية",
+    render: (work) => work.title || "—",
+  },
+
+  arabicTitle: {
+    label: "العنوان بالعربية",
+    render: (work) => work.arabicTitle || "—",
+  },
+
   kind: {
     label: "النوع",
     render: (work) => workKindLabel[work.kind],
   },
+
   year: {
     label: "السنة",
     render: (work) => work.year ?? "—",
   },
+
   releaseStatus: {
     label: "حالة العرض",
     render: (work) => (
@@ -110,14 +195,17 @@ const columns = {
       </Badge>
     ),
   },
+
   audience: {
     label: "الجمهور",
     render: (work) => (work.audience ? taxonomyLabels.audiences[work.audience] : "—"),
   },
+
   age: {
     label: "الفئة العمرية",
     render: (work) => (work.age ? taxonomyLabels.ages[work.age] : "—"),
   },
+
   rating: {
     label: "التقييم",
     render: (work) =>
@@ -130,30 +218,37 @@ const columns = {
         </span>
       ),
   },
+
   duration: {
     label: "المدة",
     render: durationText,
   },
+
   genres: {
     label: "التصنيفات",
     render: (work) => <ListPreview values={work.genres} />,
   },
+
   tone: {
     label: "الطابع",
     render: (work) => <ListPreview values={work.tone} />,
   },
+
   studios: {
     label: "الاستوديو",
     render: (work) => <ListPreview values={work.studios} />,
   },
+
   country: {
     label: "الدولة",
     render: (work) => <ListPreview values={work.country} />,
   },
+
   tags: {
     label: "الوسوم",
     render: (work) => <ListPreview values={work.tags} max={3} />,
   },
+
   warnings: {
     label: "التحذيرات",
     render: (work) =>
@@ -162,6 +257,21 @@ const columns = {
       ) : (
         <span className="text-muted-foreground">لا يوجد</span>
       ),
+  },
+
+  behavioral: {
+    label: "السلوك",
+    render: (work) => <RiskBadge value={work.riskProfile?.behavioral as RiskLevel | undefined} />,
+  },
+
+  sexuality: {
+    label: "الجنسية",
+    render: (work) => <RiskBadge value={work.riskProfile?.sexuality as RiskLevel | undefined} />,
+  },
+
+  theology: {
+    label: "اللاهوت",
+    render: (work) => <RiskBadge value={work.riskProfile?.theology as RiskLevel | undefined} />,
   },
 } satisfies Record<ColumnId, ColumnDef>;
 
@@ -189,14 +299,17 @@ export function WorkTableColumnPicker({
           </Button>
         }
       />
+
       <PopoverContent align="end" className="w-64">
         <PopoverHeader>
           <PopoverTitle>أعمدة الجدول</PopoverTitle>
-          <PopoverDescription>اختر ما تريد إظهاره إلى جانب العنوان.</PopoverDescription>
+          <PopoverDescription>اختر ما تريد إظهاره في الجدول.</PopoverDescription>
         </PopoverHeader>
+
         <div className="flex max-h-80 flex-col gap-2.5 overflow-y-auto">
           {optionalColumns.map((id) => {
             const inputId = `browse-table-column-${id}`;
+
             return (
               <label key={id} htmlFor={inputId} className="flex items-center gap-2.5 text-sm">
                 <Checkbox
@@ -214,14 +327,6 @@ export function WorkTableColumnPicker({
   );
 }
 
-function getTitleInfo(work: Work) {
-  const officialTitle = work.arabicTitle || work.title;
-  const displayTitle = work.installmentTitle || officialTitle;
-  const parentTitle =
-    work.installmentTitle && work.installmentTitle !== officialTitle ? officialTitle : null;
-  return { displayTitle, parentTitle };
-}
-
 export function WorkTable({
   works,
   columns: visibleColumns,
@@ -230,44 +335,47 @@ export function WorkTable({
   columns: ColumnId[];
 }) {
   const activeColumns = optionalColumns.filter((id) => visibleColumns.includes(id));
+
   return (
     <div className="overflow-hidden rounded-2xl border bg-card/35 backdrop-blur-xl">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>العنوان</TableHead>
             {activeColumns.map((id) => (
               <TableHead key={id}>{columns[id].label}</TableHead>
             ))}
           </TableRow>
         </TableHeader>
+
         <TableBody>
-          {works.map((work) => {
-            const { displayTitle, parentTitle } = getTitleInfo(work);
-            return (
-              <TableRow key={`${work.installmentId ?? work.id}`} className="group/row">
-                <TableCell className="max-w-72 whitespace-normal">
-                  <Link
-                    to="/titles/$titleId"
-                    params={{ titleId: work.id }}
-                    className="flex min-w-0 flex-col outline-none focus-visible:underline"
-                  >
-                    {parentTitle ? (
-                      <span className="truncate text-xs text-muted-foreground/75">
-                        {parentTitle}
+          {works.map((work) => (
+            <TableRow key={`${work.installmentId ?? work.id}`} className="group/row">
+              {activeColumns.map((id) => (
+                <TableCell
+                  key={id}
+                  className={
+                    id === "title" || id === "arabicTitle"
+                      ? "max-w-72 whitespace-normal"
+                      : undefined
+                  }
+                >
+                  {id === "title" || id === "arabicTitle" ? (
+                    <Link
+                      to="/titles/$titleId"
+                      params={{ titleId: work.id }}
+                      className="block min-w-0 outline-none focus-visible:underline"
+                    >
+                      <span className="truncate font-heading font-medium group-hover/row:text-primary">
+                        {columns[id].render(work)}
                       </span>
-                    ) : null}
-                    <span className="truncate font-heading font-medium group-hover/row:text-primary">
-                      {displayTitle}
-                    </span>
-                  </Link>
+                    </Link>
+                  ) : (
+                    columns[id].render(work)
+                  )}
                 </TableCell>
-                {activeColumns.map((id) => (
-                  <TableCell key={id}>{columns[id].render(work)}</TableCell>
-                ))}
-              </TableRow>
-            );
-          })}
+              ))}
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>
