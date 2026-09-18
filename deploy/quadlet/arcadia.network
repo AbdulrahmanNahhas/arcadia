@@ -1,0 +1,4 @@
+# Private network so the units below reach each other by container name (arcadia-db,
+# arcadia-api). Nothing on it is reachable from the LAN except the ports the api/web units publish.
+[Network]
+NetworkName=arcadia

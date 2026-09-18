@@ -1,0 +1,28 @@
+[Unit]
+Description=Arcadia API
+After=arcadia-db.service network-online.target
+Requires=arcadia-db.service
+
+[Container]
+ContainerName=arcadia-api
+# Pin to a version tag (ghcr.io/abdulrahmannahhas/arcadia-api:v0.3.5) if you would rather
+# update deliberately than on the auto-update timer.
+Image=ghcr.io/abdulrahmannahhas/arcadia-api:latest
+AutoUpdate=registry
+Network=arcadia.network
+PublishPort=23101:23101
+EnvironmentFile=%h/.config/arcadia/arcadia.env
+Environment=NODE_ENV=production
+Environment=HOST=0.0.0.0
+Environment=PORT=23101
+Environment=ARCADIA_MEDIA_ROOT=/data/media/uploads
+# Artwork as plain files on the host (visible, rsync-able). `:Z` relabels for SELinux, which is
+# enforcing on Fedora — without it the container gets "permission denied" on every read.
+Volume=%h/arcadia/media:/data/media:Z
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

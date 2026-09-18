@@ -200,24 +200,114 @@ Releases' `latest.json`) from Settings → المظهر → التحديثات, 
 A release must be published (not a draft, not a prerelease) for the updater to ever find it —
 `releaseDraft`/`prerelease` are both `false` in the workflow for exactly that reason.
 
-## Self-hosting (Docker)
+## Self-hosting on Fedora Atomic (Podman + Quadlet)
 
-`docker-compose.yml` runs the database, the API, and a browsable (not playable — see "Playback
-source"; torrent playback is desktop-app-only) copy of the web app, for a family's own server —
-a home machine, a NAS, whatever stays on. LAN-only by design: nothing here is exposed to the
-public internet, and there's no reverse proxy or TLS included.
+The family server owns PostgreSQL, the API, and the artwork; every other machine (the NixOS
+laptop, a TV box) runs the desktop app and points it at the server. On Fedora Atomic (Silverblue,
+Kinoite, …) the whole server side runs **rootless Podman via Quadlet** — systemd units the
+system already knows how to start at boot, restart, and auto-update — pulling the images CI
+publishes to GHCR. No package layering, no Node, no repo checkout on the server. The unit files
+live in [`deploy/quadlet/`](deploy/quadlet); [`deploy/systemd/`](deploy/systemd) holds the
+backup timer; [`deploy/arcadia.env.example`](deploy/arcadia.env.example) is the one config file.
+Rationale and the security model are in [`docs/security-and-debrid.md`](docs/security-and-debrid.md).
+
+LAN-only by design: nothing here is exposed to the public internet and there is no reverse proxy
+or TLS. Ports: **23101** (API — what the desktop app talks to), **23180** (a browsable web copy;
+playback stays desktop-only). Postgres is never published.
+
+### 1. Export from the laptop (`devenv up`)
+
+With `devenv up` still running (Postgres on `127.0.0.1:23102`), from the repo root:
 
 ```bash
-cp .env.example .env   # fill in POSTGRES_PASSWORD, BETTER_AUTH_SECRET, ARCADIA_WEB_URL, VITE_API_URL
-docker compose run --rm migrate   # first time, and after every schema change
-docker compose up -d
+mkdir -p ~/arcadia-export
+devenv shell -- pg_dump -h 127.0.0.1 -p 23102 -Fc arcadia > ~/arcadia-export/arcadia.dump
+tar czf ~/arcadia-export/media.tgz -C data media          # posters/banners/logos
 ```
 
-`ARCADIA_WEB_URL`/`VITE_API_URL` both need your server's actual LAN address (e.g.
-`http://192.168.1.50:23180` / `:23101`) — `VITE_API_URL` is baked into the web image at build time,
-so rebuild it (`docker compose build web`) if that address ever changes. The desktop Tauri app is
-a separate build entirely (see "Releases and updates" above) — this stack never plays anything
-itself, it only serves the catalog.
+Copy both to the server (replace `server` with its LAN address or SSH alias):
+
+```bash
+ssh server mkdir -p arcadia/media arcadia/backups .config/arcadia .config/containers/systemd .config/systemd/user
+scp ~/arcadia-export/arcadia.dump ~/arcadia-export/media.tgz server:arcadia/
+scp deploy/quadlet/* server:.config/containers/systemd/
+scp deploy/systemd/arcadia-backup.timer server:.config/systemd/user/
+scp deploy/arcadia.env.example server:.config/arcadia/arcadia.env
+```
+
+### 2. Prepare the server (once)
+
+On the Fedora box, as the user that will own the containers (not root):
+
+```bash
+tar xzf ~/arcadia/media.tgz -C ~/arcadia && rm ~/arcadia/media.tgz   # -> ~/arcadia/media/{uploads,entities,library}
+chmod 600 ~/.config/arcadia/arcadia.env
+nano ~/.config/arcadia/arcadia.env   # POSTGRES_PASSWORD (twice: also inside DATABASE_URL),
+                                     # BETTER_AUTH_SECRET (openssl rand -base64 32),
+                                     # ARCADIA_WEB_URL=http://<LAN IP of this box>:23180, API keys
+loginctl enable-linger "$USER"       # user services start at boot, without a login session
+sudo firewall-cmd --permanent --add-port=23101/tcp --add-port=23180/tcp && sudo firewall-cmd --reload
+systemctl --user daemon-reload       # Quadlet turns the .container/.volume/.network files into units
+systemctl --user enable --now podman-auto-update.timer   # nightly `podman auto-update` (AutoUpdate=registry)
+systemctl --user enable --now arcadia-backup.timer       # nightly pg_dump into ~/arcadia/backups
+```
+
+Give the box a stable address (a DHCP reservation on the router, or a static IP): the desktop
+app remembers it.
+
+### 3. Restore the catalog and start
+
+```bash
+systemctl --user start arcadia-db
+podman exec -i arcadia-db pg_restore -U arcadia -d arcadia --no-owner --no-privileges < ~/arcadia/arcadia.dump
+systemctl --user start arcadia-migrate      # applies any migration newer than the dump; safe to re-run
+journalctl --user -u arcadia-migrate --no-pager | tail -5   # expect "Database is up to date."
+systemctl --user start arcadia-api arcadia-web
+curl -s http://127.0.0.1:23101/api/v1/health   # {"status":"ok",...}
+```
+
+For a *fresh* server with no dump, skip `pg_restore`, run `arcadia-migrate`, then create the
+owner account with the CLI over an SSH tunnel (below) or by seeding.
+
+`systemctl --user status arcadia-db arcadia-api arcadia-web` shows the stack;
+`journalctl --user -u arcadia-api -f` follows the API log. Because the units are
+`WantedBy=default.target`, a reboot brings everything back on its own.
+
+### 4. Point the desktop app at it
+
+Settings → عنوان الخادم (desktop shell only) → `http://<server LAN IP>:23101` → the app reloads
+against the server. Every device does this once; a release build also takes the address at build
+time from the `ARCADIA_API_URL` repo variable (see "Releases and updates") so new installs land
+there by default. Browsers on the LAN can use `http://<server LAN IP>:23180` to browse.
+
+### 5. Day-to-day: updating, schema changes, and developing on the laptop
+
+- **Code changes** keep flowing from the laptop: `devenv up` still runs its own local Postgres
+  and API for development; push to `master` and [`publish-images.yml`](.github/workflows/publish-images.yml)
+  builds `ghcr.io/abdulrahmannahhas/arcadia-{api,web}:latest`. The server picks them up on the
+  next `podman-auto-update` run, or right away with `podman auto-update`. Pin
+  `Image=...:v0.3.5` in the unit if you would rather update by hand (`systemctl --user daemon-reload
+  && systemctl --user restart arcadia-api` after editing).
+- **Schema changes** (a new file under `packages/database/drizzle/`) are never applied
+  automatically. After the image updates: `systemctl --user start arcadia-migrate`. The API keeps
+  serving in the meantime; run it promptly, since new code may expect the new columns.
+- **Backups** land in `~/arcadia/backups/arcadia-<date>.dump` nightly (14 kept). Artwork is plain
+  files in `~/arcadia/media`. Copy both directories somewhere else periodically. Restore:
+  `podman exec -i arcadia-db pg_restore -U arcadia -d arcadia --clean --if-exists --no-owner < file.dump`.
+- **Working against the server from the laptop** (CLI, psql, pulling the live catalog into the
+  dev database): Postgres is not on the LAN on purpose — open a tunnel and use `DATABASE_URL`:
+
+  ```bash
+  # once, on the server: add `PublishPort=127.0.0.1:5432:5432` to arcadia-db.container,
+  # then `systemctl --user daemon-reload && systemctl --user restart arcadia-db`
+  ssh -N -L 25432:127.0.0.1:5432 server &
+  DATABASE_URL=postgresql://arcadia:<password>@127.0.0.1:25432/arcadia ./bin/arcadia stats coverage
+  ```
+
+  or simply take the latest backup dump and `pg_restore` it into the laptop's devenv database
+  (`devenv shell -- pg_restore -h 127.0.0.1 -p 23102 -d arcadia --clean --if-exists --no-owner file.dump`).
+- **Docker instead of Podman:** `docker-compose.yml` runs the same images with the same
+  env names (`cp .env.example .env`, `docker compose run --rm migrate`, `docker compose up -d`).
 
 ## API and CLI
 

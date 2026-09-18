@@ -1,0 +1,7 @@
+# The PostgreSQL data directory. A named volume rather than a bind mount on purpose: the postgres
+# image runs as its own uid and wants to own this directory, which a rootless bind mount makes
+# awkward; a volume just works and Podman keeps it under
+# ~/.local/share/containers/storage/volumes/arcadia-pgdata/_data. Back it up with the
+# arcadia-backup timer (pg_dump), never by copying these files while Postgres runs.
+[Volume]
+VolumeName=arcadia-pgdata

@@ -1,0 +1,21 @@
+# Explicit, never automatic: `systemctl --user start arcadia-migrate` on first install and after
+# any update whose release notes mention a schema change. Runs the same two steps `pnpm db:migrate`
+# does (media backfill pass, then pending Drizzle migrations) from the API image itself.
+# Watch it with `journalctl --user -u arcadia-migrate -f`.
+[Unit]
+Description=Arcadia database migration (one-shot)
+After=arcadia-db.service
+Requires=arcadia-db.service
+
+[Container]
+ContainerName=arcadia-migrate
+Image=ghcr.io/abdulrahmannahhas/arcadia-api:latest
+Network=arcadia.network
+EnvironmentFile=%h/.config/arcadia/arcadia.env
+Environment=ARCADIA_MEDIA_ROOT=/data/media/uploads
+Volume=%h/arcadia/media:/data/media:Z
+Exec=node dist/migrate.js
+
+[Service]
+Type=oneshot
+RemainAfterExit=no

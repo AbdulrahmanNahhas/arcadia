@@ -1,0 +1,30 @@
+[Unit]
+Description=Arcadia PostgreSQL
+After=network-online.target
+
+[Container]
+ContainerName=arcadia-db
+Image=docker.io/library/postgres:17
+AutoUpdate=registry
+Network=arcadia.network
+Volume=arcadia-pgdata.volume:/var/lib/postgresql/data
+EnvironmentFile=%h/.config/arcadia/arcadia.env
+Environment=POSTGRES_DB=arcadia
+Environment=POSTGRES_USER=arcadia
+# POSTGRES_PASSWORD comes from arcadia.env.
+HealthCmd=pg_isready -U arcadia
+HealthInterval=5s
+HealthTimeout=5s
+HealthRetries=10
+# systemd only reports the unit as started once the healthcheck passes, so the api unit's
+# After= genuinely waits for a ready database.
+Notify=healthy
+# Not published: the API reaches it over the arcadia network, and nothing on the LAN should.
+# For the CLI/psql from the laptop, use an SSH tunnel (README "Working against the server").
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,20 @@
+# Nightly logical backup (driven by arcadia-backup.timer): a compressed pg_dump into
+# ~/arcadia/backups, keeping the last 14. Restore with
+#   podman exec -i arcadia-db pg_restore -U arcadia -d arcadia --clean --if-exists --no-owner < file.dump
+# Artwork is plain files under ~/arcadia/media — include that directory in whatever copies
+# ~/arcadia/backups off the machine.
+[Unit]
+Description=Arcadia PostgreSQL backup (one-shot)
+After=arcadia-db.service
+Requires=arcadia-db.service
+
+[Container]
+ContainerName=arcadia-backup
+Image=docker.io/library/postgres:17
+Network=arcadia.network
+EnvironmentFile=%h/.config/arcadia/arcadia.env
+Volume=%h/arcadia/backups:/backups:Z
+Exec=sh -c 'set -e; f=/backups/arcadia-$$(date +%%Y%%m%%d-%%H%%M%%S).dump; PGPASSWORD="$$POSTGRES_PASSWORD" pg_dump -h arcadia-db -U arcadia -Fc arcadia > "$$f"; echo "wrote $$f"; ls -1t /backups/arcadia-*.dump | tail -n +15 | xargs -r rm -f'
+
+[Service]
+Type=oneshot

@@ -1,0 +1,14 @@
+# Goes in ~/.config/systemd/user/ (Quadlet only generates .service units from the files in
+# ~/.config/containers/systemd/; a timer is a plain systemd unit). Drives arcadia-backup.service,
+# the unit Quadlet generates from deploy/quadlet/arcadia-backup.container.
+[Unit]
+Description=Nightly Arcadia database backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=arcadia-backup.service
+
+[Install]
+WantedBy=timers.target

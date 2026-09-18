@@ -1,0 +1,18 @@
+[Unit]
+Description=Arcadia web (browsable copy; playback is the desktop app)
+After=arcadia-api.service
+Requires=arcadia-api.service
+
+[Container]
+ContainerName=arcadia-web
+Image=ghcr.io/abdulrahmannahhas/arcadia-web:latest
+AutoUpdate=registry
+Network=arcadia.network
+PublishPort=23180:80
+Environment=ARCADIA_API_UPSTREAM=arcadia-api:23101
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
