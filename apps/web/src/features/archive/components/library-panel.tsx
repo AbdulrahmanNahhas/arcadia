@@ -1,6 +1,7 @@
 import {
   BookmarkSimpleIcon,
   BooksIcon,
+  DownloadSimpleIcon,
   HeartIcon,
   PlayIcon,
   TrashIcon,
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useDownloads } from "@/features/library/downloads/api";
 import { syncTitleOfflineCache } from "@/features/library/saved-offline";
 import { updateTitleState } from "@/features/social/api";
 import { RatingStars } from "@/features/social/rating-stars";
@@ -51,6 +53,12 @@ function LibraryGridSkeleton() {
  * space. The poster stays the whole card; nothing here shrinks it.
  */
 function LibraryCard({ item }: { item: LibraryEntry }) {
+  // A completed download of any film/episode of this title on *this* device — the one thing the
+  // account-level "saved" flag cannot know.
+  const { items: downloads } = useDownloads();
+  const downloaded = downloads.some(
+    (download) => download.titleId === item.titleId && download.state === "completed",
+  );
   const client = useQueryClient();
   const progress =
     item.durationSeconds && item.positionSeconds
@@ -114,12 +122,14 @@ function LibraryCard({ item }: { item: LibraryEntry }) {
             <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
           </div>
         ) : null}
-        {item.savedOffline ? (
+        {item.savedOffline || downloaded ? (
           <span
             data-on-artwork
-            className="pointer-events-none absolute top-2 inset-s-2 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground ring-1 ring-border/70 backdrop-blur-md"
+            className="pointer-events-none absolute top-2 inset-s-2 flex h-6 items-center gap-1 rounded-full bg-background/80 px-1.5 text-foreground ring-1 ring-border/70 backdrop-blur-md"
+            title={downloaded ? "مُنزَّل على هذا الجهاز" : "محفوظ دون اتصال"}
           >
-            <BookmarkSimpleIcon weight="fill" className="size-3.5" />
+            {item.savedOffline ? <BookmarkSimpleIcon weight="fill" className="size-3.5" /> : null}
+            {downloaded ? <DownloadSimpleIcon weight="bold" className="size-3.5" /> : null}
           </span>
         ) : null}
         {/* Sibling of the poster `Link`, not a descendant — the rating stars are real buttons of

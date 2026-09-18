@@ -2,6 +2,7 @@ import {
   BookmarkIcon,
   BuildingsIcon,
   DatabaseIcon,
+  DownloadSimpleIcon,
   GearSixIcon,
   HouseIcon,
   PlanetIcon,
@@ -32,6 +33,7 @@ import {
 import { AccountAvatar } from "@/features/accounts/account-avatar";
 import { useCurrentAccount } from "@/features/accounts/api";
 import { rememberDeviceProfile } from "@/features/accounts/device-profiles";
+import { useIsDesktopShell } from "@/features/library/play-button";
 import { signOut as clearSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "./global-search";
@@ -56,6 +58,7 @@ export function PlatformShell({
   const { data } = useCurrentAccount();
   const account = data?.account;
   const isAdmin = account?.role === "owner" || account?.role === "editor";
+  const desktop = useIsDesktopShell();
 
   useEffect(() => {
     if (account) rememberDeviceProfile(account, window.localStorage);
@@ -268,6 +271,12 @@ export function PlatformShell({
                     <UsersIcon />
                     ملفي وحدود المحتوى
                   </DropdownMenuItem>
+                  {desktop ? (
+                    <DropdownMenuItem render={<Link to="/downloads" />}>
+                      <DownloadSimpleIcon />
+                      التنزيلات
+                    </DropdownMenuItem>
+                  ) : null}
                   <DropdownMenuItem render={<Link to="/settings" />}>
                     <GearSixIcon />
                     الإعدادات

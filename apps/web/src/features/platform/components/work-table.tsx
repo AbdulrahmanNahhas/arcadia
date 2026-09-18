@@ -109,14 +109,14 @@ function ListPreview({ values, max = 2 }: { values: string[]; max?: number }) {
 
 type RiskLevel = "none" | "low" | "medium" | "high";
 
-const riskLabels: Record<RiskLevel, string> = {
+const riskLabels = {
   none: "none",
   low: "low",
   medium: "medium",
   high: "high",
-};
+} satisfies Record<RiskLevel, string>;
 
-const riskClasses: Record<RiskLevel, string> = {
+const riskClasses = {
   none: [
     "border-slate-300/60",
     "bg-slate-100/70",
@@ -152,10 +152,11 @@ const riskClasses: Record<RiskLevel, string> = {
     "dark:bg-red-950/40",
     "dark:text-red-300",
   ].join(" "),
-};
+} satisfies Record<RiskLevel, string>;
 
-function RiskBadge({ value }: { value?: RiskLevel | null }) {
-  if (!value) {
+/** The catalog also carries `unknown`, which reads as "not assessed" — the same dash as no value. */
+function RiskBadge({ value }: { value?: RiskLevel | "unknown" | null }) {
+  if (!value || value === "unknown") {
     return <span className="text-muted-foreground">—</span>;
   }
 
@@ -261,17 +262,17 @@ const columns = {
 
   behavioral: {
     label: "السلوك",
-    render: (work) => <RiskBadge value={work.riskProfile?.behavioral as RiskLevel | undefined} />,
+    render: (work) => <RiskBadge value={work.riskProfile?.behavioral} />,
   },
 
   sexuality: {
     label: "الجنسية",
-    render: (work) => <RiskBadge value={work.riskProfile?.sexuality as RiskLevel | undefined} />,
+    render: (work) => <RiskBadge value={work.riskProfile?.sexuality} />,
   },
 
   theology: {
     label: "اللاهوت",
-    render: (work) => <RiskBadge value={work.riskProfile?.theology as RiskLevel | undefined} />,
+    render: (work) => <RiskBadge value={work.riskProfile?.theology} />,
   },
 } satisfies Record<ColumnId, ColumnDef>;
 

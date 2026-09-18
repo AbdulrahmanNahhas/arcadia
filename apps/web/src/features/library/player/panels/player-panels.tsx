@@ -1,3 +1,4 @@
+import type { DownloadTarget } from "../../downloads/api";
 import type { PlayerEpisode, PlayerSeason } from "../episodes";
 import type { PlayerActions } from "../hooks/use-player-actions";
 import type { PlayerSession } from "../hooks/use-player-session";
@@ -22,6 +23,7 @@ export function PlayerPanels({
   canSwitchAudio,
   canSwitchSubtitles,
   onPlayEpisode,
+  downloadTarget,
 }: {
   panel: PanelKind;
   onOpenPanel: (panel: PanelKind) => void;
@@ -35,6 +37,7 @@ export function PlayerPanels({
   canSwitchAudio: boolean;
   canSwitchSubtitles: boolean;
   onPlayEpisode: (episode: PlayerEpisode) => void;
+  downloadTarget: DownloadTarget | null;
 }) {
   switch (panel) {
     case "tracks":
@@ -63,6 +66,7 @@ export function PlayerPanels({
         <SourcePanel
           candidates={session.candidates}
           activeCandidateId={session.activeCandidateId}
+          localPath={session.localPath}
           onSelect={(candidateId) => void session.switchSource(candidateId)}
           onClose={onClose}
         />
@@ -82,6 +86,8 @@ export function PlayerPanels({
         <MorePanel
           actions={actions}
           sourceCount={session.candidates.length}
+          localPath={session.localPath}
+          downloadTarget={downloadTarget}
           onOpenPanel={onOpenPanel}
           onClose={onClose}
         />

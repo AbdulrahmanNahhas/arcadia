@@ -89,6 +89,27 @@ describe("selectPlaybackTarget", () => {
 });
 
 describe("resolvePlayback", () => {
+  it("plays a kept download from disk before asking anyone for streams", async () => {
+    const fetch = vi.fn<() => Promise<Response>>();
+    vi.stubGlobal("fetch", fetch);
+    const findLocal = vi.fn<() => Promise<string | null>>(
+      async () => "/home/family/Videos/Arcadia/The Matrix/The.Matrix.mkv",
+    );
+
+    const source = await resolvePlayback(
+      "11111111-1111-1111-1111-111111111111",
+      null,
+      null,
+      findLocal,
+    );
+
+    expect(source.kind).toBe("local");
+    expect(source.localPath).toBe("/home/family/Videos/Arcadia/The Matrix/The.Matrix.mkv");
+    expect(source.streams.candidates).toEqual([]);
+    expect(findLocal).toHaveBeenCalledWith("11111111-1111-1111-1111-111111111111", null);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("uses saved torrent candidates without contacting Arcadia's server", async () => {
     const fetch = vi.fn<() => Promise<Response>>();
     vi.stubGlobal("fetch", fetch);

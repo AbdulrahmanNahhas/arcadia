@@ -17,6 +17,7 @@ import { Route as ArchiveRouteImport } from './routes/archive'
 import { Route as AwardsRouteImport } from './routes/awards'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as CompareRouteImport } from './routes/compare'
+import { Route as DownloadsRouteImport } from './routes/downloads'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OfflineRouteImport } from './routes/offline'
 import { Route as ProfilesRouteImport } from './routes/profiles'
@@ -92,6 +93,11 @@ const BrowseRoute = BrowseRouteImport.update({
 const CompareRoute = CompareRouteImport.update({
   id: '/compare',
   path: '/compare',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DownloadsRoute = DownloadsRouteImport.update({
+  id: '/downloads',
+  path: '/downloads',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -291,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/awards': typeof AwardsRouteWithChildren
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
+  '/downloads': typeof DownloadsRoute
   '/login': typeof LoginRoute
   '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
@@ -335,6 +342,7 @@ export interface FileRoutesByTo {
   '/archive': typeof ArchiveRoute
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
+  '/downloads': typeof DownloadsRoute
   '/login': typeof LoginRoute
   '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
@@ -381,6 +389,7 @@ export interface FileRoutesById {
   '/awards': typeof AwardsRouteWithChildren
   '/browse': typeof BrowseRoute
   '/compare': typeof CompareRoute
+  '/downloads': typeof DownloadsRoute
   '/login': typeof LoginRoute
   '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
@@ -429,6 +438,7 @@ export interface FileRouteTypes {
     | '/awards'
     | '/browse'
     | '/compare'
+    | '/downloads'
     | '/login'
     | '/offline'
     | '/profiles'
@@ -473,6 +483,7 @@ export interface FileRouteTypes {
     | '/archive'
     | '/browse'
     | '/compare'
+    | '/downloads'
     | '/login'
     | '/offline'
     | '/profiles'
@@ -518,6 +529,7 @@ export interface FileRouteTypes {
     | '/awards'
     | '/browse'
     | '/compare'
+    | '/downloads'
     | '/login'
     | '/offline'
     | '/profiles'
@@ -566,6 +578,7 @@ export interface RootRouteChildren {
   AwardsRoute: typeof AwardsRouteWithChildren
   BrowseRoute: typeof BrowseRoute
   CompareRoute: typeof CompareRoute
+  DownloadsRoute: typeof DownloadsRoute
   LoginRoute: typeof LoginRoute
   OfflineRoute: typeof OfflineRoute
   ProfilesRoute: typeof ProfilesRoute
@@ -633,6 +646,13 @@ declare module '@tanstack/react-router' {
       path: '/compare'
       fullPath: '/compare'
       preLoaderRoute: typeof CompareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/downloads': {
+      id: '/downloads'
+      path: '/downloads'
+      fullPath: '/downloads'
+      preLoaderRoute: typeof DownloadsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1009,6 +1029,7 @@ const rootRouteChildren: RootRouteChildren = {
   AwardsRoute: AwardsRouteWithChildren,
   BrowseRoute: BrowseRoute,
   CompareRoute: CompareRoute,
+  DownloadsRoute: DownloadsRoute,
   LoginRoute: LoginRoute,
   OfflineRoute: OfflineRoute,
   ProfilesRoute: ProfilesRoute,

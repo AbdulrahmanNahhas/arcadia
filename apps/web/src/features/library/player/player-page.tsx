@@ -125,6 +125,21 @@ export function PlayerPage({
   const nextEpisode = nextUnwatchedEpisode(seasons, installmentId, episodeId);
   const installment = title.data?.installments.find((entry) => entry.id === installmentId);
   const heading = title.data?.titleAr ?? title.data?.canonicalTitle ?? null;
+  const downloadTarget = useMemo(
+    () =>
+      title.data
+        ? {
+            titleId,
+            titleName: title.data.canonicalTitle || title.data.titleAr || titleId,
+            installmentId,
+            episodeId,
+            label: currentEpisode
+              ? formatEpisodeCode(currentEpisode.seasonNumber, currentEpisode.episodeNumber)
+              : (installment?.title ?? "الفيلم"),
+          }
+        : null,
+    [title.data, titleId, installmentId, episodeId, currentEpisode, installment],
+  );
   const subheading = currentEpisode
     ? `${formatEpisodeCode(currentEpisode.seasonNumber, currentEpisode.episodeNumber)}${
         currentEpisode.episodeTitle ? ` — ${currentEpisode.episodeTitle}` : ""
@@ -273,6 +288,7 @@ export function PlayerPage({
           canSwitchAudio={canSwitchAudio}
           canSwitchSubtitles={canSwitchSubtitles}
           onPlayEpisode={playEpisode}
+          downloadTarget={downloadTarget}
         />
       )}
 

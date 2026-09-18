@@ -58,6 +58,8 @@ export const playerErrorSchema = z.object({
     "torrentRejected",
     "torrentStalled",
     "streamServer",
+    "subtitleUnavailable",
+    "download",
   ]),
   detail: z.string(),
 });
@@ -109,6 +111,7 @@ interface CommandArguments {
   player_get_property: { name: string };
   player_load_subtitle: { bytes: number[]; filename: string };
   player_stop: never;
+  player_load_path: { path: string };
 }
 
 async function invoke<TCommand extends keyof CommandArguments, TResult>(
@@ -156,6 +159,8 @@ export const desktopPlayer = {
       filename,
     }),
   stop: () => invoke<"player_stop", void>("player_stop"),
+  /** Plays a kept download from disk; no torrent, no stream server. */
+  loadPath: (path: string) => invoke<"player_load_path", void>("player_load_path", { path }),
 };
 
 /** One entry from mpv's `track-list`, as enumerated by {@link listPlayerTracks}. */

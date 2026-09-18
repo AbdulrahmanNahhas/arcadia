@@ -58,6 +58,8 @@ export function usePlayerSession({
   const [peers, setPeers] = useState<number | null>(null);
   const [candidates, setCandidates] = useState<StreamCandidate[]>([]);
   const [activeCandidateId, setActiveCandidateId] = useState<string | null>(null);
+  /** Set when the picture comes from a kept download on this device rather than a stream. */
+  const [localPath, setLocalPath] = useState<string | null>(null);
   const [subtitleOffsetMs, setSubtitleOffsetMsState] = useState(0);
 
   const tick = useRef<TickSnapshot>(INITIAL_TICK);
@@ -206,9 +208,15 @@ export function usePlayerSession({
         if (cancelled) return;
 
         setCandidates(source.streams.candidates);
-        const started = await desktopPlayer.startStream(source.streams.candidates);
-        if (cancelled) return;
-        setActiveCandidateId(started.candidateId);
+        if (source.kind === "local" && source.localPath) {
+          setLocalPath(source.localPath);
+          await desktopPlayer.loadPath(source.localPath);
+          if (cancelled) return;
+        } else {
+          const started = await desktopPlayer.startStream(source.streams.candidates);
+          if (cancelled) return;
+          setActiveCandidateId(started.candidateId);
+        }
 
         // `autoplay: false` means the family member starts it themselves.
         if (!autoplayRef.current) {
@@ -279,6 +287,7 @@ export function usePlayerSession({
     peers,
     candidates,
     activeCandidateId,
+    localPath,
     subtitleOffsetMs,
     setSubtitleOffsetMs,
     tick,

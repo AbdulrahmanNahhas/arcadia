@@ -1,5 +1,6 @@
 import type { InstallmentStreams, StreamErrorCode } from "@arcadia/contracts";
 import { ApiError, apiFetch } from "@/lib/api";
+import { isDesktopShell } from "./desktop-player";
 
 /**
  * The resolver boundary the roadmap fixes in Phase 1 so later sources are additive:
@@ -12,7 +13,26 @@ export interface PlaybackSource {
   kind: PlaybackSourceKind;
   /** Ranked candidates for a torrent source; a single ready URL for the others. */
   streams: InstallmentStreams;
+  /** Absolute path of the kept download when `kind` is `local`; mpv opens it directly. */
+  localPath?: string;
 }
+
+/** Answers "does this device hold a finished download of this unit?" — a path, or `null`. */
+export type LocalLookup = (
+  installmentId: string,
+  episodeId: string | null,
+) => Promise<string | null>;
+
+/** The desktop registry (`src-tauri/src/downloads`); always `null` in a browser. */
+export const desktopLocalLookup: LocalLookup = async (installmentId, episodeId) => {
+  if (!isDesktopShell()) return null;
+  const { desktopDownloads } = await import("./downloads/api");
+  const item = await desktopDownloads.find(installmentId, episodeId).catch(() => null);
+  return item?.path ?? null;
+};
+
+/** For callers that must reach the network even when a local copy exists (starting a download). */
+export const noLocalLookup: LocalLookup = async () => null;
 
 export interface PlaybackTargetCandidate {
   watched: boolean;
@@ -94,17 +114,30 @@ function isFailureCode(code: string): code is StreamErrorCode {
 }
 
 /**
- * Resolves what to play for one installment.
- *
- * Phase 1 has no local-file index to consult yet (`media_files` has no read path), so this goes
- * straight to the torrent source — but the shape is the chain, so Phase 3's local lookup and
- * Phase 5's Jellyfin lookup slot in ahead of it without touching any caller.
+ * Resolves what to play for one installment: a kept download on this device first, then the
+ * torrent/debrid candidates the API ranks. The shape is the chain, so Phase 5's Jellyfin lookup
+ * slots in between without touching any caller.
  */
 export async function resolvePlayback(
   installmentId: string,
   episodeId?: string | null,
   cachedStreams?: InstallmentStreams | null,
+  findLocal: LocalLookup = desktopLocalLookup,
 ): Promise<PlaybackSource> {
+  const localPath = await findLocal(installmentId, episodeId ?? null);
+  if (localPath) {
+    return {
+      kind: "local",
+      localPath,
+      streams: {
+        installmentId,
+        titleId: "",
+        streamId: "",
+        idSource: "installment.imdb",
+        candidates: [],
+      },
+    };
+  }
   if (cachedStreams?.candidates.length) {
     return { kind: "torrent", streams: cachedStreams };
   }

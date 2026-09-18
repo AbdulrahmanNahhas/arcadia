@@ -12,14 +12,30 @@ import { PanelItem, PanelNote, PanelSection, PanelShell } from "./panel-shell";
 export function SourcePanel({
   candidates,
   activeCandidateId,
+  localPath,
   onSelect,
   onClose,
 }: {
   candidates: StreamCandidate[];
   activeCandidateId: string | null;
+  /** Set when a kept download is playing from disk — there are no stream candidates to switch. */
+  localPath: string | null;
   onSelect: (candidateId: string) => void;
   onClose: () => void;
 }) {
+  if (localPath) {
+    return (
+      <PanelShell title="مصدر التشغيل" icon={<StackIcon size={20} />} onClose={onClose} wide>
+        <PanelSection title="ملف محلي — يُشغَّل من هذا الجهاز دون شبكة">
+          <PanelNote>
+            <span dir="ltr" className="block break-all font-mono text-xs">
+              {localPath}
+            </span>
+          </PanelNote>
+        </PanelSection>
+      </PanelShell>
+    );
+  }
   return (
     <PanelShell title="مصدر التشغيل" icon={<StackIcon size={20} />} onClose={onClose} wide>
       <PanelSection title={`${candidates.length} مصدر متاح — مرتّبة حسب الجودة`}>

@@ -59,6 +59,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { archiveKeys, recordHistory } from "@/features/archive/api";
+import { DownloadButton } from "@/features/library/downloads/download-button";
 // import { WorkFamilyActions } from "@/features/archive/work-family-actions";
 import type { Entity, Work, WorkSeasonDetail, WorkStructure } from "@/features/library/model";
 import { tagLabelsAr, taxonomyLabels } from "@/features/library/model";
@@ -516,6 +517,7 @@ export function WorkDetailPage({
               <TabsContent value="episodes" className="ontop mt-0 focus-visible:outline-none">
                 <EpisodesSection
                   workId={work.id}
+                  titleName={work.title}
                   titleImdbId={work.imdbId}
                   titleTmdbId={work.tmdbId}
                   structure={structure}
@@ -1739,6 +1741,7 @@ function InstallmentPickerCard({
 
 function EpisodesSection({
   workId,
+  titleName,
   titleImdbId,
   titleTmdbId,
   structure,
@@ -1753,6 +1756,7 @@ function EpisodesSection({
   onMarkSeasonPlayed,
 }: {
   workId: string;
+  titleName: string;
   titleImdbId: string | null;
   titleTmdbId: number | null;
   structure: WorkStructure;
@@ -1880,6 +1884,23 @@ function EpisodesSection({
                     tmdbId={selected.tmdbId}
                   />
                 )}
+                {isMovie &&
+                  unplayableReason({
+                    releaseStatus: selected.releaseStatus,
+                    releaseAt: selected.releaseAt,
+                    imdbId: selected.imdbId,
+                    tmdbId: selected.tmdbId,
+                  }) === null && (
+                    <DownloadButton
+                      target={{
+                        titleId: workId,
+                        titleName,
+                        installmentId: selected.id,
+                        episodeId: null,
+                        label: selected.title,
+                      }}
+                    />
+                  )}
                 {isMovie ? (
                   <Button
                     variant="outline"
@@ -1954,6 +1975,7 @@ function EpisodesSection({
               episode={episode}
               installmentId={selected?.id ?? ""}
               titleId={workId}
+              titleName={titleName}
               contextKey="grid"
               onTogglePlayed={() =>
                 onToggleEpisodePlayed(selected?.id ?? "", episode.id, !episode.watched)
@@ -2003,6 +2025,7 @@ function EpisodesSection({
                         episode={episode}
                         installmentId={selected?.id ?? ""}
                         titleId={workId}
+                        titleName={titleName}
                         contextKey="dialog"
                         onTogglePlayed={() =>
                           onToggleEpisodePlayed(selected?.id ?? "", episode.id, !episode.watched)
@@ -2025,6 +2048,7 @@ function EpisodeCard({
   episode,
   installmentId,
   titleId,
+  titleName,
   contextKey,
   onTogglePlayed,
   className,
@@ -2033,6 +2057,7 @@ function EpisodeCard({
   episode: EpisodePreview;
   installmentId: string;
   titleId: string;
+  titleName: string;
   /** Disambiguates the focus key when the same episode is mounted twice at once — the inline
    * preview grid stays mounted behind the "show all episodes" dialog rather than unmounting. */
   contextKey: string;
@@ -2187,6 +2212,22 @@ function EpisodeCard({
       >
         <CheckCircleIcon weight={episode.watched ? "fill" : "regular"} className="size-4" />
       </button>
+      {/* Same rule as the watched toggle: its own control beside the link, desktop-only (renders
+          nothing in a browser), hidden until hover/focus unless a download already exists. */}
+      {playable && (
+        <div className="absolute top-2 inset-s-2 opacity-0 transition group-hover/episode:opacity-100 focus-within:opacity-100 has-[a]:opacity-100">
+          <DownloadButton
+            compact
+            target={{
+              titleId,
+              titleName,
+              installmentId,
+              episodeId: episode.id,
+              label: `الحلقة ${episode.number}`,
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
