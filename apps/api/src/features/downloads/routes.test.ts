@@ -1,8 +1,9 @@
 import { accountDownloadSchema } from "@arcadia/contracts";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { app } from "../../app";
 import { database } from "../../database";
+import { createScratchMovie } from "../../test-support";
 
 async function signIn(username: string, password: string) {
   const response = await app.request("/api/auth/sign-in/username", {
@@ -16,20 +17,23 @@ async function signIn(username: string, password: string) {
 }
 
 const deviceId = `test-device-${Date.now()}`;
+let movie: Awaited<ReturnType<typeof createScratchMovie>>;
+
+beforeAll(async () => {
+  movie = await createScratchMovie(`downloads ${deviceId}`);
+});
 
 afterAll(async () => {
   await database().client`delete from account_downloads where device_id=${deviceId}`;
+  await movie?.remove();
 });
 
 describe("/api/v1/me/downloads", () => {
   it("upserts one row per device and unit, lists it, and deletes it", async () => {
     const token = await signIn("personal", "ArcadiaPersonal!2026");
     const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
-    const [installment] = await database().client`
-      select id from installments where kind='movie' limit 1`;
-    if (!installment) throw new Error("seeded catalog has no movie installment");
     const body = {
-      installmentId: String(installment.id),
+      installmentId: movie.installmentId,
       episodeId: null,
       deviceId,
       deviceName: "جهاز الاختبار",

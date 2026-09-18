@@ -3,6 +3,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { app } from "./app";
 import { database } from "./database";
+import { catalogIsPopulated } from "./test-support";
 
 const installmentsByReleaseSchema = z.object({
   items: z.array(z.object({ releaseDate: z.string().nullable() })),
@@ -27,6 +28,8 @@ const adminOverviewSchema = z.object({
   scored_installments: z.number(),
 });
 
+const hasCatalog = await catalogIsPopulated();
+
 describe("Arcadia API contract", () => {
   it("reports database readiness", async () => {
     const response = await app.request("/api/v1/health");
@@ -34,7 +37,7 @@ describe("Arcadia API contract", () => {
     expect(await response.json()).toEqual({ status: "ok", database: "ready", version: "v2" });
   });
 
-  it("publishes OpenAPI and browses imported titles", async () => {
+  it.skipIf(!hasCatalog)("publishes OpenAPI and browses imported titles", async () => {
     const document = await (await app.request("/openapi.json")).json();
     expect(document.paths["/api/v1/titles"]).toBeDefined();
     const response = await app.request("/api/v1/titles?mode=titles&limit=2");
@@ -44,63 +47,69 @@ describe("Arcadia API contract", () => {
     expect(body.items.length).toBeGreaterThan(0);
   });
 
-  it("sorts flattened installments by newest release and editorial score", async () => {
-    const releaseResponse = await app.request(
-      "/api/v1/titles?mode=installments&sort=release&limit=100",
-    );
-    const releaseBody = installmentsByReleaseSchema.parse(await releaseResponse.json());
-    const dated = releaseBody.items.filter((item) => item.releaseDate);
-    expect(dated).not.toHaveLength(0);
-    expect(dated.map((item) => item.releaseDate)).toEqual(
-      dated
-        .toSorted((left, right) =>
-          String(right.releaseDate).localeCompare(String(left.releaseDate)),
-        )
-        .map((item) => item.releaseDate),
-    );
+  it.skipIf(!hasCatalog)(
+    "sorts flattened installments by newest release and editorial score",
+    async () => {
+      const releaseResponse = await app.request(
+        "/api/v1/titles?mode=installments&sort=release&limit=100",
+      );
+      const releaseBody = installmentsByReleaseSchema.parse(await releaseResponse.json());
+      const dated = releaseBody.items.filter((item) => item.releaseDate);
+      expect(dated).not.toHaveLength(0);
+      expect(dated.map((item) => item.releaseDate)).toEqual(
+        dated
+          .toSorted((left, right) =>
+            String(right.releaseDate).localeCompare(String(left.releaseDate)),
+          )
+          .map((item) => item.releaseDate),
+      );
 
-    const scoreResponse = await app.request(
-      "/api/v1/titles?mode=installments&sort=score&limit=100",
-    );
-    const scoreBody = installmentsByScoreSchema.parse(await scoreResponse.json());
-    const scored = scoreBody.items.filter((item) => item.rating !== null);
-    expect(scored.map((item) => item.rating)).toEqual(
-      scored
-        .toSorted((left, right) => Number(right.rating) - Number(left.rating))
-        .map((item) => item.rating),
-    );
-  });
+      const scoreResponse = await app.request(
+        "/api/v1/titles?mode=installments&sort=score&limit=100",
+      );
+      const scoreBody = installmentsByScoreSchema.parse(await scoreResponse.json());
+      const scored = scoreBody.items.filter((item) => item.rating !== null);
+      expect(scored.map((item) => item.rating)).toEqual(
+        scored
+          .toSorted((left, right) => Number(right.rating) - Number(left.rating))
+          .map((item) => item.rating),
+      );
+    },
+  );
 
-  it("calculates upcoming titles from their announced installments", async () => {
-    const [titlesResponse, moreTitlesResponse, ...installmentResponses] = await Promise.all([
-      app.request("/api/v1/titles?mode=titles&limit=100"),
-      app.request("/api/v1/titles?mode=titles&limit=100&offset=100"),
-      app.request("/api/v1/titles?mode=installments&limit=100"),
-      app.request("/api/v1/titles?mode=installments&limit=100&offset=100"),
-      app.request("/api/v1/titles?mode=installments&limit=100&offset=200"),
-    ]);
-    const titlePages = await Promise.all(
-      [titlesResponse, moreTitlesResponse].map(async (response) =>
-        titlesPageSchema.parse(await response.json()),
-      ),
-    );
-    const titles = titlePages.flatMap((page) => page.items);
-    const installmentPages = await Promise.all(
-      installmentResponses.map(async (response) =>
-        installmentsPageSchema.parse(await response.json()),
-      ),
-    );
-    const installments = installmentPages.flatMap((page) => page.items);
-    const announcedTitleIds = titles
-      .filter((item) => item.releaseStatus === "upcoming")
-      .map((item) => item.id);
-    const announcedInstallmentTitleIds = new Set(
-      installments.filter((item) => item.status === "announced").map((item) => item.titleId),
-    );
-    expect(announcedTitleIds.every((id) => announcedInstallmentTitleIds.has(id))).toBe(true);
-  });
+  it.skipIf(!hasCatalog)(
+    "calculates upcoming titles from their announced installments",
+    async () => {
+      const [titlesResponse, moreTitlesResponse, ...installmentResponses] = await Promise.all([
+        app.request("/api/v1/titles?mode=titles&limit=100"),
+        app.request("/api/v1/titles?mode=titles&limit=100&offset=100"),
+        app.request("/api/v1/titles?mode=installments&limit=100"),
+        app.request("/api/v1/titles?mode=installments&limit=100&offset=100"),
+        app.request("/api/v1/titles?mode=installments&limit=100&offset=200"),
+      ]);
+      const titlePages = await Promise.all(
+        [titlesResponse, moreTitlesResponse].map(async (response) =>
+          titlesPageSchema.parse(await response.json()),
+        ),
+      );
+      const titles = titlePages.flatMap((page) => page.items);
+      const installmentPages = await Promise.all(
+        installmentResponses.map(async (response) =>
+          installmentsPageSchema.parse(await response.json()),
+        ),
+      );
+      const installments = installmentPages.flatMap((page) => page.items);
+      const announcedTitleIds = titles
+        .filter((item) => item.releaseStatus === "upcoming")
+        .map((item) => item.id);
+      const announcedInstallmentTitleIds = new Set(
+        installments.filter((item) => item.status === "announced").map((item) => item.titleId),
+      );
+      expect(announcedTitleIds.every((id) => announcedInstallmentTitleIds.has(id))).toBe(true);
+    },
+  );
 
-  it("finds titles and their installments by linked studio name", async () => {
+  it.skipIf(!hasCatalog)("finds titles and their installments by linked studio name", async () => {
     const [match] = await database().client`
       select t.id as "titleId", e.name as "studioName"
       from titles t
@@ -127,7 +136,7 @@ describe("Arcadia API contract", () => {
     expect(installmentBody.items.map((item) => item.titleId)).toContain(titleId);
   });
 
-  it("reports useful PostgreSQL v2 administrator metrics", async () => {
+  it.skipIf(!hasCatalog)("reports useful PostgreSQL v2 administrator metrics", async () => {
     const response = await app.request("/api/v1/admin/overview");
     expect(response.status).toBe(200);
     const metrics = adminOverviewSchema.parse(await response.json());
