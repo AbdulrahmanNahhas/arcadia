@@ -8,7 +8,12 @@ import {
   subscribeToPlayer,
 } from "../../desktop-player";
 import { getOfflineStreams } from "../../offline-store";
-import { PlaybackError, type PlaybackFailure, resolvePlayback } from "../../playback-resolver";
+import {
+  PlaybackError,
+  type PlaybackFailure,
+  type PlaybackSource,
+  resolvePlayback,
+} from "../../playback-resolver";
 import { RESUME_END_BUFFER_SECONDS, RESUME_MIN_POSITION_SECONDS } from "../constants";
 import { type FeedbackEvent, INITIAL_TICK, type PlayerStatus, type TickSnapshot } from "../types";
 
@@ -38,12 +43,16 @@ export function usePlayerSession({
   episodeId,
   autoplay,
   callbacks,
+  resolveSource,
 }: {
   enabled: boolean;
   installmentId: string;
   episodeId: string | null;
   autoplay: boolean;
   callbacks: RefObject<SessionCallbacks>;
+  /** The watch hub supplies its own resolver (an IMDb id, no catalog unit): no saved position,
+   *  no offline candidates, no local download — just sources. */
+  resolveSource?: () => Promise<PlaybackSource>;
 }) {
   const [status, setStatus] = useState<PlayerStatus>("starting");
   const [failure, setFailure] = useState<{ kind: PlaybackFailure; detail: string | null } | null>(
@@ -212,12 +221,17 @@ export function usePlayerSession({
         });
         await desktopPlayer.init();
         if (cancelled) return;
-        void loadResume();
+        if (!resolveSource) void loadResume();
 
         setStatus("resolving");
         fileLoaded.current = false;
-        const cachedStreams = await getOfflineStreams(installmentId, episodeId).catch(() => null);
-        const source = await resolvePlayback(installmentId, episodeId, cachedStreams);
+        const source = resolveSource
+          ? await resolveSource()
+          : await resolvePlayback(
+              installmentId,
+              episodeId,
+              await getOfflineStreams(installmentId, episodeId).catch(() => null),
+            );
         if (cancelled) return;
 
         setCandidates(source.streams.candidates);
@@ -253,7 +267,16 @@ export function usePlayerSession({
       void desktopPlayer.setOverlay(false, []).catch(() => undefined);
       void desktopPlayer.stop().catch(() => undefined);
     };
-  }, [enabled, installmentId, episodeId, onEvent, fail, failFromPlayerError, callbacks]);
+  }, [
+    enabled,
+    installmentId,
+    episodeId,
+    onEvent,
+    fail,
+    failFromPlayerError,
+    callbacks,
+    resolveSource,
+  ]);
 
   /**
    * Manual source switch: the chosen candidate goes first and the rest stay behind it as

@@ -22,6 +22,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as OfflineRouteImport } from './routes/offline'
 import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as WatchRouteImport } from './routes/watch'
 import { Route as EntitiesPlanetsRouteImport } from './routes/_entities/planets'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAccountsRouteImport } from './routes/admin/accounts'
@@ -42,6 +43,7 @@ import { Route as AwardsOrganizationSlugRouteImport } from './routes/awards.$org
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as OfflineTitleIdRouteImport } from './routes/offline_.$titleId'
 import { Route as PlayerInstallmentIdRouteImport } from './routes/player.$installmentId'
+import { Route as PlayerWatchRouteImport } from './routes/player.watch'
 import { Route as TitlesTitleIdRouteImport } from './routes/titles.$titleId'
 import { Route as EntitiesPeopleIndexRouteImport } from './routes/_entities/people.index'
 import { Route as EntitiesPeoplePersonIdRouteImport } from './routes/_entities/people.$personId'
@@ -118,6 +120,11 @@ const ProfilesRoute = ProfilesRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WatchRoute = WatchRouteImport.update({
+  id: '/watch',
+  path: '/watch',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EntitiesPlanetsRoute = EntitiesPlanetsRouteImport.update({
@@ -220,6 +227,11 @@ const PlayerInstallmentIdRoute = PlayerInstallmentIdRouteImport.update({
   path: '/player/$installmentId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayerWatchRoute = PlayerWatchRouteImport.update({
+  id: '/player/watch',
+  path: '/player/watch',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TitlesTitleIdRoute = TitlesTitleIdRouteImport.update({
   id: '/titles/$titleId',
   path: '/titles/$titleId',
@@ -302,6 +314,7 @@ export interface FileRoutesByFullPath {
   '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
+  '/watch': typeof WatchRoute
   '/planets': typeof EntitiesPlanetsRouteWithChildren
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/archive': typeof AdminArchiveRoute
@@ -320,6 +333,7 @@ export interface FileRoutesByFullPath {
   '/invite/$token': typeof InviteTokenRoute
   '/offline/$titleId': typeof OfflineTitleIdRoute
   '/player/$installmentId': typeof PlayerInstallmentIdRoute
+  '/player/watch': typeof PlayerWatchRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin/': typeof AdminIndexRoute
   '/awards/': typeof AwardsIndexRoute
@@ -347,6 +361,7 @@ export interface FileRoutesByTo {
   '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
+  '/watch': typeof WatchRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/archive': typeof AdminArchiveRoute
   '/admin/awards': typeof AdminAwardsRoute
@@ -363,6 +378,7 @@ export interface FileRoutesByTo {
   '/invite/$token': typeof InviteTokenRoute
   '/offline/$titleId': typeof OfflineTitleIdRoute
   '/player/$installmentId': typeof PlayerInstallmentIdRoute
+  '/player/watch': typeof PlayerWatchRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin': typeof AdminIndexRoute
   '/awards': typeof AwardsIndexRoute
@@ -394,6 +410,7 @@ export interface FileRoutesById {
   '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
   '/settings': typeof SettingsRoute
+  '/watch': typeof WatchRoute
   '/_entities/planets': typeof EntitiesPlanetsRouteWithChildren
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/archive': typeof AdminArchiveRoute
@@ -412,6 +429,7 @@ export interface FileRoutesById {
   '/invite/$token': typeof InviteTokenRoute
   '/offline_/$titleId': typeof OfflineTitleIdRoute
   '/player/$installmentId': typeof PlayerInstallmentIdRoute
+  '/player/watch': typeof PlayerWatchRoute
   '/titles/$titleId': typeof TitlesTitleIdRoute
   '/admin/': typeof AdminIndexRoute
   '/awards/': typeof AwardsIndexRoute
@@ -443,6 +461,7 @@ export interface FileRouteTypes {
     | '/offline'
     | '/profiles'
     | '/settings'
+    | '/watch'
     | '/planets'
     | '/admin/accounts'
     | '/admin/archive'
@@ -461,6 +480,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/offline/$titleId'
     | '/player/$installmentId'
+    | '/player/watch'
     | '/titles/$titleId'
     | '/admin/'
     | '/awards/'
@@ -488,6 +508,7 @@ export interface FileRouteTypes {
     | '/offline'
     | '/profiles'
     | '/settings'
+    | '/watch'
     | '/admin/accounts'
     | '/admin/archive'
     | '/admin/awards'
@@ -504,6 +525,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/offline/$titleId'
     | '/player/$installmentId'
+    | '/player/watch'
     | '/titles/$titleId'
     | '/admin'
     | '/awards'
@@ -534,6 +556,7 @@ export interface FileRouteTypes {
     | '/offline'
     | '/profiles'
     | '/settings'
+    | '/watch'
     | '/_entities/planets'
     | '/admin/accounts'
     | '/admin/archive'
@@ -552,6 +575,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/offline_/$titleId'
     | '/player/$installmentId'
+    | '/player/watch'
     | '/titles/$titleId'
     | '/admin/'
     | '/awards/'
@@ -583,9 +607,11 @@ export interface RootRouteChildren {
   OfflineRoute: typeof OfflineRoute
   ProfilesRoute: typeof ProfilesRoute
   SettingsRoute: typeof SettingsRoute
+  WatchRoute: typeof WatchRoute
   InviteTokenRoute: typeof InviteTokenRoute
   OfflineTitleIdRoute: typeof OfflineTitleIdRoute
   PlayerInstallmentIdRoute: typeof PlayerInstallmentIdRoute
+  PlayerWatchRoute: typeof PlayerWatchRoute
   TitlesTitleIdRoute: typeof TitlesTitleIdRoute
   TitlesTitleIdInstallmentsInstallmentIdRoute: typeof TitlesTitleIdInstallmentsInstallmentIdRoute
 }
@@ -681,6 +707,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/watch': {
+      id: '/watch'
+      path: '/watch'
+      fullPath: '/watch'
+      preLoaderRoute: typeof WatchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_entities/planets': {
@@ -821,6 +854,13 @@ declare module '@tanstack/react-router' {
       path: '/player/$installmentId'
       fullPath: '/player/$installmentId'
       preLoaderRoute: typeof PlayerInstallmentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/player/watch': {
+      id: '/player/watch'
+      path: '/player/watch'
+      fullPath: '/player/watch'
+      preLoaderRoute: typeof PlayerWatchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/titles/$titleId': {
@@ -1034,9 +1074,11 @@ const rootRouteChildren: RootRouteChildren = {
   OfflineRoute: OfflineRoute,
   ProfilesRoute: ProfilesRoute,
   SettingsRoute: SettingsRoute,
+  WatchRoute: WatchRoute,
   InviteTokenRoute: InviteTokenRoute,
   OfflineTitleIdRoute: OfflineTitleIdRoute,
   PlayerInstallmentIdRoute: PlayerInstallmentIdRoute,
+  PlayerWatchRoute: PlayerWatchRoute,
   TitlesTitleIdRoute: TitlesTitleIdRoute,
   TitlesTitleIdInstallmentsInstallmentIdRoute:
     TitlesTitleIdInstallmentsInstallmentIdRoute,

@@ -1,6 +1,12 @@
 import type { InstallmentSubtitles } from "@arcadia/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { downloadInstallmentSubtitle, getInstallmentSubtitles } from "./subtitle-resolver";
+import { downloadSubtitle, type SubtitleSource, searchSubtitles } from "./subtitle-resolver";
+
+const installmentSource: SubtitleSource = {
+  kind: "installment",
+  installmentId: "11111111-1111-1111-1111-111111111111",
+  episodeId: null,
+};
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -21,7 +27,7 @@ const response: InstallmentSubtitles = {
   ],
 };
 
-describe("getInstallmentSubtitles", () => {
+describe("searchSubtitles", () => {
   it("builds a query string from the optional matching hints", async () => {
     const fetchMock = vi.fn<(url: string) => Promise<Response>>(
       async (_url: string) =>
@@ -32,12 +38,12 @@ describe("getInstallmentSubtitles", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await getInstallmentSubtitles(response.installmentId, {
-      episodeId: "33333333-3333-3333-3333-333333333333",
-      videoHash: "abc123",
-    });
+    const result = await searchSubtitles(
+      { ...installmentSource, episodeId: "33333333-3333-3333-3333-333333333333" },
+      { videoHash: "abc123" },
+    );
 
-    expect(result).toEqual(response);
+    expect(result).toEqual(response.candidates);
     const url = fetchMock.mock.calls[0]?.[0] ?? "";
     expect(url).toContain(`/installments/${response.installmentId}/subtitles?`);
     expect(url).toContain("episodeId=33333333");
@@ -54,14 +60,14 @@ describe("getInstallmentSubtitles", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await getInstallmentSubtitles(response.installmentId);
+    await searchSubtitles(installmentSource);
 
     const url = fetchMock.mock.calls[0]?.[0] ?? "";
     expect(url.endsWith("/subtitles")).toBe(true);
   });
 });
 
-describe("downloadInstallmentSubtitle", () => {
+describe("downloadSubtitle", () => {
   it("returns the bytes and the filename from Content-Disposition", async () => {
     const bytes = new Uint8Array([1, 2, 3]);
     vi.stubGlobal(
@@ -75,7 +81,7 @@ describe("downloadInstallmentSubtitle", () => {
       ),
     );
 
-    const file = await downloadInstallmentSubtitle(response.installmentId, 1);
+    const file = await downloadSubtitle(installmentSource, 1);
     expect(file.filename).toBe("some.ar.srt");
     expect([...file.bytes]).toEqual([1, 2, 3]);
   });
@@ -86,7 +92,7 @@ describe("downloadInstallmentSubtitle", () => {
       vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
     );
 
-    const file = await downloadInstallmentSubtitle(response.installmentId, 7);
+    const file = await downloadSubtitle(installmentSource, 7);
     expect(file.filename).toBe("subtitle-7.srt");
   });
 
@@ -96,8 +102,6 @@ describe("downloadInstallmentSubtitle", () => {
       vi.fn(async () => new Response(null, { status: 502 })),
     );
 
-    await expect(downloadInstallmentSubtitle(response.installmentId, 1)).rejects.toThrow(
-      "تعذّر تنزيل ملف الترجمة.",
-    );
+    await expect(downloadSubtitle(installmentSource, 1)).rejects.toThrow("تعذّر تنزيل ملف الترجمة.");
   });
 });

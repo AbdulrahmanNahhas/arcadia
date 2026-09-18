@@ -1,4 +1,5 @@
 import type { DownloadTarget } from "../../downloads/api";
+import type { SubtitleSource } from "../../subtitle-resolver";
 import type { PlayerEpisode, PlayerSeason } from "../episodes";
 import type { PlayerActions } from "../hooks/use-player-actions";
 import type { PlayerSession } from "../hooks/use-player-session";
@@ -19,6 +20,7 @@ export function PlayerPanels({
   seasons,
   installmentId,
   episodeId,
+  subtitleSource,
   videoHash,
   canSwitchAudio,
   canSwitchSubtitles,
@@ -33,6 +35,7 @@ export function PlayerPanels({
   seasons: PlayerSeason[];
   installmentId: string;
   episodeId: string | null;
+  subtitleSource: SubtitleSource;
   videoHash: string | null;
   canSwitchAudio: boolean;
   canSwitchSubtitles: boolean;
@@ -45,8 +48,7 @@ export function PlayerPanels({
         <TracksPanel
           canSwitchAudio={canSwitchAudio}
           canSwitchSubtitles={canSwitchSubtitles}
-          installmentId={installmentId}
-          episodeId={episodeId}
+          subtitleSource={subtitleSource}
           videoHash={videoHash}
           subtitleOffsetMs={session.subtitleOffsetMs}
           onSetSubtitleOffsetMs={session.setSubtitleOffsetMs}
@@ -88,6 +90,10 @@ export function PlayerPanels({
           sourceCount={session.candidates.length}
           localPath={session.localPath}
           downloadTarget={downloadTarget}
+          activeCandidate={
+            session.candidates.find((candidate) => candidate.id === session.activeCandidateId) ??
+            null
+          }
           onOpenPanel={onOpenPanel}
           onClose={onClose}
         />

@@ -5,6 +5,7 @@ import {
   DownloadSimpleIcon,
   GearSixIcon,
   HouseIcon,
+  MonitorPlayIcon,
   PlanetIcon,
   ScalesIcon,
   SignOutIcon,
@@ -215,6 +216,26 @@ export function PlatformShell({
                           }
                         />
                       </li>
+                      {isAdmin ? (
+                        <li>
+                          <NavigationMenuLink
+                            render={
+                              <Link
+                                to="/watch"
+                                className="flex flex-col gap-1 rounded-md p-2.5 transition-colors hover:bg-accent focus:bg-accent"
+                              >
+                                <div className="flex items-start ml-auto! gap-2 text-sm font-semibold text-foreground">
+                                  <MonitorPlayIcon className="size-4 text-primary" />
+                                  <span>مركز المشاهدة</span>
+                                </div>
+                                <p className="line-clamp-2 text-xs text-muted-foreground">
+                                  شغّل أي عمل بمعرّف IMDb خارج الأرشيف
+                                </p>
+                              </Link>
+                            }
+                          />
+                        </li>
+                      ) : null}
                     </ul>
                   </NavigationMenuContent>
                 </NavigationMenuItem>

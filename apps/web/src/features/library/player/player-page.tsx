@@ -5,6 +5,8 @@ import { useCurrentAccount } from "@/features/accounts/api";
 import { getPlaybackForTitle } from "@/features/social/api";
 import { getTitle } from "@/lib/api";
 import { useIsDesktopShell } from "../play-button";
+import type { SubtitleSource } from "../subtitle-resolver";
+import { resolveWatchPlayback, type WatchTarget, watchLabel } from "../watch/api";
 import { CenterFeedback } from "./components/center-feedback";
 import { ControlBar } from "./components/control-bar";
 import { MobileTransport } from "./components/mobile-transport";
@@ -39,11 +41,14 @@ export function PlayerPage({
   titleId,
   episodeId,
   origin,
+  watch = null,
 }: {
   installmentId: string;
   titleId: string;
   episodeId: string | null;
   origin: string | null;
+  /** Set by the watch hub: play this IMDb id instead of a catalog unit. Nothing is persisted. */
+  watch?: WatchTarget | null;
 }) {
   const navigate = useNavigate();
   const desktop = useIsDesktopShell();
@@ -78,15 +83,27 @@ export function PlayerPage({
     persistProgress: () => {},
   });
 
+  const resolveSource = useMemo(
+    () => (watch ? () => resolveWatchPlayback(watch) : undefined),
+    [watch],
+  );
+  const subtitleSource = useMemo<SubtitleSource>(
+    () =>
+      watch
+        ? { kind: "watch", imdbId: watch.imdbId, season: watch.season, episode: watch.episode }
+        : { kind: "installment", installmentId, episodeId },
+    [watch, installmentId, episodeId],
+  );
   const session = usePlayerSession({
     enabled: desktop,
     installmentId,
     episodeId,
     autoplay,
     callbacks,
+    resolveSource,
   });
   const progress = useProgressPersistence({
-    enabled: desktop,
+    enabled: desktop && !watch,
     installmentId,
     episodeId,
     tick: session.tick,
@@ -126,10 +143,12 @@ export function PlayerPage({
   const currentEpisode = findEpisode(seasons, installmentId, episodeId);
   const nextEpisode = nextUnwatchedEpisode(seasons, installmentId, episodeId);
   const installment = title.data?.installments.find((entry) => entry.id === installmentId);
-  const heading = title.data?.titleAr ?? title.data?.canonicalTitle ?? null;
+  const heading = watch
+    ? "مركز المشاهدة"
+    : (title.data?.titleAr ?? title.data?.canonicalTitle ?? null);
   const downloadTarget = useMemo(
     () =>
-      title.data
+      title.data && !watch
         ? {
             titleId,
             titleName: title.data.canonicalTitle || title.data.titleAr || titleId,
@@ -140,13 +159,15 @@ export function PlayerPage({
               : (installment?.title ?? "الفيلم"),
           }
         : null,
-    [title.data, titleId, installmentId, episodeId, currentEpisode, installment],
+    [title.data, titleId, installmentId, episodeId, currentEpisode, installment, watch],
   );
-  const subheading = currentEpisode
-    ? `${formatEpisodeCode(currentEpisode.seasonNumber, currentEpisode.episodeNumber)}${
-        currentEpisode.episodeTitle ? ` — ${currentEpisode.episodeTitle}` : ""
-      }`
-    : (installment?.title ?? null);
+  const subheading = watch
+    ? watchLabel(watch)
+    : currentEpisode
+      ? `${formatEpisodeCode(currentEpisode.seasonNumber, currentEpisode.episodeNumber)}${
+          currentEpisode.episodeTitle ? ` — ${currentEpisode.episodeTitle}` : ""
+        }`
+      : (installment?.title ?? null);
 
   const leave = useCallback(() => {
     if (window.history.length > 1) {
@@ -291,6 +312,7 @@ export function PlayerPage({
           seasons={seasons}
           installmentId={installmentId}
           episodeId={episodeId}
+          subtitleSource={subtitleSource}
           videoHash={activeVideoHash}
           canSwitchAudio={canSwitchAudio}
           canSwitchSubtitles={canSwitchSubtitles}

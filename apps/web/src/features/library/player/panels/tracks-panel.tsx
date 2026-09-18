@@ -1,5 +1,6 @@
 import { SubtitlesIcon, WaveformIcon } from "@phosphor-icons/react";
 import { useState } from "react";
+import type { SubtitleSource } from "../../subtitle-resolver";
 import { CURATED_AUDIO_LANGUAGES } from "../languages";
 import { groupPlayerTracks, trackVariantLabel } from "../track-groups";
 import { LanguageGroupList } from "./language-group-list";
@@ -17,8 +18,7 @@ type Tab = "audio" | "subtitles";
 export function TracksPanel({
   canSwitchAudio,
   canSwitchSubtitles,
-  installmentId,
-  episodeId,
+  subtitleSource,
   videoHash,
   subtitleOffsetMs,
   onSetSubtitleOffsetMs,
@@ -26,8 +26,7 @@ export function TracksPanel({
 }: {
   canSwitchAudio: boolean;
   canSwitchSubtitles: boolean;
-  installmentId: string;
-  episodeId: string | null;
+  subtitleSource: SubtitleSource;
   videoHash: string | null;
   subtitleOffsetMs: number;
   onSetSubtitleOffsetMs: (ms: number) => void;
@@ -57,8 +56,7 @@ export function TracksPanel({
         <AudioTab />
       ) : (
         <SubtitlesTab
-          installmentId={installmentId}
-          episodeId={episodeId}
+          source={subtitleSource}
           videoHash={videoHash}
           offsetMs={subtitleOffsetMs}
           onSetOffsetMs={onSetSubtitleOffsetMs}

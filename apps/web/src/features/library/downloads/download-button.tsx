@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useIsDesktopShell } from "../play-button";
-import { type DownloadTarget, startDownload, useDownloadFor } from "./api";
+import { type DownloadTarget, useDownloadFor } from "./api";
+import { DownloadSourcePicker } from "./source-picker";
 
 /**
  * "تنزيل" for one film or episode. Desktop-only — in a browser it renders nothing at all rather
@@ -29,8 +30,7 @@ export function DownloadButton({
 }) {
   const desktop = useIsDesktopShell();
   const existing = useDownloadFor(target.installmentId, target.episodeId);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   if (!desktop) return null;
 
@@ -79,41 +79,23 @@ export function DownloadButton({
     );
   }
 
-  const start = async () => {
-    setPending(true);
-    setError(null);
-    try {
-      await startDownload(target);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "تعذّر بدء التنزيل.");
-    } finally {
-      setPending(false);
-    }
-  };
-
-  const button = (
-    <Button
-      size={compact ? "icon-sm" : size}
-      variant={variant}
-      className={cn(compact && "size-7 rounded-full bg-background/70 backdrop-blur-md", className)}
-      disabled={pending}
-      onClick={() => void start()}
-      aria-label={compact ? `تنزيل ${target.label}` : undefined}
-      title={error ?? undefined}
-    >
-      {pending ? (
-        <SpinnerIcon className="animate-spin" data-icon={compact ? undefined : "inline-start"} />
-      ) : (
-        <DownloadSimpleIcon data-icon={compact ? undefined : "inline-start"} />
-      )}
-      {!compact && (error ? "تعذّر التنزيل" : "تنزيل")}
-    </Button>
-  );
-  if (!error) return button;
   return (
-    <Tooltip>
-      <TooltipTrigger render={button} />
-      <TooltipContent>{error}</TooltipContent>
-    </Tooltip>
+    <>
+      <Button
+        size={compact ? "icon-sm" : size}
+        variant={variant}
+        className={cn(
+          compact && "size-7 rounded-full bg-background/70 backdrop-blur-md",
+          className,
+        )}
+        onClick={() => setOpen(true)}
+        aria-label={compact ? `تنزيل ${target.label}` : undefined}
+        title={compact ? `تنزيل ${target.label}` : undefined}
+      >
+        <DownloadSimpleIcon data-icon={compact ? undefined : "inline-start"} />
+        {!compact && "تنزيل"}
+      </Button>
+      {open && <DownloadSourcePicker target={target} open={open} onOpenChange={setOpen} />}
+    </>
   );
 }

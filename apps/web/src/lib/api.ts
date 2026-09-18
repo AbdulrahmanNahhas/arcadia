@@ -193,7 +193,9 @@ function withSessionToken(init?: HeadersInit) {
   return headers;
 }
 
-async function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit) {
+/** `fetch` with the session cookie *and* the desktop bearer token — for the few raw-bytes
+ *  responses (subtitle files) that cannot go through `apiFetch`'s JSON path. */
+export async function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit) {
   return fetch(input, {
     ...init,
     credentials: "include",

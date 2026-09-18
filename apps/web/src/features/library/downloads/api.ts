@@ -2,7 +2,7 @@ import type { StreamCandidate } from "@arcadia/contracts";
 import { useSyncExternalStore } from "react";
 import { isDesktopShell } from "../desktop-player";
 import { noLocalLookup, resolvePlayback } from "../playback-resolver";
-import { downloadInstallmentSubtitle, getInstallmentSubtitles } from "../subtitle-resolver";
+import { downloadSubtitle, type SubtitleSource, searchSubtitles } from "../subtitle-resolver";
 
 /**
  * The bridge to the Tauri shell's download commands (`src-tauri/src/downloads`), plus one
@@ -172,16 +172,20 @@ const SIDECAR_LANGUAGES = ["ar", "en"] as const;
  */
 async function saveSidecarSubtitles(item: DownloadItem, videoHash: string | null) {
   try {
-    const found = await getInstallmentSubtitles(item.installmentId, {
+    const source: SubtitleSource = {
+      kind: "installment",
+      installmentId: item.installmentId,
       episodeId: item.episodeId,
+    };
+    const found = await searchSubtitles(source, {
       videoHash,
       languages: SIDECAR_LANGUAGES.join(","),
     });
     for (const language of SIDECAR_LANGUAGES) {
-      const candidate = found.candidates.find((entry) => entry.language === language);
+      const candidate = found.find((entry) => entry.language === language);
       if (!candidate) continue;
       try {
-        const file = await downloadInstallmentSubtitle(item.installmentId, candidate.fileId);
+        const file = await downloadSubtitle(source, candidate.fileId);
         await desktopDownloads.saveSubtitle(item.id, file.bytes, language, file.filename);
       } catch {
         // One language failing must not cost the other.
@@ -193,12 +197,25 @@ async function saveSidecarSubtitles(item: DownloadItem, videoHash: string | null
 }
 
 /**
- * Resolves the ranked torrent candidates exactly as the player would, registers the download,
- * then (once Rust knows the file name) saves sidecar subtitles. Resolves to the registry row.
+ * Registers a download of the given torrent candidate(s) — the one the family member picked in
+ * the source picker, or the one currently playing — then (once Rust knows the file name) saves
+ * sidecar subtitles. Without an explicit choice the API's ranking decides, as the player would.
+ * Resolves to the registry row.
  */
-export async function startDownload(target: DownloadTarget): Promise<DownloadItem> {
-  const source = await resolvePlayback(target.installmentId, target.episodeId, null, noLocalLookup);
-  const torrents = source.streams.candidates.filter((candidate) => candidate.kind === "torrent");
+export async function startDownload(
+  target: DownloadTarget,
+  chosen?: StreamCandidate[],
+): Promise<DownloadItem> {
+  let torrents = chosen?.filter((candidate) => candidate.kind === "torrent") ?? [];
+  if (torrents.length === 0) {
+    const source = await resolvePlayback(
+      target.installmentId,
+      target.episodeId,
+      null,
+      noLocalLookup,
+    );
+    torrents = source.streams.candidates.filter((candidate) => candidate.kind === "torrent");
+  }
   const item = await desktopDownloads.start(target, torrents);
   const videoHash = torrents[0]?.videoHash ?? null;
   // Subtitles need the video's file name, which arrives with the torrent metadata; poll the

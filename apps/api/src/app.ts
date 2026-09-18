@@ -41,6 +41,7 @@ import {
   parseLegacyTitleInput,
   TitleWriteError,
 } from "./features/titles/write";
+import { watchRoutes } from "./features/watch/routes";
 import { searchArtwork } from "./integrations/artwork-search";
 import {
   downloadSubtitleFile,
@@ -162,6 +163,7 @@ app.route("/", awardRoutes);
 app.route("/", archiveRoutes);
 app.route("/", downloadRoutes);
 app.route("/", socialRoutes);
+app.route("/", watchRoutes);
 
 const errorSchema = z.object({ message: z.string() });
 

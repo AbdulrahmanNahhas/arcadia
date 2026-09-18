@@ -3,7 +3,12 @@ import { DownloadSimpleIcon, MinusIcon, PlusIcon, ProhibitIcon } from "@phosphor
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { desktopPlayer } from "../../desktop-player";
-import { downloadInstallmentSubtitle, getInstallmentSubtitles } from "../../subtitle-resolver";
+import {
+  downloadSubtitle,
+  type SubtitleSource,
+  searchSubtitles,
+  subtitleSourceKey,
+} from "../../subtitle-resolver";
 import { SUBTITLE_OFFSET_STEP_MS } from "../constants";
 import { CURATED_SUBTITLE_LANGUAGES } from "../languages";
 import { groupPlayerTracks, groupSubtitleCandidates, trackVariantLabel } from "../track-groups";
@@ -18,14 +23,12 @@ import { usePlayerTracks } from "./use-player-tracks";
  * Arabic/English/Spanish filter (`languages=all`).
  */
 export function SubtitlesTab({
-  installmentId,
-  episodeId,
+  source,
   videoHash,
   offsetMs,
   onSetOffsetMs,
 }: {
-  installmentId: string;
-  episodeId: string | null;
+  source: SubtitleSource;
   videoHash: string | null;
   offsetMs: number;
   onSetOffsetMs: (ms: number) => void;
@@ -43,13 +46,12 @@ export function SubtitlesTab({
   const [expandedDownload, setExpandedDownload] = useState<string | null>(null);
   const [applyingFileId, setApplyingFileId] = useState<number | null>(null);
   const search = useQuery({
-    queryKey: ["player", "subtitles", installmentId, episodeId, videoHash, showAllDownloads],
+    queryKey: ["player", "subtitles", subtitleSourceKey(source), videoHash, showAllDownloads],
     queryFn: () =>
-      getInstallmentSubtitles(installmentId, {
-        episodeId,
+      searchSubtitles(source, {
         videoHash,
         languages: showAllDownloads ? "all" : CURATED_SUBTITLE_LANGUAGES.join(","),
-      }).then((result) => result.candidates),
+      }),
     staleTime: 5 * 60_000,
     retry: false,
   });
@@ -66,7 +68,7 @@ export function SubtitlesTab({
   const applyCandidate = async (candidate: SubtitleCandidate) => {
     setApplyingFileId(candidate.fileId);
     try {
-      const file = await downloadInstallmentSubtitle(installmentId, candidate.fileId);
+      const file = await downloadSubtitle(source, candidate.fileId);
       await desktopPlayer.loadSubtitle(file.bytes, candidate.fileName ?? file.filename);
       await refresh();
     } catch {

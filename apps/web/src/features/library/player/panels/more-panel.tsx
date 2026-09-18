@@ -1,3 +1,4 @@
+import type { StreamCandidate } from "@arcadia/contracts";
 import {
   CheckCircleIcon,
   ClockCounterClockwiseIcon,
@@ -20,6 +21,7 @@ export function MorePanel({
   sourceCount,
   localPath,
   downloadTarget,
+  activeCandidate,
   onOpenPanel,
   onClose,
 }: {
@@ -28,6 +30,8 @@ export function MorePanel({
   localPath: string | null;
   /** What "تنزيل" would keep; `null` while the title is still loading. */
   downloadTarget: DownloadTarget | null;
+  /** The release currently playing — the one "تنزيل" keeps, so no second choice is needed. */
+  activeCandidate: StreamCandidate | null;
   onOpenPanel: (panel: PanelKind) => void;
   onClose: () => void;
 }) {
@@ -54,7 +58,9 @@ export function MorePanel({
           onClick={() => onOpenPanel("source")}
           trailing={<span />}
         />
-        {downloadTarget && !localPath && <DownloadItem target={downloadTarget} />}
+        {downloadTarget && !localPath && (
+          <DownloadItem target={downloadTarget} candidate={activeCandidate} />
+        )}
         <PanelItem
           leading={
             <Glyph>
@@ -91,7 +97,13 @@ export function MorePanel({
  * once the film stops (`finish_stream` in `src-tauri/src/downloads/mod.rs`), so nothing already
  * fetched is fetched twice. The row turns into its status once the download exists.
  */
-function DownloadItem({ target }: { target: DownloadTarget }) {
+function DownloadItem({
+  target,
+  candidate,
+}: {
+  target: DownloadTarget;
+  candidate: StreamCandidate | null;
+}) {
   const existing = useDownloadFor(target.installmentId, target.episodeId);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +117,10 @@ function DownloadItem({ target }: { target: DownloadTarget }) {
       : existing.state === "queued"
         ? "سيتابع بعد انتهاء المشاهدة"
         : `${percent}٪`
-    : (error ?? "احفظ هذا الملف على الجهاز");
+    : (error ??
+      (candidate?.filename
+        ? `يحفظ الإصدار الذي يُشغَّل الآن: ${candidate.filename}`
+        : "احفظ هذا الملف على الجهاز"));
   return (
     <PanelItem
       leading={
@@ -123,7 +138,7 @@ function DownloadItem({ target }: { target: DownloadTarget }) {
         if (existing || pending) return;
         setPending(true);
         setError(null);
-        startDownload(target)
+        startDownload(target, candidate ? [candidate] : undefined)
           .catch((cause: Error) => setError(cause.message || "تعذّر بدء التنزيل."))
           .finally(() => setPending(false));
       }}

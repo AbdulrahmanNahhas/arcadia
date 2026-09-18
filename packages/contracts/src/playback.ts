@@ -153,3 +153,26 @@ export type StreamIdSource = z.infer<typeof streamIdSourceSchema>;
 export type InstallmentStreams = z.infer<typeof installmentStreamsSchema>;
 export type StreamErrorCode = z.infer<typeof streamErrorCodeSchema>;
 export type StreamError = z.infer<typeof streamErrorSchema>;
+
+/** An IMDb id as the family types it: `tt` + 7–10 digits. */
+export const imdbIdSchema = z.string().regex(/^tt\d{7,10}$/);
+
+/**
+ * `GET /api/v1/watch/streams` — the watch hub: ranked sources for any IMDb id, outside the
+ * catalog. Same candidates as `installmentStreamsSchema`, just no installment to hang them on.
+ */
+export const watchStreamsQuerySchema = z.object({
+  imdbId: imdbIdSchema,
+  season: z.coerce.number().int().min(0).optional(),
+  episode: z.coerce.number().int().min(1).optional(),
+});
+export const watchStreamsSchema = z.object({
+  streamId: z.string(),
+  candidates: z.array(streamCandidateSchema),
+});
+export const watchSubtitlesSchema = z.object({
+  candidates: z.array(subtitleCandidateSchema),
+});
+export type WatchStreamsQuery = z.infer<typeof watchStreamsQuerySchema>;
+export type WatchStreams = z.infer<typeof watchStreamsSchema>;
+export type WatchSubtitles = z.infer<typeof watchSubtitlesSchema>;
