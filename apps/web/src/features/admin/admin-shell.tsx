@@ -1,6 +1,7 @@
 import {
   BuildingsIcon,
   ChartBarIcon,
+  ClockCounterClockwiseIcon,
   HouseIcon,
   ImagesIcon,
   PlanetIcon,
@@ -54,6 +55,7 @@ const sections = [
       { title: "الإحصاءات", to: "/admin/statistics", icon: ChartBarIcon },
       { title: "عمليات الأرشيف", to: "/admin/archive", icon: PulseIcon },
       { title: "التحقق", to: "/admin/validation", icon: ShieldWarningIcon },
+      { title: "سجل العمليات", to: "/admin/audit", icon: ClockCounterClockwiseIcon },
     ],
   },
   {

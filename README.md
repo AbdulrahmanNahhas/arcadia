@@ -251,7 +251,7 @@ Copy both to the server (replace `server` with its LAN address or SSH alias):
 ssh server mkdir -p arcadia/media arcadia/backups .config/arcadia .config/containers/systemd .config/systemd/user
 scp ~/arcadia-export/arcadia.dump ~/arcadia-export/media.tgz server:arcadia/
 scp deploy/quadlet/* server:.config/containers/systemd/
-scp deploy/systemd/arcadia-backup.timer server:.config/systemd/user/
+scp deploy/systemd/*.timer deploy/systemd/*.service server:.config/systemd/user/
 scp deploy/arcadia.env.example server:.config/arcadia/arcadia.env
 ```
 
@@ -270,6 +270,7 @@ sudo firewall-cmd --permanent --add-port=23101/tcp --add-port=23180/tcp && sudo 
 systemctl --user daemon-reload       # Quadlet turns the .container/.volume/.network files into units
 systemctl --user enable --now podman-auto-update.timer   # nightly `podman auto-update` (AutoUpdate=registry)
 systemctl --user enable --now arcadia-backup.timer       # nightly pg_dump into ~/arcadia/backups
+systemctl --user enable --now arcadia-restore-drill.timer  # weekly proof the dumps restore (see §5)
 ```
 
 Give the box a stable address (a DHCP reservation on the router, or a static IP): the desktop
@@ -318,8 +319,23 @@ there by default. Browsers on the LAN can use `http://<server LAN IP>:23180` to 
   automatically. After the image updates: `systemctl --user start arcadia-migrate`. The API keeps
   serving in the meantime; run it promptly, since new code may expect the new columns.
 - **Backups** land in `~/arcadia/backups/arcadia-<date>.dump` nightly (14 kept). Artwork is plain
-  files in `~/arcadia/media`. Copy both directories somewhere else periodically. Restore:
+  files in `~/arcadia/media`. Restore:
   `podman exec -i arcadia-db pg_restore -U arcadia -d arcadia --clean --if-exists --no-owner < file.dump`.
+- **Restore drill** (`arcadia-restore-drill`, weekly): a backup you have never restored is a
+  hope, not a backup. Every Sunday the drill restores the newest dump into a throwaway database
+  inside the same Postgres container, counts the titles, drops it, and logs
+  `restore drill OK`. If it ever fails, the nightly dumps are not restorable — fix that before
+  you need them. Enable it once: `systemctl --user enable --now arcadia-restore-drill.timer`;
+  check with `journalctl --user -u arcadia-restore-drill`.
+- **Off-site copy** (`arcadia-offsite`, nightly): the dumps live on the same SSD as the
+  database, so a dead drive takes both. Plug in a USB drive (or mount a NAS), write its path to
+  `~/.config/arcadia/offsite.env` as `ARCADIA_OFFSITE_DIR=/run/media/<user>/<drive>/arcadia`,
+  copy `deploy/systemd/arcadia-offsite.{service,timer}` to `~/.config/systemd/user/`, and
+  `systemctl --user enable --now arcadia-offsite.timer`. It rsyncs `backups/` and `media/`
+  there every night and quietly skips when the drive is not mounted.
+- **Postgres memory** is set in `arcadia-db.container` (`Exec=postgres -c shared_buffers=256MB …`)
+  for a 4–8 GB box; raise `shared_buffers`/`effective_cache_size` proportionally on a bigger
+  one, then `systemctl --user daemon-reload && systemctl --user restart arcadia-db`.
 - **Working against the server from the laptop** (CLI, psql, pulling the live catalog into the
   dev database): Postgres is not on the LAN on purpose — open a tunnel and use `DATABASE_URL`:
 

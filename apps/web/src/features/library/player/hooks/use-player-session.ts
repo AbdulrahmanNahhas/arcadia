@@ -15,6 +15,7 @@ import {
   resolvePlayback,
 } from "../../playback-resolver";
 import { RESUME_END_BUFFER_SECONDS, RESUME_MIN_POSITION_SECONDS } from "../constants";
+import { applySubtitleStyle } from "../subtitle-style";
 import { type FeedbackEvent, INITIAL_TICK, type PlayerStatus, type TickSnapshot } from "../types";
 
 /**
@@ -143,6 +144,8 @@ export function usePlayerSession({
         case "fileLoaded": {
           switchingSource.current = false;
           fileLoaded.current = true;
+          // Per-device caption size/position, before any subtitle track is even selected.
+          void applySubtitleStyle();
           setHasPicture(true);
           setDuration(event.duration ?? 0);
           setStatus("playing");

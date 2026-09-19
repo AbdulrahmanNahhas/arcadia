@@ -100,3 +100,51 @@ export async function searchTmdbArtwork(input: {
   }));
   return { candidates, matchedId: matchId };
 }
+
+type SeasonEpisode = {
+  episode_number: number;
+  name: string | null;
+  overview: string | null;
+  air_date: string | null;
+  runtime: number | null;
+  still_path: string | null;
+};
+type SeasonResponse = { episodes: SeasonEpisode[] };
+
+export type TmdbSeasonEpisode = {
+  number: number;
+  title: string | null;
+  summary: string;
+  releaseDate: string | null;
+  runtimeMinutes: number | null;
+  /** Full `https://image.tmdb.org/...` URL of the episode still, or `null`. */
+  stillUrl: string | null;
+};
+
+/**
+ * `/tv/{id}/season/{n}` — per-episode names, overviews, air dates, runtimes and stills, for the
+ * admin episode editor's "جلب من TMDB". `language` picks the localisation TMDB returns; the
+ * editor asks for Arabic first and falls back to English per field.
+ */
+export async function fetchTmdbSeason(input: {
+  tmdbId: number;
+  season: number;
+  language?: string;
+}): Promise<TmdbSeasonEpisode[] | null> {
+  const response = await tmdbFetch<SeasonResponse>(`/tv/${input.tmdbId}/season/${input.season}`, {
+    language: input.language ?? "en-US",
+  });
+  if (!response) return null;
+  return response.episodes.map((episode) => ({
+    number: episode.episode_number,
+    title: episode.name?.trim() || null,
+    summary: episode.overview?.trim() ?? "",
+    releaseDate: episode.air_date || null,
+    runtimeMinutes: episode.runtime ?? null,
+    stillUrl: episode.still_path ? `${imageBase}/w780${episode.still_path}` : null,
+  }));
+}
+
+export function tmdbConfigured() {
+  return readAccessToken() !== null;
+}

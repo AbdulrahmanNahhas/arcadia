@@ -1,0 +1,15 @@
+# Plain user service (not a container): copies the nightly dumps and the artwork to a second
+# disk — a USB drive, a NAS mount, anything that is not the box's own SSD — so a dead drive is
+# not the end of the archive. Set ARCADIA_OFFSITE_DIR in ~/.config/arcadia/offsite.env, e.g.
+#   ARCADIA_OFFSITE_DIR=/run/media/<user>/backup-drive/arcadia
+# The copy is skipped (exit 0, logged) when the target is not mounted, so an unplugged drive
+# never fails the timer. Driven by arcadia-offsite.timer. (`$$` keeps a `$` for the shell —
+# systemd expands single `$VAR` itself, to nothing when unset.)
+[Unit]
+Description=Arcadia off-site copy of backups and media
+After=arcadia-backup.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/arcadia/offsite.env
+ExecStart=/bin/sh -c 'set -e; d="$$ARCADIA_OFFSITE_DIR"; if [ -z "$$d" ] || [ ! -d "$$d" ]; then echo "offsite dir not available: $${d:-unset}"; exit 0; fi; rsync -a --delete "%h/arcadia/backups/" "$$d/backups/"; rsync -a "%h/arcadia/media/" "$$d/media/"; echo "offsite copy OK -> $$d"'

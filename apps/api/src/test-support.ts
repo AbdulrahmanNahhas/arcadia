@@ -18,6 +18,11 @@ export async function catalogIsPopulated(): Promise<boolean> {
  * playback state). Returns the ids; `remove()` deletes the title, cascading everything under it.
  */
 export async function createScratchMovie(label: string) {
+  return createScratchInstallment(label, "movie");
+}
+
+/** Same as {@link createScratchMovie} for any installment kind (a `season` for episode tests). */
+export async function createScratchInstallment(label: string, kind: "movie" | "season") {
   const sql = database().client;
   const [title] = await sql`
     insert into titles (canonical_title, sort_title, title_ar, is_private)
@@ -27,7 +32,7 @@ export async function createScratchMovie(label: string) {
   const titleId = String(title.id);
   const [installment] = await sql`
     insert into installments (title_id, kind, position, title)
-    values (${titleId}, 'movie', 1, ${`Test ${label}`})
+    values (${titleId}, ${kind}, 1, ${`Test ${label}`})
     returning id`;
   if (!installment) throw new Error("could not create the scratch installment");
   return {

@@ -1,0 +1,20 @@
+# A backup is only real once it has been restored. Weekly (arcadia-restore-drill.timer): take
+# the newest dump in ~/arcadia/backups, restore it into a throwaway database *inside the same
+# Postgres container* (arcadia_drill — never the live one), count the titles, and drop it. If
+# this unit fails, the nightly backups are not restorable and you want to know before you need
+# them. Watch with `journalctl --user -u arcadia-restore-drill`.
+[Unit]
+Description=Arcadia backup restore drill (one-shot)
+After=arcadia-db.service
+Requires=arcadia-db.service
+
+[Container]
+ContainerName=arcadia-restore-drill
+Image=docker.io/library/postgres:17
+Network=arcadia.network
+EnvironmentFile=%h/.config/arcadia/arcadia.env
+Volume=%h/arcadia/backups:/backups:Z,ro
+Exec=sh -c 'set -e; f=$$(ls -1t /backups/arcadia-*.dump | head -n 1); [ -n "$$f" ] || { echo "no dump found"; exit 1; }; export PGPASSWORD="$$POSTGRES_PASSWORD"; psql -h arcadia-db -U arcadia -d postgres -q -c "drop database if exists arcadia_drill" -c "create database arcadia_drill"; pg_restore -h arcadia-db -U arcadia -d arcadia_drill --no-owner --no-privileges "$$f"; n=$$(psql -h arcadia-db -U arcadia -d arcadia_drill -Atc "select count(*) from titles"); psql -h arcadia-db -U arcadia -d postgres -q -c "drop database arcadia_drill"; echo "restore drill OK: $$f restored, $$n titles"'
+
+[Service]
+Type=oneshot

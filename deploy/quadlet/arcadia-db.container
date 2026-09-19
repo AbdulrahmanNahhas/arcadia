@@ -21,6 +21,11 @@ HealthRetries=10
 Notify=healthy
 # Not published: the API reaches it over the arcadia network, and nothing on the LAN should.
 # For the CLI/psql from the laptop, use an SSH tunnel (README "Working against the server").
+#
+# Sized for a small family box (4–8 GB RAM, one API). Postgres' defaults assume 128 MB of
+# shared buffers, which is far too little to keep the whole catalog in memory. Raise
+# shared_buffers to ~25% of RAM and effective_cache_size to ~50% if the box has more.
+Exec=postgres -c shared_buffers=256MB -c effective_cache_size=1GB -c work_mem=16MB -c maintenance_work_mem=128MB -c random_page_cost=1.1 -c log_min_duration_statement=500ms
 
 [Service]
 Restart=always

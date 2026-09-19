@@ -11,6 +11,17 @@ import {
 } from "../../subtitle-resolver";
 import { SUBTITLE_OFFSET_STEP_MS } from "../constants";
 import { CURATED_SUBTITLE_LANGUAGES } from "../languages";
+import {
+  DEFAULT_SUBTITLE_STYLE,
+  SUBTITLE_POSITION_MAX,
+  SUBTITLE_POSITION_MIN,
+  SUBTITLE_POSITION_STEP,
+  SUBTITLE_SCALE_MAX,
+  SUBTITLE_SCALE_MIN,
+  SUBTITLE_SCALE_STEP,
+  useSubtitleStyle,
+  writeSubtitleStyle,
+} from "../subtitle-style";
 import { groupPlayerTracks, groupSubtitleCandidates, trackVariantLabel } from "../track-groups";
 import { LanguageGroupList } from "./language-group-list";
 import { PanelItem, PanelNote, PanelSection } from "./panel-shell";
@@ -42,6 +53,7 @@ export function SubtitlesTab({
   });
   const noneSelected = tracks?.every((track) => !track.selected) ?? false;
 
+  const style = useSubtitleStyle();
   const [showAllDownloads, setShowAllDownloads] = useState(false);
   const [expandedDownload, setExpandedDownload] = useState<string | null>(null);
   const [applyingFileId, setApplyingFileId] = useState<number | null>(null);
@@ -182,6 +194,74 @@ export function SubtitlesTab({
             )}
           </div>
         </div>
+      </PanelSection>
+
+      <PanelSection title="شكل الترجمة">
+        <div data-panel-row className="flex items-center justify-between gap-2 px-3 py-1.5">
+          <span className="text-sm">حجم الخط</span>
+          <div className="flex items-center gap-1">
+            <OffsetButton
+              label="تصغير الترجمة"
+              onClick={() =>
+                writeSubtitleStyle({ ...style, scale: style.scale - SUBTITLE_SCALE_STEP })
+              }
+            >
+              <MinusIcon size={14} />
+            </OffsetButton>
+            <span dir="ltr" className="w-16 text-center font-mono text-sm tabular-nums">
+              {Math.round(style.scale * 100)}%
+            </span>
+            <OffsetButton
+              label="تكبير الترجمة"
+              onClick={() =>
+                writeSubtitleStyle({ ...style, scale: style.scale + SUBTITLE_SCALE_STEP })
+              }
+            >
+              <PlusIcon size={14} />
+            </OffsetButton>
+            {style.scale !== DEFAULT_SUBTITLE_STYLE.scale && (
+              <OffsetButton
+                label="الحجم الافتراضي"
+                onClick={() =>
+                  writeSubtitleStyle({ ...style, scale: DEFAULT_SUBTITLE_STYLE.scale })
+                }
+              >
+                <span className="text-[11px]">1</span>
+              </OffsetButton>
+            )}
+          </div>
+        </div>
+        <div data-panel-row className="flex items-center justify-between gap-2 px-3 py-1.5">
+          <span className="text-sm">الموضع</span>
+          <div className="flex items-center gap-1">
+            <OffsetButton
+              label="رفع الترجمة"
+              onClick={() =>
+                writeSubtitleStyle({ ...style, position: style.position - SUBTITLE_POSITION_STEP })
+              }
+            >
+              <span className="text-[11px]">▲</span>
+            </OffsetButton>
+            <span dir="ltr" className="w-16 text-center font-mono text-sm tabular-nums">
+              {style.position === DEFAULT_SUBTITLE_STYLE.position
+                ? "أسفل"
+                : `${DEFAULT_SUBTITLE_STYLE.position - style.position}`}
+            </span>
+            <OffsetButton
+              label="خفض الترجمة"
+              onClick={() =>
+                writeSubtitleStyle({ ...style, position: style.position + SUBTITLE_POSITION_STEP })
+              }
+            >
+              <span className="text-[11px]">▼</span>
+            </OffsetButton>
+          </div>
+        </div>
+        <p className="px-3 pb-2 text-[11px] leading-4 text-white/50">
+          يُحفظ على هذا الجهاز ويُطبَّق على كل ما يُشغَّل هنا (الحجم {Math.round(SUBTITLE_SCALE_MIN * 100)}
+          –{Math.round(SUBTITLE_SCALE_MAX * 100)}٪، الموضع {SUBTITLE_POSITION_MIN}–
+          {SUBTITLE_POSITION_MAX}).
+        </p>
       </PanelSection>
     </>
   );

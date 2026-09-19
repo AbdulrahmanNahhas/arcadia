@@ -303,3 +303,98 @@ export type AdminTitleInput = z.infer<typeof adminTitleInputSchema>;
 export type AdminAwardCeremonyInput = z.infer<typeof adminAwardCeremonyInputSchema>;
 export type AdminTitleBulkPatch = z.infer<typeof adminTitleBulkPatchSchema>;
 export type AdminTitleBulkPatchResult = z.infer<typeof adminTitleBulkPatchResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Per-episode editor (`/api/v1/admin/installments/{id}/episodes`) — in-place edits, unlike the
+// whole-structure PUT that rebuilds every installment (and with it every episode id).
+// ---------------------------------------------------------------------------
+
+const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const adminEpisodeSchema = z.object({
+  id: z.string().uuid(),
+  number: z.number().min(0),
+  position: z.number().int().min(0),
+  title: z.string().nullable(),
+  summary: z.string(),
+  releaseDate: dateString.nullable(),
+  runtimeMinutes: z.number().int().min(0).nullable(),
+  posterPath: z.string().nullable(),
+});
+export const adminEpisodeRowInputSchema = adminEpisodeSchema
+  .omit({ id: true, posterPath: true })
+  .extend({
+    /** Absent for a new episode. */
+    id: z.string().uuid().optional(),
+    /** A registered `/media/...` path (or an `https://` image to ingest); `null` clears it;
+     *  absent leaves the current still alone. */
+    posterPath: z.string().nullable().optional(),
+  });
+export const adminEpisodesWriteSchema = z.object({
+  episodes: z.array(adminEpisodeRowInputSchema).max(500),
+  /** Episodes to delete, by id. Explicit on purpose — an omitted row is never a deletion. */
+  removeIds: z.array(z.string().uuid()).default([]),
+});
+export const adminEpisodesResponseSchema = z.object({
+  installmentId: z.string().uuid(),
+  titleId: z.string().uuid(),
+  seasonNumber: z.number().int(),
+  tmdbId: z.number().int().nullable(),
+  episodes: z.array(adminEpisodeSchema),
+});
+export const tmdbEpisodePreviewSchema = z.object({
+  number: z.number(),
+  title: z.string().nullable(),
+  summary: z.string(),
+  releaseDate: z.string().nullable(),
+  runtimeMinutes: z.number().int().nullable(),
+  stillUrl: z.string().nullable(),
+  /** The catalog episode with the same number, if one exists. */
+  existingId: z.string().uuid().nullable(),
+});
+export const tmdbSeasonPreviewSchema = z.object({
+  tmdbId: z.number().int(),
+  season: z.number().int(),
+  episodes: z.array(tmdbEpisodePreviewSchema),
+});
+export const tmdbApplyInputSchema = z.object({
+  /** Which TMDB season to read; defaults to the installment's own season number. */
+  season: z.number().int().min(0).optional(),
+  /** `fill` writes only empty fields; `overwrite` replaces titles/summaries/dates/runtimes. */
+  mode: z.enum(["fill", "overwrite"]).default("fill"),
+  /** Download episode stills as per-episode posters (skipped where one already exists). */
+  stills: z.boolean().default(true),
+  /** Create catalog episodes for TMDB numbers the season does not have yet. */
+  createMissing: z.boolean().default(true),
+});
+export type AdminEpisode = z.infer<typeof adminEpisodeSchema>;
+export type AdminEpisodeRowInput = z.infer<typeof adminEpisodeRowInputSchema>;
+export type AdminEpisodesWrite = z.infer<typeof adminEpisodesWriteSchema>;
+export type AdminEpisodesResponse = z.infer<typeof adminEpisodesResponseSchema>;
+export type TmdbSeasonPreview = z.infer<typeof tmdbSeasonPreviewSchema>;
+export type TmdbApplyInput = z.infer<typeof tmdbApplyInputSchema>;
+
+// ---------------------------------------------------------------------------
+// Audit log viewer (`/api/v1/admin/audit-logs`)
+// ---------------------------------------------------------------------------
+
+export const auditLogEntrySchema = z.object({
+  id: z.string().uuid(),
+  actor: z
+    .object({ id: z.string().uuid(), displayName: z.string(), avatarKey: z.string().nullable() })
+    .nullable(),
+  action: z.string(),
+  targetType: z.string(),
+  targetId: z.string().nullable(),
+  summary: z.string(),
+  changes: z.record(z.string(), z.unknown()),
+  createdAt: z.string(),
+});
+export const auditLogPageSchema = z.object({
+  items: z.array(auditLogEntrySchema),
+  total: z.number().int(),
+  /** Distinct `target_type` values, for the filter chips. */
+  targetTypes: z.array(z.string()),
+});
+export type AuditLogEntry = z.infer<typeof auditLogEntrySchema>;
+export type AuditLogPage = z.infer<typeof auditLogPageSchema>;

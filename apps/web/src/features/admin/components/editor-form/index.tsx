@@ -9,6 +9,7 @@ import {
   GlobeIcon,
   ImageSquareIcon,
   InfoIcon,
+  ListNumbersIcon,
   LockKeyIcon,
   MagnifyingGlassIcon,
   NotePencilIcon,
@@ -2375,21 +2376,35 @@ function parseEditableStructure(raw: string, workId: string): EditableWorkStruct
  */
 function EditStructureLink({ workId }: { workId: string }) {
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      nativeButton={false}
-      render={
-        <Link
-          to="/admin/catalog/json"
-          search={{ ids: [workId], scope: "ids", preset: "structure" }}
-        />
-      }
-    >
-      <CodeIcon data-icon="inline-start" />
-      تعديل البنية
-    </Button>
+    <span className="inline-flex flex-wrap gap-2">
+      {/* Per-episode fields (title, summary, air date, runtime, still) and the TMDB import live
+          on their own page, editing rows in place — the JSON structure editor rebuilds ids. */}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        nativeButton={false}
+        render={<Link to="/admin/catalog/$workId/episodes" params={{ workId }} search={{}} />}
+      >
+        <ListNumbersIcon data-icon="inline-start" />
+        تحرير الحلقات
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        nativeButton={false}
+        render={
+          <Link
+            to="/admin/catalog/json"
+            search={{ ids: [workId], scope: "ids", preset: "structure" }}
+          />
+        }
+      >
+        <CodeIcon data-icon="inline-start" />
+        تعديل البنية
+      </Button>
+    </span>
   );
 }
 

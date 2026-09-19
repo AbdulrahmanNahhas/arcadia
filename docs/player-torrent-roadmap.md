@@ -831,8 +831,9 @@ response is the identical JSON shape `parseStreams`/`rankCandidates` already han
       (nullable `subtitle_offset_ms` column, additive migration) and restored through the same
       `getPlaybackForInstallment` call the position-resume already made.
 - [x] The subtitle menu doesn't render at all when the account's `subtitleMode` is `"off"`.
-- [ ] Styling controls (`sub-font-size`, `sub-pos`) — deferred, genuinely optional polish; would
-      cost zero new Rust (same generic `setProperty` path) whenever it's picked up.
+- [x] Styling controls — `sub-scale` + `sub-pos` in the subtitles tab ("شكل الترجمة"), saved per
+      device in `localStorage` (`arcadia:subtitleStyle`) and re-applied on every `fileLoaded`
+      (`player/subtitle-style.ts`, 2026-09-19). Zero new Rust, as predicted.
 
 ### Tracks
 

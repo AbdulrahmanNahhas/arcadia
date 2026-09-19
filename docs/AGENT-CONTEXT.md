@@ -82,7 +82,11 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 | `features/library/downloads/` | `api.ts` (Tauri bridge + one process-wide snapshot store, `useDownloads`, `startDownload` with sidecar subtitles), `download-button.tsx`, `downloads-page.tsx` (`/downloads`), `mirror.ts` (best-effort `/me/downloads` sync, mounted in `PlatformShell`) | desktop-only; renders nothing / an empty state in a browser |
 | `features/library/playback-resolver.ts` | `resolvePlayback`: **local download first** (`LocalLookup`, injectable), then cached candidates, then the API | `noLocalLookup` for callers that must hit the network |
 | `features/library/player/` | `player-page.tsx` composes only; `hooks/` (`use-player-session` lifecycle+IPC, `use-player-actions` transport, `use-player-shortcuts` keyboard/D-pad model, `use-overlay-regions` X11 cut-outs, `use-controls-visibility`, `use-progress-persistence`, `use-playhead-paint`), `components/` (top bar, control bar, timeline, mobile transport, overlays), `panels/` (`panel-shell` modal + D-pad walk; tracks, subtitles, speed, source, episodes, more), `languages.ts` (flags/labels/aliases), `track-groups.ts` (group-by-language + show-all), `episodes.ts` | every panel is a `PanelShell`; every focusable control carries `data-player-control` and sits in a `data-control-row`; anything drawn over the picture carries `data-video-overlay` |
-| `features/admin/` | `admin-shell.tsx` (role gate), `pages/`, `components/editor-form/` (2434 lines), `json-editor/` | |
+| `features/admin/` | `admin-shell.tsx` (role gate), `pages/`, `components/editor-form/` (2434 lines), `json-editor/` |
+| `features/admin/episodes/` + `pages/episode-editor-page.tsx` | per-season episode editor (`/admin/catalog/$workId/episodes?installment=`): in-place rows, reorder, remove, stills, "جلب من TMDB" dialog | never goes through the structure PUT (which rebuilds ids) |
+| `features/admin/pages/audit-log-page.tsx` | `/admin/audit` — owner-only viewer + prune | |
+| `features/library/player/subtitle-style.ts` | per-device `sub-scale`/`sub-pos`, applied on `fileLoaded` | |
+| `features/library/watch/` | `/watch` hub (IMDb id → `/player/watch`), owner/editor | | |
 | `features/profiles/` | `settings-page.tsx` (theme UI at the "appearance" tab), `profiles-page.tsx` | |
 | `features/social/`, `features/awards/`, `features/catalog/`, `features/entities/` | as named | |
 | `components/ui/` | vendored shadcn (Base UI) — 32 primitives incl. `sidebar`, `command`, `chart` | do not hand-edit; add via the `shadcn` skill |
@@ -99,6 +103,10 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 | `features/accounts/routes.ts` | `/api/v1/me` GET/PATCH; `defaultPreferences` at line ~43; `account_preferences` upsert at ~282 |
 | `features/downloads/routes.ts` | `/api/v1/me/downloads` GET/PUT/DELETE — mirror of each device's registry (`account_downloads`, migration 0028); plain session routes, not in OpenAPI |
 | `migrate.ts` | `dist/migrate.js`: media backfill pass + `runMigrations()` — the container migration entry |
+| `media-assign.ts` | `assignMediaPath` / `purgeUnreferencedMedia`, extracted from `app.ts` so feature modules can assign artwork |
+| `features/admin-episodes/routes.ts` | `GET/PUT /admin/installments/:id/episodes` (in-place, two-pass reorder), `GET/POST …/episodes/tmdb` (preview/apply `/tv/{id}/season/{n}`, ar → en) |
+| `features/admin-audit/routes.ts` | `GET/DELETE /admin/audit-logs` — owner only; mounted **after** the admin gate in `app.ts` (registration order matters for Hono middleware) |
+| `features/watch/routes.ts` | `/api/v1/watch/{streams,subtitles}` — owner/editor only |
 | `integrations/` | tmdb, anilist, fanart, opensubtitles, torrent-source |
 | `media-storage.ts` | sha256 content-addressed uploads |
 
@@ -111,7 +119,7 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 | `packages/database/src/schema.ts` (1530) | Drizzle schema; `account_preferences.theme` is `text` default `'dark'` (no DB enum → adding a theme value needs **no migration**) |
 | `packages/database/drizzle/` | the only migration history (latest `0028_windy_marvel_zombies`, `account_downloads`) |
 | `packages/database/src/{client,media-backfill,run-migrations}.ts` | `createDatabase`, `prepareMediaBackfill` (was the top-level `prepare-media-backfill.ts` script), `runMigrations` (drizzle-orm migrator, same journal/table as drizzle-kit) |
-| `deploy/quadlet/`, `deploy/systemd/`, `deploy/arcadia.env.example` | Fedora Atomic units + backup timer + env template; `docker-compose.yml` runs the same images for Docker hosts |
+| `deploy/quadlet/`, `deploy/systemd/`, `deploy/arcadia.env.example` | Fedora Atomic units: db (tuned `Exec=postgres -c …`), api, web, migrate, backup, **restore-drill** (weekly, throwaway `arcadia_drill` DB), plus plain systemd **offsite** rsync timer; `docker-compose.yml` runs the same images for Docker hosts |
 | `.github/workflows/publish-images.yml` | GHCR images on push to master / `v*` tags |
 | `packages/domain/` | classification, policy, scoring, taxonomy — framework-free |
 | `packages/i18n/` | Arabic/English labels; under-used (F4) |
@@ -190,6 +198,14 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 - **JS `String.replace` with a string replacement expands `$$`, `$&`, `$\``** — when scripting
   doc edits with node, pass a function (`s.replace(a, () => b)`). This file was duplicated once
   by exactly that.
+- **Admin route modules must be mounted after the gate.** `app.use("/api/v1/admin/*")` role/
+  capability middleware is registered mid-file; `app.route()` calls placed before it are not
+  protected. New admin feature modules go right after `/api/v1/admin/status`.
+- **Structure PUT rebuilds installment ids** (playback states and episode stills cascade away).
+  Anything that edits episodes uses `features/admin-episodes`, never the structure document.
+- **Postgres in tests.** The API suite needs the devenv Postgres; with `devenv up` stopped, run
+  `devenv up postgres -d` (and `devenv processes down` after). Without it every session test
+  fails with "Expected Better Auth to return a bearer token".
 - **Router error boundaries** receive `error: unknown` (`ErrorComponentProps`); narrow with
   `instanceof Error` at the call site — the anti-slop plugin forbids `unknown` parameters and
   `typeof` narrowing in helpers.
@@ -228,6 +244,7 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 
 | Date | Phase | What landed | By |
 | --- | --- | --- | --- |
+| 2026-09-19 | Post-release | Download source picker + dub/subtitle hints, `/watch` hub, season-pack fixes; admin episode editor + TMDB season import, audit log viewer/prune, subtitle size/position, restore drill + off-site timer + Postgres tuning; `media-assign.ts` extracted | Opus 5 |
 | 2026-09-18 | S, O, P3, release 0.3.5 | Security/debrid doc; address-free web image + bundled migrate entry + Node 26 Dockerfile fix + GHCR workflow; Quadlet units, backup timer, Fedora migration guide; download engine (Rust) + `/downloads` UI + local playback + `account_downloads` (0028); on-disk locations doc; `ci.yml` on master; version bump | Opus 5 |
 | 2026-09-14 | Lint | 481 → 0 oxlint errors (65 by four Sonnet agents before a rate limit, the rest by one Sonnet agent + Opus); Phase E allowlist introduced; TS target ES2023 | Opus 5 + Sonnet 5 |
 | 2026-09-13 | T2 | `diagnostics.rs`: devtools switch, log level, startup milestones (`df56ea8`) | Opus 5 |

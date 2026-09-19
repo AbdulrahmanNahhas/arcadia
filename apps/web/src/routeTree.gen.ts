@@ -27,6 +27,7 @@ import { Route as EntitiesPlanetsRouteImport } from './routes/_entities/planets'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAccountsRouteImport } from './routes/admin/accounts'
 import { Route as AdminArchiveRouteImport } from './routes/admin/archive'
+import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as AdminAwardsRouteImport } from './routes/admin/awards'
 import { Route as AdminCatalogRouteImport } from './routes/admin/catalog'
 import { Route as AdminMediaRouteImport } from './routes/admin/media'
@@ -56,6 +57,7 @@ import { Route as AdminCatalogIndexRouteImport } from './routes/admin/catalog.in
 import { Route as AdminCatalogWorkIdRouteImport } from './routes/admin/catalog.$workId'
 import { Route as AdminCatalogJsonRouteImport } from './routes/admin/catalog.json'
 import { Route as AdminCatalogNewRouteImport } from './routes/admin/catalog_.new'
+import { Route as AdminCatalogWorkIdEpisodesRouteImport } from './routes/admin/catalog.$workId_.episodes'
 import { Route as TitlesTitleIdInstallmentsInstallmentIdRouteImport } from './routes/titles_.$titleId.installments.$installmentId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -145,6 +147,11 @@ const AdminAccountsRoute = AdminAccountsRouteImport.update({
 const AdminArchiveRoute = AdminArchiveRouteImport.update({
   id: '/archive',
   path: '/archive',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAwardsRoute = AdminAwardsRouteImport.update({
@@ -294,6 +301,12 @@ const AdminCatalogNewRoute = AdminCatalogNewRouteImport.update({
   path: '/catalog/new',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCatalogWorkIdEpisodesRoute =
+  AdminCatalogWorkIdEpisodesRouteImport.update({
+    id: '/$workId_/episodes',
+    path: '/$workId/episodes',
+    getParentRoute: () => AdminCatalogRoute,
+  } as any)
 const TitlesTitleIdInstallmentsInstallmentIdRoute =
   TitlesTitleIdInstallmentsInstallmentIdRouteImport.update({
     id: '/titles_/$titleId/installments/$installmentId',
@@ -318,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/planets': typeof EntitiesPlanetsRouteWithChildren
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/archive': typeof AdminArchiveRoute
+  '/admin/audit': typeof AdminAuditRoute
   '/admin/awards': typeof AdminAwardsRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/media': typeof AdminMediaRoute
@@ -348,6 +362,7 @@ export interface FileRoutesByFullPath {
   '/planets/': typeof EntitiesPlanetsIndexRoute
   '/studios/': typeof EntitiesStudiosIndexRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
+  '/admin/catalog/$workId/episodes': typeof AdminCatalogWorkIdEpisodesRoute
   '/titles/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
 }
 export interface FileRoutesByTo {
@@ -364,6 +379,7 @@ export interface FileRoutesByTo {
   '/watch': typeof WatchRoute
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/archive': typeof AdminArchiveRoute
+  '/admin/audit': typeof AdminAuditRoute
   '/admin/awards': typeof AdminAwardsRoute
   '/admin/media': typeof AdminMediaRoute
   '/admin/people': typeof AdminPeopleRoute
@@ -393,6 +409,7 @@ export interface FileRoutesByTo {
   '/planets': typeof EntitiesPlanetsIndexRoute
   '/studios': typeof EntitiesStudiosIndexRoute
   '/admin/catalog': typeof AdminCatalogIndexRoute
+  '/admin/catalog/$workId/episodes': typeof AdminCatalogWorkIdEpisodesRoute
   '/titles/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
 }
 export interface FileRoutesById {
@@ -414,6 +431,7 @@ export interface FileRoutesById {
   '/_entities/planets': typeof EntitiesPlanetsRouteWithChildren
   '/admin/accounts': typeof AdminAccountsRoute
   '/admin/archive': typeof AdminArchiveRoute
+  '/admin/audit': typeof AdminAuditRoute
   '/admin/awards': typeof AdminAwardsRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/media': typeof AdminMediaRoute
@@ -444,6 +462,7 @@ export interface FileRoutesById {
   '/_entities/planets/': typeof EntitiesPlanetsIndexRoute
   '/_entities/studios/': typeof EntitiesStudiosIndexRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
+  '/admin/catalog/$workId_/episodes': typeof AdminCatalogWorkIdEpisodesRoute
   '/titles_/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
 }
 export interface FileRouteTypes {
@@ -465,6 +484,7 @@ export interface FileRouteTypes {
     | '/planets'
     | '/admin/accounts'
     | '/admin/archive'
+    | '/admin/audit'
     | '/admin/awards'
     | '/admin/catalog'
     | '/admin/media'
@@ -495,6 +515,7 @@ export interface FileRouteTypes {
     | '/planets/'
     | '/studios/'
     | '/admin/catalog/'
+    | '/admin/catalog/$workId/episodes'
     | '/titles/$titleId/installments/$installmentId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -511,6 +532,7 @@ export interface FileRouteTypes {
     | '/watch'
     | '/admin/accounts'
     | '/admin/archive'
+    | '/admin/audit'
     | '/admin/awards'
     | '/admin/media'
     | '/admin/people'
@@ -540,6 +562,7 @@ export interface FileRouteTypes {
     | '/planets'
     | '/studios'
     | '/admin/catalog'
+    | '/admin/catalog/$workId/episodes'
     | '/titles/$titleId/installments/$installmentId'
   id:
     | '__root__'
@@ -560,6 +583,7 @@ export interface FileRouteTypes {
     | '/_entities/planets'
     | '/admin/accounts'
     | '/admin/archive'
+    | '/admin/audit'
     | '/admin/awards'
     | '/admin/catalog'
     | '/admin/media'
@@ -590,6 +614,7 @@ export interface FileRouteTypes {
     | '/_entities/planets/'
     | '/_entities/studios/'
     | '/admin/catalog/'
+    | '/admin/catalog/$workId_/episodes'
     | '/titles_/$titleId/installments/$installmentId'
   fileRoutesById: FileRoutesById
 }
@@ -742,6 +767,13 @@ declare module '@tanstack/react-router' {
       path: '/archive'
       fullPath: '/admin/archive'
       preLoaderRoute: typeof AdminArchiveRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/awards': {
@@ -947,6 +979,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCatalogNewRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/catalog/$workId_/episodes': {
+      id: '/admin/catalog/$workId_/episodes'
+      path: '/$workId/episodes'
+      fullPath: '/admin/catalog/$workId/episodes'
+      preLoaderRoute: typeof AdminCatalogWorkIdEpisodesRouteImport
+      parentRoute: typeof AdminCatalogRoute
+    }
     '/titles_/$titleId/installments/$installmentId': {
       id: '/titles_/$titleId/installments/$installmentId'
       path: '/titles/$titleId/installments/$installmentId'
@@ -997,12 +1036,14 @@ interface AdminCatalogRouteChildren {
   AdminCatalogWorkIdRoute: typeof AdminCatalogWorkIdRoute
   AdminCatalogJsonRoute: typeof AdminCatalogJsonRoute
   AdminCatalogIndexRoute: typeof AdminCatalogIndexRoute
+  AdminCatalogWorkIdEpisodesRoute: typeof AdminCatalogWorkIdEpisodesRoute
 }
 
 const AdminCatalogRouteChildren: AdminCatalogRouteChildren = {
   AdminCatalogWorkIdRoute: AdminCatalogWorkIdRoute,
   AdminCatalogJsonRoute: AdminCatalogJsonRoute,
   AdminCatalogIndexRoute: AdminCatalogIndexRoute,
+  AdminCatalogWorkIdEpisodesRoute: AdminCatalogWorkIdEpisodesRoute,
 }
 
 const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
@@ -1012,6 +1053,7 @@ const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
 interface AdminRouteChildren {
   AdminAccountsRoute: typeof AdminAccountsRoute
   AdminArchiveRoute: typeof AdminArchiveRoute
+  AdminAuditRoute: typeof AdminAuditRoute
   AdminAwardsRoute: typeof AdminAwardsRoute
   AdminCatalogRoute: typeof AdminCatalogRouteWithChildren
   AdminMediaRoute: typeof AdminMediaRoute
@@ -1030,6 +1072,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAccountsRoute: AdminAccountsRoute,
   AdminArchiveRoute: AdminArchiveRoute,
+  AdminAuditRoute: AdminAuditRoute,
   AdminAwardsRoute: AdminAwardsRoute,
   AdminCatalogRoute: AdminCatalogRouteWithChildren,
   AdminMediaRoute: AdminMediaRoute,
