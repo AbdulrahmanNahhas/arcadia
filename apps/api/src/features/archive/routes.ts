@@ -535,26 +535,6 @@ archiveRoutes.get("/api/v1/admin/archive/jobs", async (context) => {
   );
 });
 
-archiveRoutes.post("/api/v1/admin/archive/jobs", async (context) => {
-  const current = await requireEditor(context.req.raw.headers);
-  if (!current) return context.json({ message: "صلاحية التحرير مطلوبة." }, 403);
-  const body = (await context.req.json()) as { type?: string; payload?: Record<string, unknown> };
-  const allowed = new Set([
-    "validate",
-    "recalculate-quality",
-    "inspect-media",
-    "refresh-collections",
-    "export",
-  ]);
-  if (!body.type || !allowed.has(body.type))
-    return context.json({ message: "نوع المهمة غير صالح." }, 400);
-  const [row] = await database().client`insert into background_jobs
-    (created_by_account_id,type,status,progress,payload,result,started_at,finished_at)
-    values (${current.account.id},${body.type},'completed',100,${JSON.stringify(body.payload ?? {})}::jsonb,
-      ${JSON.stringify({ message: "اكتملت المعاينة المحلية." })}::jsonb,now(),now()) returning id`;
-  return context.json({ id: String(row?.id) }, 201);
-});
-
 archiveRoutes.get("/api/v1/admin/archive/export", async (context) => {
   const current = await requireEditor(context.req.raw.headers);
   if (!current) return context.json({ message: "صلاحية التحرير مطلوبة." }, 403);

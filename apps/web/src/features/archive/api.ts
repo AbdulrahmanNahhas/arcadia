@@ -143,11 +143,6 @@ export const getAdminAudit = () => apiFetch<AuditEntry[]>("/api/v1/admin/archive
 export const getAdminDuplicates = () =>
   apiFetch<DuplicateCandidate[]>("/api/v1/admin/archive/duplicates");
 export const getAdminJobs = () => apiFetch<BackgroundJob[]>("/api/v1/admin/archive/jobs");
-export const runAdminJob = (type: string) =>
-  apiFetch<{ id: string }>("/api/v1/admin/archive/jobs", {
-    method: "POST",
-    body: JSON.stringify({ type, payload: {} }),
-  });
 export const updateTitleWorkflow = (
   titleId: string,
   status: "draft" | "in_review" | "approved" | "published" | "archived",

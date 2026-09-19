@@ -79,7 +79,6 @@ import type {
 import {
   ageValues,
   audiences,
-  countries,
   editableWorkStructureSchema,
   genres,
   tagLabelsAr,
@@ -89,7 +88,7 @@ import {
   workKinds,
 } from "@/features/library/model";
 
-import { useArabicTranslations } from "@/features/library/translations";
+import { useArabicTranslations, useCountryOptions } from "@/features/library/translations";
 
 import type { PlanetWithWorks } from "@/features/platform/model";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -476,6 +475,7 @@ function WorkEditorFormFields({
   submit: (e: FormEvent) => void;
 }) {
   const { taxonomyLabel } = useArabicTranslations();
+  const countryOptions = useCountryOptions();
 
   const draftKind = String(draft.kind);
   const structureFields = hasStructureFields(draftKind)
@@ -743,14 +743,9 @@ function WorkEditorFormFields({
             <ArrayField
               label="الدول"
               value={draft.country}
-              onChange={(country: string[]) =>
-                // SAFETY: ArrayField only calls onChange with values it accepted through addTag,
-                // which rejects anything not in `options` whenever `allowCustom` is unset (it is,
-                // here) — since `options={countries}` below, every element is a real `Country`.
-                setDraft({ ...draft, country: country as Work["country"] })
-              }
-              options={countries}
-              optionLabels={taxonomyLabels.countries}
+              onChange={(country: string[]) => setDraft({ ...draft, country })}
+              options={countryOptions.values}
+              optionLabels={countryOptions.labels}
             />
             <Field label="الكوكب">
               <Select

@@ -1,9 +1,10 @@
 import { titleKindLabels } from "@arcadia/domain";
 import { vocabularyFallbackLabel } from "@arcadia/i18n";
 import { useQuery } from "@tanstack/react-query";
+import { labelFromSlug } from "@/server/compat";
 import { getTaxonomyTerms } from "@/server/library.functions";
 import type { FacetKey } from "./filtering";
-import type { WorkKind } from "./model";
+import { taxonomyLabels, type WorkKind } from "./model";
 
 /** The one Arabic name for each catalog type — every surface (browse chips, group headers, the
  *  card badge, the admin table) reads it from here rather than keeping its own copy. */
@@ -94,12 +95,39 @@ export const facetLabelsAr = {
   structureStates: "بنية التتبع",
 } satisfies Record<FacetKey, string>;
 
-export function useArabicTranslations() {
+function useTaxonomyTerms() {
   const { data: terms = [] } = useQuery({
     queryKey: ["taxonomy-terms"],
     queryFn: () => getTaxonomyTerms(),
     staleTime: 60_000,
   });
+  return terms;
+}
+
+const fallbackCountryLabels: Record<string, string> = taxonomyLabels.countries;
+
+/**
+ * The countries a work may carry, in the English-label form `Work.country` holds (the same
+ * `labelFromSlug` the API compat layer applies), plus their Arabic labels — read from the
+ * database vocabulary so a country added under /admin/vocabularies is immediately offerable.
+ * The static map only stands in until the query resolves (or offline).
+ */
+export function useCountryOptions() {
+  const terms = useTaxonomyTerms();
+  const live = terms.filter((term) => term.vocabulary === "countries" && term.isActive);
+  if (live.length === 0) {
+    return { values: Object.keys(fallbackCountryLabels), labels: fallbackCountryLabels };
+  }
+  const labels: Record<string, string> = {};
+  for (const term of live) {
+    const value = labelFromSlug(term.slug);
+    labels[value] = term.labelAr || fallbackCountryLabels[value] || value;
+  }
+  return { values: Object.keys(labels), labels };
+}
+
+export function useArabicTranslations() {
+  const terms = useTaxonomyTerms();
 
   const databaseLabels = new Map(
     terms.flatMap((term) =>

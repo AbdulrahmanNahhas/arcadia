@@ -2,9 +2,10 @@ import { CheckIcon, ClipboardTextIcon, RobotIcon, ShieldWarningIcon } from "@pho
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useCountryOptions } from "@/features/library/translations";
 import { cn } from "@/lib/utils";
 import { DOC_VALUE_TYPE_KEY, type fieldDoc, GLOBAL_SAFETY_NOTES } from "./guide";
-import { referenceLists } from "./reference";
+import { buildReferenceLists } from "./reference";
 
 type FieldDoc = ReturnType<typeof fieldDoc>;
 
@@ -32,6 +33,7 @@ export function ReferencePanel({
   const [tab, setTab] = useState<"fields" | "values">("values");
   const [copied, setCopied] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const referenceLists = buildReferenceLists(useCountryOptions().values);
   const flash = (key: string) => {
     setCopied(key);
     setTimeout(() => setCopied((current) => (current === key ? null : current)), 1500);

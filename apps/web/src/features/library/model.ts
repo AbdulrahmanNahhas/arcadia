@@ -44,28 +44,6 @@ export const genres = [
 
 export const audiences = ["Adult", "Young Adult", "Teen", "General"] as const;
 
-export const countries = [
-  "Australia",
-  "Austria",
-  "Belgium",
-  "Brazil",
-  "Canada",
-  "China",
-  "New Zealand",
-  "Denmark",
-  "Finland",
-  "France",
-  "Japan",
-  "Latvia",
-  "Luxembourg",
-  "Netherlands",
-  "South Korea",
-  "Spain",
-  "Switzerland",
-  "United Kingdom",
-  "United States",
-] as const;
-
 export const tones = [
   "Wholesome",
   "Emotional",
@@ -109,6 +87,8 @@ export const taxonomyLabels = {
     Teen: "مراهقون",
     General: "عام",
   },
+  // Offline fallback only: countries are a database vocabulary (editable under
+  // /admin/vocabularies), so the live list and its Arabic labels come from `useCountryOptions`.
   countries: {
     Australia: "أستراليا",
     Austria: "النمسا",
@@ -120,6 +100,7 @@ export const taxonomyLabels = {
     Denmark: "الدنمارك",
     Finland: "فنلندا",
     France: "فرنسا",
+    Germany: "ألمانيا",
     Japan: "اليابان",
     Latvia: "لاتفيا",
     Luxembourg: "لوكسمبورغ",
@@ -191,7 +172,9 @@ export function contributorRoleEntityType(
 export const genreSchema = z.enum(genres);
 export const toneSchema = z.enum(tones);
 export const audienceSchema = z.enum(audiences);
-export const countrySchema = z.enum(countries);
+// Countries are a database vocabulary, not a fixed list: the API resolves whatever English label
+// or slug it receives and silently drops unknown ones, so the client only checks the shape.
+export const countrySchema = z.string().min(1);
 export const contributorRoleSchema = z.enum(contributorRoles);
 
 export type Genre = z.infer<typeof genreSchema>;

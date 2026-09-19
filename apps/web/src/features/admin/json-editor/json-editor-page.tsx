@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import type { AdminWorkUpdate, EditableWorkStructure } from "@/features/library/model";
+import { useCountryOptions } from "@/features/library/translations";
 import { cn } from "@/lib/utils";
 import {
   getAdminRecordBundles,
@@ -65,7 +66,7 @@ import {
 } from "./engine";
 import { type CaughtEditorError, describeEditorError, type EditorError } from "./errors";
 import { buildCopyGuide, fieldDoc } from "./guide";
-import { referenceAsMarkdown } from "./reference";
+import { buildReferenceLists, referenceAsMarkdown } from "./reference";
 import { ReferencePanel } from "./reference-panel";
 
 const CodeEditor = lazy(() =>
@@ -102,6 +103,7 @@ export function CatalogJsonPage({
   preset: string | undefined;
 }) {
   const navigate = useNavigate();
+  const countryOptions = useCountryOptions();
   const { data: works } = useSuspenseQuery({
     queryKey: ["admin-works"],
     queryFn: () => getAdminWorks(),
@@ -550,7 +552,7 @@ export function CatalogJsonPage({
           buildAssistantBundle={() =>
             [
               buildCopyGuide(selectedFields),
-              referenceAsMarkdown(),
+              referenceAsMarkdown(buildReferenceLists(countryOptions.values)),
               "## Current document (edit and return the full JSON)",
               "```json",
               json,

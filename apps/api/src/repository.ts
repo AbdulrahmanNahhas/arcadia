@@ -7,12 +7,15 @@ import type {
 } from "@arcadia/contracts";
 import { workflowStatusSchema } from "@arcadia/contracts";
 import {
+  ageValues,
+  audienceValues,
   type Classification,
   effectiveClassification,
   effectivePolicy,
   installmentRating,
   isClassificationAllowed,
   isVisibleToPolicy,
+  riskValues,
   type Score,
   type TitleFormat,
   type TitleKind,
@@ -445,23 +448,6 @@ function compareNewest(left: string | number | null, right: string | number | nu
   return left < right ? 1 : -1;
 }
 
-function sortTitleSummaries(items: TitleSummary[], sort: "title" | "release" | "score") {
-  return items.toSorted((left, right) => {
-    if (sort === "release") {
-      const comparison = compareNewest(left.releaseYear, right.releaseYear);
-      if (comparison) return comparison;
-    }
-    if (sort === "score") {
-      const comparison = compareNewest(left.score.rating, right.score.rating);
-      if (comparison) return comparison;
-    }
-    return compareArabicTitle(
-      left.titleAr ?? left.canonicalTitle,
-      right.titleAr ?? right.canonicalTitle,
-    );
-  });
-}
-
 function sortInstallments(
   items: Installment[],
   titlesById: Map<string, SqlRow>,
@@ -501,6 +487,10 @@ export async function browse(
     sort: "title" | "release" | "score";
     limit: number;
     offset: number;
+    genre?: string;
+    tone?: string;
+    tag?: string;
+    planet?: string;
   },
   includePrivate = false,
   accountId?: string,
@@ -542,27 +532,83 @@ export async function browse(
       items: matchingInstallments.slice(input.offset, input.offset + input.limit),
     };
   }
-  const rows = await sql`select distinct t.*,
+  // Titles mode pages in SQL (D1a): the visibility policy, the vocabulary filters and the sort
+  // all become predicates/ordering on `titles`, `count(*) over ()` gives the total, and only
+  // the page's rows load their related data. Before this, every browse call — each Home rail
+  // included — selected the whole catalog plus ten related tables and paginated in JS.
+  const policy = accountId ? await visibilityPolicyForAccount(accountId) : null;
+  if (accountId && !policy) return { mode: input.mode, total: 0, items: [] };
+  const visibility = policy ? visibilityPredicate(sql, policy) : sql`true`;
+  const facetCondition = facetPredicate(sql, input);
+  const order =
+    input.sort === "release"
+      ? sql`t.release_year desc nulls last, coalesce(t.title_ar, t.canonical_title) collate "ar-x-icu"`
+      : input.sort === "score"
+        ? sql`rating desc nulls last, coalesce(t.title_ar, t.canonical_title) collate "ar-x-icu"`
+        : sql`coalesce(t.title_ar, t.canonical_title) collate "ar-x-icu"`;
+  const rows = await sql`select t.*,
       (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='poster' and maa.is_primary limit 1) as poster_path,
       (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='banner' and maa.is_primary limit 1) as banner_path,
-      (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='logo' and maa.is_primary limit 1) as logo_path
-      from titles t left join title_aliases a on a.title_id=t.id where (${includePrivate} or not t.is_private) and ${searchCondition}`;
+      (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id where maa.title_id=t.id and maa.role='logo' and maa.is_primary limit 1) as logo_path,
+      (select round(avg(s.story*0.25 + s.characters*0.2 + s.depth*0.15 + s.world_building*0.1 + s.originality*0.1 + s.craft*0.2)::numeric, 1)
+        from installment_scores s join installments i on i.id=s.installment_id
+        where i.title_id=t.id and num_nonnulls(s.story,s.characters,s.depth,s.world_building,s.originality,s.craft)=6) as rating,
+      count(*) over () as total
+      from titles t
+      where (${includePrivate} or not t.is_private)
+        and (${input.q ?? ""} = '' or exists (select 1 from titles tt left join title_aliases a on a.title_id=tt.id where tt.id=t.id and ${searchCondition}))
+        and ${visibility}
+        and ${facetCondition}
+      order by ${order}
+      limit ${input.limit} offset ${input.offset}`;
+  const total = Number(rows[0]?.total ?? 0);
   const data = await relatedData(rows.map((row) => String(row.id)));
-  const policy = accountId ? await visibilityPolicyForAccount(accountId) : null;
-  const visibleRows = accountId
-    ? policy
-      ? rows.filter((row) => isTitleVisible(row, data, policy))
-      : []
-    : rows;
-  const items = sortTitleSummaries(
-    visibleRows.map((row) => summary(row, data, includePrivate)),
-    input.sort,
-  );
   return {
     mode: input.mode,
-    total: items.length,
-    items: items.slice(input.offset, input.offset + input.limit),
+    total,
+    items: rows.map((row) => summary(row, data, includePrivate)),
   };
+}
+
+type Sql = ReturnType<typeof database>["client"];
+
+/** `isVisibleToPolicy` as a SQL predicate over `titles t`. */
+/** Every value up to and including `maximum`, in the enum's own order. */
+const upTo = <T extends string>(values: readonly T[], maximum: T) =>
+  values.slice(0, values.indexOf(maximum) + 1);
+
+function visibilityPredicate(sql: Sql, policy: VisibilityPolicy) {
+  const blocked = (table: string, column: string, blockedIds: ReadonlySet<string>) =>
+    blockedIds.size
+      ? sql`not exists (select 1 from ${sql(table)} x where x.title_id=t.id and x.${sql(column)} in ${sql([...blockedIds])})`
+      : sql`true`;
+  return sql`t.audience in ${sql(upTo(audienceValues, policy.maximum.audience))}
+    and t.age in ${sql(upTo(ageValues, policy.maximum.age))}
+    and t.sexuality_risk in ${sql(upTo(riskValues, policy.maximum.sexuality))}
+    and t.behavioral_risk in ${sql(upTo(riskValues, policy.maximum.behavioral))}
+    and t.theology_risk in ${sql(upTo(riskValues, policy.maximum.theology))}
+    and (coalesce(t.format::text, 'animated') || case when exists (select 1 from installments i where i.title_id=t.id and i.kind='season') then '-series' else '-movie' end) in ${sql([...policy.allowedKinds])}
+    and ${policy.blockedTitleIds.size ? sql`t.id not in ${sql([...policy.blockedTitleIds])}` : sql`true`}
+    and ${blocked("title_tags", "value_id", policy.blockedTagIds)}
+    and ${blocked("title_genres", "value_id", policy.blockedGenreIds)}
+    and ${blocked("contributions", "entity_id", policy.blockedEntityIds)}
+    and ${blocked("title_planets", "planet_id", policy.blockedPlanetIds)}`;
+}
+
+/** The optional vocabulary filters of `browseQuerySchema` (by slug). */
+function facetPredicate(
+  sql: Sql,
+  input: { genre?: string; tone?: string; tag?: string; planet?: string },
+) {
+  const by = (link: string, vocabulary: string, slug: string | undefined) =>
+    slug
+      ? sql`exists (select 1 from ${sql(link)} x join ${sql(vocabulary)} v on v.id=x.value_id where x.title_id=t.id and v.slug=${slug})`
+      : sql`true`;
+  const planet = input.planet
+    ? sql`exists (select 1 from title_planets x join planets p on p.id=x.planet_id where x.title_id=t.id and (p.slug=${input.planet} or p.id::text=${input.planet}))`
+    : sql`true`;
+  return sql`${by("title_genres", "genres", input.genre)} and ${by("title_tones", "tones", input.tone)}
+    and ${by("title_tags", "tags", input.tag)} and ${planet}`;
 }
 
 export async function titleDetail(
@@ -591,14 +637,19 @@ export async function titleDetail(
     const policy = await visibilityPolicyForAccount(accountId);
     if (!policy || !isTitleVisible(row, data, policy)) return null;
   }
-  const installmentRows = await Promise.all(
-    data.installments.map(async (item) => {
-      const episodeRows = await sql`
-        select id, number::float, position, title, summary,
+  // One episode query for the whole title (D1c), grouped in JS — not one per installment.
+  const installmentIds = data.installments.map((item) => String(item.id));
+  const allEpisodes = installmentIds.length
+    ? await sql`
+        select id, installment_id, number::float, position, title, summary,
           release_date as "releaseDate", runtime_minutes as "runtimeMinutes",
           (select ma.path from media_asset_assignments maa join media_assets ma on ma.id=maa.asset_id
             where maa.episode_id=e.id and maa.role='poster' and maa.is_primary limit 1) as poster_path
-        from episodes e where installment_id=${item.id} order by position`;
+        from episodes e where installment_id in ${sql(installmentIds)} order by position`
+    : [];
+  const installmentRows = await Promise.all(
+    data.installments.map(async (item) => {
+      const episodeRows = allEpisodes.filter((episode) => episode.installment_id === item.id);
       return {
         ...installment(
           item,

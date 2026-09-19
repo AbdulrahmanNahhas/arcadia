@@ -13,7 +13,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { taxonomyArabicLabel, taxonomyLabels, type WorkStructure } from "@/features/library/model";
-import { kindLabelsAr, valueLabelsAr } from "@/features/library/translations";
+import { kindLabelsAr, useCountryOptions, valueLabelsAr } from "@/features/library/translations";
 import { cn } from "@/lib/utils";
 import { detailToStructure, titleToWork } from "@/server/compat";
 import { useDownloadFor } from "./downloads/api";
@@ -65,6 +65,7 @@ function riskSurfaceClass(level: "none" | "low" | "medium" | "high" | "unknown")
  * desktop player can therefore stream through peers without Arcadia's family server being online.
  */
 export function OfflineTitlePage({ titleId }: { titleId: string }) {
+  const countryLabels = useCountryOptions().labels;
   // Keyed by the `titleId` it was loaded for, so a direct navigation between two saved titles
   // (no full remount) still reads as "loading" for the new id during render — rather than a
   // synchronous setState resetting it at the top of the effect below.
@@ -278,9 +279,7 @@ export function OfflineTitlePage({ titleId }: { titleId: string }) {
                 <>
                   <dt className="text-muted-foreground">البلد</dt>
                   <dd>
-                    {work.country
-                      .map((country) => taxonomyLabels.countries[country] ?? country)
-                      .join("، ")}
+                    {work.country.map((country) => countryLabels[country] ?? country).join("، ")}
                   </dd>
                 </>
               )}
