@@ -247,11 +247,17 @@ export async function storeMediaFromUrl(input: {
   });
 }
 
+/**
+ * Deletes the file behind any `/media/...` path the API serves — `uploads/` (ingested through
+ * media-storage) as well as `library/` and `entities/` (the older bulk import). Both are ours
+ * once no assignment references them; restricting this to `uploads/` used to make "delete
+ * orphan" silently skip 62 of 63 orphans while reporting success. Traversal outside the public
+ * media root is still refused.
+ */
 export async function removeStoredMedia(relativePath: string | null | undefined) {
-  if (!relativePath?.startsWith("/media/uploads/")) return;
-  const mediaDirectory = getMediaDirectory();
-  const destination = resolve(mediaDirectory, `.${relativePath.slice("/media/uploads".length)}`);
-  if (relative(mediaDirectory, destination).startsWith("..")) return;
+  if (!relativePath) return;
+  const destination = resolvePublicMediaPath(relativePath);
+  if (!destination) return;
   await rm(destination, { force: true });
 }
 

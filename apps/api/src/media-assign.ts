@@ -9,7 +9,7 @@ import { type mediaKinds, normalizeStoredMediaPath, removeStoredMedia } from "./
 export async function purgeUnreferencedMedia(paths: Array<string | null | undefined>) {
   const sql = database().client;
   for (const path of new Set(paths.filter((value): value is string => Boolean(value)))) {
-    if (!path.startsWith("/media/uploads/")) continue;
+    if (!path.startsWith("/media/")) continue;
     const [usage] = await sql`select a.id,
       exists(select 1 from media_asset_assignments x where x.asset_id=a.id) as referenced
       from media_assets a where a.path=${path}`;

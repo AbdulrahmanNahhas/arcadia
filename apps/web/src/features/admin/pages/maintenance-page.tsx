@@ -24,12 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  archiveKeys,
-  getAdminDuplicates,
-  getAdminQuality,
-  updateTitleWorkflow,
-} from "@/features/archive/api";
+import { archiveKeys, getAdminDuplicates, getAdminQuality } from "@/features/archive/api";
 import { apiBaseUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { AdminPageHeader } from "../components/admin-page-header";
@@ -204,7 +199,6 @@ function ToolsCard() {
 type QualityFilter = "all" | "incomplete" | "ready";
 
 function QualityCard() {
-  const queryClient = useQueryClient();
   const quality = useQuery({
     queryKey: [...archiveKeys.admin, "quality"],
     queryFn: getAdminQuality,
@@ -212,11 +206,6 @@ function QualityCard() {
   const [filter, setFilter] = useState<QualityFilter>("incomplete");
   const [issue, setIssue] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const workflow = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: "in_review" | "published" }) =>
-      updateTitleWorkflow(id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: archiveKeys.admin }),
-  });
   const rows = useMemo(() => quality.data ?? [], [quality.data]);
   const issueKinds = useMemo(() => {
     const counts = new Map<string, number>();
@@ -343,15 +332,6 @@ function QualityCard() {
                     >
                       <ArrowSquareOutIcon data-icon="inline-start" /> افتح
                     </Button>
-                    {row.issues.length === 0 && (
-                      <Button
-                        size="sm"
-                        disabled={workflow.isPending}
-                        onClick={() => workflow.mutate({ id: row.entityId, status: "published" })}
-                      >
-                        نشر
-                      </Button>
-                    )}
                   </div>
                 </TableCell>
               </TableRow>

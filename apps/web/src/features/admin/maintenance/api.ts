@@ -133,7 +133,7 @@ const resultLabels = new Map<string, string>([
   ["missing", "مفقودة"],
   ["orphans", "غير مستخدمة"],
   ["bytes", "بايت"],
-  ["candidates", "مرشّحة"],
+  ["candidates", "غير مستخدمة وُجدت"],
   ["removed", "حُذفت"],
   ["checked", "فُحصت"],
   ["note", "ملاحظة"],

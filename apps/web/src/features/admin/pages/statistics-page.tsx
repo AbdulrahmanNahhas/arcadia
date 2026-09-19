@@ -93,7 +93,7 @@ export function StatisticsPage() {
         }
       />
 
-      <div className="grid auto-rows-fr gap-5 px-5 sm:px-6 xl:grid-cols-12">
+      <div className="grid gap-5 px-5 sm:px-6 xl:grid-cols-12">
         <DonutCard
           title="الرؤية"
           description="العناوين العامة والخاصة"
@@ -197,7 +197,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card dir="rtl" className={cn("flex h-full min-w-0 flex-col overflow-hidden", className)}>
+    <Card dir="rtl" className={cn("flex min-w-0 flex-col overflow-hidden", className)}>
       <CardHeader className="shrink-0 pb-3">
         <CardTitle className="text-base font-semibold sm:text-lg">{title}</CardTitle>
 
@@ -206,9 +206,7 @@ function ChartCard({
         ) : null}
       </CardHeader>
 
-      <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-0">
-        {children}
-      </CardContent>
+      <CardContent className="flex min-w-0 flex-col overflow-hidden pt-0">{children}</CardContent>
     </Card>
   );
 }
@@ -242,12 +240,9 @@ function DonutCard({
   return (
     <ChartCard title={title} description={description} className={className}>
       {data.length ? (
-        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-4">
-          <div className="relative min-h-0 w-full">
-            <ChartContainer
-              config={chartConfig}
-              className="size-full min-h-60 w-full min-w-0 max-w-full [&_.recharts-responsive-container]:w-full! [&_.recharts-wrapper]:max-w-full"
-            >
+        <div className="flex flex-col gap-4">
+          <div className="relative w-full">
+            <ChartContainer config={chartConfig} className="aspect-auto! h-60 w-full min-w-0">
               <PieChart>
                 <ChartTooltip content={<ChartTooltipContent hideLabel />} />
 
@@ -437,11 +432,8 @@ function TimelineCard({
       className={className}
     >
       {data.length ? (
-        <div className="flex min-h-72 flex-1">
-          <ChartContainer
-            config={chartConfig}
-            className="h-full min-h-72 w-full min-w-0 w-full min-w-0 max-w-full [&_.recharts-responsive-container]:w-full! [&_.recharts-wrapper]:max-w-full"
-          >
+        <div className="w-full min-w-0">
+          <ChartContainer config={chartConfig} className="aspect-auto! h-72 w-full min-w-0">
             <AreaChart
               data={data}
               margin={{
@@ -527,12 +519,9 @@ function CoverageCard({
       description={`${scored.toLocaleString("ar")} من ${total.toLocaleString("ar")} جزء مكتمل`}
       className={className}
     >
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3">
-        <div className="relative min-h-60 min-w-0">
-          <ChartContainer
-            config={chartConfig}
-            className="absolute inset-0 size-full w-full min-w-0 max-w-full [&_.recharts-responsive-container]:w-full! [&_.recharts-wrapper]:max-w-full"
-          >
+      <div className="flex flex-col gap-3">
+        <div className="relative min-w-0">
+          <ChartContainer config={chartConfig} className="aspect-auto! h-60 w-full min-w-0">
             <RadialBarChart
               data={radial}
               startAngle={90}
@@ -717,11 +706,8 @@ function ScoreDistributionCard({
     <ChartCard title={title} description={description} className={className}>
       {data.length ? (
         <div className="flex flex-1 flex-col gap-4">
-          <div className="h-full min-h-72 w-full">
-            <ChartContainer
-              config={chartConfig}
-              className="size-full w-full min-w-0 max-w-full [&_.recharts-responsive-container]:w-full! [&_.recharts-wrapper]:max-w-full"
-            >
+          <div className="w-full min-w-0">
+            <ChartContainer config={chartConfig} className="aspect-auto! h-64 w-full min-w-0">
               <BarChart
                 data={data}
                 margin={{
@@ -897,11 +883,8 @@ function CountriesBarCard({
   return (
     <ChartCard title={title} description={description} className={className}>
       {chartData.length ? (
-        <div className="h-full min-h-80 w-full min-w-0">
-          <ChartContainer
-            config={chartConfig}
-            className="size-full w-full min-w-0 max-w-full [&_.recharts-responsive-container]:w-full! [&_.recharts-wrapper]:max-w-full"
-          >
+        <div className="w-full min-w-0">
+          <ChartContainer config={chartConfig} className="aspect-auto! h-64 w-full min-w-0">
             <BarChart
               data={chartData}
               margin={{
