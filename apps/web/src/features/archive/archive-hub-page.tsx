@@ -160,6 +160,7 @@ function ArchiveSectionLink({
 }) {
   return (
     <Link
+      from="/archive"
       to="/archive"
       search={(previous) => ({ ...previous, tab: value })}
       replace

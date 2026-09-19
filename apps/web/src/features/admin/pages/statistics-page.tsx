@@ -155,14 +155,14 @@ export function StatisticsPage() {
           title="توزيع التقييم"
           description="عدد الأجزاء ضمن كل نطاق تقييمي"
           data={scoreDistribution}
-          className="xl:col-span-4"
+          className="xl:col-span-6"
         />
 
         <PlanetBarCard
           title="الكواكب"
           description="ثقل الأرشيف داخل كل كوكب"
           data={data.planets}
-          className="xl:col-span-6"
+          className="xl:col-span-4"
         />
 
         <MediaCard

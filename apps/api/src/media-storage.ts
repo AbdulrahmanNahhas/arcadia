@@ -256,6 +256,15 @@ export async function storeMediaFromUrl(input: {
  */
 export async function removeStoredMedia(relativePath: string | null | undefined) {
   if (!relativePath) return;
+  // `/media/uploads/…` maps to ARCADIA_MEDIA_ROOT itself (which need not be *named* uploads);
+  // every other `/media/…` path is a plain file under the public media root.
+  if (relativePath.startsWith("/media/uploads/")) {
+    const mediaDirectory = getMediaDirectory();
+    const destination = resolve(mediaDirectory, `.${relativePath.slice("/media/uploads".length)}`);
+    if (relative(mediaDirectory, destination).startsWith("..")) return;
+    await rm(destination, { force: true });
+    return;
+  }
   const destination = resolvePublicMediaPath(relativePath);
   if (!destination) return;
   await rm(destination, { force: true });

@@ -40,6 +40,7 @@ function SectionHead({
       </div>
       {to && linkLabel ? (
         <Link
+          from="/archive"
           to="/archive"
           search={(previous) => ({ ...previous, tab: to })}
           className="flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline"

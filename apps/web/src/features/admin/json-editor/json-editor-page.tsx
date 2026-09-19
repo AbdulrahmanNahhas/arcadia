@@ -16,7 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ import {
 } from "@/server/library.functions";
 import { AdminPageHeader } from "../components/admin-page-header";
 import { MutationErrorAlert } from "../components/mutation-error-alert";
+import type { CodeEditorHandle } from "./code-editor";
 import {
   type CompleteRecord,
   type CompleteRecordDocument,
@@ -64,6 +65,10 @@ import {
   valuesEqual,
 } from "./engine";
 import { buildCopyGuide, fieldDoc, GLOBAL_SAFETY_NOTES } from "./guide";
+
+const CodeEditor = lazy(() =>
+  import("./code-editor").then((module) => ({ default: module.CodeEditor })),
+);
 
 /** One save-request entry — built up field by field as `mutation` below decides which parts of
  *  a record actually changed. */
@@ -125,7 +130,7 @@ export function CatalogJsonPage({
   const [fieldSearch, setFieldSearch] = useState("");
   const [documentSearch, setDocumentSearch] = useState("");
   const [reviewSearch, setReviewSearch] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<CodeEditorHandle>(null);
 
   const bundlesQuery = useQuery({
     queryKey: ["admin-record-bundles", sourceIds],
@@ -447,9 +452,9 @@ export function CatalogJsonPage({
   };
 
   const findNext = () => {
-    const textarea = textareaRef.current;
-    if (!textarea || !documentSearch) return;
-    const start = textarea.selectionEnd;
+    const editor = editorRef.current;
+    if (!editor || !documentSearch) return;
+    const start = editor.selectionEnd();
     const match = json.toLocaleLowerCase().indexOf(documentSearch.toLocaleLowerCase(), start);
     const index =
       match >= 0 ? match : json.toLocaleLowerCase().indexOf(documentSearch.toLocaleLowerCase());
@@ -457,8 +462,7 @@ export function CatalogJsonPage({
       setError(`No match for "${documentSearch}".`);
       return;
     }
-    textarea.focus();
-    textarea.setSelectionRange(index, index + documentSearch.length);
+    editor.select(index, index + documentSearch.length);
     setError("");
   };
 
@@ -552,7 +556,7 @@ export function CatalogJsonPage({
           dirty={dirty}
           isLoading={bundlesQuery.isPending}
           json={json}
-          textareaRef={textareaRef}
+          editorRef={editorRef}
           onJsonChange={(value) => {
             setJson(value);
             setDirty(true);
@@ -721,7 +725,7 @@ function EditWorkspace({
   dirty,
   isLoading,
   json,
-  textareaRef,
+  editorRef,
   onJsonChange,
   onReview,
   onChoosePresetDefault,
@@ -751,7 +755,7 @@ function EditWorkspace({
   dirty: boolean;
   isLoading: boolean;
   json: string;
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  editorRef: React.RefObject<CodeEditorHandle | null>;
   onJsonChange: (value: string) => void;
   onReview: () => void;
   onChoosePresetDefault: () => void;
@@ -940,31 +944,21 @@ function EditWorkspace({
             </Button>
           </div>
         ) : (
-          <textarea
-            ref={textareaRef}
-            value={json}
-            onChange={(event) => onJsonChange(event.target.value)}
-            onKeyDown={(event) => {
-              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                event.preventDefault();
-                onReview();
-              } else if (event.key === "Tab") {
-                event.preventDefault();
-                const target = event.currentTarget;
-                const start = target.selectionStart;
-                const end = target.selectionEnd;
-                const next = `${json.slice(0, start)}  ${json.slice(end)}`;
-                onJsonChange(next);
-                requestAnimationFrame(() => {
-                  target.selectionStart = target.selectionEnd = start + 2;
-                });
-              }
-            }}
-            spellCheck={false}
-            dir="ltr"
-            aria-label="JSON للسجلات المعروضة"
-            className="min-h-0 flex-1 resize-none border-0 bg-transparent p-4 text-left font-mono text-xs leading-5 outline-none [unicode-bidi:plaintext]"
-          />
+          <Suspense
+            fallback={
+              <div className="grid flex-1 place-items-center text-sm text-muted-foreground">
+                جارٍ تحميل المحرر…
+              </div>
+            }
+          >
+            <CodeEditor
+              ref={editorRef}
+              value={json}
+              onChange={onJsonChange}
+              onSubmit={onReview}
+              ariaLabel="JSON للسجلات المعروضة"
+            />
+          </Suspense>
         )}
       </Card>
 

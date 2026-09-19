@@ -88,6 +88,8 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 | `features/admin/pages/maintenance-page.tsx` (`/admin/archive`, "الصيانة") | real jobs (validate, inspect-media, purge-orphans, drop-missing) with results, export, completeness list with issue chips + publish, duplicates | replaced `archive-operations-page.tsx`, whose jobs never did anything |
 | `features/admin/pages/validation-page.tsx` | severity tiles, category chips, per-row open/delete, "أصلح ما يمكن" | |
 | `features/admin/maintenance/api.ts` | `maintenanceKeys`, jobs/health/validation query options, Arabic job/result labels | |
+| `features/admin/catalog-view.ts` + `pages/catalog-page.tsx` | the admin catalog: every filter/sort/view is a URL search param (`q, view, sort, structure, format, visibility, workflow, planet, gap`), remembered in `localStorage` (`arcadia:admin-catalog-view`) and restored by the route's `beforeLoad` when opened bare; table (default) or poster grid; row actions edit/episodes/view; bulk edit/JSON/delete | the public browse drawer is no longer used here |
+| `features/admin/json-editor/code-editor.tsx` | CodeMirror (lazy) with JSON lint markers, folding, Ctrl+F; `CodeEditorHandle` for the page's own find-next | replaces the textarea |
 | `features/admin/catalog-gaps.ts` | `?gap=poster|arabic|guidance|year|planet|ids|unpublished` on `/admin/catalog` — what the overview queue links to | |
 | `features/admin/components/server-health-card.tsx` | overview "الخادم" card from `/admin/health` | |
 | `features/admin/statistics-labels.ts` | Arabic labels for the statistics endpoint's raw keys | |
@@ -114,6 +116,7 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 | `features/admin-episodes/routes.ts` | `GET/PUT /admin/installments/:id/episodes` (in-place, two-pass reorder), `GET/POST …/episodes/tmdb` (preview/apply `/tv/{id}/season/{n}`, ar → en) |
 | `features/admin-audit/routes.ts` | `GET/DELETE /admin/audit-logs` — owner only; mounted **after** the admin gate in `app.ts` (registration order matters for Hono middleware) |
 | `features/watch/routes.ts` | `/api/v1/watch/{streams,subtitles}` — owner/editor only |
+| `features/admin-structure/save.ts` | `saveTitleStructure()` — **in-place** installment/episode upsert by id (was delete+reinsert, which cascaded away playback states, downloads and episode stills); `structure-identity.test.ts` pins it |
 | `features/admin-maintenance/{routes,validation}.ts` | `collectValidationIssues()` (was inline in app.ts; + released-film-without-id and empty-season checks), `POST /admin/maintenance/{jobs,repair}`, `GET /admin/health` |
 | `GET /admin/media-assets` (app.ts) | filters **before** paginating (health needs a per-row disk check), `q` matches owner names, returns `summary` |
 | `integrations/` | tmdb, anilist, fanart, opensubtitles, torrent-source |
@@ -210,8 +213,11 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 - **Admin route modules must be mounted after the gate.** `app.use("/api/v1/admin/*")` role/
   capability middleware is registered mid-file; `app.route()` calls placed before it are not
   protected. New admin feature modules go right after `/api/v1/admin/status`.
-- **Structure PUT rebuilds installment ids** (playback states and episode stills cascade away).
-  Anything that edits episodes uses `features/admin-episodes`, never the structure document.
+- **Structure PUT keeps ids now** (`features/admin-structure/save.ts`, 2026-09-19). Rows are
+  matched by the ids the document carries; omit a row to delete it. The per-episode editor
+  (`features/admin-episodes`) remains the nicer surface for episode edits.
+- **Media deletion covers every `/media/` path** under the public media root (`uploads/`,
+  `library/`, `entities/`); it used to skip everything but `uploads/` and report success.
 - **Postgres in tests.** The API suite needs the devenv Postgres; with `devenv up` stopped, run
   `devenv up postgres -d` (and `devenv processes down` after). Without it every session test
   fails with "Expected Better Auth to return a bearer token".
@@ -256,6 +262,7 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 
 | Date | Phase | What landed | By |
 | --- | --- | --- | --- |
+| 2026-09-19 | Catalog + structure | in-place structure saves (playback states survive); admin catalog rebuilt on URL state with table/grid, gap chips, row actions; CodeMirror JSON editor; media orphan deletion fixed for library/entities paths; statistics chart heights | Opus 5 |
 | 2026-09-19 | Admin usability | Statistics Arabic labels + width-safe charts; media library filter bug (paginate-after-filter), owner search, URL filters, server summary; validation page with actions + 2 playability checks; عمليات الأرشيف → الصيانة with real jobs; overview gap links + server health card; the two stale API tests fixed (127/127) | Opus 5 |
 | 2026-09-19 | Post-release | Download source picker + dub/subtitle hints, `/watch` hub, season-pack fixes; admin episode editor + TMDB season import, audit log viewer/prune, subtitle size/position, restore drill + off-site timer + Postgres tuning; `media-assign.ts` extracted | Opus 5 |
 | 2026-09-18 | S, O, P3, release 0.3.5 | Security/debrid doc; address-free web image + bundled migrate entry + Node 26 Dockerfile fix + GHCR workflow; Quadlet units, backup timer, Fedora migration guide; download engine (Rust) + `/downloads` UI + local playback + `account_downloads` (0028); on-disk locations doc; `ci.yml` on master; version bump | Opus 5 |
