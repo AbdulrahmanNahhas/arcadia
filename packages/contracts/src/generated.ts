@@ -110,6 +110,8 @@ export interface paths {
                                 /** @enum {string} */
                                 releaseStatus: "upcoming" | "airing" | "returning" | "completed" | "unknown";
                                 isPrivate?: boolean;
+                                /** @enum {string} */
+                                workflowStatus?: "draft" | "in_review" | "approved" | "published" | "archived";
                                 aliases: string[];
                                 contentWarnings: string | null;
                                 analysisNotes: string | null;
@@ -307,6 +309,8 @@ export interface paths {
                             /** @enum {string} */
                             releaseStatus: "upcoming" | "airing" | "returning" | "completed" | "unknown";
                             isPrivate?: boolean;
+                            /** @enum {string} */
+                            workflowStatus?: "draft" | "in_review" | "approved" | "published" | "archived";
                             aliases: string[];
                             contentWarnings: string | null;
                             analysisNotes: string | null;

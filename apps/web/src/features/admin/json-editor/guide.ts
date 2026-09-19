@@ -21,7 +21,7 @@ import { PROJECTION_FIELDS, type ProjectionField, type ProjectionKey } from "./e
  * that one external property avoid spelling the literal identifier `shape` while remaining the
  * exact same runtime property.
  */
-const DOC_VALUE_TYPE_KEY = "shape" as const;
+export const DOC_VALUE_TYPE_KEY = "shape" as const;
 
 export interface FieldDoc {
   key: ProjectionKey;

@@ -25,7 +25,7 @@ export const catalogGapLabels = {
   guidance: "بلا تحليل أو تحذيرات",
   year: "بلا سنة إصدار",
   planet: "بلا كوكب",
-  ids: "بلا معرّف IMDb/TMDB",
+  ids: "غير قابل للتشغيل",
   unpublished: "غير منشور",
 } satisfies Record<CatalogGap, string>;
 
@@ -42,7 +42,9 @@ export function workHasGap(work: Work, gap: CatalogGap): boolean {
     case "planet":
       return work.planetId === null;
     case "ids":
-      return work.imdbId === null && work.tmdbId === null;
+      // Released, yet no installment can resolve a stream — in practice a missing IMDb/TMDB id
+      // (`isPlayable` is the API's own verdict; the title-level ids alone say nothing for films).
+      return !work.isPlayable && work.releaseStatus !== "upcoming";
     case "unpublished":
       return work.workflowStatus !== "published";
     default:

@@ -9,7 +9,6 @@ import {
   ClipboardTextIcon,
   MagicWandIcon,
   MagnifyingGlassIcon,
-  ShieldWarningIcon,
   SlidersHorizontalIcon,
   TextAlignLeftIcon,
   WarningCircleIcon,
@@ -17,7 +16,7 @@ import {
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -64,7 +63,10 @@ import {
   toEditableWork,
   valuesEqual,
 } from "./engine";
-import { buildCopyGuide, fieldDoc, GLOBAL_SAFETY_NOTES } from "./guide";
+import { type CaughtEditorError, describeEditorError, type EditorError } from "./errors";
+import { buildCopyGuide, fieldDoc } from "./guide";
+import { referenceAsMarkdown } from "./reference";
+import { ReferencePanel } from "./reference-panel";
 
 const CodeEditor = lazy(() =>
   import("./code-editor").then((module) => ({ default: module.CodeEditor })),
@@ -124,7 +126,8 @@ export function CatalogJsonPage({
   const [json, setJson] = useState("");
   const [reviewed, setReviewed] = useState<CompleteRecordDocument | null>(null);
   const [reviewSource, setReviewSource] = useState<CompleteRecordDocument | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<EditorError | null>(null);
+  const failWith = (caught: CaughtEditorError) => setError(describeEditorError(caught, json));
   const [draftBase, setDraftBase] = useState<CompleteRecordDocument | null>(null);
   const [dirty, setDirty] = useState(false);
   const [fieldSearch, setFieldSearch] = useState("");
@@ -159,7 +162,7 @@ export function CatalogJsonPage({
         2,
       ),
     );
-    setError("");
+    setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceDocument, dirty, reviewed, selectedFields, preset, organizations]);
 
@@ -187,7 +190,7 @@ export function CatalogJsonPage({
   const review = async () => {
     try {
       if (!draftBase || !sourceDocument) {
-        setError("لم تُحمّل السجلات المصدرية بعد.");
+        setError({ summary: "لم تُحمّل السجلات المصدرية بعد.", issues: [] });
         return;
       }
       const merged = parseProjectedDocument(json, draftBase, selectedFields, preset, organizations);
@@ -258,11 +261,11 @@ export function CatalogJsonPage({
         for (const { key } of titleKeys) copyWorkField(record.work, safelyMergedWork, key);
         record.work = safelyMergedWork;
       }
-      setError("");
+      setError(null);
       setReviewSource(latestDocument);
       setReviewed(completeRecordSchema.parse(merged));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "JSON غير صالح");
+      failWith(caught instanceof Error ? caught : String(caught));
     }
   };
 
@@ -341,11 +344,13 @@ export function CatalogJsonPage({
         Boolean(sourceDocument) && JSON.stringify(merged) !== JSON.stringify(sourceDocument),
       );
       setReviewed(null);
-      setError("");
+      setError(null);
     } catch (caught) {
-      setError(
-        `${caught instanceof Error ? caught.message : "JSON غير صالح"} أصلح المسودة قبل تغيير عرضها.`,
+      const described = describeEditorError(
+        caught instanceof Error ? caught : String(caught),
+        json,
       );
+      setError({ ...described, summary: `${described.summary} أصلح المسودة قبل تغيير عرضها.` });
     }
   };
 
@@ -423,15 +428,15 @@ export function CatalogJsonPage({
     );
     setDirty(false);
     setReviewed(null);
-    setError("");
+    setError(null);
   };
 
   const formatJson = (compact = false) => {
     try {
       setJson(JSON.stringify(JSON.parse(json), null, compact ? 0 : 2));
-      setError("");
+      setError(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "JSON غير صالح");
+      failWith(caught instanceof Error ? caught : String(caught));
     }
   };
 
@@ -439,7 +444,7 @@ export function CatalogJsonPage({
     try {
       await navigator.clipboard.writeText(json);
     } catch {
-      setError("تعذر نسخ JSON إلى الحافظة.");
+      setError({ summary: "تعذر نسخ JSON إلى الحافظة.", issues: [] });
     }
   };
 
@@ -447,7 +452,7 @@ export function CatalogJsonPage({
     try {
       await navigator.clipboard.writeText(buildCopyGuide(selectedFields));
     } catch {
-      setError("تعذر نسخ دليل المخطط إلى الحافظة.");
+      setError({ summary: "تعذر نسخ دليل المخطط إلى الحافظة.", issues: [] });
     }
   };
 
@@ -459,11 +464,11 @@ export function CatalogJsonPage({
     const index =
       match >= 0 ? match : json.toLocaleLowerCase().indexOf(documentSearch.toLocaleLowerCase());
     if (index < 0) {
-      setError(`No match for "${documentSearch}".`);
+      setError({ summary: `لا نتيجة لـ «${documentSearch}».`, issues: [] });
       return;
     }
     editor.select(index, index + documentSearch.length);
-    setError("");
+    setError(null);
   };
 
   const visibleChanges = changes.filter(
@@ -542,6 +547,16 @@ export function CatalogJsonPage({
           }
           onClearAll={() => applyProjection([], "custom")}
           onCopySchemaGuide={copySchemaGuide}
+          buildAssistantBundle={() =>
+            [
+              buildCopyGuide(selectedFields),
+              referenceAsMarkdown(),
+              "## Current document (edit and return the full JSON)",
+              "```json",
+              json,
+              "```",
+            ].join("\n\n")
+          }
           onInsertExample={insertExample}
           status={status}
           recordCount={sourceIds.length}
@@ -572,7 +587,40 @@ export function CatalogJsonPage({
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2">
           {error || bundlesQuery.error?.message ? (
             <Alert variant="destructive" className="border-0 bg-transparent">
-              <AlertDescription>{error || bundlesQuery.error?.message}</AlertDescription>
+              <AlertTitle>{error?.summary ?? bundlesQuery.error?.message}</AlertTitle>
+              {error && error.issues.length > 0 && (
+                <AlertDescription>
+                  <ul className="flex flex-col gap-1.5">
+                    {error.issues.map((issue) => (
+                      <li
+                        key={`${issue.path}:${issue.message}:${issue.range?.[0] ?? ""}`}
+                        className="flex flex-wrap items-center gap-2"
+                      >
+                        <code dir="ltr" className="font-mono text-[11px]">
+                          {issue.path}
+                        </code>
+                        <span>{issue.message}</span>
+                        {issue.range && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="xs"
+                            onClick={() => {
+                              setReviewed(null);
+                              editorRef.current?.select(
+                                issue.range?.[0] ?? 0,
+                                issue.range?.[1] ?? 0,
+                              );
+                            }}
+                          >
+                            انتقل إلى الموضع
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              )}
             </Alert>
           ) : mutation.error ? (
             <MutationErrorAlert error={mutation.error} />
@@ -711,6 +759,7 @@ function EditWorkspace({
   onSelectAll,
   onClearAll,
   onCopySchemaGuide,
+  buildAssistantBundle,
   onInsertExample,
   status,
   recordCount,
@@ -741,6 +790,7 @@ function EditWorkspace({
   onSelectAll: () => void;
   onClearAll: () => void;
   onCopySchemaGuide: () => void;
+  buildAssistantBundle: () => string;
   onInsertExample: () => void;
   status: "invalid" | "dirty" | "clean";
   recordCount: number;
@@ -962,43 +1012,7 @@ function EditWorkspace({
         )}
       </Card>
 
-      <Card className="flex min-h-0 flex-col gap-0 overflow-hidden p-0">
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
-          <p className="text-xs font-semibold text-muted-foreground">دليل الحقول المحدّدة</p>
-          {selectedFieldDocs.length === 0 ? (
-            <p className="text-xs text-muted-foreground">لا توجد حقول محدّدة بعد.</p>
-          ) : (
-            selectedFieldDocs.map((doc) => (
-              <div key={doc.key} className="rounded-lg border bg-background p-3 text-xs">
-                <code className="block text-[10px] text-muted-foreground">{doc.key}</code>
-                <strong className="block">{doc.label}</strong>
-                <p className="mt-1 text-muted-foreground">{doc.purpose}</p>
-                <p className="mt-1 font-mono text-[10px]">
-                  {doc.shape} · {doc.required ? "required key" : "optional key"} ·{" "}
-                  {doc.nullable ? "nullable" : "not nullable"}
-                </p>
-                {doc.safetyNotes ? (
-                  <p className="mt-1 text-classification-caution">⚠ {doc.safetyNotes}</p>
-                ) : null}
-              </div>
-            ))
-          )}
-        </div>
-        <div className="flex flex-col gap-2 border-t bg-muted/20 p-3">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-            <ShieldWarningIcon className="size-3.5" />
-            ملاحظات السلامة
-          </p>
-          <ul className="flex flex-col gap-1.5 text-[11px] text-muted-foreground">
-            {GLOBAL_SAFETY_NOTES.map((note) => (
-              <li key={note} className="flex gap-1.5">
-                <span aria-hidden="true">·</span>
-                <span>{note}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </Card>
+      <ReferencePanel fieldDocs={selectedFieldDocs} buildAssistantBundle={buildAssistantBundle} />
     </div>
   );
 }

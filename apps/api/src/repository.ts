@@ -5,6 +5,7 @@ import type {
   TitleDetail,
   TitleSummary,
 } from "@arcadia/contracts";
+import { workflowStatusSchema } from "@arcadia/contracts";
 import {
   type Classification,
   effectiveClassification,
@@ -26,6 +27,10 @@ type SqlRow = Record<string, unknown>;
 
 const ids = (rows: SqlRow[]) => new Set(rows.map((item) => String(item.id)));
 const numeric = (value: unknown) => (value == null ? null : Number(value));
+const workflowStatusOf = (value: unknown) => {
+  const parsed = workflowStatusSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+};
 
 /**
  * A title's four-way catalog type: its stored `format` crossed with whether any of its own
@@ -303,7 +308,12 @@ function summary(
     logoPath: row.logo_path ? String(row.logo_path) : null,
     releaseYear: numeric(row.release_year),
     releaseStatus: aggregateReleaseStatus(ownInstallments),
-    ...(includePrivate ? { isPrivate: Boolean(row.is_private) } : {}),
+    ...(includePrivate
+      ? {
+          isPrivate: Boolean(row.is_private),
+          workflowStatus: workflowStatusOf(row.workflow_status),
+        }
+      : {}),
     aliases: [
       ...new Map(
         data.aliases

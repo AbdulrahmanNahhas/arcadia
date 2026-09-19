@@ -130,6 +130,9 @@ export const titleSummarySchema = z.object({
   releaseYear: z.number().int().nullable(),
   releaseStatus: titleReleaseStatusSchema,
   isPrivate: z.boolean().optional(),
+  /** Only for editors/owners (with `isPrivate`): the editorial workflow state, so the admin
+   *  catalog can filter by it without a detail request per row. */
+  workflowStatus: workflowStatusSchema.optional(),
   aliases: z.array(z.string()),
   contentWarnings: z.string().nullable(),
   analysisNotes: z.string().nullable(),

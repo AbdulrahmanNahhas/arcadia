@@ -86,6 +86,16 @@ export function AdminCatalogPage({
     () => new Map((planets.data ?? []).map((planet) => [planet.id, planet.nameAr])),
     [planets.data],
   );
+  // Base UI's Select.Value shows the raw value until the popup has mounted its items; `items`
+  // hands it the labels up front.
+  const planetItems = useMemo(
+    () =>
+      Object.fromEntries([
+        ["all", "كل الكواكب"],
+        ...(planets.data ?? []).map((planet) => [planet.id, `${planet.icon} ${planet.nameAr}`]),
+      ]),
+    [planets.data],
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
@@ -216,6 +226,7 @@ export function AdminCatalogPage({
         <div className="flex flex-wrap items-center gap-2">
           <Select
             value={view.workflow ?? "all"}
+            items={{ all: "كل حالات النشر", ...workflowStatuses }}
             onValueChange={(value) => set({ workflow: pick(value, workflowStatusKeys) })}
           >
             <SelectTrigger className="h-8 w-40" aria-label="حالة النشر">
@@ -234,6 +245,7 @@ export function AdminCatalogPage({
           </Select>
           <Select
             value={view.planet ?? "all"}
+            items={planetItems}
             onValueChange={(value) => set({ planet: value && value !== "all" ? value : undefined })}
           >
             <SelectTrigger className="h-8 w-44" aria-label="الكوكب">
@@ -252,6 +264,7 @@ export function AdminCatalogPage({
           </Select>
           <Select
             value={view.gap ?? "all"}
+            items={{ all: "كل الأعمال", ...catalogGapLabels }}
             onValueChange={(value) => set({ gap: pick(value, catalogGaps) })}
           >
             <SelectTrigger className="h-8 w-44" aria-label="النواقص">
@@ -270,6 +283,7 @@ export function AdminCatalogPage({
           </Select>
           <Select
             value={view.sort ?? "title"}
+            items={catalogSortLabels}
             onValueChange={(value) => set({ sort: pick(value, catalogSorts) })}
           >
             <SelectTrigger className="h-8 w-40" aria-label="الترتيب">

@@ -64,6 +64,15 @@ const roleLabels = {
   profile: "صورة شخصية",
 } as const;
 type MediaAssetRole = keyof typeof roleLabels;
+const healthItems = {
+  all: "كل الحالات",
+  healthy: "سليم على القرص",
+  unused: "غير مستخدم",
+  reused: "معاد الاستخدام",
+  missing: "ملف مفقود",
+  oversized: "أكبر من 10 MiB",
+  "deletion-failed": "فشل الحذف",
+};
 function isMediaAssetRole(value: string): value is MediaAssetRole {
   return mediaAssetRoleSchema.safeParse(value).success;
 }
@@ -267,7 +276,11 @@ export function MediaLibraryPage({
                 <MagnifyingGlassIcon />
               </InputGroupAddon>
             </InputGroup>
-            <Select value={health} onValueChange={(value) => setHealth(value ?? "all")}>
+            <Select
+              value={health}
+              items={healthItems}
+              onValueChange={(value) => setHealth(value ?? "all")}
+            >
               <SelectTrigger aria-label="حالة الوسائط">
                 <SelectValue />
               </SelectTrigger>
@@ -283,7 +296,11 @@ export function MediaLibraryPage({
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <Select value={role} onValueChange={(value) => setRole(value ?? "all")}>
+            <Select
+              value={role}
+              items={{ all: "كل الأدوار", ...roleLabels }}
+              onValueChange={(value) => setRole(value ?? "all")}
+            >
               <SelectTrigger aria-label="دور الوسائط">
                 <SelectValue />
               </SelectTrigger>

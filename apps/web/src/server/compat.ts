@@ -193,7 +193,7 @@ export function titleToWork(title: TitleSummary | TitleDetail | AdminTitleDetail
     sourceMaterial: null,
     publication: null,
     curation:
-      "workflowStatus" in title
+      "verifiedAt" in title
         ? {
             reviewedAt: title.verifiedAt?.slice(0, 10) ?? "",
             status:
@@ -204,7 +204,7 @@ export function titleToWork(title: TitleSummary | TitleDetail | AdminTitleDetail
           }
         : null,
     age: title.classifications[0]?.age ?? null,
-    workflowStatus: "workflowStatus" in title ? title.workflowStatus : null,
+    workflowStatus: "workflowStatus" in title ? (title.workflowStatus ?? null) : null,
     qualityScore: "qualityScore" in title ? title.qualityScore : null,
     curatorNotes: "curatorNotes" in title ? title.curatorNotes : null,
     verifiedAt: "verifiedAt" in title ? title.verifiedAt : null,

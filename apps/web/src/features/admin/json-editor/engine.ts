@@ -274,7 +274,8 @@ export const PROJECTION_PRESETS = {
   },
 } as const satisfies Record<string, { label: string; fields: readonly ProjectionKey[] }>;
 
-export const DEFAULT_PRESET = "complete" as const;
+/** The editor opens on the identity fields only — everything checked was overwhelming and slow to review. */
+export const DEFAULT_PRESET = "identity" as const;
 
 /** The shape a title's awards take in the projected JSON — human-typeable (slugs), not raw ids. */
 export const projectedAwardSchema = z.object({
