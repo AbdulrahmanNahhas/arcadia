@@ -1,5 +1,10 @@
 import { database } from "./database";
-import { type mediaKinds, normalizeStoredMediaPath, removeStoredMedia } from "./media-storage";
+import {
+  type mediaKinds,
+  normalizeStoredMediaPath,
+  removeStoredMedia,
+  storeMedia,
+} from "./media-storage";
 
 /**
  * Primary-artwork assignment and orphan cleanup, shared by the catalog write paths in `app.ts`
@@ -71,4 +76,29 @@ export async function assignMediaPath(
       values (${asset.id}, ${role}, ${ownerId}, ${isPrimary}) on conflict do nothing`;
   }
   await purgeUnreferencedMedia(previous.map((row) => String(row.path)));
+}
+
+/** A `data:image/...` value pasted into a record becomes a stored asset; anything else passes through. */
+export async function materializeEmbeddedMedia(
+  value: string | null | undefined,
+  ownerName: string,
+  assetType: (typeof mediaKinds)[number],
+) {
+  if (!value?.startsWith("data:image/")) return value ?? null;
+  const stored = await storeMedia({
+    dataUrl: value,
+    fileName: `${ownerName}-${assetType}`,
+    ownerName,
+    assetType,
+  });
+  const [existing] = await database()
+    .client`select path from media_assets where sha256=${stored.sha256}`;
+  if (existing) {
+    if (existing.path !== stored.relativePath) await removeStoredMedia(stored.relativePath);
+    return String(existing.path);
+  }
+  await database().client`
+    insert into media_assets (path, sha256, mime_type, byte_size, width, height, original_filename)
+    values (${stored.relativePath}, ${stored.sha256}, ${stored.mimeType}, ${stored.byteSize}, ${stored.width}, ${stored.height}, ${stored.originalFilename})`;
+  return stored.relativePath;
 }

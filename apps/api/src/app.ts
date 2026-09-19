@@ -33,6 +33,7 @@ import { adminAuditRoutes } from "./features/admin-audit/routes";
 import { adminEpisodeRoutes } from "./features/admin-episodes/routes";
 import { adminMaintenanceRoutes } from "./features/admin-maintenance/routes";
 import { collectValidationIssues } from "./features/admin-maintenance/validation";
+import { saveTitleStructure } from "./features/admin-structure/save";
 import { archiveRoutes } from "./features/archive/routes";
 import { awardRoutes } from "./features/awards/routes";
 import { downloadRoutes } from "./features/downloads/routes";
@@ -56,10 +57,9 @@ import {
   streamSourceConfigured,
   tmdbStreamIdsAllowed,
 } from "./integrations/torrent-source";
-import { assignMediaPath, purgeUnreferencedMedia } from "./media-assign";
+import { assignMediaPath, materializeEmbeddedMedia, purgeUnreferencedMedia } from "./media-assign";
 import {
   getPublicMediaDirectory,
-  type mediaKinds,
   removeStoredMedia,
   storedMediaExists,
   storeMedia,
@@ -180,14 +180,6 @@ const ranked = (rows: readonly StatRow[]) =>
     labelAr: String(row.label_ar),
     value: Number(row.value),
   }));
-type AdminScoreInput = Partial<{
-  story: number | null;
-  characters: number | null;
-  depth: number | null;
-  worldBuilding: number | null;
-  originality: number | null;
-  craft: number | null;
-}>;
 /**
  * `LegacyTitleWritePayload` (from `./features/titles/write`) plus the installment-level
  * shortcuts `legacyTitleInputToCanonical` deliberately doesn't map (`kind`/`releaseStatus`/
@@ -221,32 +213,6 @@ const contributionRoleSlugs = new Set([
   "distributor",
   "publisher",
 ]);
-type AdminStructureUnit = Partial<{
-  title: string | null;
-  summary: string;
-  unitNumber: number;
-  position: number;
-  releaseAt: number;
-  runtimeMinutes: number | null;
-}>;
-type AdminStructureSeason = Partial<{
-  id: string;
-  title: string;
-  installmentKind: "season" | "movie" | "special";
-  summary: string;
-  releaseStatus: string;
-  posterPath: string | null;
-  score: AdminScoreInput;
-  position: number;
-  releaseAt: number;
-  runtimeMinutes: number | null;
-  units: AdminStructureUnit[];
-  tmdbId: number | null;
-  imdbId: string | null;
-  tvdbId: number | null;
-  anilistId: number | null;
-  malId: number | null;
-}>;
 function initialInstallmentStatus(value: string | undefined) {
   if (value === "upcoming" || value === "announced") return "announced";
   if (value === "airing") return "airing";
@@ -261,7 +227,7 @@ const adminScoreSchema = z.object({
   originality: z.number().min(0).max(10).nullable().optional(),
   craft: z.number().min(0).max(10).nullable().optional(),
 });
-const adminStructureSchema = z.object({
+export const adminStructureSchema = z.object({
   seasons: z
     .array(
       z.object({
@@ -303,30 +269,6 @@ const adminStructureSchema = z.object({
     .default([]),
   ungroupedUnits: z.array(z.unknown()).max(0).default([]),
 });
-
-async function materializeEmbeddedMedia(
-  value: string | null | undefined,
-  ownerName: string,
-  assetType: (typeof mediaKinds)[number],
-) {
-  if (!value?.startsWith("data:image/")) return value ?? null;
-  const stored = await storeMedia({
-    dataUrl: value,
-    fileName: `${ownerName}-${assetType}`,
-    ownerName,
-    assetType,
-  });
-  const [existing] = await database()
-    .client`select path from media_assets where sha256=${stored.sha256}`;
-  if (existing) {
-    if (existing.path !== stored.relativePath) await removeStoredMedia(stored.relativePath);
-    return String(existing.path);
-  }
-  await database().client`
-    insert into media_assets (path, sha256, mime_type, byte_size, width, height, original_filename)
-    values (${stored.relativePath}, ${stored.sha256}, ${stored.mimeType}, ${stored.byteSize}, ${stored.width}, ${stored.height}, ${stored.originalFilename})`;
-  return stored.relativePath;
-}
 
 async function contributionValidationError(
   sql: ReturnType<typeof database>["client"],
@@ -1713,94 +1655,8 @@ app.put("/api/v1/admin/titles/:titleId/structure", async (context) => {
       { message: "Invalid v2 installment document", issues: parsed.error.issues },
       400,
     );
-  const input = parsed.data as {
-    seasons: AdminStructureSeason[];
-    ungroupedUnits: AdminStructureUnit[];
-  };
-  const sql = database().client;
-  const [ownerTitle] = await sql`select canonical_title from titles where id=${titleId}`;
-  if (!ownerTitle) return context.json({ message: "Title not found" }, 404);
-  const previousMedia =
-    await sql`select ma.path from media_asset_assignments x join media_assets ma on ma.id=x.asset_id
-    where x.installment_id in (select id from installments where title_id=${titleId})`;
-  await sql.begin(async (transaction) => {
-    const preservedScoreRows =
-      await transaction`select i.id, s.story, s.characters, s.depth, s.world_building, s.originality, s.craft from installments i join installment_scores s on s.installment_id=i.id where i.title_id=${titleId}`;
-    const preservedScores = new Map(preservedScoreRows.map((score) => [String(score.id), score]));
-    // Same rebuild-loses-it hazard as scores/awards below: the structure document doesn't always
-    // carry the five typed ids (e.g. the JSON structure editor's older documents, or a caller
-    // that only touches episodes) — fall back to what the installment already had rather than
-    // silently clearing an ingested/entered id on an unrelated structure save.
-    const preservedIdRows =
-      await transaction`select id, tmdb_id, imdb_id, tvdb_id, anilist_id, mal_id from installments where title_id=${titleId}`;
-    const preservedIds = new Map(preservedIdRows.map((row) => [String(row.id), row]));
-    // award_recognitions.installment_id cascades on installment delete, so rebuilding the
-    // installment list below would otherwise silently drop any award tied to one — read them out
-    // first, keyed by their (soon-to-be-deleted) installment id, and reinsert once the matching
-    // installment exists again under its new id.
-    const preservedAwardRows =
-      await transaction`select installment_id, organization_id, category_id, ceremony_id, organization_slug, organization_name, category, year, result, is_featured, source_url, notes, position from award_recognitions where installment_id in (select id from installments where title_id=${titleId})`;
-    const preservedAwards = new Map<string, (typeof preservedAwardRows)[number][]>();
-    for (const award of preservedAwardRows) {
-      const key = String(award.installment_id);
-      preservedAwards.set(key, [...(preservedAwards.get(key) ?? []), award]);
-    }
-    await transaction`delete from installments where title_id=${titleId}`;
-    for (const [index, season] of (input.seasons ?? []).entries()) {
-      const units = season.units ?? [];
-      const kind = season.installmentKind ?? (units.length ? "season" : "movie");
-      const installmentTitle = String(season.title ?? `Installment ${index + 1}`);
-      const posterPath = await materializeEmbeddedMedia(
-        season.posterPath,
-        `${String(ownerTitle.canonical_title)} ${kind} ${Number(season.position ?? index) + 1} ${installmentTitle}`,
-        "poster",
-      );
-      const preservedId = season.id ? preservedIds.get(season.id) : undefined;
-      const [installment] = await transaction`
-        insert into installments (title_id, kind, position, title, summary, release_date, runtime_minutes, status,
-          tmdb_id, imdb_id, tvdb_id, anilist_id, mal_id)
-        values (${titleId}, ${kind}, ${Number(season.position ?? index + 1)}, ${installmentTitle},
-          ${String(season.summary ?? "")}, ${season.releaseAt ? new Date(Number(season.releaseAt)).toISOString().slice(0, 10) : null}, ${season.runtimeMinutes ?? null}, ${season.releaseStatus ?? "unknown"},
-          ${season.tmdbId !== undefined ? season.tmdbId : (preservedId?.tmdb_id ?? null)},
-          ${season.imdbId !== undefined ? season.imdbId : (preservedId?.imdb_id ?? null)},
-          ${season.tvdbId !== undefined ? season.tvdbId : (preservedId?.tvdb_id ?? null)},
-          ${season.anilistId !== undefined ? season.anilistId : (preservedId?.anilist_id ?? null)},
-          ${season.malId !== undefined ? season.malId : (preservedId?.mal_id ?? null)}) returning id`;
-      if (!installment) throw new Error("Could not create installment");
-      await assignMediaPath(transaction as unknown as typeof sql, posterPath, "poster", {
-        installmentId: String(installment.id),
-      });
-      const preservedScore = season.id ? preservedScores.get(season.id) : undefined;
-      const requestedScore = season.score;
-      if (requestedScore || preservedScore)
-        await transaction`insert into installment_scores (installment_id, story, characters, depth, world_building, originality, craft) values (${installment.id}, ${requestedScore?.story ?? preservedScore?.story ?? null}, ${requestedScore?.characters ?? preservedScore?.characters ?? null}, ${requestedScore?.depth ?? preservedScore?.depth ?? null}, ${requestedScore?.worldBuilding ?? preservedScore?.world_building ?? null}, ${requestedScore?.originality ?? preservedScore?.originality ?? null}, ${requestedScore?.craft ?? preservedScore?.craft ?? null})`;
-      for (const award of season.id ? (preservedAwards.get(season.id) ?? []) : [])
-        await transaction`insert into award_recognitions
-          (title_id, installment_id, organization_id, category_id, ceremony_id, organization_slug,
-           organization_name, category, year, result, is_featured, source_url, notes, position)
-          values (${titleId}, ${installment.id}, ${award.organization_id}, ${award.category_id},
-            ${award.ceremony_id}, ${award.organization_slug}, ${award.organization_name},
-            ${award.category}, ${award.year}, ${award.result}, ${award.is_featured},
-            ${award.source_url}, ${award.notes}, ${award.position})`;
-      for (const [unitIndex, unit] of units.entries())
-        await transaction`
-        insert into episodes (installment_id, number, position, title, summary, release_date, runtime_minutes)
-        values (${installment.id}, ${unit.unitNumber ?? unitIndex + 1}, ${Number(unit.position ?? unitIndex + 1)}, ${unit.title ?? null},
-          ${unit.summary ?? ""},
-          ${unit.releaseAt ? new Date(Number(unit.releaseAt)).toISOString().slice(0, 10) : null}, ${unit.runtimeMinutes ?? null})`;
-    }
-    if (!(input.seasons ?? []).length) {
-      const [installment] = await transaction`
-        insert into installments (title_id, kind, position, title, status)
-        select id, 'season', 1, canonical_title, 'unknown' from titles where id=${titleId} returning id`;
-      if (!installment) throw new Error("Title not found");
-      for (const [index, unit] of (input.ungroupedUnits ?? []).entries())
-        await transaction`
-        insert into episodes (installment_id, number, position, title, summary, runtime_minutes)
-        values (${installment.id}, ${unit.unitNumber ?? index + 1}, ${Number(unit.position ?? index + 1)}, ${unit.title ?? null}, ${unit.summary ?? ""}, ${unit.runtimeMinutes ?? null})`;
-    }
-  });
-  await purgeUnreferencedMedia(previousMedia.map((row) => row.path as string));
+  const saved = await saveTitleStructure(titleId, parsed.data);
+  if (!saved) return context.json({ message: "Title not found" }, 404);
   return context.json({ titleId });
 });
 
