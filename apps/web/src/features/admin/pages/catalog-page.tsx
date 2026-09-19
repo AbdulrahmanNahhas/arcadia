@@ -37,9 +37,17 @@ import { CatalogFilterDrawer } from "@/features/catalog/catalog-filters";
 import type { Work } from "@/features/library/model";
 import { kindLabelsAr as kindLabels } from "@/features/library/translations";
 import { deleteWorks, getAdminWorks } from "@/server/library.functions";
+import { type CatalogGap, catalogGapLabels, workHasGap } from "../catalog-gaps";
 import { AdminPageHeader } from "../components/admin-page-header";
 
-export function AdminCatalogPage() {
+export function AdminCatalogPage({
+  gap = null,
+  onClearGap,
+}: {
+  /** A "what is missing" pre-filter from the URL (`?gap=poster`), see `catalog-gaps.ts`. */
+  gap?: CatalogGap | null;
+  onClearGap?: () => void;
+}) {
   const queryClient = useQueryClient();
   const { data: works } = useSuspenseQuery({
     queryKey: ["admin-works"],
@@ -76,6 +84,7 @@ export function AdminCatalogPage() {
     const query = search.trim().toLocaleLowerCase();
     return works.filter(
       (work) =>
+        (gap === null || workHasGap(work, gap)) &&
         workMatchesCatalogFilters(work, filters, watchContext) &&
         (!query ||
           [work.title, work.arabicTitle ?? "", ...work.aliases]
@@ -83,7 +92,7 @@ export function AdminCatalogPage() {
             .toLocaleLowerCase()
             .includes(query)),
     );
-  }, [filters, search, works, watchContext]);
+  }, [filters, search, works, watchContext, gap]);
   const visibleIds = visible.map(({ id }) => id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const refresh = async () => {
@@ -141,8 +150,20 @@ export function AdminCatalogPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle>السجلات</CardTitle>
-              <CardDescription>
-                {visible.length} من أصل {works.length} عمل
+              <CardDescription className="flex flex-wrap items-center gap-2">
+                <span>
+                  {visible.length} من أصل {works.length} عمل
+                </span>
+                {gap && (
+                  <button
+                    type="button"
+                    onClick={onClearGap}
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs text-foreground hover:bg-primary/20"
+                    title="إزالة التصفية"
+                  >
+                    {catalogGapLabels[gap]} ×
+                  </button>
+                )}
               </CardDescription>
             </div>
             {selectedIds.size > 0 && (

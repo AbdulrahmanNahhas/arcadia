@@ -1,4 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArchiveOperationsPage } from "@/features/admin/pages/archive-operations-page";
+import { MaintenancePage } from "@/features/admin/pages/maintenance-page";
 
-export const Route = createFileRoute("/admin/archive")({ component: ArchiveOperationsPage });
+export const Route = createFileRoute("/admin/archive")({ component: MaintenancePage });

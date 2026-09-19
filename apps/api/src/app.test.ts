@@ -18,6 +18,16 @@ const installmentsPageSchema = z.object({
   items: z.array(z.object({ titleId: z.string(), status: z.string() })),
 });
 const titlesByQuerySchema = z.object({ items: z.array(z.object({ id: z.string() })) });
+
+async function allPages<T>(mode: "titles" | "installments", schema: z.ZodType<{ items: T[] }>) {
+  const items: T[] = [];
+  for (let offset = 0; ; offset += 100) {
+    const response = await app.request(`/api/v1/titles?mode=${mode}&limit=100&offset=${offset}`);
+    const page = schema.parse(await response.json());
+    items.push(...page.items);
+    if (page.items.length < 100) return items;
+  }
+}
 const installmentsByQuerySchema = z.object({
   items: z.array(z.object({ titleId: z.string() })),
 });
@@ -80,25 +90,10 @@ describe("Arcadia API contract", () => {
   it.skipIf(!hasCatalog)(
     "calculates upcoming titles from their announced installments",
     async () => {
-      const [titlesResponse, moreTitlesResponse, ...installmentResponses] = await Promise.all([
-        app.request("/api/v1/titles?mode=titles&limit=100"),
-        app.request("/api/v1/titles?mode=titles&limit=100&offset=100"),
-        app.request("/api/v1/titles?mode=installments&limit=100"),
-        app.request("/api/v1/titles?mode=installments&limit=100&offset=100"),
-        app.request("/api/v1/titles?mode=installments&limit=100&offset=200"),
-      ]);
-      const titlePages = await Promise.all(
-        [titlesResponse, moreTitlesResponse].map(async (response) =>
-          titlesPageSchema.parse(await response.json()),
-        ),
-      );
-      const titles = titlePages.flatMap((page) => page.items);
-      const installmentPages = await Promise.all(
-        installmentResponses.map(async (response) =>
-          installmentsPageSchema.parse(await response.json()),
-        ),
-      );
-      const installments = installmentPages.flatMap((page) => page.items);
+      // The catalog outgrew a fixed number of pages once (216 titles, 344 installments), which
+      // made this test miss rows and fail for no product reason — walk every page instead.
+      const titles = await allPages("titles", titlesPageSchema);
+      const installments = await allPages("installments", installmentsPageSchema);
       const announcedTitleIds = titles
         .filter((item) => item.releaseStatus === "upcoming")
         .map((item) => item.id);

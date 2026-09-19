@@ -4,7 +4,6 @@ import {
   FilmSlateIcon,
   LinkSimpleIcon,
   PlanetIcon,
-  ShieldCheckIcon,
   SparkleIcon,
   TelevisionSimpleIcon,
   UserIcon,
@@ -12,14 +11,14 @@ import {
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ComponentType } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { getAdminOverview } from "@/server/library.functions";
 import { getCatalogValidation } from "@/server/platform.functions";
+import type { CatalogGap } from "../catalog-gaps";
 import { AdminPageHeader } from "../components/admin-page-header";
+import { ServerHealthCard } from "../components/server-health-card";
 
 const number = new Intl.NumberFormat("ar");
 
@@ -148,31 +147,43 @@ export function AdminOverviewPage() {
                 label="أجزاء بلا تاريخ إصدار"
                 count={metrics.missing_release_dates}
                 to="/admin/catalog"
+                gap="year"
               />
               <QueueItem
                 label="عناوين بلا تحليل أو تحذير"
                 count={metrics.missing_guidance}
                 to="/admin/catalog"
+                gap="guidance"
               />
               <QueueItem
                 label="عناوين بلا كوكب"
                 count={metrics.unassigned_titles}
-                to="/admin/planets"
+                to="/admin/catalog"
+                gap="planet"
               />
               <QueueItem
                 label="عناوين بلا ملصق"
                 count={metrics.missing_posters}
                 to="/admin/catalog"
+                gap="poster"
+              />
+              <QueueItem
+                label="عناوين بلا عنوان عربي"
+                count={metrics.missing_arabic}
+                to="/admin/catalog"
+                gap="arabic"
               />
               <QueueItem
                 label="أصول غير مستخدمة"
                 count={metrics.unreferenced_assets}
                 to="/admin/media"
+                health="unused"
               />
               <QueueItem
                 label="أخطاء حذف ملفات"
                 count={metrics.media_failures}
                 to="/admin/media"
+                health="deletion-failed"
                 urgent
               />
               <QueueItem
@@ -211,30 +222,7 @@ export function AdminOverviewPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>حالة النظام</CardTitle>
-              <CardDescription>المصادقة والتكاملات المتاحة في هذه النسخة.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <Alert>
-                <ShieldCheckIcon />
-                <AlertTitle>جلسات الحسابات مفعّلة</AlertTitle>
-                <AlertDescription>
-                  تحمي Better Auth الواجهة وواجهات API بجلسات حقيقية وصلاحيات دقيقة. حسابات البذور
-                  مخصصة للتطوير فقط، والتسجيل العام مغلق لصالح الدعوات وإدارة المالك.
-                </AlertDescription>
-              </Alert>
-              <Separator />
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">PostgreSQL جاهز</Badge>
-                <Badge variant="secondary">Better Auth جاهز</Badge>
-                <Badge variant="outline">OpenAPI v1</Badge>
-                <Badge variant="outline">Jellyfin مؤجل</Badge>
-                <Badge variant="secondary">التشغيل عبر التورنت جاهز</Badge>
-              </div>
-            </CardContent>
-          </Card>
+          <ServerHealthCard />
         </div>
       </div>
     </div>
@@ -283,16 +271,24 @@ function QueueItem({
   label,
   count,
   to,
+  gap,
+  health,
   urgent = false,
 }: {
   label: string;
   count: number;
-  to: string;
+  to: "/admin/validation" | "/admin/catalog" | "/admin/media" | "/admin/vocabularies";
+  /** Pre-filters the catalog (`?gap=`) so the link opens exactly the rows counted. */
+  gap?: CatalogGap;
+  /** Pre-filters the media library (`?health=`). */
+  health?: "unused" | "missing" | "deletion-failed";
   urgent?: boolean;
 }) {
+  const search = gap ? { gap } : health ? { health } : {};
   return (
     <Link
       to={to}
+      search={search}
       className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       <span className="min-w-0 flex-1 text-sm">{label}</span>

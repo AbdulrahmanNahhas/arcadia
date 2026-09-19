@@ -26,6 +26,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { getAdminStatistics } from "@/server/library.functions";
 import { AdminPageHeader } from "../components/admin-page-header";
+import { labelled } from "../statistics-labels";
 
 const chartConfig = {
   value: {
@@ -48,12 +49,11 @@ const palette = [
 
 type Pair = {
   key: string;
+  labelAr: string;
   value: number;
 };
 
-type Ranked = Pair & {
-  labelAr: string;
-};
+type Ranked = Pair;
 
 export function StatisticsPage() {
   const [visibility, setVisibility] = useState<"all" | "public" | "private">("all");
@@ -97,14 +97,14 @@ export function StatisticsPage() {
         <DonutCard
           title="الرؤية"
           description="العناوين العامة والخاصة"
-          data={data.visibility}
+          data={labelled(data.visibility)}
           className="xl:col-span-4"
         />
 
         <DistributionCard
           title="نوع الكتالوج"
           description="أفلام مقابل أعمال ذات مواسم"
-          data={data.kinds}
+          data={labelled(data.kinds)}
           className="xl:col-span-4"
         />
 
@@ -119,7 +119,7 @@ export function StatisticsPage() {
         <DistributionCard
           title="حالة الأجزاء"
           description="الحالة الواقعية لكل جزء"
-          data={data.installmentStatus}
+          data={labelled(data.installmentStatus)}
           className="xl:col-span-4"
         />
 
@@ -165,7 +165,14 @@ export function StatisticsPage() {
           className="xl:col-span-4"
         />
 
-        <MediaCard data={data.media} className="xl:col-span-4" />
+        <MediaCard
+          data={{
+            ...data.media,
+            roles: labelled(data.media.roles),
+            formats: labelled(data.media.formats),
+          }}
+          className="xl:col-span-4"
+        />
 
         <RankedCard
           title="تركيب المساهمين"
@@ -237,14 +244,17 @@ function DonutCard({
       {data.length ? (
         <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-4">
           <div className="relative min-h-0 w-full">
-            <ChartContainer config={chartConfig} className="size-full min-h-60">
+            <ChartContainer
+              config={chartConfig}
+              className="size-full min-h-60 w-full min-w-0 max-w-full [&_.recharts-responsive-container]:w-full! [&_.recharts-wrapper]:max-w-full"
+            >
               <PieChart>
                 <ChartTooltip content={<ChartTooltipContent hideLabel />} />
 
                 <Pie
                   data={data}
                   dataKey="value"
-                  nameKey="key"
+                  nameKey="labelAr"
                   innerRadius="58%"
                   outerRadius="82%"
                   strokeWidth={3}
@@ -273,7 +283,7 @@ function DonutCard({
 
               return (
                 <div
-                  key={item.key}
+                  key={item.labelAr}
                   className="flex min-w-0 items-center gap-2.5 rounded-xl border border-border/60 bg-muted/25 px-3 py-2.5"
                 >
                   <span
@@ -284,7 +294,7 @@ function DonutCard({
                   />
 
                   <span className="min-w-0 wrap-break-word text-xs text-muted-foreground">
-                    {item.key}
+                    {item.labelAr}
                   </span>
 
                   <span className="ms-auto shrink-0 font-mono text-xs font-semibold tabular-nums">
@@ -359,7 +369,7 @@ function DistributionCard({
                       />
 
                       <span className="min-w-0 wrap-break-word text-sm font-medium leading-5">
-                        {item.key}
+                        {item.labelAr}
                       </span>
                     </div>
 
@@ -428,7 +438,10 @@ function TimelineCard({
     >
       {data.length ? (
         <div className="flex min-h-72 flex-1">
-          <ChartContainer config={chartConfig} className="h-full min-h-72 w-full min-w-0">
+          <ChartContainer
+            config={chartConfig}
+            className="h-full min-h-72 w-full min-w-0 w-full min-w-0 max-w-full [&_.recharts-responsive-container]:w-full! [&_.recharts-wrapper]:max-w-full"
+          >
             <AreaChart
               data={data}
               margin={{
@@ -516,7 +529,10 @@ function CoverageCard({
     >
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3">
         <div className="relative min-h-60 min-w-0">
-          <ChartContainer config={chartConfig} className="absolute inset-0 size-full">
+          <ChartContainer
+            config={chartConfig}
+            className="absolute inset-0 size-full w-full min-w-0 max-w-full [&_.recharts-responsive-container]:w-full! [&_.recharts-wrapper]:max-w-full"
+          >
             <RadialBarChart
               data={radial}
               startAngle={90}
@@ -581,7 +597,7 @@ function RankedCard({
           <ol className="flex flex-col gap-3">
             {data.slice(0, 8).map((item, index) => (
               <li
-                key={item.key}
+                key={item.labelAr}
                 className="grid grid-cols-[2ch_minmax(0,1fr)_auto] items-start gap-3"
               >
                 <span className="pt-0.5 font-mono text-xs text-muted-foreground">
@@ -644,7 +660,7 @@ function PlanetBarCard({
 
             return (
               <div
-                key={item.key}
+                key={item.labelAr}
                 className="grid grid-cols-[2ch_minmax(0,1fr)_auto] items-center gap-3"
               >
                 <span className="font-mono text-[10px] text-muted-foreground">
@@ -702,7 +718,10 @@ function ScoreDistributionCard({
       {data.length ? (
         <div className="flex flex-1 flex-col gap-4">
           <div className="h-full min-h-72 w-full">
-            <ChartContainer config={chartConfig} className="size-full">
+            <ChartContainer
+              config={chartConfig}
+              className="size-full w-full min-w-0 max-w-full [&_.recharts-responsive-container]:w-full! [&_.recharts-wrapper]:max-w-full"
+            >
               <BarChart
                 data={data}
                 margin={{
@@ -818,7 +837,7 @@ function MediaCard({
                 <div key={item.key}>
                   <div className="mb-1 flex items-center justify-between gap-3">
                     <span className="min-w-0 wrap-break-word text-xs text-muted-foreground">
-                      {item.key}
+                      {item.labelAr}
                     </span>
 
                     <span className="shrink-0 font-mono text-[10px] tabular-nums">
@@ -848,10 +867,10 @@ function MediaCard({
             <div className="flex flex-wrap gap-2">
               {data.formats.map((item) => (
                 <span
-                  key={item.key}
+                  key={item.labelAr}
                   className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground"
                 >
-                  {item.key.replace("image/", "")} · {item.value.toLocaleString("ar")}
+                  {item.labelAr} · {item.value.toLocaleString("ar")}
                 </span>
               ))}
             </div>
@@ -879,7 +898,10 @@ function CountriesBarCard({
     <ChartCard title={title} description={description} className={className}>
       {chartData.length ? (
         <div className="h-full min-h-80 w-full min-w-0">
-          <ChartContainer config={chartConfig} className="size-full">
+          <ChartContainer
+            config={chartConfig}
+            className="size-full w-full min-w-0 max-w-full [&_.recharts-responsive-container]:w-full! [&_.recharts-wrapper]:max-w-full"
+          >
             <BarChart
               data={chartData}
               margin={{

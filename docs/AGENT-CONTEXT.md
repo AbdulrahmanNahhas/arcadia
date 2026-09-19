@@ -85,6 +85,13 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 | `features/admin/` | `admin-shell.tsx` (role gate), `pages/`, `components/editor-form/` (2434 lines), `json-editor/` |
 | `features/admin/episodes/` + `pages/episode-editor-page.tsx` | per-season episode editor (`/admin/catalog/$workId/episodes?installment=`): in-place rows, reorder, remove, stills, "جلب من TMDB" dialog | never goes through the structure PUT (which rebuilds ids) |
 | `features/admin/pages/audit-log-page.tsx` | `/admin/audit` — owner-only viewer + prune | |
+| `features/admin/pages/maintenance-page.tsx` (`/admin/archive`, "الصيانة") | real jobs (validate, inspect-media, purge-orphans, drop-missing) with results, export, completeness list with issue chips + publish, duplicates | replaced `archive-operations-page.tsx`, whose jobs never did anything |
+| `features/admin/pages/validation-page.tsx` | severity tiles, category chips, per-row open/delete, "أصلح ما يمكن" | |
+| `features/admin/maintenance/api.ts` | `maintenanceKeys`, jobs/health/validation query options, Arabic job/result labels | |
+| `features/admin/catalog-gaps.ts` | `?gap=poster|arabic|guidance|year|planet|ids|unpublished` on `/admin/catalog` — what the overview queue links to | |
+| `features/admin/components/server-health-card.tsx` | overview "الخادم" card from `/admin/health` | |
+| `features/admin/statistics-labels.ts` | Arabic labels for the statistics endpoint's raw keys | |
+| `routes/admin/media.tsx` | `?q=&health=&role=` are the media library's filters (URL, not state) | |
 | `features/library/player/subtitle-style.ts` | per-device `sub-scale`/`sub-pos`, applied on `fileLoaded` | |
 | `features/library/watch/` | `/watch` hub (IMDb id → `/player/watch`), owner/editor | | |
 | `features/profiles/` | `settings-page.tsx` (theme UI at the "appearance" tab), `profiles-page.tsx` | |
@@ -107,6 +114,8 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 | `features/admin-episodes/routes.ts` | `GET/PUT /admin/installments/:id/episodes` (in-place, two-pass reorder), `GET/POST …/episodes/tmdb` (preview/apply `/tv/{id}/season/{n}`, ar → en) |
 | `features/admin-audit/routes.ts` | `GET/DELETE /admin/audit-logs` — owner only; mounted **after** the admin gate in `app.ts` (registration order matters for Hono middleware) |
 | `features/watch/routes.ts` | `/api/v1/watch/{streams,subtitles}` — owner/editor only |
+| `features/admin-maintenance/{routes,validation}.ts` | `collectValidationIssues()` (was inline in app.ts; + released-film-without-id and empty-season checks), `POST /admin/maintenance/{jobs,repair}`, `GET /admin/health` |
+| `GET /admin/media-assets` (app.ts) | filters **before** paginating (health needs a per-row disk check), `q` matches owner names, returns `summary` |
 | `integrations/` | tmdb, anilist, fanart, opensubtitles, torrent-source |
 | `media-storage.ts` | sha256 content-addressed uploads |
 
@@ -206,6 +215,9 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 - **Postgres in tests.** The API suite needs the devenv Postgres; with `devenv up` stopped, run
   `devenv up postgres -d` (and `devenv processes down` after). Without it every session test
   fails with "Expected Better Auth to return a bearer token".
+- **`POST /admin/archive/jobs` is legacy** — it inserts a "completed" row without doing anything.
+  The maintenance page uses `/admin/maintenance/jobs`, which runs the work. Leave the old route
+  alone until nothing calls it, then delete it.
 - **Router error boundaries** receive `error: unknown` (`ErrorComponentProps`); narrow with
   `instanceof Error` at the call site — the anti-slop plugin forbids `unknown` parameters and
   `typeof` narrowing in helpers.
@@ -244,6 +256,7 @@ NODE_ENV=test devenv shell -- pnpm --filter @arcadia/api exec vitest run src/fea
 
 | Date | Phase | What landed | By |
 | --- | --- | --- | --- |
+| 2026-09-19 | Admin usability | Statistics Arabic labels + width-safe charts; media library filter bug (paginate-after-filter), owner search, URL filters, server summary; validation page with actions + 2 playability checks; عمليات الأرشيف → الصيانة with real jobs; overview gap links + server health card; the two stale API tests fixed (127/127) | Opus 5 |
 | 2026-09-19 | Post-release | Download source picker + dub/subtitle hints, `/watch` hub, season-pack fixes; admin episode editor + TMDB season import, audit log viewer/prune, subtitle size/position, restore drill + off-site timer + Postgres tuning; `media-assign.ts` extracted | Opus 5 |
 | 2026-09-18 | S, O, P3, release 0.3.5 | Security/debrid doc; address-free web image + bundled migrate entry + Node 26 Dockerfile fix + GHCR workflow; Quadlet units, backup timer, Fedora migration guide; download engine (Rust) + `/downloads` UI + local playback + `account_downloads` (0028); on-disk locations doc; `ci.yml` on master; version bump | Opus 5 |
 | 2026-09-14 | Lint | 481 → 0 oxlint errors (65 by four Sonnet agents before a rate limit, the rest by one Sonnet agent + Opus); Phase E allowlist introduced; TS target ES2023 | Opus 5 + Sonnet 5 |

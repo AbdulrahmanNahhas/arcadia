@@ -98,8 +98,18 @@ export async function getAdminVocabularyTerms() {
 export async function getAdminStatistics(visibility: "all" | "public" | "private" = "all") {
   return apiFetch<AdminStatistics>(`/api/v1/admin/statistics?visibility=${visibility}`);
 }
+export interface MediaAssetSummary {
+  total: number;
+  missing: number;
+  unused: number;
+  reused: number;
+  deletionFailed: number;
+  bytes: number;
+}
 export async function getMediaAssets(query = "") {
-  return apiFetch<{ items: MediaAsset[]; total: number }>(`/api/v1/admin/media-assets${query}`);
+  return apiFetch<{ items: MediaAsset[]; total: number; summary?: MediaAssetSummary }>(
+    `/api/v1/admin/media-assets${query}`,
+  );
 }
 export async function assignMediaAsset({
   data,

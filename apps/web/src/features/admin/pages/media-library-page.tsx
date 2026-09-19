@@ -1,4 +1,4 @@
-import type { MediaAsset } from "@arcadia/contracts";
+import { type MediaAsset, mediaAssetRoleSchema } from "@arcadia/contracts";
 import {
   ArrowClockwiseIcon,
   CheckCircleIcon,
@@ -12,7 +12,7 @@ import {
   WarningIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,10 @@ const roleLabels = {
   logo: "شعار",
   profile: "صورة شخصية",
 } as const;
+type MediaAssetRole = keyof typeof roleLabels;
+function isMediaAssetRole(value: string): value is MediaAssetRole {
+  return mediaAssetRoleSchema.safeParse(value).success;
+}
 
 type Assignment = MediaAsset["assignments"][number];
 type PendingAction =
@@ -94,11 +98,37 @@ function HealthBadge({ asset }: { asset: MediaAsset }) {
   return <Badge variant="secondary">سليم</Badge>;
 }
 
-export function MediaLibraryPage() {
+export const mediaHealthFilters = [
+  "healthy",
+  "missing",
+  "deletion-failed",
+  "reused",
+  "unused",
+  "oversized",
+] as const;
+export type MediaHealthFilter = (typeof mediaHealthFilters)[number];
+export type MediaLibraryFilters = { q?: string; health?: MediaHealthFilter; role?: MediaAssetRole };
+
+function isHealthFilter(value: string): value is MediaHealthFilter {
+  return mediaHealthFilters.some((entry) => entry === value);
+}
+
+export function MediaLibraryPage({
+  filters,
+  onFiltersChange,
+}: {
+  filters: MediaLibraryFilters;
+  onFiltersChange: (next: MediaLibraryFilters) => void;
+}) {
   const queryClient = useQueryClient();
-  const [query, setQuery] = useState("");
-  const [health, setHealth] = useState("all");
-  const [role, setRole] = useState("all");
+  const query = filters.q ?? "";
+  const health = filters.health ?? "all";
+  const role = filters.role ?? "all";
+  const setQuery = (value: string) => onFiltersChange({ ...filters, q: value || undefined });
+  const setHealth = (value: string) =>
+    onFiltersChange({ ...filters, health: isHealthFilter(value) ? value : undefined });
+  const setRole = (value: string) =>
+    onFiltersChange({ ...filters, role: isMediaAssetRole(value) ? value : undefined });
   const [details, setDetails] = useState<MediaAsset | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -113,15 +143,15 @@ export function MediaLibraryPage() {
     queryFn: () => getMediaAssets(`?${queryString}`),
   });
 
-  const summary = useMemo(
-    () => ({
-      missing: data.items.filter((asset) => asset.health === "missing").length,
-      unused: data.items.filter((asset) => asset.usageCount === 0).length,
-      reused: data.items.filter((asset) => asset.usageCount > 1).length,
-      size: data.items.reduce((total, asset) => total + asset.byteSize, 0),
-    }),
-    [data.items],
-  );
+  // Server-side counts over everything that matches the search/role, not just the loaded page.
+  const summary = data.summary ?? {
+    total: data.total,
+    missing: 0,
+    unused: 0,
+    reused: 0,
+    deletionFailed: 0,
+    bytes: data.items.reduce((total, asset) => total + asset.byteSize, 0),
+  };
 
   const action = useMutation({
     mutationFn: async (value: PendingAction) => {
@@ -182,18 +212,38 @@ export function MediaLibraryPage() {
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard label="النتائج" value={String(data.total)} detail="أصل مطابق" />
           <SummaryCard
-            label="بحاجة لتنظيف"
-            value={String(summary.unused)}
-            detail={`${summary.missing} ملف مفقود`}
-            danger={summary.missing > 0}
+            label="النتائج"
+            value={String(data.total)}
+            detail={
+              health === "all"
+                ? `من ${summary.total} أصل`
+                : `من ${summary.total} أصل قبل تصفية الحالة`
+            }
           />
-          <SummaryCard label="إعادة الاستخدام" value={String(summary.reused)} detail="أصل مشترك" />
+          <button
+            type="button"
+            className="text-start"
+            onClick={() => setHealth(summary.missing > 0 ? "missing" : "unused")}
+          >
+            <SummaryCard
+              label="بحاجة لتنظيف"
+              value={String(summary.unused)}
+              detail={`${summary.missing} ملف مفقود · ${summary.deletionFailed} فشل حذف`}
+              danger={summary.missing > 0 || summary.deletionFailed > 0}
+            />
+          </button>
+          <button type="button" className="text-start" onClick={() => setHealth("reused")}>
+            <SummaryCard
+              label="إعادة الاستخدام"
+              value={String(summary.reused)}
+              detail="أصل مشترك"
+            />
+          </button>
           <SummaryCard
-            label="الحجم الظاهر"
-            value={formatBytes(summary.size)}
-            detail="ضمن النتائج"
+            label="الحجم الكلي"
+            value={formatBytes(summary.bytes)}
+            detail="كل الأصول المطابقة"
           />
         </div>
 
@@ -201,7 +251,8 @@ export function MediaLibraryPage() {
           <CardHeader>
             <CardTitle>البحث والتصفية</CardTitle>
             <CardDescription>
-              اعرض الأصول المفقودة أو غير المستخدمة مباشرة، أو ابحث بالاسم وبصمة SHA-256.
+              التصفية تعمل على كل الأصول لا على الصفحة الظاهرة، والبحث يطابق اسم الملف والعمل أو
+              الشخص الذي تُعيَّن له الصورة وبصمة SHA-256. الرابط يحمل التصفية فيمكن مشاركته.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_13rem_13rem]">
@@ -209,7 +260,7 @@ export function MediaLibraryPage() {
               <InputGroupInput
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="اسم الملف أو البصمة"
+                placeholder="اسم الملف، العمل أو الشخص، أو البصمة"
                 aria-label="البحث في الوسائط"
               />
               <InputGroupAddon>

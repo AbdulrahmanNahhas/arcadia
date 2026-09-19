@@ -5,7 +5,6 @@ import {
   HouseIcon,
   ImagesIcon,
   PlanetIcon,
-  PulseIcon,
   ShieldWarningIcon,
   SquaresFourIcon,
   TranslateIcon,
@@ -13,6 +12,7 @@ import {
   TrophyIcon,
   UserGearIcon,
   UsersThreeIcon,
+  WrenchIcon,
 } from "@phosphor-icons/react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import type { ComponentType } from "react";
@@ -53,7 +53,7 @@ const sections = [
     items: [
       { title: "نظرة عامة", to: "/admin", icon: HouseIcon, exact: true },
       { title: "الإحصاءات", to: "/admin/statistics", icon: ChartBarIcon },
-      { title: "عمليات الأرشيف", to: "/admin/archive", icon: PulseIcon },
+      { title: "الصيانة", to: "/admin/archive", icon: WrenchIcon },
       { title: "التحقق", to: "/admin/validation", icon: ShieldWarningIcon },
       { title: "سجل العمليات", to: "/admin/audit", icon: ClockCounterClockwiseIcon },
     ],

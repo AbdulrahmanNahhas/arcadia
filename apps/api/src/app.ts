@@ -19,7 +19,6 @@ import {
   type mediaAssetSchema,
   streamErrorSchema,
   titleDetailSchema,
-  validationIssueSchema,
   vocabularyNameSchema,
   vocabularyTermSchema,
 } from "@arcadia/contracts";
@@ -32,6 +31,8 @@ import { database, databaseReady } from "./database";
 import { accountRoutes, currentFamilyAccount } from "./features/accounts/routes";
 import { adminAuditRoutes } from "./features/admin-audit/routes";
 import { adminEpisodeRoutes } from "./features/admin-episodes/routes";
+import { adminMaintenanceRoutes } from "./features/admin-maintenance/routes";
+import { collectValidationIssues } from "./features/admin-maintenance/validation";
 import { archiveRoutes } from "./features/archive/routes";
 import { awardRoutes } from "./features/awards/routes";
 import { downloadRoutes } from "./features/downloads/routes";
@@ -1049,6 +1050,7 @@ app.get("/api/v1/admin/status", (context) =>
 // Mounted *after* the role/capability gate above so it applies to them like every inline route.
 app.route("/", adminEpisodeRoutes);
 app.route("/", adminAuditRoutes);
+app.route("/", adminMaintenanceRoutes);
 
 app.post("/api/v1/admin/media", async (context) => {
   const body = (await context.req.json()) as Record<string, unknown>;
@@ -1170,13 +1172,33 @@ app.get("/api/v1/admin/media-assets", async (context) => {
   if (!parsed.success) return context.json({ message: "Invalid media search" }, 400);
   const { q, role, health, limit, offset } = parsed.data;
   const sql = database().client;
+  // Every matching row, not a page of them: `health` (file on disk, unused, reused) can only be
+  // decided per row below, so paginating first would make "missing" silently look at the newest
+  // `limit` assets only — the filter then "worked sometimes". The text search also matches the
+  // owning title/person, which is how an admin actually thinks of a poster.
+  const pattern = q ? `%${q}%` : null;
   const rows = await sql`select a.*,
     (select count(*)::int from media_asset_assignments x where x.asset_id=a.id) as usage_count
     from media_assets a
-    where (${q ?? null}::text is null or a.original_filename ilike ${`%${q ?? ""}%`} or a.sha256 like ${`${q ?? ""}%`})
+    where (${pattern}::text is null or a.original_filename ilike ${pattern} or a.sha256 like ${`${q ?? ""}%`}
+      or exists (select 1 from media_asset_assignments x
+        left join titles t on t.id=x.title_id
+        left join installments i on i.id=x.installment_id
+        left join episodes e on e.id=x.episode_id
+        left join entities en on en.id=x.entity_id
+        where x.asset_id=a.id and coalesce(t.title_ar,'')||' '||coalesce(t.canonical_title,'')||' '
+          ||coalesce(i.title,'')||' '||coalesce(e.title,'')||' '||coalesce(en.name,'') ilike ${pattern}))
       and (${role ?? null}::media_asset_role is null or exists (select 1 from media_asset_assignments x where x.asset_id=a.id and x.role=${role ?? null}))
-    order by a.updated_at desc limit ${limit + offset}`;
+    order by a.updated_at desc`;
   const assets: Array<z.infer<typeof mediaAssetSchema>> = [];
+  const summary = {
+    total: rows.length,
+    missing: 0,
+    unused: 0,
+    reused: 0,
+    deletionFailed: 0,
+    bytes: 0,
+  };
   for (const row of rows) {
     const assignmentRows =
       await sql`select x.id, x.role, x.is_primary, x.title_id, x.installment_id, x.episode_id, x.entity_id,
@@ -1194,6 +1216,11 @@ app.get("/api/v1/admin/media-assets", async (context) => {
         ? "healthy"
         : "missing";
     const usageCount = Number(row.usage_count);
+    summary.bytes += Number(row.byte_size);
+    if (assetHealth === "missing") summary.missing += 1;
+    if (assetHealth === "deletion-failed") summary.deletionFailed += 1;
+    if (usageCount === 0) summary.unused += 1;
+    if (usageCount > 1) summary.reused += 1;
     const matchesSpecialFilter =
       (health === "reused" && usageCount > 1) ||
       (health === "unused" && usageCount === 0) ||
@@ -1229,7 +1256,11 @@ app.get("/api/v1/admin/media-assets", async (context) => {
       })),
     });
   }
-  return context.json({ items: assets.slice(offset, offset + limit), total: assets.length });
+  return context.json({
+    items: assets.slice(offset, offset + limit),
+    total: assets.length,
+    summary,
+  });
 });
 
 app.patch("/api/v1/admin/media-assets/:assetId/focal", async (context) => {
@@ -1474,92 +1505,7 @@ app.delete("/api/v1/admin/vocabularies/:vocabulary/:termId", async (context) => 
 });
 
 app.get("/api/v1/admin/validation", async (context) => {
-  const sql = database().client;
-  const issues: Array<z.infer<typeof validationIssueSchema>> = [];
-  const metadata = await sql`select id, canonical_title, title_ar, summary from titles
-    where title_ar is null or btrim(title_ar)='' or btrim(summary)=''`;
-  for (const row of metadata)
-    issues.push({
-      id: `metadata:${row.id}`,
-      severity: "warning",
-      category: "metadata",
-      entityType: "work",
-      entityId: String(row.id),
-      title: String(row.canonical_title),
-      path: "title.metadata",
-      message: !row.title_ar ? "العنوان العربي مفقود." : "الملخص مفقود.",
-      action: "راجع الحقول التحريرية.",
-      repairPath: `/admin/catalog/${row.id}`,
-      autoRepairable: false,
-    });
-  const missingPosters = await sql`select id, canonical_title from titles t where not exists
-    (select 1 from media_asset_assignments x where x.title_id=t.id and x.role='poster' and x.is_primary)`;
-  for (const row of missingPosters)
-    issues.push({
-      id: `poster:${row.id}`,
-      severity: "warning",
-      category: "media",
-      entityType: "work",
-      entityId: String(row.id),
-      title: String(row.canonical_title),
-      path: "media.poster",
-      message: "لا يوجد ملصق أساسي.",
-      action: "اختر أصلاً موجوداً أو ارفع صورة.",
-      repairPath: `/admin/catalog/${row.id}`,
-      autoRepairable: false,
-    });
-  const orphanAssets =
-    await sql`select id, path, deletion_error from media_assets a where not exists
-    (select 1 from media_asset_assignments x where x.asset_id=a.id)`;
-  for (const row of orphanAssets)
-    issues.push({
-      id: `asset-orphan:${row.id}`,
-      severity: row.deletion_error ? "error" : "info",
-      category: "media",
-      entityType: "asset",
-      entityId: String(row.id),
-      title: String(row.path),
-      path: "media.assignments",
-      message: row.deletion_error ? String(row.deletion_error) : "ملف غير مستخدم.",
-      action: "يمكن حذف الأصل غير المستخدم بأمان.",
-      repairPath: "/admin/media",
-      autoRepairable: !row.deletion_error,
-    });
-  const allAssets = await sql`select id, path from media_assets`;
-  for (const row of allAssets)
-    if (!(await storedMediaExists(String(row.path))))
-      issues.push({
-        id: `asset-missing:${row.id}`,
-        severity: "error",
-        category: "media",
-        entityType: "asset",
-        entityId: String(row.id),
-        title: String(row.path),
-        path: "media.file",
-        message: "سجل الأصل موجود لكن الملف غير موجود على القرص.",
-        action: "استبدل الملف أو احذف التعيينات بعد المراجعة.",
-        repairPath: "/admin/media?health=missing",
-        autoRepairable: false,
-      });
-  const inactiveTerms = await sql`
-    select 'genres' as vocabulary, g.id, g.label_ar, count(x.title_id)::int as usage from genres g join title_genres x on x.value_id=g.id where not g.is_active group by g.id
-    union all select 'tones', g.id, g.label_ar, count(x.title_id)::int from tones g join title_tones x on x.value_id=g.id where not g.is_active group by g.id
-    union all select 'tags', g.id, g.label_ar, count(x.title_id)::int from tags g join title_tags x on x.value_id=g.id where not g.is_active group by g.id`;
-  for (const row of inactiveTerms)
-    issues.push({
-      id: `inactive:${row.vocabulary}:${row.id}`,
-      severity: "warning",
-      category: "vocabulary",
-      entityType: "vocabulary",
-      entityId: String(row.id),
-      title: String(row.label_ar),
-      path: `${row.vocabulary}.isActive`,
-      message: `مصطلح مؤرشف ما زال مستخدماً في ${row.usage} سجل.`,
-      action: "استبدل المصطلح أو أعد تنشيطه.",
-      repairPath: `/admin/vocabularies?vocabulary=${row.vocabulary}`,
-      autoRepairable: false,
-    });
-  return context.json(z.array(validationIssueSchema).parse(issues));
+  return context.json(await collectValidationIssues());
 });
 
 app.get("/api/v1/admin/statistics", async (context) => {

@@ -8,7 +8,10 @@ const meResponseSchema = z.object({
   account: z.object({ id: z.string() }),
   contentRestricted: z.boolean(),
 });
-const titlesBrowseResponseSchema = z.object({ total: z.number() });
+const titlesBrowseResponseSchema = z.object({
+  total: z.number(),
+  items: z.array(z.object({ kind: z.string() })),
+});
 
 async function signIn(username: string, password: string) {
   const response = await app.request("/api/auth/sign-in/username", {
@@ -100,17 +103,18 @@ describe("account visible-title-kinds preference", () => {
         from account_preferences where account_id=${account.id}`;
 
         try {
-          // The seed catalog is entirely animated (see the arcadia-cataloging skill), so narrowing
-          // to the two live-action types must empty browse entirely — a clean, catalog-independent
-          // assertion that the preference is actually enforced server-side, not just stored.
+          // The catalog now holds live-action titles too, so "narrow to live-action" must return
+          // only those kinds — and fewer titles than the unrestricted view — rather than nothing.
           await sql`update account_preferences
           set visible_title_kinds=array['live-action-movie','live-action-series']
           where account_id=${account.id}`;
-          const narrowed = await app.request("/api/v1/titles?limit=5", {
+          const narrowed = await app.request("/api/v1/titles?limit=100", {
             headers: { authorization: `Bearer ${token}` },
           });
           const narrowedBody = titlesBrowseResponseSchema.parse(await narrowed.json());
-          expect(narrowedBody.total).toBe(0);
+          expect(narrowedBody.items.every((item) => item.kind.startsWith("live-action"))).toBe(
+            true,
+          );
 
           await sql`update account_preferences
           set visible_title_kinds=array['animated-movie','animated-series','live-action-movie','live-action-series']
@@ -119,7 +123,7 @@ describe("account visible-title-kinds preference", () => {
             headers: { authorization: `Bearer ${token}` },
           });
           const restoredBody = titlesBrowseResponseSchema.parse(await restored.json());
-          expect(restoredBody.total).toBeGreaterThan(0);
+          expect(restoredBody.total).toBeGreaterThan(narrowedBody.total);
         } finally {
           if (before) {
             await sql`update account_preferences
