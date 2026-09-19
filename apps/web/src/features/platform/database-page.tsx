@@ -47,6 +47,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCurrentAccount } from "@/features/accounts/api";
 import { archiveKeys, getContinueWatching } from "@/features/archive/api";
 import {
+  adminCatalogInstallmentsQueryOptions,
+  adminCatalogTitlesQueryOptions,
+  catalogInstallmentsQueryOptions,
+  catalogTitlesQueryOptions,
+} from "@/features/catalog/api";
+import {
   buildCatalogFacetOptions,
   type CatalogWatchContext,
   countCatalogFilters,
@@ -63,13 +69,7 @@ import { type Work, type WorkKind, workKinds } from "@/features/library/model";
 import { scoreCriterionLabels } from "@/features/library/scoring";
 import { usePersistedState } from "@/lib/use-persisted-state";
 import { cn } from "@/lib/utils";
-import {
-  getAdminPlatformCatalogInstallments,
-  getAdminPlatformCatalogWorks,
-  getPlanets,
-  getPlatformCatalogInstallments,
-  getPlatformCatalogWorks,
-} from "@/server/platform.functions";
+import { getPlanets } from "@/server/platform.functions";
 import { kindLabels } from "../library/filtering";
 import { PlatformShell } from "./components/platform-shell";
 import { WorkCard } from "./components/work-card";
@@ -187,28 +187,17 @@ function matchesQuery(work: Work, query: string) {
 }
 
 export function DatabasePage({ initialQuery = "" }: { initialQuery?: string }) {
-  const { data: publicWorks } = useSuspenseQuery({
-    queryKey: ["platform-catalog", "titles"],
-    queryFn: () => getPlatformCatalogWorks(),
-  });
-  const { data: publicInstallments } = useSuspenseQuery({
-    queryKey: ["platform-catalog", "installments"],
-    queryFn: () => getPlatformCatalogInstallments(),
-  });
+  const { data: publicWorks } = useSuspenseQuery(catalogTitlesQueryOptions());
+  const { data: publicInstallments } = useSuspenseQuery(catalogInstallmentsQueryOptions());
   const { data: accountData } = useCurrentAccount();
   const isAdmin = accountData?.account.role === "owner" || accountData?.account.role === "editor";
   const [interactive, setInteractive] = useState(false);
   useEffect(() => {
     setInteractive(true);
   }, []);
-  const { data: adminWorks } = useQuery({
-    queryKey: ["platform-catalog", "admin", "titles"],
-    queryFn: getAdminPlatformCatalogWorks,
-    enabled: isAdmin,
-  });
+  const { data: adminWorks } = useQuery({ ...adminCatalogTitlesQueryOptions(), enabled: isAdmin });
   const { data: adminInstallments } = useQuery({
-    queryKey: ["platform-catalog", "admin", "installments"],
-    queryFn: getAdminPlatformCatalogInstallments,
+    ...adminCatalogInstallmentsQueryOptions(),
     enabled: isAdmin,
   });
   const { data: planets } = useSuspenseQuery({

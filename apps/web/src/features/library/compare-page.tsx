@@ -32,9 +32,10 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { worksQueryOptions } from "@/features/catalog/api";
 import { PlatformShell } from "@/features/platform/components/platform-shell";
 import { cn } from "@/lib/utils";
-import { getWorkStructures, getWorks } from "@/server/library.functions";
+import { getWorkStructures } from "@/server/library.functions";
 import { WorkArtwork } from "./components/work-artwork";
 import { kindLabels } from "./filtering";
 import type { Work, WorkStructure } from "./model";
@@ -64,10 +65,7 @@ export function ComparePage({
   ids: string[];
   onIdsChange: (ids: string[]) => void;
 }) {
-  const { data: allWorks } = useSuspenseQuery({
-    queryKey: ["works"],
-    queryFn: () => getWorks(),
-  });
+  const { data: allWorks } = useSuspenseQuery(worksQueryOptions());
   const [view, setView] = useState<CompareView>("overview");
   const [exportState, setExportState] = useState<"idle" | "copied">("idle");
 

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { catalogKeys } from "@/features/catalog/api";
 import { kindLabels } from "@/features/library/filtering";
 import type { Genre, WorkKind } from "@/features/library/model";
 import { genreSchema, workKinds } from "@/features/library/model";
@@ -138,7 +139,7 @@ export function AdminNewWorkPage() {
   const mutation = useMutation({
     mutationFn: addWorksBulk,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["works"] });
+      await queryClient.invalidateQueries({ queryKey: catalogKeys.all });
       await navigate({ to: "/admin/catalog" });
     },
   });

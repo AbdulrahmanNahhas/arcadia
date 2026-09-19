@@ -5,15 +5,15 @@ import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { worksQueryOptions } from "@/features/catalog/api";
 import type { Work } from "@/features/library/model";
 import { PlatformShell } from "@/features/platform/components/platform-shell";
 import { kindLabel } from "@/features/platform/components/work-card";
 import { cn } from "@/lib/utils";
-import { getWorks } from "@/server/library.functions";
 import { getPublicAwards } from "@/server/platform.functions";
 
 export function AwardOrganizationPage({ organizationSlug }: { organizationSlug: string }) {
-  const { data: works } = useSuspenseQuery({ queryKey: ["works"], queryFn: () => getWorks() });
+  const { data: works } = useSuspenseQuery(worksQueryOptions());
   const { data: awards } = useSuspenseQuery({
     queryKey: ["public-awards"],
     queryFn: () => getPublicAwards(),

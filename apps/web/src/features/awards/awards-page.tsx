@@ -8,14 +8,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { worksQueryOptions } from "@/features/catalog/api";
 import type { Work } from "@/features/library/model";
 import { PlatformShell } from "@/features/platform/components/platform-shell";
 import { WorkRail } from "@/features/platform/components/work-rail";
-import { getWorks } from "@/server/library.functions";
 import { getPublicAwards } from "@/server/platform.functions";
 
 export function AwardsPage() {
-  const { data: works } = useSuspenseQuery({ queryKey: ["works"], queryFn: () => getWorks() });
+  const { data: works } = useSuspenseQuery(worksQueryOptions());
   const { data: awards } = useSuspenseQuery({
     queryKey: ["public-awards"],
     queryFn: () => getPublicAwards(),
