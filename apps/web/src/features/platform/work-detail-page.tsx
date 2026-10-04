@@ -1261,19 +1261,43 @@ function SeasonCard({
             <span className="text-xs">لا يوجد ملصق</span>
           </div>
         )}
-        <Badge className="absolute top-2 inset-s-2" variant="secondary">
-          {seasonNumber === null ? "فيلم" : `موسم ${seasonNumber}`}
+        <Badge className="absolute top-2 inset-s-2" variant="default">
+          {installment.installmentKind === "special"
+            ? (installment.units?.length ?? 0) === 0 || installment.units?.length === 1
+              ? "حلقة خاصة"
+              : installment.units.length === 2
+                ? "حلقتان خاصتان"
+                : installment.units.length <= 10
+                  ? `${installment.units.length} حلقات خاصة`
+                  : `${installment.units.length} حلقة خاصة`
+            : seasonNumber === null || installment.installmentKind === "movie"
+              ? "فيلم"
+              : `موسم ${seasonNumber}`}
         </Badge>
       </div>
       <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-6">
         {installment.title || `الجزء ${index + 1}`}
       </h3>
       <p className="mt-1 text-xs text-muted-foreground">
-        {installment.units.length > 0
-          ? `${installment.units.length} حلقة`
-          : installment.runtimeMinutes
-            ? `${installment.runtimeMinutes} دقيقة`
-            : `الجزء ${index + 1}`}
+        {installment.installmentKind === "special"
+          ? (installment.units?.length ?? 0) === 0 || installment.units?.length === 1
+            ? "حلقة خاصة"
+            : installment.units.length === 2
+              ? "حلقتان خاصتان"
+              : installment.units.length <= 10
+                ? `${installment.units.length} حلقات خاصة`
+                : `${installment.units.length} حلقة خاصة`
+          : (installment.units?.length ?? 0) > 0
+            ? installment.units.length === 1
+              ? "حلقة واحدة"
+              : installment.units.length === 2
+                ? "حلقتان"
+                : installment.units.length <= 10
+                  ? `${installment.units.length} حلقات`
+                  : `${installment.units.length} حلقة`
+            : installment.runtimeMinutes
+              ? `${installment.runtimeMinutes} دقيقة`
+              : `الجزء ${index + 1}`}
       </p>
     </Link>
   );
@@ -1732,7 +1756,23 @@ function InstallmentPickerCard({
       <span className="min-w-0">
         <strong className="line-clamp-2 text-sm">{installment.title}</strong>
         <span className="mt-1 block text-xs text-muted-foreground">
-          {installment.installmentKind === "season" ? `${installment.units.length} حلقة` : "فيلم"}
+          {installment.installmentKind === "season"
+            ? (installment.units?.length ?? 0) === 0 || installment.units?.length === 1
+              ? "حلقة واحدة"
+              : installment.units.length === 2
+                ? "حلقتان"
+                : installment.units.length <= 10
+                  ? `${installment.units.length} حلقات`
+                  : `${installment.units.length} حلقة`
+            : installment.installmentKind === "special"
+              ? (installment.units?.length ?? 0) === 0 || installment.units?.length === 1
+                ? "حلقة خاصة"
+                : installment.units.length === 2
+                  ? "حلقتان خاصتان"
+                  : installment.units.length <= 10
+                    ? `${installment.units.length} حلقات خاصة`
+                    : `${installment.units.length} حلقة خاصة`
+              : "فيلم"}
         </span>
       </span>
     </button>
@@ -1850,7 +1890,17 @@ function EpisodesSection({
             <div className="self-center">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">
-                  {isMovie ? "فيلم" : `الموسم ${selected.seasonNumber ?? selected.position}`}
+                  {selected?.installmentKind === "special"
+                    ? (selected?.units?.length ?? 0) === 0 || selected?.units?.length === 1
+                      ? "حلقة خاصة"
+                      : selected.units.length === 2
+                        ? "حلقتان خاصتان"
+                        : selected.units.length <= 10
+                          ? `${selected.units.length} حلقات خاصة`
+                          : `${selected.units.length} حلقة خاصة`
+                    : isMovie || selected?.installmentKind === "movie"
+                      ? "فيلم"
+                      : `الموسم ${selected?.seasonNumber ?? selected?.position}`}
                 </Badge>
                 {selected.rating != null && (
                   <Badge variant="outline">

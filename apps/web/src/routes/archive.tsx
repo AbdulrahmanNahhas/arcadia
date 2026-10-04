@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { ArchiveHubPage } from "@/features/archive/archive-hub-page";
+import { DisplaySpace } from "@/features/display/display-space";
+import { useAppMode } from "@/lib/app-mode";
 
 const archiveSearchSchema = z.object({
   tab: z
@@ -16,5 +18,9 @@ const archiveSearchSchema = z.object({
 
 export const Route = createFileRoute("/archive")({
   validateSearch: archiveSearchSchema,
-  component: ArchiveHubPage,
+  component: ArchiveRoute,
 });
+
+function ArchiveRoute() {
+  return useAppMode().isDisplay ? <DisplaySpace /> : <ArchiveHubPage />;
+}

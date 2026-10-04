@@ -7,6 +7,8 @@
 @import "@fontsource-variable/jetbrains-mono/wght.css";
 
 @custom-variant dark (&:is(.dark *));
+/* Display Mode (the TV posture, docs/v0.3.5.md Phase B): html[data-mode="display"]. */
+@custom-variant tv (&:is([data-mode="display"] *));
 
 @theme inline {
   --breakpoint-xs: 29.6875rem; /* 475px */
@@ -380,4 +382,66 @@
 .ontop,
 .ontop * {
   z-index: 20 !important;
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * Display Mode — the lean-back posture (docs/v0.3.5.md Phase B). Larger type, no blur anywhere
+ * (the most expensive thing a TV WebView does), one filled selection at a time, and the rest of a
+ * rail dimmed so the selection reads from three metres away. Everything keys off
+ * html[data-mode="display"].
+ * ------------------------------------------------------------------------------------------ */
+html[data-mode="display"] {
+  font-size: 20px;
+  --selection-duration: 180ms;
+  --selection-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --selection-scale: 1.08;
+  --selection-ring: oklch(1 0 0 / 0.95);
+  --selection-glow: 0 0 0 3px var(--selection-ring), 0 24px 60px -12px oklch(0 0 0 / 0.8);
+}
+html[data-mode="display"] body {
+  overflow-x: hidden;
+}
+html[data-mode="display"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-mode="display"] ::-webkit-scrollbar {
+  display: none;
+}
+/* Artwork selection: glow + scale; the rail's other cards drop back. */
+html[data-mode="display"] [data-display-card] {
+  transition:
+    transform var(--selection-duration) var(--selection-ease),
+    opacity var(--selection-duration) var(--selection-ease);
+}
+html[data-mode="display"]
+  [data-display-rail]:has([data-display-card][data-focused="true"])
+  [data-display-card]:not([data-focused="true"]) {
+  opacity: 0.55;
+}
+html[data-mode="display"] [data-display-card][data-focused="true"] {
+  transform: scale(var(--selection-scale));
+  z-index: 2;
+}
+html[data-mode="display"] [data-display-card][data-focused="true"] [data-display-art] {
+  box-shadow: var(--selection-glow);
+}
+/* Chrome selection: a filled surface, never an outline. */
+html[data-mode="display"] [data-display-chrome][data-focused="true"],
+html[data-mode="display"] [data-display-chrome]:focus-visible {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+/* The generic auto-registered outline never shows in Display Mode. */
+html[data-mode="display"] [data-spatial-auto="true"][data-focused="true"] {
+  outline: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-mode="display"] [data-display-card][data-focused="true"] {
+    transform: none;
+  }
 }

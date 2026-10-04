@@ -9,6 +9,7 @@ import {
   FloppyDiskIcon,
   PaletteIcon,
   ShieldCheckIcon,
+  TelevisionSimpleIcon,
   UserCircleIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
@@ -43,6 +44,7 @@ import { accountKeys, updateCurrentAccount, useCurrentAccount } from "@/features
 import { avatarAssets } from "@/features/accounts/avatar-catalog";
 import { PlatformShell } from "@/features/platform/components/platform-shell";
 import { setTheme, type ThemePreference } from "@/lib/theme";
+import { setAppMode } from "@/lib/app-mode";
 import { cn } from "@/lib/utils";
 
 type SettingsDraft = {
@@ -446,6 +448,22 @@ export function SettingsPage() {
                     </button>
                   );
                 })}
+              </div>
+            </SettingsSection>
+
+            <SettingsSection
+              icon={<TelevisionSimpleIcon size={19} weight="duotone" />}
+              title="وضع العرض (التلفاز)"
+              description="واجهة كبيرة للغرفة: خط أكبر، تنقّل بجهاز التحكم عن بعد، ولا أدوات إدارة. يُحفظ لهذا الجهاز فقط."
+            >
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="outline" onClick={() => setAppMode("display")}>
+                  <TelevisionSimpleIcon data-icon="inline-start" />
+                  الدخول إلى وضع العرض
+                </Button>
+                <p className="text-xs text-muted-foreground" dir="auto">
+                  للتبديل من أي صفحة: Ctrl+Shift+T — أو افتح التطبيق بـ ?tv=1.
+                </p>
               </div>
             </SettingsSection>
           </TabsContent>

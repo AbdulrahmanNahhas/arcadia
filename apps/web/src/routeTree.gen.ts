@@ -21,6 +21,7 @@ import { Route as DownloadsRouteImport } from './routes/downloads'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OfflineRouteImport } from './routes/offline'
 import { Route as ProfilesRouteImport } from './routes/profiles'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as WatchRouteImport } from './routes/watch'
 import { Route as EntitiesPlanetsRouteImport } from './routes/_entities/planets'
@@ -117,6 +118,11 @@ const OfflineRoute = OfflineRouteImport.update({
 const ProfilesRoute = ProfilesRouteImport.update({
   id: '/profiles',
   path: '/profiles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -326,6 +332,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/watch': typeof WatchRoute
   '/planets': typeof EntitiesPlanetsRouteWithChildren
@@ -375,6 +382,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/watch': typeof WatchRoute
   '/admin/accounts': typeof AdminAccountsRoute
@@ -426,6 +434,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/offline': typeof OfflineRoute
   '/profiles': typeof ProfilesRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/watch': typeof WatchRoute
   '/_entities/planets': typeof EntitiesPlanetsRouteWithChildren
@@ -479,6 +488,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/offline'
     | '/profiles'
+    | '/search'
     | '/settings'
     | '/watch'
     | '/planets'
@@ -528,6 +538,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/offline'
     | '/profiles'
+    | '/search'
     | '/settings'
     | '/watch'
     | '/admin/accounts'
@@ -578,6 +589,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/offline'
     | '/profiles'
+    | '/search'
     | '/settings'
     | '/watch'
     | '/_entities/planets'
@@ -631,6 +643,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OfflineRoute: typeof OfflineRoute
   ProfilesRoute: typeof ProfilesRoute
+  SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
   WatchRoute: typeof WatchRoute
   InviteTokenRoute: typeof InviteTokenRoute
@@ -725,6 +738,13 @@ declare module '@tanstack/react-router' {
       path: '/profiles'
       fullPath: '/profiles'
       preLoaderRoute: typeof ProfilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -1116,6 +1136,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OfflineRoute: OfflineRoute,
   ProfilesRoute: ProfilesRoute,
+  SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
   WatchRoute: WatchRoute,
   InviteTokenRoute: InviteTokenRoute,

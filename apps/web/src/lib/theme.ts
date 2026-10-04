@@ -39,7 +39,7 @@ export function resolveTheme(preference: ThemePreference, prefersDark: boolean):
  * Runs inline in `<head>` before React, so the page never flashes the wrong palette. Must stay
  * dependency-free and mirror `resolveTheme`/`applyResolvedTheme` exactly (pinned by theme.test.ts).
  */
-export const themeRestoreScript = `(function(){try{var r=document.documentElement,t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})||${JSON.stringify(DEFAULT_THEME)},d=t==='system'?matchMedia(${JSON.stringify(DARK_SCHEME_QUERY)}).matches:t==='dark';r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';r.style.backgroundColor=d?${JSON.stringify(BACKGROUND_HEX.dark)}:${JSON.stringify(BACKGROUND_HEX.light)}}catch(e){}})()`;
+export const themeRestoreScript = `(function(){try{var r=document.documentElement;try{var q=new URLSearchParams(location.search).get('tv');if(q!==null){localStorage.setItem('arcadia:display-mode',q==='0'?'normal':'display')}r.dataset.mode=localStorage.getItem('arcadia:display-mode')==='display'?'display':'normal'}catch(e){}var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})||${JSON.stringify(DEFAULT_THEME)},d=t==='system'?matchMedia(${JSON.stringify(DARK_SCHEME_QUERY)}).matches:t==='dark';r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';r.style.backgroundColor=d?${JSON.stringify(BACKGROUND_HEX.dark)}:${JSON.stringify(BACKGROUND_HEX.light)}}catch(e){}})()`;
 
 function readStoredPreference(): ThemePreference {
   const parsed = themePreferenceSchema.safeParse({

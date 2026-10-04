@@ -6,18 +6,34 @@ import {
   type ErrorComponentProps,
   HeadContent,
   Link,
+  redirect,
   Scripts,
   useRouter,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthBoundary } from "@/features/accounts/auth-boundary";
 import { SpatialNavigationRoot } from "@/features/platform/spatial-navigation";
+import {
+  applyAppMode,
+  consumeModeFromUrl,
+  isHiddenInDisplayMode,
+  readAppMode,
+  toggleAppMode,
+} from "@/lib/app-mode";
 import { themeRestoreScript } from "@/lib/theme";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  // Display Mode hides the desk-only tools twice: the nav never links them, and a remembered
+  // URL or a deep link lands on Home instead (docs/v0.3.5.md B3).
+  beforeLoad: ({ location }) => {
+    if (readAppMode() === "display" && isHiddenInDisplayMode(location.pathname)) {
+      throw redirect({ to: "/" });
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -69,6 +85,18 @@ function FamilyRouteError({ error }: ErrorComponentProps) {
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    consumeModeFromUrl();
+    applyAppMode();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.shiftKey && (event.key === "T" || event.key === "t")) {
+        event.preventDefault();
+        toggleAppMode();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>

@@ -1,5 +1,6 @@
 import { SlidersHorizontalIcon, StarIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
