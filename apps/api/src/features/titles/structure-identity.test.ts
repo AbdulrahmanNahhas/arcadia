@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
+
 import { afterAll, describe, expect, it } from "vitest";
+
 import { app } from "../../app";
 import { database } from "../../database";
 

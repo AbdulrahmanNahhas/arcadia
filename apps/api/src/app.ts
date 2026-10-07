@@ -26,6 +26,7 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+
 import { auth, getAuthSession, isTestAuthBypass } from "./auth";
 import { database, databaseReady } from "./database";
 import { accountRoutes, currentFamilyAccount } from "./features/accounts/routes";

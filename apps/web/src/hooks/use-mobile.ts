@@ -1,22 +1,17 @@
-import * as React from "react";
+import { useSyncExternalStore } from "react";
 
-const MOBILE_BREAKPOINT = 768;
+const mobileQuery = "(max-width: 767px)";
 
-function isNarrowViewport() {
-  return import.meta.env.SSR ? false : window.innerWidth < MOBILE_BREAKPOINT;
+function subscribe(onChange: () => void) {
+  const query = window.matchMedia(mobileQuery);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+function snapshot() {
+  return window.matchMedia(mobileQuery).matches;
 }
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState(isNarrowViewport);
-
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
-    };
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, []);
-
-  return isMobile;
+  return useSyncExternalStore(subscribe, snapshot, () => false);
 }

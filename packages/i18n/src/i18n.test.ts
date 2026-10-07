@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+
 import { t, taxonomyLabel } from ".";
 
 it("keeps Arabic interface and taxonomy labels centralized", () => {

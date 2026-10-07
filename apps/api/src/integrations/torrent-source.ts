@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+
 import type { StreamCandidate, StreamQuality } from "@arcadia/contracts";
 import { z } from "zod";
 

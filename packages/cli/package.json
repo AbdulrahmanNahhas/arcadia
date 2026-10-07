@@ -1,12 +1,12 @@
 {
   "name": "@arcadia/cli",
   "version": "2.0.0",
-  "description": "Agent-facing command line interface for reading, editing, and reporting on the Arcadia v2 PostgreSQL catalog.",
   "private": true,
-  "type": "module",
+  "description": "Agent-facing command line interface for reading, editing, and reporting on the Arcadia v2 PostgreSQL catalog.",
   "bin": {
     "arcadia": "./src/main.ts"
   },
+  "type": "module",
   "exports": {
     ".": "./src/main.ts"
   },

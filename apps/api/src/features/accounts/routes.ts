@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+
 import {
   type AccountCapability,
   type AccountKind,
@@ -21,6 +22,7 @@ import {
   titleKinds,
 } from "@arcadia/domain";
 import { OpenAPIHono } from "@hono/zod-openapi";
+
 import { auth, getAuthSession, isTestAuthBypass } from "../../auth";
 import { database } from "../../database";
 import { visibilityPolicyForAccount } from "../../repository";

@@ -2,6 +2,7 @@ import { account, session, user, verification } from "@arcadia/database";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
 import { bearer, username } from "better-auth/plugins";
+
 import { database } from "./database";
 
 const developmentSecret = "arcadia-development-secret-change-before-production-2026";

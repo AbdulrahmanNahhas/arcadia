@@ -9,11 +9,9 @@ node_modules
 .direnv
 data
 *.log
-src-tauri/target
 # Crash dumps from the Tauri shell (gitignored too) and the desktop crate's build output.
 **/core.*
-src-tauri/target
-src-tauri/gen
+target
 # Editor/agent worktrees and state — never part of a server image.
 .delta
 .claude
@@ -24,3 +22,5 @@ data
 *.tsbuildinfo
 test-results
 playwright-report
+
+reference

@@ -11,9 +11,16 @@ export default defineConfig({
     "tools/oxlint/anti-slop/**",
     ".agents/**",
     ".claude/**",
+    ".codex/**",
+    ".tmp/**",
+    "target/**",
+    "reference/**",
   ],
   plugins: ["typescript", "unicorn", "oxc", "import", "vitest", "promise", "node", "react"],
-  jsPlugins: [{ name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" }],
+  jsPlugins: [
+    { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },
+    "@shadcn/lint",
+  ],
   categories: {
     correctness: "error",
     suspicious: "error",
@@ -23,6 +30,7 @@ export default defineConfig({
     "unicorn/filename-case": "off",
     "react/react-in-jsx-scope": "off",
     "react/jsx-key": "error",
+    "import/no-unassigned-import": ["error", { allow: ["**/*.css"] }],
     // Sequential awaits inside SQL transactions and the v1 import scripts are deliberate: row
     // order and foreign keys depend on the previous statement having committed.
     "no-await-in-loop": "off",
@@ -48,40 +56,30 @@ export default defineConfig({
   },
   overrides: [
     {
+      files: ["apps/web/src/**/*.tsx", "apps/web/src/**/*.ts"],
+      rules: {
+        "shadcn/no-restyle": ["error", { allow: ["layout"] }],
+        "shadcn/no-raw-colors": "error",
+        "shadcn/no-arbitrary-values": "error",
+        "shadcn/no-inline-styles": "error",
+        "shadcn/no-unknown-classes": "error",
+        "shadcn/require-static-classes": "error",
+      },
+    },
+    {
       // Phase E legacy allowlist (docs/v0.3.5.md §1.0). These are the oversized files Phase E
       // splits or deletes; their untyped-row idiom (`Record<string, unknown>` SQL rows, v1 shape
       // adapters, draft-sync effects) is what the split rewrites, so the anti-slop rules are
       // relaxed here instead of being satisfied twice. The list may only shrink: remove a file
       // the moment its replacement lands, and never add one.
       files: [
-        "apps/web/src/features/platform/work-detail-page.tsx",
-        "apps/web/src/features/admin/components/editor-form/index.tsx",
         "apps/api/src/app.ts",
-        "apps/web/src/features/admin/pages/awards-management-page.tsx",
-        "apps/web/src/features/admin/json-editor/engine.ts",
-        "apps/web/src/features/admin/json-editor/json-editor-page.tsx",
         "packages/contracts/src/index.ts",
-        "apps/web/src/features/admin/pages/entities-management-page.tsx",
-        "apps/web/src/features/admin/pages/statistics-page.tsx",
-        "apps/web/src/features/social/title-social-section.tsx",
         "apps/api/src/features/social/routes.ts",
-        "apps/web/src/features/platform/studio-lineage-page.tsx",
-        "apps/web/src/features/admin/pages/profiles-page.tsx",
-        "apps/web/src/server/compat.ts",
-        "apps/web/src/features/library/compare-page.tsx",
-        "apps/web/src/features/platform/database-page.tsx",
         "apps/api/src/repository.ts",
-        "apps/web/src/features/library/model.ts",
-        "apps/web/src/features/profiles/settings-page.tsx",
-        "apps/web/src/features/admin/pages/media-library-page.tsx",
         "apps/api/src/features/archive/routes.ts",
-        "apps/web/src/features/catalog/catalog-filters.tsx",
         "apps/api/src/features/accounts/routes.ts",
-        "apps/web/src/features/library/offline-title-page.tsx",
         "apps/api/src/integrations/torrent-source.ts",
-        "apps/web/src/features/profiles/profiles-page.tsx",
-        "apps/web/src/features/admin/pages/planets-management-page.tsx",
-        "apps/web/src/server/library.functions.ts",
         "packages/database/src/import-v1-knowledge.ts",
         "packages/database/src/import-v1.ts",
         "packages/database/src/consolidate-v1-franchises.ts",

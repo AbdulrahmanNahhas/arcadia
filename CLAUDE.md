@@ -1,206 +1,107 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Project and review boundary
 
-## What this is
+Nahhasio is a private Arabic-first family media server, administration dashboard, and playback
+client project. The Git repository remains Arcadia during the rewrite.
+Read `docs/AGENT-CONTEXT.md` first, then `docs/phases.md` for the active milestone.
+Complete one phase, report verification and limits, and stop for Aqua's review. Do not begin
+another phase until Aqua asks to continue. The old v0.3.5 plans are historical references.
 
-Arcadia v2 is an Arabic-first, RTL-first family media archive. It models titles as umbrella
-records with seasons, films, specials, and episodes beneath them, then combines editorial
-scores, family-safety classifications, people, studios, planets ("universes"), and
-relationships in one searchable catalog.
+## Monorepo boundaries
 
-pnpm monorepo:
+- `apps/server`: Rust/Axum/Tokio/SQLx server, in the root Cargo workspace.
+- `apps/web`: dashboard-only React/Vite SPA, TanStack Router/Query, Tailwind 4, shadcn Base UI Nova.
+- `reference/arcadia-web`: previous website, frozen outside active workspaces for porting reference.
+- `apps/api`: previous Hono API, kept until Rust endpoints pass behavior/data checks.
+- `packages/database`: existing PostgreSQL schema and the single migration history.
+- Other `packages/*`: existing contracts, domain rules, vocabulary, and database CLI.
 
-```text
-apps/api            Hono API and OpenAPI document
-apps/web             React 19 and TanStack Start client (builds as a static SPA)
-src-tauri            Tauri desktop shell wrapping apps/web's SPA build (Linux for now)
-packages/contracts   shared Zod schemas and generated API types
-packages/database    PostgreSQL schema, Drizzle migrations, seed, and v1 importer
-packages/domain      taxonomy, classification, policy, and scoring rules (framework-independent)
-packages/i18n        shared Arabic/English interface vocabulary and taxonomy labels
-packages/cli         `arcadia` agent-facing CLI over the PostgreSQL catalog
-```
+Kotlin/Compose clients and the shared Rust media core join the repository in their phases.
+Do not create empty packages or share React UI with Kotlin. Share media behavior in Rust and
+network contracts through a single generated OpenAPI definition when that contract is introduced.
 
-## Current release work (v0.3.5)
+## Development and checks
 
-Read `docs/AGENT-CONTEXT.md` first — it is the map (paths, versions, commands, gotchas, house
-rules) and must be kept true as files move. `docs/v0.3.5.md` is the plan: phases, checkboxes,
-model guidance per phase, and the design direction (simple, clean, a little glassy, identical on
-every page; Linux-native Tauri performance first, Android/iOS later). Tick boxes there as work
-lands; record moved files and measured numbers in AGENT-CONTEXT.md.
+Use the repository's Nix/devenv environment: Node 26, pnpm 11.11.0, and Rust.
+`devenv up` starts PostgreSQL, Rust, and the new website. The reference Hono API is available
+with `devenv --profile reference-api up`. Do not inspect `/saved/nixos-config` without Aqua's permission.
 
-## Commands
+- `pnpm lint`: Oxlint, the generic anti-slop plugin, and six shadcn design-system rules.
+- `pnpm format` / `pnpm format:check`: Oxfmt, the authoritative formatter and import sorter.
+- `pnpm typecheck`: TypeScript workspace checks.
+- `pnpm check:rust`: new Rust workspace formatting and Clippy with warnings rejected.
+- `pnpm check`: all the above. Run before handoff.
+- `pnpm build`: TypeScript/website builds and new Rust workspace build.
+- `cargo test --workspace --locked`: Rust unit tests, with no live catalog writes.
+- `pnpm test:e2e`: new website Playwright journeys; use Chromium from Nix on this machine.
 
-The project targets Node.js 26 and expects the Nix/devenv environment (`devenv shell -- <cmd>`,
-or work inside a shell already entered with `devenv shell`).
+Run relevant tests and the build before handoff; run Playwright for visible/routing changes.
+Database mutation tests require a disposable migrated/restored database. Default test commands
+can include integration suites: never point them at the live family catalog.
+Keep commits focused and conventional. Include actual checks and material limitations in reports.
 
-- `devenv up` — start PostgreSQL, the API on port 23101, and the Tauri desktop app (which starts
-  its own `apps/web` dev server as part of `tauri dev`; see "Desktop (Tauri)" in README.md).
-- `pnpm dev` — run API + web dev servers in parallel in a browser, without devenv's Postgres or
-  the desktop shell.
-- `pnpm typecheck` — typecheck every workspace (`tsc --noEmit` per package).
-- `pnpm test` — run Vitest across the monorepo (each package: `vitest run --passWithNoTests`).
-- `pnpm build` — build every workspace.
-- `pnpm check` — `oxlint .` then `biome check .` then `pnpm typecheck`. Run this before handoff.
-- `pnpm format` — format the repo with Biome (Biome is the authoritative formatter/linter; oxlint
-  runs additional rules including a local `anti-slop` plugin under `tools/oxlint/anti-slop/`).
-- `nix shell nixpkgs#chromium --command devenv shell -- pnpm test:e2e` — Playwright, from `apps/web`.
-- `pnpm tauri build` only produces a runnable bundle in CI, not on a NixOS dev machine — see
-  "Desktop (Tauri)" in README.md.
+## Website rules
 
-Single-package/single-test scoping (run from repo root via pnpm `--filter`, or `cd` into the
-package and use vitest args directly):
+Follow the `shadcn` skill and `docs/design-rules.md`. Components use the official `@shadcn`
+registry; retrieve current docs before composing them, inspect generated output, and install
+only components that have consumers. Do not hand-edit vendored primitives to fix caller errors.
 
-```bash
-pnpm --filter @arcadia/api test
-pnpm --filter @arcadia/web test
-devenv shell -- pnpm --filter @arcadia/database exec vitest run src/schema.integration.test.ts
-```
+- Use component variants/sizes and semantic theme tokens. Caller classes control layout.
+- Use Field/FieldGroup, full Card composition, and Empty/Alert/Badge for their respective roles.
+- Group select/menu items correctly; every dialog has a title and every field an accessible label.
+- Use logical RTL utilities, gaps, `size-*`, `cn`, and configured Lucide icons with `data-icon`.
+- Keep native link semantics and keyboard/screen-reader behavior. Respect reduced motion.
+- No raw colors, arbitrary values, inline styles, unrecognized classes, dynamic class construction,
+  or component appearance overrides in new app source. Run the six `@shadcn/lint` rules.
+- No suppression comments or extension of the legacy anti-slop allowlist in new source.
+- No web player, Tauri bridge, global DOM navigation scanner, SSR server, or whole-catalog fetch.
+- Put feature queries/UI together, keep route entries small, use server pagination, URL filters,
+  typed query factories, request cancellation, and targeted cache invalidation.
+- Do not copy remote state into effect-driven local state. Do not introduce persistent state
+  without deciding its owner, scope, migration, and invalidation.
 
-Database (never runs automatically at startup — always explicit):
+Do not hand-edit `routeTree.gen.ts` or `packages/contracts/src/generated.ts`.
+Prefer workspace imports over cross-package relative imports. Use strongly typed TypeScript;
+parse untrusted HTTP/import data at boundaries rather than weakening internal types.
 
-```bash
-devenv shell -- pnpm db:generate   # generate a Drizzle migration after schema.ts changes
-devenv shell -- pnpm db:migrate
-devenv shell -- pnpm db:seed
-```
+## Database preservation and authentication
 
-`data/arcadia.db` is a **read-only** v1 SQLite recovery/import source — never mutate it or add
-local DB backups to the repo. To rebuild a v2 catalog from it:
+PostgreSQL is the source of truth. Preserve all catalog UUIDs, identity/ownership links,
+notes, scores, relations, explicit watched state, playback progress, and artwork paths.
+`packages/database/drizzle/` is the only migration history. Never add a second migration tree.
+Changing data access to SQLx does not replace migration ownership or regenerate the schema.
 
-```bash
-devenv shell -- pnpm db:import -- --dry-run
-devenv shell -- pnpm db:import
-devenv shell -- pnpm db:restore:legacy   # db:import:knowledge + db:consolidate
-```
+Startup never runs migrations, seeds, imports, or cleanup jobs. Make schema changes additive,
+rehearse/backfill on restored copies, verify counts/content/constraints, and define rollback.
+Before a live cutover, secure a verified independent backup of both PostgreSQL and artwork.
+`data/arcadia.db` is a read-only v1 recovery source. Backups are private and never committed.
 
-The importer writes `migration-report.json` and never mutates the SQLite source.
+The existing CLI is `./bin/arcadia` and talks directly to PostgreSQL. Use the `arcadia-db` skill
+for live catalog reads/writes and the `arcadia-cataloging` skill for editorial classification.
+Preserve the current Better Auth identity/password ownership during Rust migration; verify
+hash compatibility with fixtures before cutover. Do not weaken existing production auth guards.
+The legacy test bypass requires both `NODE_ENV=test` and `ARCADIA_MOCK_AUTH=true`.
+Do not log secrets, database connection strings, password hashes, or session tokens.
 
-Regenerate the checked-in API client types after changing the OpenAPI contract:
+The Rust foundation exposes health checks only and sets database sessions read-only. Later
+catalog, source, device, sync, and job routes need explicit authorization before exposure.
+Keep user identity, viewing profile, device, and library policy as distinct concepts.
 
-```bash
-devenv shell -- pnpm client:generate
-```
+## Rust and playback
 
-Read and edit the catalog from the CLI (`packages/cli`, talks straight to PostgreSQL — the API
-does not need to be running):
+Keep unsafe code out of the server workspace. Use bounded pools/timeouts, structured tracing,
+clear feature boundaries, graceful shutdown, and ordinary transactional SQL.
+The media core must not depend on Tauri/GTK or UI types. Platform players use adapters.
+Begin Linux playback with mpv local IPC and measure it on the actual desktop before deciding
+how to embed video. Device downloads, saved metadata/source packs, and home-library downloads
+are different workflows with different ownership and recovery behavior.
 
-```bash
-./bin/arcadia health
-./bin/arcadia title list --search "monster" --limit 20
-./bin/arcadia title get <title-or-alias>          # references, not just UUIDs
-./bin/arcadia schema titles                        # live column/enum introspection
-./bin/arcadia stats coverage                       # catalog completeness
-./bin/arcadia work apply new-work.json --dry-run   # whole-work create/update, one transaction
-```
+## Current product order
 
-Use `./bin/arcadia`, not `devenv shell -- pnpm arcadia`: the devenv banner writes to stdout and
-corrupts `--json` output. The CLI can edit every table, so writes support `--dry-run`, require
-`--yes` past one row, and record `audit_logs` rows. Two skills document it in depth:
-`.agents/skills/arcadia-db` (the interface) and `.agents/skills/arcadia-cataloging` (scoring,
-classification, and the Arabic `contentWarnings`/`analysisNotes` conventions).
-
-## Environment
-
-`devenv.nix` supplies `DATABASE_URL` (`postgresql://127.0.0.1/arcadia`), `VITE_API_URL`
-(`http://127.0.0.1:23101`), `ARCADIA_MOCK_AUTH=true`, and `ARCADIA_SEED_DEMO_ACCOUNTS=true` for
-local dev. Browser routes use real cookie-backed Better Auth sessions; the test-only identity
-bypass (`isTestAuthBypass()` in `apps/api/src/auth.ts`) is only honored when both
-`NODE_ENV=test` and `ARCADIA_MOCK_AUTH=true` — never weaken this guard. Set a unique
-`BETTER_AUTH_SECRET` and trusted `WEB_ORIGIN`/`ARCADIA_WEB_URL` outside development.
-
-The dev seed creates three fixture accounts, only when `ARCADIA_SEED_DEMO_ACCOUNTS=true`
-(admin/owner, family, personal — see README.md for credentials). Public account registration is
-disabled: an owner creates accounts directly or issues an expiring invitation
-(`/api/v1/invites/*`, `routes/invite.$token.tsx`).
-
-## Architecture
-
-**API (`apps/api/src`)** is a single Hono `OpenAPIHono` app (`app.ts`) that mounts feature route
-modules (`features/{accounts,archive,awards,social}/routes.ts`) plus a large set of inline
-routes for browse/detail/admin endpoints defined directly in `app.ts`. Data access mostly goes
-through tagged-template SQL (`postgres.js`-style, via `database().client`) rather than an ORM
-query builder at request time — Drizzle (`packages/database`) owns schema/migrations, but reads
-in `app.ts`/`repository.ts` are hand-written SQL. `repository.ts` holds the shared browse/detail
-query logic and account-visibility helpers (`visibilityPolicyForAccount`,
-`visibleTitleIdsForAccount`) that every listing endpoint filters through.
-
-Route layering:
-- `/api/v1/*` requires an authenticated session except `health`, `invites/*`, and the test bypass.
-- `/api/v1/admin/*` additionally requires `owner` or `editor` role; `editor` sessions are further
-  gated per-path against `account_capabilities` (media/analytics/entities/accounts/catalog).
-- Every non-GET admin mutation writes an `audit_logs` row after the handler runs.
-
-Media uploads are content-addressed (`media-storage.ts`, hashed by sha256) and tracked in
-`media_assets` / `media_asset_assignments`; deleting/reassigning goes through
-`purgeUnreferencedMedia` so orphaned files get cleaned up. Vocabularies (genres, tones, tags,
-countries, roles, and several "controlled" enums like audiences/ages/risk-levels) are editable
-through `/api/v1/admin/vocabularies` with usage-count guards against deleting in-use terms.
-
-**Domain (`packages/domain`)** is framework-independent and owns:
-- `classification.ts` — family-safety classification levels and comparison/intersection.
-- `policy.ts` — `VisibilityPolicy`/`isVisibleToPolicy` (what a profile can see) and
-  `languagePolicySchema`; the API's visibility filtering builds on these primitives.
-- `scoring.ts` — editorial score composition (story/characters/depth/world-building/
-  originality/craft, 0–10 each).
-- `taxonomy.ts` — canonical genre/tone/tag lists with English + Arabic labels and the
-  `filterTreeSchema` boolean filter language (`and`/`or`/`not`/`in`) used by catalog filtering.
-
-**Contracts (`packages/contracts`)** holds the Zod request/response schemas
-(`src/index.ts`) that both API routes and web forms validate against, plus generated OpenAPI
-types (`src/generated.ts`, produced by `pnpm client:generate` — do not hand-edit).
-
-**Web (`apps/web/src`)** is TanStack Start/Router:
-- `routes/` — file-based route entries (`admin.catalog.$workId.tsx` etc.); **never hand-edit
-  `routeTree.gen.ts`** (generated, excluded from lint/format).
-- `features/{catalog,profiles,library,platform,admin,entities,accounts,social,archive}/` —
-  feature UI and logic, colocated with `*.test.ts(x)` unit tests.
-- `components/` — reusable app components; `components/ui/` — shadcn primitives on Base UI.
-- `lib/api.ts` — typed `openapi-fetch` client (`apiFetch`, `browseTitles`, `getTitle`, …) that
-  always sends `credentials: "include"`.
-- `server/*.functions.ts` — despite the name, plain async functions that call `lib/api.ts`'s
-  `apiFetch`, not TanStack Start server functions (no `createServerFn`). Keep it that way: the app
-  builds in TanStack Start's `spa` mode (`vite.config.ts`) for `src-tauri/`, which ships no Node
-  server, so a real server function would work in the browser but break the desktop app.
-- `public/media/` — static web assets (banners/logos/posters follow a
-  `<slug>-<kind>-<hash>.<ext>` naming convention).
-
-The web app is RTL-first (shadcn + Base UI + Tailwind CSS 4 + Phosphor icons). Reuse installed
-primitives before adding new ones, use semantic theme tokens, preserve keyboard/screen-reader
-behavior, and don't leave unreferenced component files (search for imports before removing a
-component, then typecheck).
-
-## Conventions
-
-Strict, strongly typed TypeScript, two-space indentation. Biome is authoritative for
-formatting/linting; oxlint adds correctness/suspicious/perf rules plus the local `anti-slop`
-plugin (e.g. no chained type assertions, no object-parameter style, no reflect tricks — see
-`oxlint.config.ts`). `PascalCase` for components/types, `camelCase` for values/functions,
-kebab-case for routes and assets. Keep Zod validation at HTTP and import boundaries. Prefer
-workspace package imports (`@arcadia/*`) over cross-package relative paths.
-
-## Database and API safety
-
-PostgreSQL is the source of truth for v2; `packages/database/drizzle/` is the only migration
-history — don't recreate `legacy/`, `drizzle-v1/`, or a second migration tree. Use a disposable
-database/schema for mutation tests. Generate a Drizzle migration for schema changes, keep
-migration order intact, and call out data migrations explicitly. Update
-`packages/contracts/` and regenerate the client (`pnpm client:generate`) when the public API
-shape changes.
-
-Mock profiles and the demo administrator PIN are UI fixtures, not authentication. Keep
-development-only administrator endpoints behind the existing `TODO(auth)` boundary, and never
-weaken the production auth guard.
-
-## Testing and delivery
-
-Vitest files live beside their units as `*.test.ts`/`*.test.tsx`; browser journeys live in
-`apps/web/tests/*.spec.ts` (Playwright). Test observable behavior, API contracts,
-classification/scoring rules, persisted preferences, and database constraints. Before handoff:
-`pnpm check`, relevant tests, and `pnpm build`; run Playwright for visible or routing changes.
-API/database integration tests expect the local PostgreSQL database to be migrated and seeded.
-
-Use focused Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`). PRs should
-summarize behavior/schema changes, list verification commands, link issues, include screenshots
-for visible UI work, and call out migrations, imported assets, and compatibility implications.
+Aqua explicitly prioritized the website as a dashboard only, with Database switching the entire
+sidebar context. Cover existing editorial/admin workflows, TMDB, Fanart, images, raw table
+inspection, JSON/bulk editing, maintenance, revisions, users/devices, and server operations.
+UI routes may be prepared before their services; pending actions must stay visibly disabled.
+Do not claim full database control from UI layouts. Connect authorization and transactional
+mutations before enabling them. Finish dashboard/API/database work before desktop implementation.

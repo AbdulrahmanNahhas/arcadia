@@ -1,8 +1,8 @@
 {
   "name": "@arcadia/i18n",
   "version": "2.0.0",
-  "description": "Shared Arabic interface vocabulary and bilingual catalog metadata labels for Arcadia.",
   "private": true,
+  "description": "Shared Arabic interface vocabulary and bilingual catalog metadata labels for Arcadia.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

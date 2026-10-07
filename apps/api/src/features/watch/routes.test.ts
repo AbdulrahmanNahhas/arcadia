@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { app } from "../../app";
 
 async function signIn(username: string, password: string) {

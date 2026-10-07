@@ -24,6 +24,7 @@ import {
   titleRating,
   type VisibilityPolicy,
 } from "@arcadia/domain";
+
 import { database } from "./database";
 
 type SqlRow = Record<string, unknown>;
@@ -406,8 +407,8 @@ function installment(
       ? Boolean((title.imdb_id || title.tmdb_id) && row.has_integer_episode)
       : Boolean(
           row.imdb_id ||
-            row.tmdb_id ||
-            (Number(row.film_count) === 1 && (title.imdb_id || title.tmdb_id)),
+          row.tmdb_id ||
+          (Number(row.film_count) === 1 && (title.imdb_id || title.tmdb_id)),
         ));
   return {
     id: String(row.id),

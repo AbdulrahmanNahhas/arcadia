@@ -7,6 +7,7 @@
  */
 
 import { scoreWeights } from "@arcadia/domain";
+
 import type { ParsedArgs } from "../args";
 import { intFlag, listFlag, rawListFlag, stringFlag } from "../args";
 import { assertIdentifier, parameters, type Sql } from "../db";

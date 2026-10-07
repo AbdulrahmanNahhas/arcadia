@@ -1,8 +1,8 @@
 {
   "name": "@arcadia/domain",
   "version": "2.0.0",
-  "description": "Framework-independent taxonomy, classification, policy, and scoring rules for Arcadia.",
   "private": true,
+  "description": "Framework-independent taxonomy, classification, policy, and scoring rules for Arcadia.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

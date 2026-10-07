@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { AUTO_WATCHED_THRESHOLD, isAutoWatched, nextIsPlayed } from "./playback";
 
 describe("isAutoWatched", () => {

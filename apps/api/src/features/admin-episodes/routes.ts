@@ -5,6 +5,7 @@ import {
 } from "@arcadia/contracts";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "zod";
+
 import { database } from "../../database";
 import { fetchTmdbSeason, type TmdbSeasonEpisode, tmdbConfigured } from "../../integrations/tmdb";
 import { assignMediaPath } from "../../media-assign";
@@ -209,10 +210,7 @@ adminEpisodeRoutes.get(
       return context.json({ message: "لم يُضبط مفتاح TMDB في هذا التثبيت." }, 503);
     }
     if (installment.tmdbId === null) {
-      return context.json(
-        { message: "العنوان لا يحمل معرّف TMDB بعد — أضفه أولاً من النموذج." },
-        409,
-      );
+      return context.json({ message: "العنوان لا يحمل معرّف TMDB بعد — أضفه أولاً من النموذج." }, 409);
     }
     const requested = Number(context.req.query("season") ?? installment.seasonNumber);
     const season =

@@ -1,6 +1,7 @@
 import { accountDownloadSchema } from "@arcadia/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
+
 import { app } from "../../app";
 import { database } from "../../database";
 import { createScratchMovie } from "../../test-support";

@@ -1,5 +1,6 @@
 import { ageSchema, audienceSchema, riskLevelSchema, titleFormatSchema } from "@arcadia/domain";
 import { z } from "zod";
+
 import {
   awardResultSchema,
   installmentKindSchema,

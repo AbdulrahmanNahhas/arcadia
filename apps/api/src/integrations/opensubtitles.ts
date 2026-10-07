@@ -1,5 +1,6 @@
 import type { SubtitleCandidate } from "@arcadia/contracts";
 import { z } from "zod";
+
 import { readEnvValue } from "./torrent-source";
 
 /**

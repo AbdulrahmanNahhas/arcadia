@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { effectivePolicy, isVisibleToPolicy, visibleTitleKindsSchema } from "./policy";
 import {
   type TitleKind,

@@ -1,0 +1,384 @@
+import { SlidersHorizontalIcon, StarIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { releaseStatusLabelsAr } from "@/features/catalog/catalog-grouping";
+import { taxonomyLabels, type Work } from "@/features/library/model";
+import { usePersistedState } from "@/lib/use-persisted-state";
+import { kindLabel as workKindLabel } from "./work-card";
+
+type ColumnId =
+  | "title"
+  | "arabicTitle"
+  | "kind"
+  | "year"
+  | "releaseStatus"
+  | "audience"
+  | "age"
+  | "rating"
+  | "duration"
+  | "genres"
+  | "tone"
+  | "studios"
+  | "country"
+  | "tags"
+  | "warnings"
+  | "behavioral"
+  | "sexuality"
+  | "theology";
+
+type ColumnDef = {
+  label: string;
+  render: (work: Work) => React.ReactNode;
+};
+
+const optionalColumns: readonly ColumnId[] = [
+  "title",
+  "arabicTitle",
+  "kind",
+  "year",
+  "releaseStatus",
+  "audience",
+  "age",
+  "rating",
+  "duration",
+  "genres",
+  "tone",
+  "studios",
+  "country",
+  "tags",
+  "warnings",
+  "behavioral",
+  "sexuality",
+  "theology",
+];
+
+const defaultVisibleColumns: readonly ColumnId[] = [
+  "title",
+  "arabicTitle",
+  "kind",
+  "year",
+  "releaseStatus",
+  "audience",
+  "rating",
+  "genres",
+  "studios",
+];
+
+function durationText(work: Work) {
+  if (work.episodeCount !== null && work.episodeCount >= 1) return `${work.episodeCount} حلقة`;
+  if (work.runtimeMinutes && work.runtimeMinutes >= 1) return `${work.runtimeMinutes} دقيقة`;
+  if (work.chapterCount !== null && work.chapterCount >= 1) return `${work.chapterCount} فصل`;
+  return "—";
+}
+
+function ListPreview({ values, max = 2 }: { values: string[]; max?: number }) {
+  if (!values.length) return <span className="text-muted-foreground">—</span>;
+
+  const shown = values.slice(0, max);
+  const rest = values.length - shown.length;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {shown.map((value) => (
+        <Badge key={value} variant="outline" className="whitespace-nowrap">
+          {value}
+        </Badge>
+      ))}
+      {rest > 0 ? <span className="text-xs text-muted-foreground">+{rest}</span> : null}
+    </div>
+  );
+}
+
+type RiskLevel = "none" | "low" | "medium" | "high";
+
+const riskLabels = {
+  none: "none",
+  low: "low",
+  medium: "medium",
+  high: "high",
+} satisfies Record<RiskLevel, string>;
+
+const riskClasses = {
+  none: [
+    "border-slate-300/60",
+    "bg-slate-100/70",
+    "text-slate-600",
+    "dark:border-slate-700",
+    "dark:bg-slate-800/60",
+    "dark:text-slate-300",
+  ].join(" "),
+
+  low: [
+    "border-emerald-300/60",
+    "bg-emerald-50",
+    "text-emerald-700",
+    "dark:border-emerald-800/60",
+    "dark:bg-emerald-950/40",
+    "dark:text-emerald-300",
+  ].join(" "),
+
+  medium: [
+    "border-amber-300/70",
+    "bg-amber-50",
+    "text-amber-800",
+    "dark:border-amber-800/10",
+    "dark:bg-amber-950/40",
+    "dark:text-amber-300",
+  ].join(" "),
+
+  high: [
+    "border-red-300/70",
+    "bg-red-50",
+    "text-red-700",
+    "dark:border-red-800/10",
+    "dark:bg-red-950/40",
+    "dark:text-red-300",
+  ].join(" "),
+} satisfies Record<RiskLevel, string>;
+
+/** The catalog also carries `unknown`, which reads as "not assessed" — the same dash as no value. */
+function RiskBadge({ value }: { value?: RiskLevel | "unknown" | null }) {
+  if (!value || value === "unknown") {
+    return <span className="text-muted-foreground">—</span>;
+  }
+
+  return (
+    <Badge variant="outline" className={riskClasses[value]}>
+      {riskLabels[value]}
+    </Badge>
+  );
+}
+
+const columns = {
+  title: {
+    label: "العنوان بالإنجليزية",
+    render: (work) => work.title || "—",
+  },
+
+  arabicTitle: {
+    label: "العنوان بالعربية",
+    render: (work) => work.arabicTitle || "—",
+  },
+
+  kind: {
+    label: "النوع",
+    render: (work) => workKindLabel[work.kind],
+  },
+
+  year: {
+    label: "السنة",
+    render: (work) => work.year ?? "—",
+  },
+
+  releaseStatus: {
+    label: "حالة العرض",
+    render: (work) => (
+      <Badge variant="outline">
+        {releaseStatusLabelsAr[work.releaseStatus] ?? work.releaseStatus}
+      </Badge>
+    ),
+  },
+
+  audience: {
+    label: "الجمهور",
+    render: (work) => (work.audience ? taxonomyLabels.audiences[work.audience] : "—"),
+  },
+
+  age: {
+    label: "الفئة العمرية",
+    render: (work) => (work.age ? taxonomyLabels.ages[work.age] : "—"),
+  },
+
+  rating: {
+    label: "التقييم",
+    render: (work) =>
+      work.calculatedRating === null ? (
+        <span className="text-muted-foreground">—</span>
+      ) : (
+        <span className="inline-flex items-center gap-1 font-medium">
+          <StarIcon weight="fill" className="size-3.5 text-amber-500" />
+          {work.calculatedRating.toFixed(1)}
+        </span>
+      ),
+  },
+
+  duration: {
+    label: "المدة",
+    render: durationText,
+  },
+
+  genres: {
+    label: "التصنيفات",
+    render: (work) => <ListPreview values={work.genres} />,
+  },
+
+  tone: {
+    label: "الطابع",
+    render: (work) => <ListPreview values={work.tone} />,
+  },
+
+  studios: {
+    label: "الاستوديو",
+    render: (work) => <ListPreview values={work.studios} />,
+  },
+
+  country: {
+    label: "الدولة",
+    render: (work) => <ListPreview values={work.country} />,
+  },
+
+  tags: {
+    label: "الوسوم",
+    render: (work) => <ListPreview values={work.tags} max={3} />,
+  },
+
+  warnings: {
+    label: "التحذيرات",
+    render: (work) =>
+      work.contentWarnings ? (
+        <Badge variant="destructive">به تحذيرات</Badge>
+      ) : (
+        <span className="text-muted-foreground">لا يوجد</span>
+      ),
+  },
+
+  behavioral: {
+    label: "السلوك",
+    render: (work) => <RiskBadge value={work.riskProfile?.behavioral} />,
+  },
+
+  sexuality: {
+    label: "الجنسية",
+    render: (work) => <RiskBadge value={work.riskProfile?.sexuality} />,
+  },
+
+  theology: {
+    label: "اللاهوت",
+    render: (work) => <RiskBadge value={work.riskProfile?.theology} />,
+  },
+} satisfies Record<ColumnId, ColumnDef>;
+
+export function useWorkTableColumns() {
+  return usePersistedState<ColumnId[]>("arcadia:browse:table-columns", [...defaultVisibleColumns]);
+}
+
+export function WorkTableColumnPicker({
+  visible,
+  onChange,
+}: {
+  visible: ColumnId[];
+  onChange: (columns: ColumnId[]) => void;
+}) {
+  const toggle = (id: ColumnId) =>
+    onChange(visible.includes(id) ? visible.filter((column) => column !== id) : [...visible, id]);
+
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button variant="outline" size="sm">
+            <SlidersHorizontalIcon data-icon="inline-start" />
+            الأعمدة
+          </Button>
+        }
+      />
+
+      <PopoverContent align="end" className="w-64">
+        <PopoverHeader>
+          <PopoverTitle>أعمدة الجدول</PopoverTitle>
+          <PopoverDescription>اختر ما تريد إظهاره في الجدول.</PopoverDescription>
+        </PopoverHeader>
+
+        <div className="flex max-h-80 flex-col gap-2.5 overflow-y-auto">
+          {optionalColumns.map((id) => {
+            const inputId = `browse-table-column-${id}`;
+
+            return (
+              <label key={id} htmlFor={inputId} className="flex items-center gap-2.5 text-sm">
+                <Checkbox
+                  id={inputId}
+                  checked={visible.includes(id)}
+                  onCheckedChange={() => toggle(id)}
+                />
+                {columns[id].label}
+              </label>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function WorkTable({
+  works,
+  columns: visibleColumns,
+}: {
+  works: Work[];
+  columns: ColumnId[];
+}) {
+  const activeColumns = optionalColumns.filter((id) => visibleColumns.includes(id));
+
+  return (
+    <div className="overflow-hidden rounded-2xl border bg-card/35 backdrop-blur-xl">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            {activeColumns.map((id) => (
+              <TableHead key={id}>{columns[id].label}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+
+        <TableBody>
+          {works.map((work) => (
+            <TableRow key={`${work.installmentId ?? work.id}`} className="group/row">
+              {activeColumns.map((id) => (
+                <TableCell
+                  key={id}
+                  className={
+                    id === "title" || id === "arabicTitle"
+                      ? "max-w-72 whitespace-normal"
+                      : undefined
+                  }
+                >
+                  {id === "title" || id === "arabicTitle" ? (
+                    <Link
+                      to="/titles/$titleId"
+                      params={{ titleId: work.id }}
+                      className="block min-w-0 outline-none focus-visible:underline"
+                    >
+                      <span className="truncate font-heading font-medium group-hover/row:text-primary">
+                        {columns[id].render(work)}
+                      </span>
+                    </Link>
+                  ) : (
+                    columns[id].render(work)
+                  )}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}

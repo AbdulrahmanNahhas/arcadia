@@ -1,4 +1,5 @@
 import postgres from "postgres";
+
 import { CliError } from "./output";
 import type { Row, SqlValue } from "./types";
 

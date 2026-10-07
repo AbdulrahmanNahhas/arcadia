@@ -1,5 +1,6 @@
 import { adminEpisodesResponseSchema, auditLogPageSchema } from "@arcadia/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
 import { app } from "../../app";
 import { database } from "../../database";
 import { createScratchInstallment } from "../../test-support";

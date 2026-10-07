@@ -1,8 +1,8 @@
 {
   "name": "@arcadia/database",
   "version": "2.0.0",
-  "description": "PostgreSQL schema, migrations, seed data, and one-time SQLite importer for Arcadia v2.",
   "private": true,
+  "description": "PostgreSQL schema, migrations, seed data, and one-time SQLite importer for Arcadia v2.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",

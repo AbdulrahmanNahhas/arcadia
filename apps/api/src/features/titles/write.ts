@@ -1,5 +1,6 @@
 import { type AdminTitleInput, adminTitleInputSchema } from "@arcadia/contracts";
 import { type TitleKind, titleFormatOf, titleKindSchema } from "@arcadia/domain";
+
 import type { database } from "../../database";
 
 type Sql = ReturnType<typeof database>["client"];

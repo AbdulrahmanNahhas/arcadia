@@ -1,6 +1,7 @@
 import type { artworkSearchQuerySchema } from "@arcadia/contracts";
 import { titleFormatOf, titleStructureOf } from "@arcadia/domain";
 import type { z } from "zod";
+
 import { searchAniListArtwork } from "./anilist";
 import { fetchFanartMovieArtwork } from "./fanart";
 import { searchTmdbArtwork } from "./tmdb";

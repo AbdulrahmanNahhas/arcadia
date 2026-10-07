@@ -1,8 +1,8 @@
 {
   "name": "@arcadia/api",
   "version": "2.0.0",
-  "description": "Hono and OpenAPI service for the Arcadia v2 catalog.",
   "private": true,
+  "description": "Hono and OpenAPI service for the Arcadia v2 catalog.",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

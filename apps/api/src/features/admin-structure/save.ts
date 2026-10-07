@@ -1,5 +1,6 @@
 import type postgres from "postgres";
 import type { z } from "zod";
+
 import type { adminStructureSchema } from "../../app";
 import { database } from "../../database";
 import {

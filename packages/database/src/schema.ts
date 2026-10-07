@@ -131,7 +131,9 @@ export const titles = pgTable(
     workflowStatus: workflowStatusEnum("workflow_status").notNull().default("published"),
     qualityScore: integer("quality_score").notNull().default(0),
     curatorNotes: text("curator_notes").notNull().default(""),
-    provenance: jsonb("provenance").notNull().default(sql`'{}'::jsonb`),
+    provenance: jsonb("provenance")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     verifiedByAccountId: uuid("verified_by_account_id"),
     ...externalIdColumns,
@@ -143,11 +145,21 @@ export const titles = pgTable(
     index("titles_release_year_idx").on(t.releaseYear),
     index("titles_search_trgm_idx").using("gin", sql`${t.canonicalTitle} gin_trgm_ops`),
     check("titles_imdb_id_check", sql`${t.imdbId} is null or ${t.imdbId} ~ '^tt[0-9]{7,10}$'`),
-    uniqueIndex("titles_tmdb_id_uq").on(t.tmdbId).where(sql`${t.tmdbId} is not null`),
-    uniqueIndex("titles_imdb_id_uq").on(t.imdbId).where(sql`${t.imdbId} is not null`),
-    uniqueIndex("titles_tvdb_id_uq").on(t.tvdbId).where(sql`${t.tvdbId} is not null`),
-    uniqueIndex("titles_anilist_id_uq").on(t.anilistId).where(sql`${t.anilistId} is not null`),
-    uniqueIndex("titles_mal_id_uq").on(t.malId).where(sql`${t.malId} is not null`),
+    uniqueIndex("titles_tmdb_id_uq")
+      .on(t.tmdbId)
+      .where(sql`${t.tmdbId} is not null`),
+    uniqueIndex("titles_imdb_id_uq")
+      .on(t.imdbId)
+      .where(sql`${t.imdbId} is not null`),
+    uniqueIndex("titles_tvdb_id_uq")
+      .on(t.tvdbId)
+      .where(sql`${t.tvdbId} is not null`),
+    uniqueIndex("titles_anilist_id_uq")
+      .on(t.anilistId)
+      .where(sql`${t.anilistId} is not null`),
+    uniqueIndex("titles_mal_id_uq")
+      .on(t.malId)
+      .where(sql`${t.malId} is not null`),
   ],
 );
 export const titleAliases = pgTable(
@@ -226,13 +238,21 @@ export const installments = pgTable(
       "installments_imdb_id_check",
       sql`${t.imdbId} is null or ${t.imdbId} ~ '^tt[0-9]{7,10}$'`,
     ),
-    uniqueIndex("installments_tmdb_id_uq").on(t.tmdbId).where(sql`${t.tmdbId} is not null`),
-    uniqueIndex("installments_imdb_id_uq").on(t.imdbId).where(sql`${t.imdbId} is not null`),
-    uniqueIndex("installments_tvdb_id_uq").on(t.tvdbId).where(sql`${t.tvdbId} is not null`),
+    uniqueIndex("installments_tmdb_id_uq")
+      .on(t.tmdbId)
+      .where(sql`${t.tmdbId} is not null`),
+    uniqueIndex("installments_imdb_id_uq")
+      .on(t.imdbId)
+      .where(sql`${t.imdbId} is not null`),
+    uniqueIndex("installments_tvdb_id_uq")
+      .on(t.tvdbId)
+      .where(sql`${t.tvdbId} is not null`),
     uniqueIndex("installments_anilist_id_uq")
       .on(t.anilistId)
       .where(sql`${t.anilistId} is not null`),
-    uniqueIndex("installments_mal_id_uq").on(t.malId).where(sql`${t.malId} is not null`),
+    uniqueIndex("installments_mal_id_uq")
+      .on(t.malId)
+      .where(sql`${t.malId} is not null`),
   ],
 );
 export const awardOrganizations = pgTable(
@@ -835,7 +855,10 @@ export const accountInvites = pgTable(
     kind: accountKindEnum("kind").notNull(),
     role: text("role").notNull().default("member"),
     avatarKey: text("avatar_key").notNull().default("avatar-1.png"),
-    capabilities: text("capabilities").array().notNull().default(sql`ARRAY[]::text[]`),
+    capabilities: text("capabilities")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     createdByAccountId: uuid("created_by_account_id")
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
@@ -859,8 +882,14 @@ export const accountPreferences = pgTable(
       .references(() => accounts.id, { onDelete: "cascade" }),
     locale: text("locale").notNull().default("ar"),
     theme: text("theme").notNull().default("dark"),
-    preferredAudio: text("preferred_audio").array().notNull().default(sql`ARRAY['ar']::text[]`),
-    allowedAudio: text("allowed_audio").array().notNull().default(sql`ARRAY['ar','en']::text[]`),
+    preferredAudio: text("preferred_audio")
+      .array()
+      .notNull()
+      .default(sql`ARRAY['ar']::text[]`),
+    allowedAudio: text("allowed_audio")
+      .array()
+      .notNull()
+      .default(sql`ARRAY['ar','en']::text[]`),
     subtitleMode: text("subtitle_mode").notNull().default("allowed"),
     canSwitchTracks: boolean("can_switch_tracks").notNull().default(true),
     autoplay: boolean("autoplay").notNull().default(false),
@@ -880,8 +909,12 @@ export const accountPreferences = pgTable(
         sql`ARRAY['animated-movie','animated-series','live-action-movie','live-action-series']::text[]`,
       ),
     defaultSavedViewId: uuid("default_saved_view_id"),
-    homeLayout: jsonb("home_layout").notNull().default(sql`'{}'::jsonb`),
-    dashboardLayout: jsonb("dashboard_layout").notNull().default(sql`'{}'::jsonb`),
+    homeLayout: jsonb("home_layout")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    dashboardLayout: jsonb("dashboard_layout")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
   },
   (t) => [
     check(
@@ -1248,7 +1281,9 @@ export const savedViews = pgTable(
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    query: jsonb("query").notNull().default(sql`'{}'::jsonb`),
+    query: jsonb("query")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     isDefault: boolean("is_default").notNull().default(false),
     notifyNew: boolean("notify_new").notNull().default(false),
     lastMatchedAt: timestamp("last_matched_at", { withTimezone: true }),
@@ -1256,7 +1291,9 @@ export const savedViews = pgTable(
   },
   (t) => [
     uniqueIndex("saved_views_account_name_uq").on(t.accountId, sql`lower(btrim(${t.name}))`),
-    uniqueIndex("saved_views_account_default_uq").on(t.accountId).where(sql`${t.isDefault}`),
+    uniqueIndex("saved_views_account_default_uq")
+      .on(t.accountId)
+      .where(sql`${t.isDefault}`),
   ],
 );
 export const collections = pgTable(
@@ -1415,7 +1452,9 @@ export const auditLogs = pgTable(
     targetType: text("target_type").notNull(),
     targetId: text("target_id"),
     summary: text("summary").notNull().default(""),
-    changes: jsonb("changes").notNull().default(sql`'{}'::jsonb`),
+    changes: jsonb("changes")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("audit_logs_target_idx").on(t.targetType, t.targetId, t.createdAt)],
@@ -1433,7 +1472,9 @@ export const editorialRevisions = pgTable(
     action: text("action").notNull(),
     summary: text("summary").notNull().default(""),
     snapshot: jsonb("snapshot").notNull(),
-    changes: jsonb("changes").notNull().default(sql`'{}'::jsonb`),
+    changes: jsonb("changes")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -1451,7 +1492,9 @@ export const backgroundJobs = pgTable(
     type: text("type").notNull(),
     status: jobStatusEnum("status").notNull().default("queued"),
     progress: integer("progress").notNull().default(0),
-    payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+    payload: jsonb("payload")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     result: jsonb("result"),
     error: text("error"),
     startedAt: timestamp("started_at", { withTimezone: true }),

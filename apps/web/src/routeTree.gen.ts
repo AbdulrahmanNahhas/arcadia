@@ -10,99 +10,28 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as EntitiesRouteImport } from './routes/_entities'
-import { Route as AccountsRouteImport } from './routes/accounts'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as ArchiveRouteImport } from './routes/archive'
-import { Route as AwardsRouteImport } from './routes/awards'
-import { Route as BrowseRouteImport } from './routes/browse'
-import { Route as CompareRouteImport } from './routes/compare'
-import { Route as DownloadsRouteImport } from './routes/downloads'
+import { Route as DatabaseRouteImport } from './routes/database'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as OfflineRouteImport } from './routes/offline'
-import { Route as ProfilesRouteImport } from './routes/profiles'
-import { Route as SearchRouteImport } from './routes/search'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as WatchRouteImport } from './routes/watch'
-import { Route as EntitiesPlanetsRouteImport } from './routes/_entities/planets'
-import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as AdminAccountsRouteImport } from './routes/admin/accounts'
-import { Route as AdminArchiveRouteImport } from './routes/admin/archive'
-import { Route as AdminAuditRouteImport } from './routes/admin/audit'
-import { Route as AdminAwardsRouteImport } from './routes/admin/awards'
-import { Route as AdminCatalogRouteImport } from './routes/admin/catalog'
-import { Route as AdminMediaRouteImport } from './routes/admin/media'
-import { Route as AdminPeopleRouteImport } from './routes/admin/people'
-import { Route as AdminPlanetsRouteImport } from './routes/admin/planets'
-import { Route as AdminProfilesRouteImport } from './routes/admin/profiles'
-import { Route as AdminRelationshipsRouteImport } from './routes/admin/relationships'
-import { Route as AdminStatisticsRouteImport } from './routes/admin/statistics'
-import { Route as AdminStudiosRouteImport } from './routes/admin/studios'
-import { Route as AdminValidationRouteImport } from './routes/admin/validation'
-import { Route as AdminVocabulariesRouteImport } from './routes/admin/vocabularies'
-import { Route as AwardsIndexRouteImport } from './routes/awards.index'
-import { Route as AwardsOrganizationSlugRouteImport } from './routes/awards.$organizationSlug'
-import { Route as InviteTokenRouteImport } from './routes/invite.$token'
-import { Route as OfflineTitleIdRouteImport } from './routes/offline_.$titleId'
-import { Route as PlayerInstallmentIdRouteImport } from './routes/player.$installmentId'
-import { Route as PlayerWatchRouteImport } from './routes/player.watch'
-import { Route as TitlesTitleIdRouteImport } from './routes/titles.$titleId'
-import { Route as EntitiesPeopleIndexRouteImport } from './routes/_entities/people.index'
-import { Route as EntitiesPeoplePersonIdRouteImport } from './routes/_entities/people.$personId'
-import { Route as EntitiesPlanetsIndexRouteImport } from './routes/_entities/planets.index'
-import { Route as EntitiesPlanetsPlanetSlugRouteImport } from './routes/_entities/planets.$planetSlug'
-import { Route as EntitiesStudiosIndexRouteImport } from './routes/_entities/studios.index'
-import { Route as EntitiesStudiosStudioIdRouteImport } from './routes/_entities/studios.$studioId'
-import { Route as EntitiesStudiosRelationshipsRouteImport } from './routes/_entities/studios.relationships'
-import { Route as AdminCatalogIndexRouteImport } from './routes/admin/catalog.index'
-import { Route as AdminCatalogWorkIdRouteImport } from './routes/admin/catalog.$workId'
-import { Route as AdminCatalogJsonRouteImport } from './routes/admin/catalog.json'
-import { Route as AdminCatalogNewRouteImport } from './routes/admin/catalog_.new'
-import { Route as AdminCatalogWorkIdEpisodesRouteImport } from './routes/admin/catalog.$workId_.episodes'
-import { Route as TitlesTitleIdInstallmentsInstallmentIdRouteImport } from './routes/titles_.$titleId.installments.$installmentId'
+import { Route as ServerRouteImport } from './routes/server'
+import { Route as DatabaseIndexRouteImport } from './routes/database.index'
+import { Route as DatabaseCollectionRouteImport } from './routes/database.$collection'
+import { Route as DatabaseImagesRouteImport } from './routes/database.images'
+import { Route as DatabaseImportsRouteImport } from './routes/database.imports'
+import { Route as DatabaseJsonRouteImport } from './routes/database.json'
+import { Route as DatabaseRevisionsRouteImport } from './routes/database.revisions'
+import { Route as DatabaseTablesRouteImport } from './routes/database.tables'
+import { Route as DatabaseValidationRouteImport } from './routes/database.validation'
+import { Route as ServerSectionRouteImport } from './routes/server.$section'
+import { Route as DatabaseWorksNewRouteImport } from './routes/database.works.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EntitiesRoute = EntitiesRouteImport.update({
-  id: '/_entities',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AccountsRoute = AccountsRouteImport.update({
-  id: '/accounts',
-  path: '/accounts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ArchiveRoute = ArchiveRouteImport.update({
-  id: '/archive',
-  path: '/archive',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AwardsRoute = AwardsRouteImport.update({
-  id: '/awards',
-  path: '/awards',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BrowseRoute = BrowseRouteImport.update({
-  id: '/browse',
-  path: '/browse',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompareRoute = CompareRouteImport.update({
-  id: '/compare',
-  path: '/compare',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DownloadsRoute = DownloadsRouteImport.update({
-  id: '/downloads',
-  path: '/downloads',
+const DatabaseRoute = DatabaseRouteImport.update({
+  id: '/database',
+  path: '/database',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -110,548 +39,165 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OfflineRoute = OfflineRouteImport.update({
-  id: '/offline',
-  path: '/offline',
+const ServerRoute = ServerRouteImport.update({
+  id: '/server',
+  path: '/server',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProfilesRoute = ProfilesRouteImport.update({
-  id: '/profiles',
-  path: '/profiles',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SearchRoute = SearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const WatchRoute = WatchRouteImport.update({
-  id: '/watch',
-  path: '/watch',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EntitiesPlanetsRoute = EntitiesPlanetsRouteImport.update({
-  id: '/planets',
-  path: '/planets',
-  getParentRoute: () => EntitiesRoute,
-} as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
+const DatabaseIndexRoute = DatabaseIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => DatabaseRoute,
 } as any)
-const AdminAccountsRoute = AdminAccountsRouteImport.update({
-  id: '/accounts',
-  path: '/accounts',
-  getParentRoute: () => AdminRoute,
+const DatabaseCollectionRoute = DatabaseCollectionRouteImport.update({
+  id: '/$collection',
+  path: '/$collection',
+  getParentRoute: () => DatabaseRoute,
 } as any)
-const AdminArchiveRoute = AdminArchiveRouteImport.update({
-  id: '/archive',
-  path: '/archive',
-  getParentRoute: () => AdminRoute,
+const DatabaseImagesRoute = DatabaseImagesRouteImport.update({
+  id: '/images',
+  path: '/images',
+  getParentRoute: () => DatabaseRoute,
 } as any)
-const AdminAuditRoute = AdminAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
-  getParentRoute: () => AdminRoute,
+const DatabaseImportsRoute = DatabaseImportsRouteImport.update({
+  id: '/imports',
+  path: '/imports',
+  getParentRoute: () => DatabaseRoute,
 } as any)
-const AdminAwardsRoute = AdminAwardsRouteImport.update({
-  id: '/awards',
-  path: '/awards',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCatalogRoute = AdminCatalogRouteImport.update({
-  id: '/catalog',
-  path: '/catalog',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminMediaRoute = AdminMediaRouteImport.update({
-  id: '/media',
-  path: '/media',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPeopleRoute = AdminPeopleRouteImport.update({
-  id: '/people',
-  path: '/people',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPlanetsRoute = AdminPlanetsRouteImport.update({
-  id: '/planets',
-  path: '/planets',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminProfilesRoute = AdminProfilesRouteImport.update({
-  id: '/profiles',
-  path: '/profiles',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminRelationshipsRoute = AdminRelationshipsRouteImport.update({
-  id: '/relationships',
-  path: '/relationships',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStatisticsRoute = AdminStatisticsRouteImport.update({
-  id: '/statistics',
-  path: '/statistics',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStudiosRoute = AdminStudiosRouteImport.update({
-  id: '/studios',
-  path: '/studios',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminValidationRoute = AdminValidationRouteImport.update({
-  id: '/validation',
-  path: '/validation',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminVocabulariesRoute = AdminVocabulariesRouteImport.update({
-  id: '/vocabularies',
-  path: '/vocabularies',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AwardsIndexRoute = AwardsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AwardsRoute,
-} as any)
-const AwardsOrganizationSlugRoute = AwardsOrganizationSlugRouteImport.update({
-  id: '/$organizationSlug',
-  path: '/$organizationSlug',
-  getParentRoute: () => AwardsRoute,
-} as any)
-const InviteTokenRoute = InviteTokenRouteImport.update({
-  id: '/invite/$token',
-  path: '/invite/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OfflineTitleIdRoute = OfflineTitleIdRouteImport.update({
-  id: '/offline_/$titleId',
-  path: '/offline/$titleId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PlayerInstallmentIdRoute = PlayerInstallmentIdRouteImport.update({
-  id: '/player/$installmentId',
-  path: '/player/$installmentId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PlayerWatchRoute = PlayerWatchRouteImport.update({
-  id: '/player/watch',
-  path: '/player/watch',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TitlesTitleIdRoute = TitlesTitleIdRouteImport.update({
-  id: '/titles/$titleId',
-  path: '/titles/$titleId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EntitiesPeopleIndexRoute = EntitiesPeopleIndexRouteImport.update({
-  id: '/people/',
-  path: '/people/',
-  getParentRoute: () => EntitiesRoute,
-} as any)
-const EntitiesPeoplePersonIdRoute = EntitiesPeoplePersonIdRouteImport.update({
-  id: '/people/$personId',
-  path: '/people/$personId',
-  getParentRoute: () => EntitiesRoute,
-} as any)
-const EntitiesPlanetsIndexRoute = EntitiesPlanetsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => EntitiesPlanetsRoute,
-} as any)
-const EntitiesPlanetsPlanetSlugRoute =
-  EntitiesPlanetsPlanetSlugRouteImport.update({
-    id: '/$planetSlug',
-    path: '/$planetSlug',
-    getParentRoute: () => EntitiesPlanetsRoute,
-  } as any)
-const EntitiesStudiosIndexRoute = EntitiesStudiosIndexRouteImport.update({
-  id: '/studios/',
-  path: '/studios/',
-  getParentRoute: () => EntitiesRoute,
-} as any)
-const EntitiesStudiosStudioIdRoute = EntitiesStudiosStudioIdRouteImport.update({
-  id: '/studios/$studioId',
-  path: '/studios/$studioId',
-  getParentRoute: () => EntitiesRoute,
-} as any)
-const EntitiesStudiosRelationshipsRoute =
-  EntitiesStudiosRelationshipsRouteImport.update({
-    id: '/studios/relationships',
-    path: '/studios/relationships',
-    getParentRoute: () => EntitiesRoute,
-  } as any)
-const AdminCatalogIndexRoute = AdminCatalogIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AdminCatalogRoute,
-} as any)
-const AdminCatalogWorkIdRoute = AdminCatalogWorkIdRouteImport.update({
-  id: '/$workId',
-  path: '/$workId',
-  getParentRoute: () => AdminCatalogRoute,
-} as any)
-const AdminCatalogJsonRoute = AdminCatalogJsonRouteImport.update({
+const DatabaseJsonRoute = DatabaseJsonRouteImport.update({
   id: '/json',
   path: '/json',
-  getParentRoute: () => AdminCatalogRoute,
+  getParentRoute: () => DatabaseRoute,
 } as any)
-const AdminCatalogNewRoute = AdminCatalogNewRouteImport.update({
-  id: '/catalog_/new',
-  path: '/catalog/new',
-  getParentRoute: () => AdminRoute,
+const DatabaseRevisionsRoute = DatabaseRevisionsRouteImport.update({
+  id: '/revisions',
+  path: '/revisions',
+  getParentRoute: () => DatabaseRoute,
 } as any)
-const AdminCatalogWorkIdEpisodesRoute =
-  AdminCatalogWorkIdEpisodesRouteImport.update({
-    id: '/$workId_/episodes',
-    path: '/$workId/episodes',
-    getParentRoute: () => AdminCatalogRoute,
-  } as any)
-const TitlesTitleIdInstallmentsInstallmentIdRoute =
-  TitlesTitleIdInstallmentsInstallmentIdRouteImport.update({
-    id: '/titles_/$titleId/installments/$installmentId',
-    path: '/titles/$titleId/installments/$installmentId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const DatabaseTablesRoute = DatabaseTablesRouteImport.update({
+  id: '/tables',
+  path: '/tables',
+  getParentRoute: () => DatabaseRoute,
+} as any)
+const DatabaseValidationRoute = DatabaseValidationRouteImport.update({
+  id: '/validation',
+  path: '/validation',
+  getParentRoute: () => DatabaseRoute,
+} as any)
+const ServerSectionRoute = ServerSectionRouteImport.update({
+  id: '/$section',
+  path: '/$section',
+  getParentRoute: () => ServerRoute,
+} as any)
+const DatabaseWorksNewRoute = DatabaseWorksNewRouteImport.update({
+  id: '/works/new',
+  path: '/works/new',
+  getParentRoute: () => DatabaseRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/accounts': typeof AccountsRoute
-  '/admin': typeof AdminRouteWithChildren
-  '/archive': typeof ArchiveRoute
-  '/awards': typeof AwardsRouteWithChildren
-  '/browse': typeof BrowseRoute
-  '/compare': typeof CompareRoute
-  '/downloads': typeof DownloadsRoute
+  '/database': typeof DatabaseRouteWithChildren
   '/login': typeof LoginRoute
-  '/offline': typeof OfflineRoute
-  '/profiles': typeof ProfilesRoute
-  '/search': typeof SearchRoute
-  '/settings': typeof SettingsRoute
-  '/watch': typeof WatchRoute
-  '/planets': typeof EntitiesPlanetsRouteWithChildren
-  '/admin/accounts': typeof AdminAccountsRoute
-  '/admin/archive': typeof AdminArchiveRoute
-  '/admin/audit': typeof AdminAuditRoute
-  '/admin/awards': typeof AdminAwardsRoute
-  '/admin/catalog': typeof AdminCatalogRouteWithChildren
-  '/admin/media': typeof AdminMediaRoute
-  '/admin/people': typeof AdminPeopleRoute
-  '/admin/planets': typeof AdminPlanetsRoute
-  '/admin/profiles': typeof AdminProfilesRoute
-  '/admin/relationships': typeof AdminRelationshipsRoute
-  '/admin/statistics': typeof AdminStatisticsRoute
-  '/admin/studios': typeof AdminStudiosRoute
-  '/admin/validation': typeof AdminValidationRoute
-  '/admin/vocabularies': typeof AdminVocabulariesRoute
-  '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
-  '/invite/$token': typeof InviteTokenRoute
-  '/offline/$titleId': typeof OfflineTitleIdRoute
-  '/player/$installmentId': typeof PlayerInstallmentIdRoute
-  '/player/watch': typeof PlayerWatchRoute
-  '/titles/$titleId': typeof TitlesTitleIdRoute
-  '/admin/': typeof AdminIndexRoute
-  '/awards/': typeof AwardsIndexRoute
-  '/people/$personId': typeof EntitiesPeoplePersonIdRoute
-  '/planets/$planetSlug': typeof EntitiesPlanetsPlanetSlugRoute
-  '/studios/$studioId': typeof EntitiesStudiosStudioIdRoute
-  '/studios/relationships': typeof EntitiesStudiosRelationshipsRoute
-  '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
-  '/admin/catalog/json': typeof AdminCatalogJsonRoute
-  '/admin/catalog/new': typeof AdminCatalogNewRoute
-  '/people/': typeof EntitiesPeopleIndexRoute
-  '/planets/': typeof EntitiesPlanetsIndexRoute
-  '/studios/': typeof EntitiesStudiosIndexRoute
-  '/admin/catalog/': typeof AdminCatalogIndexRoute
-  '/admin/catalog/$workId/episodes': typeof AdminCatalogWorkIdEpisodesRoute
-  '/titles/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
+  '/server': typeof ServerRouteWithChildren
+  '/database/$collection': typeof DatabaseCollectionRoute
+  '/database/images': typeof DatabaseImagesRoute
+  '/database/imports': typeof DatabaseImportsRoute
+  '/database/json': typeof DatabaseJsonRoute
+  '/database/revisions': typeof DatabaseRevisionsRoute
+  '/database/tables': typeof DatabaseTablesRoute
+  '/database/validation': typeof DatabaseValidationRoute
+  '/server/$section': typeof ServerSectionRoute
+  '/database/': typeof DatabaseIndexRoute
+  '/database/works/new': typeof DatabaseWorksNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/accounts': typeof AccountsRoute
-  '/archive': typeof ArchiveRoute
-  '/browse': typeof BrowseRoute
-  '/compare': typeof CompareRoute
-  '/downloads': typeof DownloadsRoute
   '/login': typeof LoginRoute
-  '/offline': typeof OfflineRoute
-  '/profiles': typeof ProfilesRoute
-  '/search': typeof SearchRoute
-  '/settings': typeof SettingsRoute
-  '/watch': typeof WatchRoute
-  '/admin/accounts': typeof AdminAccountsRoute
-  '/admin/archive': typeof AdminArchiveRoute
-  '/admin/audit': typeof AdminAuditRoute
-  '/admin/awards': typeof AdminAwardsRoute
-  '/admin/media': typeof AdminMediaRoute
-  '/admin/people': typeof AdminPeopleRoute
-  '/admin/planets': typeof AdminPlanetsRoute
-  '/admin/profiles': typeof AdminProfilesRoute
-  '/admin/relationships': typeof AdminRelationshipsRoute
-  '/admin/statistics': typeof AdminStatisticsRoute
-  '/admin/studios': typeof AdminStudiosRoute
-  '/admin/validation': typeof AdminValidationRoute
-  '/admin/vocabularies': typeof AdminVocabulariesRoute
-  '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
-  '/invite/$token': typeof InviteTokenRoute
-  '/offline/$titleId': typeof OfflineTitleIdRoute
-  '/player/$installmentId': typeof PlayerInstallmentIdRoute
-  '/player/watch': typeof PlayerWatchRoute
-  '/titles/$titleId': typeof TitlesTitleIdRoute
-  '/admin': typeof AdminIndexRoute
-  '/awards': typeof AwardsIndexRoute
-  '/people/$personId': typeof EntitiesPeoplePersonIdRoute
-  '/planets/$planetSlug': typeof EntitiesPlanetsPlanetSlugRoute
-  '/studios/$studioId': typeof EntitiesStudiosStudioIdRoute
-  '/studios/relationships': typeof EntitiesStudiosRelationshipsRoute
-  '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
-  '/admin/catalog/json': typeof AdminCatalogJsonRoute
-  '/admin/catalog/new': typeof AdminCatalogNewRoute
-  '/people': typeof EntitiesPeopleIndexRoute
-  '/planets': typeof EntitiesPlanetsIndexRoute
-  '/studios': typeof EntitiesStudiosIndexRoute
-  '/admin/catalog': typeof AdminCatalogIndexRoute
-  '/admin/catalog/$workId/episodes': typeof AdminCatalogWorkIdEpisodesRoute
-  '/titles/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
+  '/server': typeof ServerRouteWithChildren
+  '/database/$collection': typeof DatabaseCollectionRoute
+  '/database/images': typeof DatabaseImagesRoute
+  '/database/imports': typeof DatabaseImportsRoute
+  '/database/json': typeof DatabaseJsonRoute
+  '/database/revisions': typeof DatabaseRevisionsRoute
+  '/database/tables': typeof DatabaseTablesRoute
+  '/database/validation': typeof DatabaseValidationRoute
+  '/server/$section': typeof ServerSectionRoute
+  '/database': typeof DatabaseIndexRoute
+  '/database/works/new': typeof DatabaseWorksNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/_entities': typeof EntitiesRouteWithChildren
-  '/accounts': typeof AccountsRoute
-  '/admin': typeof AdminRouteWithChildren
-  '/archive': typeof ArchiveRoute
-  '/awards': typeof AwardsRouteWithChildren
-  '/browse': typeof BrowseRoute
-  '/compare': typeof CompareRoute
-  '/downloads': typeof DownloadsRoute
+  '/database': typeof DatabaseRouteWithChildren
   '/login': typeof LoginRoute
-  '/offline': typeof OfflineRoute
-  '/profiles': typeof ProfilesRoute
-  '/search': typeof SearchRoute
-  '/settings': typeof SettingsRoute
-  '/watch': typeof WatchRoute
-  '/_entities/planets': typeof EntitiesPlanetsRouteWithChildren
-  '/admin/accounts': typeof AdminAccountsRoute
-  '/admin/archive': typeof AdminArchiveRoute
-  '/admin/audit': typeof AdminAuditRoute
-  '/admin/awards': typeof AdminAwardsRoute
-  '/admin/catalog': typeof AdminCatalogRouteWithChildren
-  '/admin/media': typeof AdminMediaRoute
-  '/admin/people': typeof AdminPeopleRoute
-  '/admin/planets': typeof AdminPlanetsRoute
-  '/admin/profiles': typeof AdminProfilesRoute
-  '/admin/relationships': typeof AdminRelationshipsRoute
-  '/admin/statistics': typeof AdminStatisticsRoute
-  '/admin/studios': typeof AdminStudiosRoute
-  '/admin/validation': typeof AdminValidationRoute
-  '/admin/vocabularies': typeof AdminVocabulariesRoute
-  '/awards/$organizationSlug': typeof AwardsOrganizationSlugRoute
-  '/invite/$token': typeof InviteTokenRoute
-  '/offline_/$titleId': typeof OfflineTitleIdRoute
-  '/player/$installmentId': typeof PlayerInstallmentIdRoute
-  '/player/watch': typeof PlayerWatchRoute
-  '/titles/$titleId': typeof TitlesTitleIdRoute
-  '/admin/': typeof AdminIndexRoute
-  '/awards/': typeof AwardsIndexRoute
-  '/_entities/people/$personId': typeof EntitiesPeoplePersonIdRoute
-  '/_entities/planets/$planetSlug': typeof EntitiesPlanetsPlanetSlugRoute
-  '/_entities/studios/$studioId': typeof EntitiesStudiosStudioIdRoute
-  '/_entities/studios/relationships': typeof EntitiesStudiosRelationshipsRoute
-  '/admin/catalog/$workId': typeof AdminCatalogWorkIdRoute
-  '/admin/catalog/json': typeof AdminCatalogJsonRoute
-  '/admin/catalog_/new': typeof AdminCatalogNewRoute
-  '/_entities/people/': typeof EntitiesPeopleIndexRoute
-  '/_entities/planets/': typeof EntitiesPlanetsIndexRoute
-  '/_entities/studios/': typeof EntitiesStudiosIndexRoute
-  '/admin/catalog/': typeof AdminCatalogIndexRoute
-  '/admin/catalog/$workId_/episodes': typeof AdminCatalogWorkIdEpisodesRoute
-  '/titles_/$titleId/installments/$installmentId': typeof TitlesTitleIdInstallmentsInstallmentIdRoute
+  '/server': typeof ServerRouteWithChildren
+  '/database/$collection': typeof DatabaseCollectionRoute
+  '/database/images': typeof DatabaseImagesRoute
+  '/database/imports': typeof DatabaseImportsRoute
+  '/database/json': typeof DatabaseJsonRoute
+  '/database/revisions': typeof DatabaseRevisionsRoute
+  '/database/tables': typeof DatabaseTablesRoute
+  '/database/validation': typeof DatabaseValidationRoute
+  '/server/$section': typeof ServerSectionRoute
+  '/database/': typeof DatabaseIndexRoute
+  '/database/works/new': typeof DatabaseWorksNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/accounts'
-    | '/admin'
-    | '/archive'
-    | '/awards'
-    | '/browse'
-    | '/compare'
-    | '/downloads'
+    | '/database'
     | '/login'
-    | '/offline'
-    | '/profiles'
-    | '/search'
-    | '/settings'
-    | '/watch'
-    | '/planets'
-    | '/admin/accounts'
-    | '/admin/archive'
-    | '/admin/audit'
-    | '/admin/awards'
-    | '/admin/catalog'
-    | '/admin/media'
-    | '/admin/people'
-    | '/admin/planets'
-    | '/admin/profiles'
-    | '/admin/relationships'
-    | '/admin/statistics'
-    | '/admin/studios'
-    | '/admin/validation'
-    | '/admin/vocabularies'
-    | '/awards/$organizationSlug'
-    | '/invite/$token'
-    | '/offline/$titleId'
-    | '/player/$installmentId'
-    | '/player/watch'
-    | '/titles/$titleId'
-    | '/admin/'
-    | '/awards/'
-    | '/people/$personId'
-    | '/planets/$planetSlug'
-    | '/studios/$studioId'
-    | '/studios/relationships'
-    | '/admin/catalog/$workId'
-    | '/admin/catalog/json'
-    | '/admin/catalog/new'
-    | '/people/'
-    | '/planets/'
-    | '/studios/'
-    | '/admin/catalog/'
-    | '/admin/catalog/$workId/episodes'
-    | '/titles/$titleId/installments/$installmentId'
+    | '/server'
+    | '/database/$collection'
+    | '/database/images'
+    | '/database/imports'
+    | '/database/json'
+    | '/database/revisions'
+    | '/database/tables'
+    | '/database/validation'
+    | '/server/$section'
+    | '/database/'
+    | '/database/works/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/accounts'
-    | '/archive'
-    | '/browse'
-    | '/compare'
-    | '/downloads'
     | '/login'
-    | '/offline'
-    | '/profiles'
-    | '/search'
-    | '/settings'
-    | '/watch'
-    | '/admin/accounts'
-    | '/admin/archive'
-    | '/admin/audit'
-    | '/admin/awards'
-    | '/admin/media'
-    | '/admin/people'
-    | '/admin/planets'
-    | '/admin/profiles'
-    | '/admin/relationships'
-    | '/admin/statistics'
-    | '/admin/studios'
-    | '/admin/validation'
-    | '/admin/vocabularies'
-    | '/awards/$organizationSlug'
-    | '/invite/$token'
-    | '/offline/$titleId'
-    | '/player/$installmentId'
-    | '/player/watch'
-    | '/titles/$titleId'
-    | '/admin'
-    | '/awards'
-    | '/people/$personId'
-    | '/planets/$planetSlug'
-    | '/studios/$studioId'
-    | '/studios/relationships'
-    | '/admin/catalog/$workId'
-    | '/admin/catalog/json'
-    | '/admin/catalog/new'
-    | '/people'
-    | '/planets'
-    | '/studios'
-    | '/admin/catalog'
-    | '/admin/catalog/$workId/episodes'
-    | '/titles/$titleId/installments/$installmentId'
+    | '/server'
+    | '/database/$collection'
+    | '/database/images'
+    | '/database/imports'
+    | '/database/json'
+    | '/database/revisions'
+    | '/database/tables'
+    | '/database/validation'
+    | '/server/$section'
+    | '/database'
+    | '/database/works/new'
   id:
     | '__root__'
     | '/'
-    | '/_entities'
-    | '/accounts'
-    | '/admin'
-    | '/archive'
-    | '/awards'
-    | '/browse'
-    | '/compare'
-    | '/downloads'
+    | '/database'
     | '/login'
-    | '/offline'
-    | '/profiles'
-    | '/search'
-    | '/settings'
-    | '/watch'
-    | '/_entities/planets'
-    | '/admin/accounts'
-    | '/admin/archive'
-    | '/admin/audit'
-    | '/admin/awards'
-    | '/admin/catalog'
-    | '/admin/media'
-    | '/admin/people'
-    | '/admin/planets'
-    | '/admin/profiles'
-    | '/admin/relationships'
-    | '/admin/statistics'
-    | '/admin/studios'
-    | '/admin/validation'
-    | '/admin/vocabularies'
-    | '/awards/$organizationSlug'
-    | '/invite/$token'
-    | '/offline_/$titleId'
-    | '/player/$installmentId'
-    | '/player/watch'
-    | '/titles/$titleId'
-    | '/admin/'
-    | '/awards/'
-    | '/_entities/people/$personId'
-    | '/_entities/planets/$planetSlug'
-    | '/_entities/studios/$studioId'
-    | '/_entities/studios/relationships'
-    | '/admin/catalog/$workId'
-    | '/admin/catalog/json'
-    | '/admin/catalog_/new'
-    | '/_entities/people/'
-    | '/_entities/planets/'
-    | '/_entities/studios/'
-    | '/admin/catalog/'
-    | '/admin/catalog/$workId_/episodes'
-    | '/titles_/$titleId/installments/$installmentId'
+    | '/server'
+    | '/database/$collection'
+    | '/database/images'
+    | '/database/imports'
+    | '/database/json'
+    | '/database/revisions'
+    | '/database/tables'
+    | '/database/validation'
+    | '/server/$section'
+    | '/database/'
+    | '/database/works/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  EntitiesRoute: typeof EntitiesRouteWithChildren
-  AccountsRoute: typeof AccountsRoute
-  AdminRoute: typeof AdminRouteWithChildren
-  ArchiveRoute: typeof ArchiveRoute
-  AwardsRoute: typeof AwardsRouteWithChildren
-  BrowseRoute: typeof BrowseRoute
-  CompareRoute: typeof CompareRoute
-  DownloadsRoute: typeof DownloadsRoute
+  DatabaseRoute: typeof DatabaseRouteWithChildren
   LoginRoute: typeof LoginRoute
-  OfflineRoute: typeof OfflineRoute
-  ProfilesRoute: typeof ProfilesRoute
-  SearchRoute: typeof SearchRoute
-  SettingsRoute: typeof SettingsRoute
-  WatchRoute: typeof WatchRoute
-  InviteTokenRoute: typeof InviteTokenRoute
-  OfflineTitleIdRoute: typeof OfflineTitleIdRoute
-  PlayerInstallmentIdRoute: typeof PlayerInstallmentIdRoute
-  PlayerWatchRoute: typeof PlayerWatchRoute
-  TitlesTitleIdRoute: typeof TitlesTitleIdRoute
-  TitlesTitleIdInstallmentsInstallmentIdRoute: typeof TitlesTitleIdInstallmentsInstallmentIdRoute
+  ServerRoute: typeof ServerRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -663,60 +209,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_entities': {
-      id: '/_entities'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof EntitiesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/accounts': {
-      id: '/accounts'
-      path: '/accounts'
-      fullPath: '/accounts'
-      preLoaderRoute: typeof AccountsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/archive': {
-      id: '/archive'
-      path: '/archive'
-      fullPath: '/archive'
-      preLoaderRoute: typeof ArchiveRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/awards': {
-      id: '/awards'
-      path: '/awards'
-      fullPath: '/awards'
-      preLoaderRoute: typeof AwardsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/browse': {
-      id: '/browse'
-      path: '/browse'
-      fullPath: '/browse'
-      preLoaderRoute: typeof BrowseRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/compare': {
-      id: '/compare'
-      path: '/compare'
-      fullPath: '/compare'
-      preLoaderRoute: typeof CompareRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/downloads': {
-      id: '/downloads'
-      path: '/downloads'
-      fullPath: '/downloads'
-      preLoaderRoute: typeof DownloadsRouteImport
+    '/database': {
+      id: '/database'
+      path: '/database'
+      fullPath: '/database'
+      preLoaderRoute: typeof DatabaseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -726,436 +223,131 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/offline': {
-      id: '/offline'
-      path: '/offline'
-      fullPath: '/offline'
-      preLoaderRoute: typeof OfflineRouteImport
+    '/server': {
+      id: '/server'
+      path: '/server'
+      fullPath: '/server'
+      preLoaderRoute: typeof ServerRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/profiles': {
-      id: '/profiles'
-      path: '/profiles'
-      fullPath: '/profiles'
-      preLoaderRoute: typeof ProfilesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/search': {
-      id: '/search'
-      path: '/search'
-      fullPath: '/search'
-      preLoaderRoute: typeof SearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/watch': {
-      id: '/watch'
-      path: '/watch'
-      fullPath: '/watch'
-      preLoaderRoute: typeof WatchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_entities/planets': {
-      id: '/_entities/planets'
-      path: '/planets'
-      fullPath: '/planets'
-      preLoaderRoute: typeof EntitiesPlanetsRouteImport
-      parentRoute: typeof EntitiesRoute
-    }
-    '/admin/': {
-      id: '/admin/'
+    '/database/': {
+      id: '/database/'
       path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRoute
+      fullPath: '/database/'
+      preLoaderRoute: typeof DatabaseIndexRouteImport
+      parentRoute: typeof DatabaseRoute
     }
-    '/admin/accounts': {
-      id: '/admin/accounts'
-      path: '/accounts'
-      fullPath: '/admin/accounts'
-      preLoaderRoute: typeof AdminAccountsRouteImport
-      parentRoute: typeof AdminRoute
+    '/database/$collection': {
+      id: '/database/$collection'
+      path: '/$collection'
+      fullPath: '/database/$collection'
+      preLoaderRoute: typeof DatabaseCollectionRouteImport
+      parentRoute: typeof DatabaseRoute
     }
-    '/admin/archive': {
-      id: '/admin/archive'
-      path: '/archive'
-      fullPath: '/admin/archive'
-      preLoaderRoute: typeof AdminArchiveRouteImport
-      parentRoute: typeof AdminRoute
+    '/database/images': {
+      id: '/database/images'
+      path: '/images'
+      fullPath: '/database/images'
+      preLoaderRoute: typeof DatabaseImagesRouteImport
+      parentRoute: typeof DatabaseRoute
     }
-    '/admin/audit': {
-      id: '/admin/audit'
-      path: '/audit'
-      fullPath: '/admin/audit'
-      preLoaderRoute: typeof AdminAuditRouteImport
-      parentRoute: typeof AdminRoute
+    '/database/imports': {
+      id: '/database/imports'
+      path: '/imports'
+      fullPath: '/database/imports'
+      preLoaderRoute: typeof DatabaseImportsRouteImport
+      parentRoute: typeof DatabaseRoute
     }
-    '/admin/awards': {
-      id: '/admin/awards'
-      path: '/awards'
-      fullPath: '/admin/awards'
-      preLoaderRoute: typeof AdminAwardsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/catalog': {
-      id: '/admin/catalog'
-      path: '/catalog'
-      fullPath: '/admin/catalog'
-      preLoaderRoute: typeof AdminCatalogRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/media': {
-      id: '/admin/media'
-      path: '/media'
-      fullPath: '/admin/media'
-      preLoaderRoute: typeof AdminMediaRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/people': {
-      id: '/admin/people'
-      path: '/people'
-      fullPath: '/admin/people'
-      preLoaderRoute: typeof AdminPeopleRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/planets': {
-      id: '/admin/planets'
-      path: '/planets'
-      fullPath: '/admin/planets'
-      preLoaderRoute: typeof AdminPlanetsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/profiles': {
-      id: '/admin/profiles'
-      path: '/profiles'
-      fullPath: '/admin/profiles'
-      preLoaderRoute: typeof AdminProfilesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/relationships': {
-      id: '/admin/relationships'
-      path: '/relationships'
-      fullPath: '/admin/relationships'
-      preLoaderRoute: typeof AdminRelationshipsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/statistics': {
-      id: '/admin/statistics'
-      path: '/statistics'
-      fullPath: '/admin/statistics'
-      preLoaderRoute: typeof AdminStatisticsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/studios': {
-      id: '/admin/studios'
-      path: '/studios'
-      fullPath: '/admin/studios'
-      preLoaderRoute: typeof AdminStudiosRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/validation': {
-      id: '/admin/validation'
-      path: '/validation'
-      fullPath: '/admin/validation'
-      preLoaderRoute: typeof AdminValidationRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/vocabularies': {
-      id: '/admin/vocabularies'
-      path: '/vocabularies'
-      fullPath: '/admin/vocabularies'
-      preLoaderRoute: typeof AdminVocabulariesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/awards/': {
-      id: '/awards/'
-      path: '/'
-      fullPath: '/awards/'
-      preLoaderRoute: typeof AwardsIndexRouteImport
-      parentRoute: typeof AwardsRoute
-    }
-    '/awards/$organizationSlug': {
-      id: '/awards/$organizationSlug'
-      path: '/$organizationSlug'
-      fullPath: '/awards/$organizationSlug'
-      preLoaderRoute: typeof AwardsOrganizationSlugRouteImport
-      parentRoute: typeof AwardsRoute
-    }
-    '/invite/$token': {
-      id: '/invite/$token'
-      path: '/invite/$token'
-      fullPath: '/invite/$token'
-      preLoaderRoute: typeof InviteTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/offline_/$titleId': {
-      id: '/offline_/$titleId'
-      path: '/offline/$titleId'
-      fullPath: '/offline/$titleId'
-      preLoaderRoute: typeof OfflineTitleIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/player/$installmentId': {
-      id: '/player/$installmentId'
-      path: '/player/$installmentId'
-      fullPath: '/player/$installmentId'
-      preLoaderRoute: typeof PlayerInstallmentIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/player/watch': {
-      id: '/player/watch'
-      path: '/player/watch'
-      fullPath: '/player/watch'
-      preLoaderRoute: typeof PlayerWatchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/titles/$titleId': {
-      id: '/titles/$titleId'
-      path: '/titles/$titleId'
-      fullPath: '/titles/$titleId'
-      preLoaderRoute: typeof TitlesTitleIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_entities/people/': {
-      id: '/_entities/people/'
-      path: '/people'
-      fullPath: '/people/'
-      preLoaderRoute: typeof EntitiesPeopleIndexRouteImport
-      parentRoute: typeof EntitiesRoute
-    }
-    '/_entities/people/$personId': {
-      id: '/_entities/people/$personId'
-      path: '/people/$personId'
-      fullPath: '/people/$personId'
-      preLoaderRoute: typeof EntitiesPeoplePersonIdRouteImport
-      parentRoute: typeof EntitiesRoute
-    }
-    '/_entities/planets/': {
-      id: '/_entities/planets/'
-      path: '/'
-      fullPath: '/planets/'
-      preLoaderRoute: typeof EntitiesPlanetsIndexRouteImport
-      parentRoute: typeof EntitiesPlanetsRoute
-    }
-    '/_entities/planets/$planetSlug': {
-      id: '/_entities/planets/$planetSlug'
-      path: '/$planetSlug'
-      fullPath: '/planets/$planetSlug'
-      preLoaderRoute: typeof EntitiesPlanetsPlanetSlugRouteImport
-      parentRoute: typeof EntitiesPlanetsRoute
-    }
-    '/_entities/studios/': {
-      id: '/_entities/studios/'
-      path: '/studios'
-      fullPath: '/studios/'
-      preLoaderRoute: typeof EntitiesStudiosIndexRouteImport
-      parentRoute: typeof EntitiesRoute
-    }
-    '/_entities/studios/$studioId': {
-      id: '/_entities/studios/$studioId'
-      path: '/studios/$studioId'
-      fullPath: '/studios/$studioId'
-      preLoaderRoute: typeof EntitiesStudiosStudioIdRouteImport
-      parentRoute: typeof EntitiesRoute
-    }
-    '/_entities/studios/relationships': {
-      id: '/_entities/studios/relationships'
-      path: '/studios/relationships'
-      fullPath: '/studios/relationships'
-      preLoaderRoute: typeof EntitiesStudiosRelationshipsRouteImport
-      parentRoute: typeof EntitiesRoute
-    }
-    '/admin/catalog/': {
-      id: '/admin/catalog/'
-      path: '/'
-      fullPath: '/admin/catalog/'
-      preLoaderRoute: typeof AdminCatalogIndexRouteImport
-      parentRoute: typeof AdminCatalogRoute
-    }
-    '/admin/catalog/$workId': {
-      id: '/admin/catalog/$workId'
-      path: '/$workId'
-      fullPath: '/admin/catalog/$workId'
-      preLoaderRoute: typeof AdminCatalogWorkIdRouteImport
-      parentRoute: typeof AdminCatalogRoute
-    }
-    '/admin/catalog/json': {
-      id: '/admin/catalog/json'
+    '/database/json': {
+      id: '/database/json'
       path: '/json'
-      fullPath: '/admin/catalog/json'
-      preLoaderRoute: typeof AdminCatalogJsonRouteImport
-      parentRoute: typeof AdminCatalogRoute
+      fullPath: '/database/json'
+      preLoaderRoute: typeof DatabaseJsonRouteImport
+      parentRoute: typeof DatabaseRoute
     }
-    '/admin/catalog_/new': {
-      id: '/admin/catalog_/new'
-      path: '/catalog/new'
-      fullPath: '/admin/catalog/new'
-      preLoaderRoute: typeof AdminCatalogNewRouteImport
-      parentRoute: typeof AdminRoute
+    '/database/revisions': {
+      id: '/database/revisions'
+      path: '/revisions'
+      fullPath: '/database/revisions'
+      preLoaderRoute: typeof DatabaseRevisionsRouteImport
+      parentRoute: typeof DatabaseRoute
     }
-    '/admin/catalog/$workId_/episodes': {
-      id: '/admin/catalog/$workId_/episodes'
-      path: '/$workId/episodes'
-      fullPath: '/admin/catalog/$workId/episodes'
-      preLoaderRoute: typeof AdminCatalogWorkIdEpisodesRouteImport
-      parentRoute: typeof AdminCatalogRoute
+    '/database/tables': {
+      id: '/database/tables'
+      path: '/tables'
+      fullPath: '/database/tables'
+      preLoaderRoute: typeof DatabaseTablesRouteImport
+      parentRoute: typeof DatabaseRoute
     }
-    '/titles_/$titleId/installments/$installmentId': {
-      id: '/titles_/$titleId/installments/$installmentId'
-      path: '/titles/$titleId/installments/$installmentId'
-      fullPath: '/titles/$titleId/installments/$installmentId'
-      preLoaderRoute: typeof TitlesTitleIdInstallmentsInstallmentIdRouteImport
-      parentRoute: typeof rootRouteImport
+    '/database/validation': {
+      id: '/database/validation'
+      path: '/validation'
+      fullPath: '/database/validation'
+      preLoaderRoute: typeof DatabaseValidationRouteImport
+      parentRoute: typeof DatabaseRoute
+    }
+    '/server/$section': {
+      id: '/server/$section'
+      path: '/$section'
+      fullPath: '/server/$section'
+      preLoaderRoute: typeof ServerSectionRouteImport
+      parentRoute: typeof ServerRoute
+    }
+    '/database/works/new': {
+      id: '/database/works/new'
+      path: '/works/new'
+      fullPath: '/database/works/new'
+      preLoaderRoute: typeof DatabaseWorksNewRouteImport
+      parentRoute: typeof DatabaseRoute
     }
   }
 }
 
-interface EntitiesPlanetsRouteChildren {
-  EntitiesPlanetsPlanetSlugRoute: typeof EntitiesPlanetsPlanetSlugRoute
-  EntitiesPlanetsIndexRoute: typeof EntitiesPlanetsIndexRoute
+interface DatabaseRouteChildren {
+  DatabaseCollectionRoute: typeof DatabaseCollectionRoute
+  DatabaseImagesRoute: typeof DatabaseImagesRoute
+  DatabaseImportsRoute: typeof DatabaseImportsRoute
+  DatabaseJsonRoute: typeof DatabaseJsonRoute
+  DatabaseRevisionsRoute: typeof DatabaseRevisionsRoute
+  DatabaseTablesRoute: typeof DatabaseTablesRoute
+  DatabaseValidationRoute: typeof DatabaseValidationRoute
+  DatabaseIndexRoute: typeof DatabaseIndexRoute
+  DatabaseWorksNewRoute: typeof DatabaseWorksNewRoute
 }
 
-const EntitiesPlanetsRouteChildren: EntitiesPlanetsRouteChildren = {
-  EntitiesPlanetsPlanetSlugRoute: EntitiesPlanetsPlanetSlugRoute,
-  EntitiesPlanetsIndexRoute: EntitiesPlanetsIndexRoute,
+const DatabaseRouteChildren: DatabaseRouteChildren = {
+  DatabaseCollectionRoute: DatabaseCollectionRoute,
+  DatabaseImagesRoute: DatabaseImagesRoute,
+  DatabaseImportsRoute: DatabaseImportsRoute,
+  DatabaseJsonRoute: DatabaseJsonRoute,
+  DatabaseRevisionsRoute: DatabaseRevisionsRoute,
+  DatabaseTablesRoute: DatabaseTablesRoute,
+  DatabaseValidationRoute: DatabaseValidationRoute,
+  DatabaseIndexRoute: DatabaseIndexRoute,
+  DatabaseWorksNewRoute: DatabaseWorksNewRoute,
 }
 
-const EntitiesPlanetsRouteWithChildren = EntitiesPlanetsRoute._addFileChildren(
-  EntitiesPlanetsRouteChildren,
+const DatabaseRouteWithChildren = DatabaseRoute._addFileChildren(
+  DatabaseRouteChildren,
 )
 
-interface EntitiesRouteChildren {
-  EntitiesPlanetsRoute: typeof EntitiesPlanetsRouteWithChildren
-  EntitiesPeoplePersonIdRoute: typeof EntitiesPeoplePersonIdRoute
-  EntitiesStudiosStudioIdRoute: typeof EntitiesStudiosStudioIdRoute
-  EntitiesStudiosRelationshipsRoute: typeof EntitiesStudiosRelationshipsRoute
-  EntitiesPeopleIndexRoute: typeof EntitiesPeopleIndexRoute
-  EntitiesStudiosIndexRoute: typeof EntitiesStudiosIndexRoute
+interface ServerRouteChildren {
+  ServerSectionRoute: typeof ServerSectionRoute
 }
 
-const EntitiesRouteChildren: EntitiesRouteChildren = {
-  EntitiesPlanetsRoute: EntitiesPlanetsRouteWithChildren,
-  EntitiesPeoplePersonIdRoute: EntitiesPeoplePersonIdRoute,
-  EntitiesStudiosStudioIdRoute: EntitiesStudiosStudioIdRoute,
-  EntitiesStudiosRelationshipsRoute: EntitiesStudiosRelationshipsRoute,
-  EntitiesPeopleIndexRoute: EntitiesPeopleIndexRoute,
-  EntitiesStudiosIndexRoute: EntitiesStudiosIndexRoute,
+const ServerRouteChildren: ServerRouteChildren = {
+  ServerSectionRoute: ServerSectionRoute,
 }
 
-const EntitiesRouteWithChildren = EntitiesRoute._addFileChildren(
-  EntitiesRouteChildren,
-)
-
-interface AdminCatalogRouteChildren {
-  AdminCatalogWorkIdRoute: typeof AdminCatalogWorkIdRoute
-  AdminCatalogJsonRoute: typeof AdminCatalogJsonRoute
-  AdminCatalogIndexRoute: typeof AdminCatalogIndexRoute
-  AdminCatalogWorkIdEpisodesRoute: typeof AdminCatalogWorkIdEpisodesRoute
-}
-
-const AdminCatalogRouteChildren: AdminCatalogRouteChildren = {
-  AdminCatalogWorkIdRoute: AdminCatalogWorkIdRoute,
-  AdminCatalogJsonRoute: AdminCatalogJsonRoute,
-  AdminCatalogIndexRoute: AdminCatalogIndexRoute,
-  AdminCatalogWorkIdEpisodesRoute: AdminCatalogWorkIdEpisodesRoute,
-}
-
-const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
-  AdminCatalogRouteChildren,
-)
-
-interface AdminRouteChildren {
-  AdminAccountsRoute: typeof AdminAccountsRoute
-  AdminArchiveRoute: typeof AdminArchiveRoute
-  AdminAuditRoute: typeof AdminAuditRoute
-  AdminAwardsRoute: typeof AdminAwardsRoute
-  AdminCatalogRoute: typeof AdminCatalogRouteWithChildren
-  AdminMediaRoute: typeof AdminMediaRoute
-  AdminPeopleRoute: typeof AdminPeopleRoute
-  AdminPlanetsRoute: typeof AdminPlanetsRoute
-  AdminProfilesRoute: typeof AdminProfilesRoute
-  AdminRelationshipsRoute: typeof AdminRelationshipsRoute
-  AdminStatisticsRoute: typeof AdminStatisticsRoute
-  AdminStudiosRoute: typeof AdminStudiosRoute
-  AdminValidationRoute: typeof AdminValidationRoute
-  AdminVocabulariesRoute: typeof AdminVocabulariesRoute
-  AdminIndexRoute: typeof AdminIndexRoute
-  AdminCatalogNewRoute: typeof AdminCatalogNewRoute
-}
-
-const AdminRouteChildren: AdminRouteChildren = {
-  AdminAccountsRoute: AdminAccountsRoute,
-  AdminArchiveRoute: AdminArchiveRoute,
-  AdminAuditRoute: AdminAuditRoute,
-  AdminAwardsRoute: AdminAwardsRoute,
-  AdminCatalogRoute: AdminCatalogRouteWithChildren,
-  AdminMediaRoute: AdminMediaRoute,
-  AdminPeopleRoute: AdminPeopleRoute,
-  AdminPlanetsRoute: AdminPlanetsRoute,
-  AdminProfilesRoute: AdminProfilesRoute,
-  AdminRelationshipsRoute: AdminRelationshipsRoute,
-  AdminStatisticsRoute: AdminStatisticsRoute,
-  AdminStudiosRoute: AdminStudiosRoute,
-  AdminValidationRoute: AdminValidationRoute,
-  AdminVocabulariesRoute: AdminVocabulariesRoute,
-  AdminIndexRoute: AdminIndexRoute,
-  AdminCatalogNewRoute: AdminCatalogNewRoute,
-}
-
-const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
-
-interface AwardsRouteChildren {
-  AwardsOrganizationSlugRoute: typeof AwardsOrganizationSlugRoute
-  AwardsIndexRoute: typeof AwardsIndexRoute
-}
-
-const AwardsRouteChildren: AwardsRouteChildren = {
-  AwardsOrganizationSlugRoute: AwardsOrganizationSlugRoute,
-  AwardsIndexRoute: AwardsIndexRoute,
-}
-
-const AwardsRouteWithChildren =
-  AwardsRoute._addFileChildren(AwardsRouteChildren)
+const ServerRouteWithChildren =
+  ServerRoute._addFileChildren(ServerRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  EntitiesRoute: EntitiesRouteWithChildren,
-  AccountsRoute: AccountsRoute,
-  AdminRoute: AdminRouteWithChildren,
-  ArchiveRoute: ArchiveRoute,
-  AwardsRoute: AwardsRouteWithChildren,
-  BrowseRoute: BrowseRoute,
-  CompareRoute: CompareRoute,
-  DownloadsRoute: DownloadsRoute,
+  DatabaseRoute: DatabaseRouteWithChildren,
   LoginRoute: LoginRoute,
-  OfflineRoute: OfflineRoute,
-  ProfilesRoute: ProfilesRoute,
-  SearchRoute: SearchRoute,
-  SettingsRoute: SettingsRoute,
-  WatchRoute: WatchRoute,
-  InviteTokenRoute: InviteTokenRoute,
-  OfflineTitleIdRoute: OfflineTitleIdRoute,
-  PlayerInstallmentIdRoute: PlayerInstallmentIdRoute,
-  PlayerWatchRoute: PlayerWatchRoute,
-  TitlesTitleIdRoute: TitlesTitleIdRoute,
-  TitlesTitleIdInstallmentsInstallmentIdRoute:
-    TitlesTitleIdInstallmentsInstallmentIdRoute,
+  ServerRoute: ServerRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

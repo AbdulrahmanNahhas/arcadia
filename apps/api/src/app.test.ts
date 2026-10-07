@@ -1,6 +1,7 @@
 import { watchHistoryItemSchema } from "@arcadia/contracts";
 import { afterAll, describe, expect, it } from "vitest";
 import { z } from "zod";
+
 import { app } from "./app";
 import { database } from "./database";
 import { catalogIsPopulated } from "./test-support";

@@ -49,13 +49,14 @@ export function isClassificationAllowed(value: Classification, maximum: Classifi
   );
 }
 
+const stricter = <T extends string>(values: readonly T[], left: T, right: T): T => {
+  const value = values[Math.min(rank(values, left), rank(values, right))];
+  if (value === undefined)
+    throw new Error("stricter() requires left and right to both be members of values");
+  return value;
+};
+
 export function intersectClassifications(a: Classification, b: Classification): Classification {
-  const stricter = <T extends string>(values: readonly T[], left: T, right: T): T => {
-    const value = values[Math.min(rank(values, left), rank(values, right))];
-    if (value === undefined)
-      throw new Error("stricter() requires left and right to both be members of values");
-    return value;
-  };
   return {
     audience: stricter(audienceValues, a.audience, b.audience),
     age: stricter(ageValues, a.age, b.age),

@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+
 import { app } from "../../app";
 import { database } from "../../database";
 import { clearStreamCache } from "../../integrations/torrent-source";

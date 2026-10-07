@@ -1,6 +1,7 @@
 import type { AuditLogEntry } from "@arcadia/contracts";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "zod";
+
 import { getAuthSession, isTestAuthBypass } from "../../auth";
 import { database } from "../../database";
 

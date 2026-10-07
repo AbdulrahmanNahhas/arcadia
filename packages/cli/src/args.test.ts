@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { boolFlag, intFlag, listFlag, parseArgs, rawListFlag, stringFlag } from "./args";
 
 describe("parseArgs", () => {

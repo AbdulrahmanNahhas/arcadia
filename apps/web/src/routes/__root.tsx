@@ -1,119 +1,68 @@
-import { DirectionProvider } from "@base-ui/react";
-import { ArrowClockwiseIcon, HouseIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import type { QueryClient } from "@tanstack/react-query";
+import { createRootRouteWithContext, Link, Outlet, useRouterState } from "@tanstack/react-router";
+
+import { AppSidebar } from "@/app/app-sidebar";
+import { Badge } from "@/components/ui/badge";
 import {
-  createRootRouteWithContext,
-  type ErrorComponentProps,
-  HeadContent,
-  Link,
-  redirect,
-  Scripts,
-  useRouter,
-} from "@tanstack/react-router";
-import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthBoundary } from "@/features/accounts/auth-boundary";
-import { SpatialNavigationRoot } from "@/features/platform/spatial-navigation";
-import {
-  applyAppMode,
-  consumeModeFromUrl,
-  isHiddenInDisplayMode,
-  readAppMode,
-  toggleAppMode,
-} from "@/lib/app-mode";
-import { themeRestoreScript } from "@/lib/theme";
-import appCss from "../styles.css?url";
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { databaseTools, serverSectionFor } from "@/features/dashboard/navigation";
+import { collectionFor } from "@/features/database/collections";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  // Display Mode hides the desk-only tools twice: the nav never links them, and a remembered
-  // URL or a deep link lands on Home instead (docs/v0.3.5.md B3).
-  beforeLoad: ({ location }) => {
-    if (readAppMode() === "display" && isHiddenInDisplayMode(location.pathname)) {
-      throw redirect({ to: "/" });
-    }
-  },
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "نحّاسينما — أركاديا" },
-      { name: "description", content: "أرشيف عائلي للأفلام والمسلسلات والأنمي." },
-    ],
-    links: [{ rel: "stylesheet", href: appCss }],
-  }),
-  notFoundComponent: () => (
-    <main className="mx-auto max-w-3xl p-8 pt-32">
-      <h1 className="font-heading text-3xl">هذه المدار غير موجود</h1>
-      <p className="mt-3 text-muted-foreground">ارجع إلى الأرشيف واختر مساراً آخر.</p>
-    </main>
-  ),
-  errorComponent: FamilyRouteError,
-  shellComponent: RootDocument,
+  component: AppShell,
 });
-
-function FamilyRouteError({ error }: ErrorComponentProps) {
-  const router = useRouter();
-  const message = error instanceof Error ? error.message : String(error);
+function AppShell() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const database = pathname.startsWith("/database");
+  const segment = pathname.split("/")[2] ?? "";
+  const title =
+    pathname === "/login"
+      ? "تسجيل الدخول"
+      : pathname.endsWith("/works/new")
+        ? "عمل جديد"
+        : database
+          ? (collectionFor(segment)?.title ??
+            databaseTools.find((tool) => tool.slug === segment)?.title ??
+            "نظرة عامة")
+          : (serverSectionFor(segment)?.title ?? "لوحة التحكم");
   return (
-    <main className="mx-auto flex min-h-svh max-w-3xl items-center px-5 py-24">
-      <Empty className="rounded-3xl border bg-card/60">
-        <EmptyHeader>
-          <WarningCircleIcon className="mx-auto size-9 text-destructive" />
-          <EmptyTitle>تعذّر تحميل هذه الصفحة</EmptyTitle>
-          <EmptyDescription>
-            بقيت بياناتك المحفوظة آمنة. تحقق من اتصال خادم العائلة ثم أعد المحاولة.
-            <span className="mt-2 block font-mono text-xs" dir="ltr">
-              {message}
-            </span>
-          </EmptyDescription>
-        </EmptyHeader>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button onClick={() => router.invalidate()}>
-            <ArrowClockwiseIcon data-icon="inline-start" />
-            إعادة المحاولة
-          </Button>
-          <Button nativeButton={false} variant="outline" render={<Link to="/" />}>
-            <HouseIcon data-icon="inline-start" />
-            العودة إلى الرئيسية
-          </Button>
+    <SidebarProvider>
+      <a href="#main-content" className="sr-only focus:not-sr-only">
+        انتقل إلى المحتوى
+      </a>
+      <AppSidebar />
+      <SidebarInset id="main-content" tabIndex={-1}>
+        <header className="flex h-16 items-center gap-3 border-b px-6">
+          <SidebarTrigger aria-label="إظهار أو إخفاء القائمة" />
+          {/*<Separator orientation="vertical" className="h-16" />*/}
+          <Breadcrumb aria-label="مسار الصفحة">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink render={<Link to={database ? "/database" : "/"} />}>
+                  {database ? "قاعدة البيانات" : "الخادم"}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{title}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <div className="ms-auto">
+            <Badge variant="outline">واجهة معاينة</Badge>
+          </div>
+        </header>
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-5 lg:p-8">
+          <Outlet />
         </div>
-      </Empty>
-    </main>
-  );
-}
-
-function RootDocument({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    consumeModeFromUrl();
-    applyAppMode();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.shiftKey && (event.key === "T" || event.key === "t")) {
-        event.preventDefault();
-        toggleAppMode();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-  return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
-      <head>
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static preference restoration before first paint */}
-        <script dangerouslySetInnerHTML={{ __html: themeRestoreScript }} />
-        <HeadContent />
-      </head>
-      <body>
-        <DirectionProvider direction="rtl">
-          <SpatialNavigationRoot>
-            <TooltipProvider>
-              <AuthBoundary>{children}</AuthBoundary>
-            </TooltipProvider>
-          </SpatialNavigationRoot>
-        </DirectionProvider>
-        <Scripts />
-      </body>
-    </html>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

@@ -1,13 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "vitest.config.ts"],
+  "include": ["src", "vite.config.ts", "playwright.config.ts", "tests"],
   "compilerOptions": {
-    "composite": true,
     "jsx": "react-jsx",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
     "paths": { "@/*": ["./src/*"] },
-    "allowImportingTsExtensions": true,
-    "noUncheckedIndexedAccess": false
+    "allowImportingTsExtensions": true
   }
 }

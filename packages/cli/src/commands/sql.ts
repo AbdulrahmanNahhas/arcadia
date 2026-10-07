@@ -8,6 +8,7 @@
  */
 
 import { readFile } from "node:fs/promises";
+
 import type { ParsedArgs } from "../args";
 import { boolFlag, stringFlag } from "../args";
 import type { Sql } from "../db";

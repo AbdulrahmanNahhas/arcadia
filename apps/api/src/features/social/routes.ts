@@ -21,6 +21,7 @@ import {
 import { nextIsPlayed } from "@arcadia/domain";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type postgres from "postgres";
+
 import { database } from "../../database";
 import { visibleTitleIdsForAccount } from "../../repository";
 import { currentFamilyAccount } from "../accounts/routes";

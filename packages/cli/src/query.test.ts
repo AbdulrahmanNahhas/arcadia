@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { deriveSortTitle } from "./commands/work";
 import type { TableInfo } from "./introspect";
 import { CliError } from "./output";
