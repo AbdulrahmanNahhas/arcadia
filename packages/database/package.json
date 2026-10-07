@@ -12,6 +12,7 @@
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
+    "schema:graph": "tsx src/export-schema-graph.ts",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "tsx src/prepare-media-backfill.ts && drizzle-kit migrate --config drizzle.config.ts",
     "db:seed": "tsx src/seed.ts",

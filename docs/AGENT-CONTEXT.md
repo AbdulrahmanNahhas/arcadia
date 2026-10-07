@@ -8,7 +8,7 @@ The Git repository is still Arcadia; the product and new packages are named Nahh
 | Path                                     | Responsibility                                                                              |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `apps/server`                            | Rust/Axum/SQLx server. Phase 1: public liveness/readiness only, read-only DB sessions       |
-| `apps/web`                               | Fresh Arabic-first React/Vite SPA, TanStack Router/Query, Base UI shadcn Nova               |
+| `apps/web`                               | Arabic-first TanStack Start/Vite dashboard, TanStack Router/Query, Base UI shadcn Nova               |
 | `apps/web/src/app`                       | Router/query-client setup and route fallback                                                |
 | `apps/web/src/routes`                    | Small file-based route entries and RTL app shell                                            |
 | `apps/web/src/features`                  | Feature-owned server queries and UI                                                         |

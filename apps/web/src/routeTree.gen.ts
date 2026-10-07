@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ServerRouteImport } from './routes/server'
 import { Route as DatabaseIndexRouteImport } from './routes/database.index'
 import { Route as DatabaseCollectionRouteImport } from './routes/database.$collection'
+import { Route as DatabaseGraphRouteImport } from './routes/database.graph'
 import { Route as DatabaseImagesRouteImport } from './routes/database.images'
 import { Route as DatabaseImportsRouteImport } from './routes/database.imports'
 import { Route as DatabaseJsonRouteImport } from './routes/database.json'
@@ -52,6 +53,11 @@ const DatabaseIndexRoute = DatabaseIndexRouteImport.update({
 const DatabaseCollectionRoute = DatabaseCollectionRouteImport.update({
   id: '/$collection',
   path: '/$collection',
+  getParentRoute: () => DatabaseRoute,
+} as any)
+const DatabaseGraphRoute = DatabaseGraphRouteImport.update({
+  id: '/graph',
+  path: '/graph',
   getParentRoute: () => DatabaseRoute,
 } as any)
 const DatabaseImagesRoute = DatabaseImagesRouteImport.update({
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/server': typeof ServerRouteWithChildren
   '/database/$collection': typeof DatabaseCollectionRoute
+  '/database/graph': typeof DatabaseGraphRoute
   '/database/images': typeof DatabaseImagesRoute
   '/database/imports': typeof DatabaseImportsRoute
   '/database/json': typeof DatabaseJsonRoute
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/server': typeof ServerRouteWithChildren
   '/database/$collection': typeof DatabaseCollectionRoute
+  '/database/graph': typeof DatabaseGraphRoute
   '/database/images': typeof DatabaseImagesRoute
   '/database/imports': typeof DatabaseImportsRoute
   '/database/json': typeof DatabaseJsonRoute
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/server': typeof ServerRouteWithChildren
   '/database/$collection': typeof DatabaseCollectionRoute
+  '/database/graph': typeof DatabaseGraphRoute
   '/database/images': typeof DatabaseImagesRoute
   '/database/imports': typeof DatabaseImportsRoute
   '/database/json': typeof DatabaseJsonRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/server'
     | '/database/$collection'
+    | '/database/graph'
     | '/database/images'
     | '/database/imports'
     | '/database/json'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/server'
     | '/database/$collection'
+    | '/database/graph'
     | '/database/images'
     | '/database/imports'
     | '/database/json'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/server'
     | '/database/$collection'
+    | '/database/graph'
     | '/database/images'
     | '/database/imports'
     | '/database/json'
@@ -242,6 +254,13 @@ declare module '@tanstack/react-router' {
       path: '/$collection'
       fullPath: '/database/$collection'
       preLoaderRoute: typeof DatabaseCollectionRouteImport
+      parentRoute: typeof DatabaseRoute
+    }
+    '/database/graph': {
+      id: '/database/graph'
+      path: '/graph'
+      fullPath: '/database/graph'
+      preLoaderRoute: typeof DatabaseGraphRouteImport
       parentRoute: typeof DatabaseRoute
     }
     '/database/images': {
@@ -305,6 +324,7 @@ declare module '@tanstack/react-router' {
 
 interface DatabaseRouteChildren {
   DatabaseCollectionRoute: typeof DatabaseCollectionRoute
+  DatabaseGraphRoute: typeof DatabaseGraphRoute
   DatabaseImagesRoute: typeof DatabaseImagesRoute
   DatabaseImportsRoute: typeof DatabaseImportsRoute
   DatabaseJsonRoute: typeof DatabaseJsonRoute
@@ -317,6 +337,7 @@ interface DatabaseRouteChildren {
 
 const DatabaseRouteChildren: DatabaseRouteChildren = {
   DatabaseCollectionRoute: DatabaseCollectionRoute,
+  DatabaseGraphRoute: DatabaseGraphRoute,
   DatabaseImagesRoute: DatabaseImagesRoute,
   DatabaseImportsRoute: DatabaseImportsRoute,
   DatabaseJsonRoute: DatabaseJsonRoute,
@@ -351,3 +372,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

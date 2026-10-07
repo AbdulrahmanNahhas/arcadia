@@ -1,27 +1,29 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 
 import { routeTree } from "../routeTree.gen";
 import { RouteFallback } from "./route-fallback";
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { staleTime: 30_000, retry: false, refetchOnWindowFocus: false },
-  },
-});
-
-export const router = createRouter({
-  routeTree,
-  context: { queryClient },
-  defaultPreload: "intent",
-  defaultPreloadStaleTime: 0,
-  scrollRestoration: true,
-  defaultErrorComponent: RouteFallback,
-  defaultNotFoundComponent: RouteFallback,
-});
+export function getRouter() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { staleTime: 30_000, retry: false, refetchOnWindowFocus: false } },
+  });
+  const router = createRouter({
+    routeTree,
+    context: { queryClient },
+    defaultPreload: "intent",
+    defaultPreloadStaleTime: 0,
+    scrollRestoration: true,
+    defaultErrorComponent: RouteFallback,
+    defaultNotFoundComponent: RouteFallback,
+  });
+  setupRouterSsrQueryIntegration({ router, queryClient });
+  return router;
+}
 
 declare module "@tanstack/react-router" {
   interface Register {
-    router: typeof router;
+    router: ReturnType<typeof getRouter>;
   }
 }

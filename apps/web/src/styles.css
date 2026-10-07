@@ -186,3 +186,114 @@
 .dark {
   color-scheme: dark;
 }
+
+/* The schema drawing uses SVG coordinates; theme tokens also cover dark mode. */
+.schema-workspace {
+  display: flex;
+  min-width: 0;
+  height: 46rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.schema-directory {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 17rem;
+  flex-shrink: 0;
+  padding: 1rem;
+  border-inline-end: 1px solid var(--border);
+}
+.schema-canvas-panel {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+.schema-canvas {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  background: var(--background);
+  touch-action: none;
+  overscroll-behavior: contain;
+  cursor: grab;
+}
+.schema-canvas:active {
+  cursor: grabbing;
+}
+.schema-dot {
+  fill: var(--border);
+}
+.schema-edge {
+  fill: none;
+  stroke: var(--muted-foreground);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.5;
+}
+.schema-edge-active {
+  stroke: var(--primary);
+  stroke-width: 2.5;
+  opacity: 1;
+}
+.schema-edge-muted {
+  opacity: 0.12;
+}
+.schema-node {
+  cursor: pointer;
+}
+.schema-node-muted {
+  opacity: 0.4;
+}
+.schema-node-body {
+  fill: var(--card);
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+.schema-node-header {
+  fill: var(--muted);
+}
+.schema-node-selected .schema-node-body,
+.schema-node:focus .schema-node-body {
+  stroke: var(--primary);
+  stroke-width: 3;
+}
+.schema-node-title {
+  fill: var(--foreground);
+  font:
+    600 16px "Geist Variable",
+    sans-serif;
+}
+.schema-column {
+  fill: var(--foreground);
+  font:
+    12px "Geist Variable",
+    sans-serif;
+}
+.schema-type {
+  fill: var(--muted-foreground);
+  font:
+    11px "Geist Variable",
+    sans-serif;
+}
+.schema-key {
+  fill: var(--primary);
+  font:
+    600 10px "Geist Variable",
+    sans-serif;
+}
+@media (max-width: 48rem) {
+  .schema-workspace {
+    flex-direction: column;
+    height: 48rem;
+  }
+  .schema-directory {
+    width: 100%;
+    height: 12rem;
+    border-inline-end: none;
+    border-bottom: 1px solid var(--border);
+  }
+}

@@ -11,7 +11,7 @@ another phase until Aqua asks to continue. The old v0.3.5 plans are historical r
 ## Monorepo boundaries
 
 - `apps/server`: Rust/Axum/Tokio/SQLx server, in the root Cargo workspace.
-- `apps/web`: dashboard-only React/Vite SPA, TanStack Router/Query, Tailwind 4, shadcn Base UI Nova.
+- `apps/web`: dashboard-only TanStack Start/Vite application, TanStack Router/Query, Tailwind 4, shadcn Base UI Nova.
 - `reference/arcadia-web`: previous website, frozen outside active workspaces for porting reference.
 - `apps/api`: previous Hono API, kept until Rust endpoints pass behavior/data checks.
 - `packages/database`: existing PostgreSQL schema and the single migration history.
@@ -55,7 +55,8 @@ only components that have consumers. Do not hand-edit vendored primitives to fix
 - No raw colors, arbitrary values, inline styles, unrecognized classes, dynamic class construction,
   or component appearance overrides in new app source. Run the six `@shadcn/lint` rules.
 - No suppression comments or extension of the legacy anti-slop allowlist in new source.
-- No web player, Tauri bridge, global DOM navigation scanner, SSR server, or whole-catalog fetch.
+- No web player, Tauri bridge, global DOM navigation scanner, or whole-catalog fetch.
+  TanStack Start server functions bridge the dashboard to private backend operations; route SSR is disabled.
 - Put feature queries/UI together, keep route entries small, use server pagination, URL filters,
   typed query factories, request cancellation, and targeted cache invalidation.
 - Do not copy remote state into effect-driven local state. Do not introduce persistent state

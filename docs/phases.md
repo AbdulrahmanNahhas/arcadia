@@ -10,7 +10,7 @@ Do not start the next phase until Aqua asks to continue.
   A Kotlin/Gradle client workspace joins it in the Linux-client phase.
 - **Website = administration dashboard only.** Complete dashboard/API/database work before
   starting desktop clients. Database selection changes the complete sidebar workspace.
-- New Rust server, plain React/Vite website, Kotlin/Compose clients, and real Jellyfin for
+- New Rust server, TanStack Start/Vite website, Kotlin/Compose clients, and real Jellyfin for
   completed home-library files. The Git repository stays Arcadia for now.
 - A full website redesign and new information architecture. The fresh app is `apps/web`;
   the old app is `reference/arcadia-web`, available for migration/reference, with no new features.
@@ -19,7 +19,7 @@ Do not start the next phase until Aqua asks to continue.
   is not a demonstrated performance fix.
 - Oxlint + Oxfmt replace Biome. Keep the existing generic anti-slop plugin. Enforce all six
   `@shadcn/lint` rules on new website source and the official shadcn composition conventions.
-- No global DOM scanner, web player, Tauri bridge, SSR runtime, background chart library, or
+- No global DOM scanner, web player, Tauri bridge, background chart library, or
   whole-catalog download in the new website. Use server pagination and intent-driven loads.
 - Data preservation includes passwords/identity links, notes, progress, explicit watched states,
   scores, relations, artwork, and stable ids. A snapshot restore was verified before this work.

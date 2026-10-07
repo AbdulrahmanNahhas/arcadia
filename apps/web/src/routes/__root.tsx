@@ -1,5 +1,8 @@
+import { DirectionProvider } from "@base-ui/react/direction-provider";
 import type { QueryClient } from "@tanstack/react-query";
+import { HeadContent, Scripts } from "@tanstack/react-router";
 import { createRootRouteWithContext, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 
 import { AppSidebar } from "@/app/app-sidebar";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +15,24 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { databaseTools, serverSectionFor } from "@/features/dashboard/navigation";
 import { collectionFor } from "@/features/database/collections";
 
+import appCss from "../styles.css?url";
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: AppShell,
+  ssr: false,
+  shellComponent: RootDocument,
+  head: () => ({
+    meta: [
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "نحّاسيو — لوحة الإدارة" },
+    ],
+    links: [{ rel: "stylesheet", href: appCss }],
+  }),
 });
 function AppShell() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -64,5 +80,21 @@ function AppShell() {
         </div>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+function RootDocument({ children }: { children: ReactNode }) {
+  return (
+    <html lang="ar" dir="rtl">
+      <head>
+        <HeadContent />
+      </head>
+      <body className="dark">
+        <DirectionProvider direction="rtl">
+          <TooltipProvider>{children}</TooltipProvider>
+        </DirectionProvider>
+        <Scripts />
+      </body>
+    </html>
   );
 }

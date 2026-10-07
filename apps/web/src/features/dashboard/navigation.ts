@@ -16,6 +16,7 @@ import {
   ShieldCheckIcon,
   TablePropertiesIcon,
   UsersIcon,
+  WaypointsIcon,
 } from "lucide-react";
 
 export const serverSections = [
@@ -118,6 +119,7 @@ export const databaseTools = [
   { slug: "json", title: "محرر JSON", icon: BracesIcon },
   { slug: "validation", title: "التحقق والصيانة", icon: ListChecksIcon },
   { slug: "revisions", title: "السجل وسلة المحذوفات", icon: ScrollTextIcon },
+  { slug: "graph", title: "مخطط العلاقات", icon: WaypointsIcon },
   { slug: "tables", title: "جميع الجداول", icon: TablePropertiesIcon },
 ] as const;
 
