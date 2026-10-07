@@ -1,5 +1,8 @@
-import { ImageIcon, SearchIcon, UploadIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { z } from "zod";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,133 +12,100 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import { FieldGroup } from "@/components/ui/field";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChoiceField, DraftField } from "@/features/dashboard/draft-fields";
 import { PageHeader } from "@/features/dashboard/page-header";
-import { ServiceNotice } from "@/features/dashboard/service-notice";
+import { RecordTable } from "@/features/dashboard/record-table";
 
+import { ArtworkUpload } from "./artwork-upload";
+import { databaseRecordsOptions } from "./database.queries";
+const assetPreview = z.object({
+  id: z.string(),
+  path: z.string(),
+  original_filename: z.string(),
+  width: z.number(),
+  height: z.number(),
+});
 export function ImagesPage() {
+  const [offset, setOffset] = useState(0);
+  const images = useQuery(databaseRecordsOptions("media_assets", offset));
   return (
     <>
       <PageHeader
         title="مكتبة الصور"
-        description="الملصقات والخلفيات والشعارات وصور الأشخاص. بحث، ربط، ومراجعة الصور غير المستخدمة."
+        description="الصور الحقيقية والملصقات والخلفيات والشعارات وروابطها بالسجلات."
         eyebrow="قاعدة البيانات / الوسائط"
-        upcoming
-        actions={
-          <Button disabled>
-            <UploadIcon data-icon="inline-start" />
-            رفع صور
-          </Button>
-        }
       />
-      <ServiceNotice />
-      <Tabs defaultValue="library">
+      <ArtworkUpload />
+      <Tabs defaultValue="gallery">
         <TabsList>
-          <TabsTrigger value="library">الصور المسجلة</TabsTrigger>
-          <TabsTrigger value="assignment">ربط صورة</TabsTrigger>
-          <TabsTrigger value="cleanup">الصور غير المستخدمة</TabsTrigger>
+          <TabsTrigger value="gallery">معرض الصور</TabsTrigger>
+          <TabsTrigger value="records">سجلات الصور</TabsTrigger>
+          <TabsTrigger value="assignments">روابط الصور</TabsTrigger>
         </TabsList>
-        <TabsContent value="library">
-          <Card>
-            <CardHeader>
-              <CardTitle>جميع الصور</CardTitle>
-              <CardDescription>تصفية حسب الدور والسجل ووجود الملف على القرص.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-6">
-                <div className="flex max-w-sm">
-                  <InputGroup>
-                    <InputGroupAddon>
-                      <SearchIcon />
-                    </InputGroupAddon>
-                    <InputGroupInput
-                      placeholder="ابحث باسم العمل أو الصورة"
-                      disabled
-                      aria-label="بحث الصور"
+        <TabsContent value="gallery">
+          {images.isError && (
+            <Alert variant="destructive">
+              <AlertTitle>تعذّر تحميل الصور</AlertTitle>
+              <AlertDescription>{images.error.message}</AlertDescription>
+            </Alert>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {images.data?.rows.map((row) => {
+              const asset = assetPreview.parse(row);
+              return (
+                <Card key={asset.id}>
+                  <CardHeader>
+                    <CardTitle>
+                      <span className="block truncate">{asset.original_filename}</span>
+                    </CardTitle>
+                    <CardDescription>
+                      {asset.width} × {asset.height}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <img
+                      src={asset.path}
+                      alt={asset.original_filename}
+                      className="h-64 w-full object-contain"
+                      loading="lazy"
                     />
-                  </InputGroup>
-                </div>
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <ImageIcon />
-                    </EmptyMedia>
-                    <EmptyTitle>بانتظار خدمة الصور</EmptyTitle>
-                    <EmptyDescription>
-                      الصور الحالية محفوظة. ستظهر هنا معايناتها وارتباطاتها عند توصيل الخدمة.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button variant="outline" disabled>
-                فحص وجود الملفات
+                  </CardContent>
+                  <CardFooter>
+                    <code className="max-w-full truncate text-xs" dir="ltr">
+                      {asset.id}
+                    </code>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between gap-3 py-4">
+            <span className="text-sm text-muted-foreground">
+              {images.data?.total ?? "…"} صورة مسجلة
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                disabled={offset === 0}
+                onClick={() => setOffset(Math.max(0, offset - 30))}
+              >
+                السابق
               </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        <TabsContent value="assignment">
-          <Card>
-            <CardHeader>
-              <CardTitle>ربط صورة بسجل</CardTitle>
-              <CardDescription>
-                اختيار الصورة والدور وصاحبها، مع معاينة قبل تطبيق التغيير.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FieldGroup className="grid sm:grid-cols-2">
-                <ChoiceField
-                  label="دور الصورة"
-                  options={[
-                    { value: "poster", label: "ملصق" },
-                    { value: "banner", label: "خلفية" },
-                    { value: "logo", label: "شعار" },
-                    { value: "profile", label: "صورة شخصية" },
-                  ]}
-                />
-                <DraftField label="السجل" placeholder="عمل، جزء، حلقة، أو شخص" />
-                <DraftField label="معرّف الصورة" />
-                <DraftField label="ملاحظات" />
-              </FieldGroup>
-            </CardContent>
-            <CardFooter>
-              <Button disabled>معاينة الربط</Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        <TabsContent value="cleanup">
-          <Card>
-            <CardHeader>
-              <CardTitle>مراجعة الصور غير المرتبطة</CardTitle>
-              <CardDescription>
-                راجِع الاستخدام قبل الحذف، مع فصل الصور المفقودة عن الصور غير المستخدمة.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Empty>
-                <EmptyHeader>
-                  <EmptyTitle>نتائج الفحص غير متاحة بعد</EmptyTitle>
-                  <EmptyDescription>لا تجري هذه الشاشة أي حذف تلقائي.</EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            </CardContent>
-            <CardFooter>
-              <Button variant="outline" disabled>
-                بدء الفحص
+              <Button
+                variant="outline"
+                disabled={!images.data || offset + 30 >= images.data.total}
+                onClick={() => setOffset(offset + 30)}
+              >
+                التالي
               </Button>
-            </CardFooter>
-          </Card>
+            </div>
+          </div>
+        </TabsContent>
+        <TabsContent value="records">
+          <RecordTable table="media_assets" title="الصور المسجلة" columns={[]} />
+        </TabsContent>
+        <TabsContent value="assignments">
+          <RecordTable table="media_asset_assignments" title="ربط الصور بالسجلات" columns={[]} />
         </TabsContent>
       </Tabs>
     </>

@@ -7,8 +7,8 @@ The Git repository is still Arcadia; the product and new packages are named Nahh
 
 | Path                                     | Responsibility                                                                              |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `apps/server`                            | Rust/Axum/SQLx server. Phase 1: public liveness/readiness only, read-only DB sessions       |
-| `apps/web`                               | Arabic-first TanStack Start/Vite dashboard, TanStack Router/Query, Base UI shadcn Nova               |
+| `apps/server`                            | Rust/Axum/SQLx server: health and guarded local database administration                     |
+| `apps/web`                               | Arabic-first TanStack Start/Vite dashboard, TanStack Router/Query, Base UI shadcn Nova      |
 | `apps/web/src/app`                       | Router/query-client setup and route fallback                                                |
 | `apps/web/src/routes`                    | Small file-based route entries and RTL app shell                                            |
 | `apps/web/src/features`                  | Feature-owned server queries and UI                                                         |
@@ -39,7 +39,7 @@ empty packages or copy the legacy player/web architecture into the new website.
 
 `data/arcadia.db` is a read-only legacy recovery source. PostgreSQL is the active catalog.
 Keep existing UUIDs, relationships, notes, scores, account ownership, progress, and artwork.
-Rust foundation connections explicitly set `default_transaction_read_only = on`.
+Rust connections default to `default_transaction_read_only = on`; guarded mutation transactions opt into writes.
 No startup migration/seed. Mutation tests and migration rehearsals use disposable restored DBs.
 
 ## Development and checks
@@ -100,3 +100,40 @@ Dashboard UI: `features/dashboard` owns shared headers/tables/server pages;
 `features/editor` owns the work form and lazy CodeMirror JSON workbench.
 Database and server use different sidebar contexts. Current schema snapshot contains 71 public
 tables and 559 columns, with no private row values. Upcoming mutation/service controls are disabled.
+
+## Database dashboard review checkpoint — 2026-10-07
+
+Aqua authorized TanStack Start and real database workflows, then requested a final commit and stop.
+Start runs a private server-function bridge; dashboard routes disable SSR. Rust provides live schema,
+paginated records, transactional create/update/delete, audit snapshots, and leaf-record restoration.
+`NAHHASIO_LOCAL_ADMIN=true` plus a private token enables loopback development only. Start refuses
+production, and Rust refuses release/non-loopback local administration. Production setup/login is pending.
+
+Collections and raw tables are connected. Auth tables, audit logs, editorial revisions and jobs are
+protected from generic writes. Edits detect stale originals; deletion refuses linked records.
+Whole-work JSON export, rehearsal and merge reuse the existing CLI; source searches, media storage
+and catalog validation reuse the existing API modules through server-only workspace exports.
+The basic new-work form is connected; advanced structure/score/relation controls remain disabled there,
+with those records editable through collections/raw tables and the complete JSON workbench.
+TMDB/Fanart/AniList artwork search, explicit image ingest/upload, registered image serving,
+media assignment records and TMDB season previews are connected. Provider success depends on keys
+and upstream availability. Season previews do not automatically import episodes.
+
+Preservation fixes: calendar dates round-trip as dates, repeated merge avoids duplicate trivia,
+and media selection preserves existing assignment UUIDs rather than deleting/recreating links.
+No migration or live catalog mutation was performed in implementation/testing. Mutation tests used
+`nahhasio_dashboard_test`, restored from the verified snapshot. Private previews live in ignored
+`data/previews`; secrets and backups remain ignored.
+
+Current review order: manual dashboard feedback, improve structured editors and import previews,
+complete production identity/setup and authorization, then watch-state/data-model work, server operations,
+and finally Kotlin/Compose Linux. Do not start another milestone without Aqua's instruction.
+
+Verification for this checkpoint: four Rust tests and Clippy passed; disposable database CRUD,
+stale-write rejection, linked-record deletion rejection and restore passed; whole-work dry-run
+rollback and repeated merge preservation passed. The live catalog check still matches all 70
+non-activity tables; activity differences are the same previously documented session/history updates.
+Run `node apps/server/tests/database-smoke.mjs` only with the isolated API on port 23104; the script
+checks its connected database name before writing. `pnpm --filter @arcadia/cli exec tsx scripts/check-work-roundtrip.mts`
+requires `DATABASE_URL` to point to `nahhasio_dashboard_test` and checks that name before writing.
+These tests are intentionally outside default test commands.

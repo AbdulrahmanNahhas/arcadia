@@ -1,3 +1,4 @@
+mod database;
 use std::time::Duration;
 
 use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
@@ -5,7 +6,7 @@ use serde::Serialize;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use tower_http::trace::TraceLayer;
 
-/// The foundation connects read-only. Catalog mutations are introduced in a later phase.
+/// Sessions default to read-only. Authorized mutation transactions explicitly opt into writes.
 pub fn database_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
     PgPoolOptions::new()
         .max_connections(5)
@@ -22,11 +23,17 @@ pub fn database_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
 }
 
 pub fn router(pool: PgPool) -> Router {
+    router_with_admin(pool, None)
+}
+
+pub fn router_with_admin(pool: PgPool, token: Option<String>) -> Router {
+    let catalog = database::routes(pool.clone(), token);
     Router::new()
         .route("/api/health/live", get(live))
         .route("/api/health/ready", get(ready))
         .layer(TraceLayer::new_for_http())
         .with_state(pool)
+        .merge(catalog)
 }
 
 #[derive(Serialize)]
@@ -70,6 +77,22 @@ mod tests {
 
     fn unavailable_database() -> PgPool {
         database_pool("postgresql://127.0.0.1:1/nahhasio_test").expect("valid fixture URL")
+    }
+
+    #[tokio::test]
+    async fn database_admin_requires_the_private_token() {
+        for token in [None, Some("wrong")] {
+            let mut request = Request::get("/api/database/schema");
+            if let Some(value) = token {
+                request = request.header("x-nahhasio-admin", value);
+            }
+            let response =
+                router_with_admin(unavailable_database(), Some("fixture-private-token".into()))
+                    .oneshot(request.body(Body::empty()).unwrap())
+                    .await
+                    .unwrap();
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        }
     }
 
     #[tokio::test]

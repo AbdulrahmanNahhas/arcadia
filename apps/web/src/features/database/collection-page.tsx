@@ -5,10 +5,23 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/features/dashboard/page-header";
 import { RecordTable } from "@/features/dashboard/record-table";
-import { ServiceNotice } from "@/features/dashboard/service-notice";
 
 import type { collections } from "./collections";
 
+const collectionTables = {
+  works: "titles",
+  installments: "installments",
+  episodes: "episodes",
+  people: "entities",
+  studios: "entities",
+  planets: "planets",
+  relationships: "title_relations",
+  scores: "installment_scores",
+  awards: "award_recognitions",
+  vocabularies: "genres",
+  credits: "contributions",
+  evidence: "source_evidence",
+};
 interface CollectionPageProps {
   collection: (typeof collections)[number];
 }
@@ -19,7 +32,6 @@ export function CollectionPage({ collection }: CollectionPageProps) {
         title={collection.title}
         description={collection.description}
         eyebrow="قاعدة البيانات / المحتوى"
-        upcoming
         actions={
           <>
             <Button variant="outline" disabled>
@@ -40,7 +52,7 @@ export function CollectionPage({ collection }: CollectionPageProps) {
           </>
         }
       />
-      <ServiceNotice />
+
       {collection.slug === "awards" ? (
         <Tabs defaultValue="recognitions">
           <TabsList>
@@ -50,16 +62,32 @@ export function CollectionPage({ collection }: CollectionPageProps) {
             <TabsTrigger value="ceremonies">الحفلات</TabsTrigger>
           </TabsList>
           <TabsContent value="recognitions">
-            <RecordTable title="الترشيحات والنتائج" columns={collection.columns} />
+            <RecordTable
+              table="award_recognitions"
+              title="الترشيحات والنتائج"
+              columns={collection.columns}
+            />
           </TabsContent>
           <TabsContent value="organizations">
-            <RecordTable title="منظمات الجوائز" columns={["الاسم", "المعرّف", "الموقع", "الفئات"]} />
+            <RecordTable
+              table="award_organizations"
+              title="منظمات الجوائز"
+              columns={["الاسم", "المعرّف", "الموقع", "الفئات"]}
+            />
           </TabsContent>
           <TabsContent value="categories">
-            <RecordTable title="فئات الجوائز" columns={["الفئة", "المنظمة", "النوع", "الوصف"]} />
+            <RecordTable
+              table="award_categories"
+              title="فئات الجوائز"
+              columns={["الفئة", "المنظمة", "النوع", "الوصف"]}
+            />
           </TabsContent>
           <TabsContent value="ceremonies">
-            <RecordTable title="الحفلات" columns={["المنظمة", "السنة", "اسم الحفل", "النتائج"]} />
+            <RecordTable
+              table="award_ceremonies"
+              title="الحفلات"
+              columns={["المنظمة", "السنة", "اسم الحفل", "النتائج"]}
+            />
           </TabsContent>
         </Tabs>
       ) : collection.slug === "vocabularies" ? (
@@ -80,12 +108,27 @@ export function CollectionPage({ collection }: CollectionPageProps) {
           </TabsList>
           {["genres", "tones", "tags", "countries", "roles", "labels"].map((key) => (
             <TabsContent key={key} value={key}>
-              <RecordTable title="المفردات والتسميات" columns={collection.columns} />
+              <RecordTable
+                table={key === "roles" ? "roles" : key === "labels" ? "vocabulary_labels" : key}
+                title="المفردات والتسميات"
+                columns={collection.columns}
+              />
             </TabsContent>
           ))}
         </Tabs>
       ) : (
-        <RecordTable title={`سجلات ${collection.title}`} columns={collection.columns} />
+        <RecordTable
+          table={collectionTables[collection.slug]}
+          filters={
+            collection.slug === "people"
+              ? { kind: "person" }
+              : collection.slug === "studios"
+                ? { kind: "organization" }
+                : undefined
+          }
+          title={`سجلات ${collection.title}`}
+          columns={collection.columns}
+        />
       )}
     </>
   );

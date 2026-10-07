@@ -1,3 +1,5 @@
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useSearch } from "@tanstack/react-router";
 import { BracesIcon, CheckIcon, FileJsonIcon, SaveIcon, WandSparklesIcon } from "lucide-react";
 import { lazy, Suspense, useCallback, useState } from "react";
 
@@ -12,9 +14,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/features/dashboard/page-header";
-import { ServiceNotice } from "@/features/dashboard/service-notice";
+import { databaseKeys } from "@/features/database/database.queries";
+import { applyWork, exportWork } from "@/features/database/work.functions";
 
 import template from "./work-template.json";
 
@@ -23,19 +28,78 @@ const CodeEditor = lazy(() =>
 );
 const freshDraft = JSON.stringify(template, null, 2);
 export function JsonEditorPage() {
-  const [draft, setDraft] = useState(freshDraft);
+  const { work } = useSearch({ from: "__root__" });
+  const existing = useQuery({
+    queryKey: [...databaseKeys.all, "work", work],
+    queryFn: ({ signal }) => exportWork({ data: { id: work ?? "" }, signal }),
+    enabled: !!work,
+  });
+  if (work && existing.isPending) return <Skeleton className="h-96" />;
+  if (work && existing.isError)
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>تعذّر تحميل العمل</AlertTitle>
+        <AlertDescription>{existing.error.message}</AlertDescription>
+      </Alert>
+    );
+  return (
+    <JsonWorkbench
+      key={work ?? "new"}
+      initialDraft={existing.data ? JSON.stringify(existing.data, null, 2) : freshDraft}
+    />
+  );
+}
+function JsonWorkbench({ initialDraft }: { initialDraft: string }) {
+  const [draft, setDraft] = useState(initialDraft);
   const [result, setResult] = useState<string | null>(null);
   const [valid, setValid] = useState(false);
+  const [reviewed, setReviewed] = useState<string | null>(null);
+  const client = useQueryClient();
+  const load = useMutation({
+    mutationFn: (id: string) => exportWork({ data: { id } }),
+    onSuccess: (document) => {
+      setDraft(JSON.stringify(document, null, 2));
+      setResult("تم تحميل العمل الحالي.");
+      setReviewed(null);
+    },
+    onError: (error: Error) => {
+      setValid(false);
+      setResult(error.message);
+    },
+  });
+  const save = useMutation({
+    mutationFn: (dryRun: boolean) => applyWork({ data: { json: draft, dryRun } }),
+    onSuccess: async (_, dryRun) => {
+      setValid(true);
+      if (dryRun) {
+        setReviewed(draft);
+        setResult("اجتازت المسودة التحقق والمعاملة التجريبية. راجعها ثم اضغط تطبيق الدمج.");
+      } else {
+        setReviewed(null);
+        setResult("حُفظ العمل بالدمج وسُجّل التغيير.");
+        await client.invalidateQueries({ queryKey: databaseKeys.all });
+      }
+    },
+    onError: (error: Error) => {
+      setValid(false);
+      setReviewed(null);
+      setResult(error.message);
+    },
+  });
   const updateDraft = useCallback((value: string) => {
     setDraft(value);
     setResult(null);
+    setReviewed(null);
   }, []);
   function validate(format = false) {
     try {
       const parsed = JSON.parse(draft);
-      if (format) setDraft(JSON.stringify(parsed, null, 2));
+      if (format) {
+        setDraft(JSON.stringify(parsed, null, 2));
+        setReviewed(null);
+      }
       setValid(true);
-      setResult("JSON صالح نحوياً. التحقق من مخطط السجل سيُجرى عند اتصال واجهة البيانات.");
+      setResult("JSON صالح نحوياً. مراجعة الحفظ تتحقق من المخطط وتجرب المعاملة قبل تطبيقها.");
     } catch {
       setValid(false);
       setResult("JSON غير صالح. راجع علامات الخطأ داخل المحرر، خصوصاً الفواصل والأقواس.");
@@ -47,27 +111,26 @@ export function JsonEditorPage() {
         title="محرر JSON"
         description="تحرير متقدم مع أرقام الأسطر والطي والبحث وعلامات الأخطاء. المسودة محلية، والحفظ يتطلب مراجعة التغييرات."
         eyebrow="قاعدة البيانات / أدوات التحرير"
-        upcoming
         actions={
           <>
             <Button variant="outline" onClick={() => validate()}>
               <CheckIcon data-icon="inline-start" />
               تحقق من JSON
             </Button>
-            <Button disabled>
+            <Button disabled={save.isPending} onClick={() => save.mutate(reviewed !== draft)}>
               <SaveIcon data-icon="inline-start" />
-              مراجعة وحفظ
+              {reviewed === draft ? "تطبيق الدمج" : "مراجعة وحفظ"}
             </Button>
           </>
         }
       />
-      <ServiceNotice />
+
       <div className="grid gap-5 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>مسودة عمل</CardTitle>
             <CardDescription>
-              بنية محرر العمل الحالي، دون تحميل أو تعديل أي سجل حقيقي.
+              مستند عمل كامل. الحفظ يدمج القيم دون حذف الأجزاء أو العلاقات الغائبة.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -101,6 +164,23 @@ export function JsonEditorPage() {
               <CardDescription>الأسماء والمعرّفات المسموحة للحقول المرتبطة.</CardDescription>
             </CardHeader>
             <CardContent>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const data = new FormData(event.currentTarget);
+                  load.mutate(String(data.get("workId")));
+                }}
+              >
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel htmlFor="json-work-id">معرّف العمل الحالي</FieldLabel>
+                    <Input id="json-work-id" name="workId" dir="ltr" required placeholder="UUID" />
+                  </Field>
+                  <Button type="submit" variant="outline" disabled={load.isPending}>
+                    تحميل العمل
+                  </Button>
+                </FieldGroup>
+              </form>
               <div className="flex flex-col gap-3">
                 <Badge variant="outline">
                   <BracesIcon data-icon="inline-start" />
@@ -115,9 +195,7 @@ export function JsonEditorPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" disabled>
-                اختيار سجل موجود
-              </Button>
+              <p className="text-xs text-muted-foreground">يمكن نسخ المعرّف من جدول الأعمال.</p>
             </CardFooter>
           </Card>
           {result && (

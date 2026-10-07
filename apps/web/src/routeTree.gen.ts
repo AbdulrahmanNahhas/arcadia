@@ -22,6 +22,7 @@ import { Route as DatabaseJsonRouteImport } from './routes/database.json'
 import { Route as DatabaseRevisionsRouteImport } from './routes/database.revisions'
 import { Route as DatabaseTablesRouteImport } from './routes/database.tables'
 import { Route as DatabaseValidationRouteImport } from './routes/database.validation'
+import { Route as MediaSplatRouteImport } from './routes/media.$'
 import { Route as ServerSectionRouteImport } from './routes/server.$section'
 import { Route as DatabaseWorksNewRouteImport } from './routes/database.works.new'
 
@@ -90,6 +91,11 @@ const DatabaseValidationRoute = DatabaseValidationRouteImport.update({
   path: '/validation',
   getParentRoute: () => DatabaseRoute,
 } as any)
+const MediaSplatRoute = MediaSplatRouteImport.update({
+  id: '/media/$',
+  path: '/media/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ServerSectionRoute = ServerSectionRouteImport.update({
   id: '/$section',
   path: '/$section',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/database/revisions': typeof DatabaseRevisionsRoute
   '/database/tables': typeof DatabaseTablesRoute
   '/database/validation': typeof DatabaseValidationRoute
+  '/media/$': typeof MediaSplatRoute
   '/server/$section': typeof ServerSectionRoute
   '/database/': typeof DatabaseIndexRoute
   '/database/works/new': typeof DatabaseWorksNewRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/database/revisions': typeof DatabaseRevisionsRoute
   '/database/tables': typeof DatabaseTablesRoute
   '/database/validation': typeof DatabaseValidationRoute
+  '/media/$': typeof MediaSplatRoute
   '/server/$section': typeof ServerSectionRoute
   '/database': typeof DatabaseIndexRoute
   '/database/works/new': typeof DatabaseWorksNewRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/database/revisions': typeof DatabaseRevisionsRoute
   '/database/tables': typeof DatabaseTablesRoute
   '/database/validation': typeof DatabaseValidationRoute
+  '/media/$': typeof MediaSplatRoute
   '/server/$section': typeof ServerSectionRoute
   '/database/': typeof DatabaseIndexRoute
   '/database/works/new': typeof DatabaseWorksNewRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/database/revisions'
     | '/database/tables'
     | '/database/validation'
+    | '/media/$'
     | '/server/$section'
     | '/database/'
     | '/database/works/new'
@@ -183,6 +193,7 @@ export interface FileRouteTypes {
     | '/database/revisions'
     | '/database/tables'
     | '/database/validation'
+    | '/media/$'
     | '/server/$section'
     | '/database'
     | '/database/works/new'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/database/revisions'
     | '/database/tables'
     | '/database/validation'
+    | '/media/$'
     | '/server/$section'
     | '/database/'
     | '/database/works/new'
@@ -210,6 +222,7 @@ export interface RootRouteChildren {
   DatabaseRoute: typeof DatabaseRouteWithChildren
   LoginRoute: typeof LoginRoute
   ServerRoute: typeof ServerRouteWithChildren
+  MediaSplatRoute: typeof MediaSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -305,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DatabaseValidationRouteImport
       parentRoute: typeof DatabaseRoute
     }
+    '/media/$': {
+      id: '/media/$'
+      path: '/media/$'
+      fullPath: '/media/$'
+      preLoaderRoute: typeof MediaSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/server/$section': {
       id: '/server/$section'
       path: '/$section'
@@ -368,6 +388,7 @@ const rootRouteChildren: RootRouteChildren = {
   DatabaseRoute: DatabaseRouteWithChildren,
   LoginRoute: LoginRoute,
   ServerRoute: ServerRouteWithChildren,
+  MediaSplatRoute: MediaSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

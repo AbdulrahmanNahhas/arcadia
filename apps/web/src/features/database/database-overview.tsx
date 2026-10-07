@@ -1,26 +1,20 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
   BracesIcon,
-  DatabaseIcon,
   ImagesIcon,
   ImportIcon,
   TablePropertiesIcon,
 } from "lucide-react";
 
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/features/dashboard/page-header";
-import { ServiceNotice } from "@/features/dashboard/service-notice";
 
 import { collections } from "./collections";
+import { databaseSchemaOptions } from "./database.queries";
 import schemaCatalog from "./schema-catalog.json";
 
 const tableCount = new Set(schemaCatalog.map((column) => column.table_name)).size;
@@ -46,6 +40,7 @@ const tools = [
 ] as const;
 
 export function DatabaseOverview() {
+  const schema = useQuery(databaseSchemaOptions());
   return (
     <>
       <PageHeader
@@ -58,12 +53,17 @@ export function DatabaseOverview() {
           </Link>
         }
       />
-      <ServiceNotice />
+      {schema.isError && (
+        <Alert variant="destructive">
+          <AlertTitle>تعذّر الاتصال بالبيانات</AlertTitle>
+          <AlertDescription>{schema.error.message}</AlertDescription>
+        </Alert>
+      )}
       <div className="grid gap-4 sm:grid-cols-3">
         <Card size="sm">
           <CardHeader>
             <CardDescription>المخطط الحالي</CardDescription>
-            <CardTitle>{tableCount} جدولاً</CardTitle>
+            <CardTitle>{schema.data?.length ?? tableCount} جدولاً</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">من مخطط قاعدة البيانات الفعلي</p>
@@ -72,7 +72,11 @@ export function DatabaseOverview() {
         <Card size="sm">
           <CardHeader>
             <CardDescription>الحقول</CardDescription>
-            <CardTitle>{schemaCatalog.length} حقلاً</CardTitle>
+            <CardTitle>
+              {schema.data?.reduce((total, table) => total + table.columns.length, 0) ??
+                schemaCatalog.length}{" "}
+              حقلاً
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">الأنواع والمفاتيح وقابلية القيم الفارغة</p>
@@ -89,9 +93,15 @@ export function DatabaseOverview() {
         </Card>
       </div>
       <Card>
-        <CardHeader>
-          <CardTitle>المحتوى والمعرفة</CardTitle>
-          <CardDescription>اختر فئة لفتح جدولها وأدواتها.</CardDescription>
+        <CardHeader className="flex items-end justify-between">
+          <div className="flex flex-col gap-1">
+            <CardTitle>المحتوى والمعرفة</CardTitle>
+            <CardDescription>اختر فئة لفتح جدولها وأدواتها.</CardDescription>
+          </div>
+          <Link to="/database/tables" className={buttonVariants({ variant: "outline" })}>
+            <TablePropertiesIcon data-icon="inline-start" />
+            استكشاف جميع الجداول
+          </Link>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -111,41 +121,34 @@ export function DatabaseOverview() {
             ))}
           </div>
         </CardContent>
-        <CardFooter>
-          <Link to="/database/tables" className={buttonVariants({ variant: "outline" })}>
-            <TablePropertiesIcon data-icon="inline-start" />
-            استكشاف جميع الجداول
-          </Link>
-        </CardFooter>
       </Card>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {tools.map((tool) => (
-          <Card key={tool.to}>
-            <CardHeader>
-              <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-primary">
-                <tool.icon />
-              </span>
-              <CardTitle>{tool.title}</CardTitle>
-              <CardDescription>{tool.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">
-                الواجهة متاحة للمعاينة، والخدمة قيد الربط.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Link to={tool.to} className={buttonVariants({ variant: "outline" })}>
-                فتح الأدوات
+          <Card key={tool.to} interactive className="group flex flex-col justify-between">
+            <CardHeader className="justify-between h-full">
+              <div className="flex flex-col gap-3 mb-2">
+                <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                  <tool.icon className="size-5" />
+                </span>
+                <div className="flex flex-col gap-1">
+                  <CardTitle>{tool.title}</CardTitle>
+                  <CardDescription>{tool.description}</CardDescription>
+                </div>
+              </div>
+              <Link
+                to={tool.to}
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "group/btn w-full justify-between mt-auto",
+                })}
+              >
+                <span>فتح الأدوات</span>
                 <ArrowLeftIcon data-icon="inline-end" />
               </Link>
-            </CardFooter>
+            </CardHeader>
           </Card>
         ))}
       </div>
-      <p className="flex items-center gap-2 text-xs text-muted-foreground">
-        <DatabaseIcon className="size-4" />
-        هذا استعراض للمخطط والواجهات، ولا يغيّر بيانات المكتبة.
-      </p>
     </>
   );
 }

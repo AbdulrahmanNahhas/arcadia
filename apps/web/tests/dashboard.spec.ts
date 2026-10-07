@@ -19,7 +19,7 @@ test("Database switches the entire sidebar workspace and opens the work draft", 
     .click();
   await page.getByRole("link", { name: "مسودة عمل", exact: true }).click();
   await expect(page.getByRole("heading", { name: "عمل جديد", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "حفظ العمل", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "حفظ العمل", exact: true })).toBeEnabled();
   await page.getByRole("tab", { name: "المحتوى العائلي" }).click();
   await expect(page.getByText("التصنيف العائلي", { exact: true })).toBeVisible();
 });
@@ -39,12 +39,10 @@ test("schema explorer contains actual fields and changes the selected table", as
   await page.getByRole("combobox", { name: "الجدول", exact: true }).click();
   await page.getByRole("option", { name: "episodes", exact: true }).click();
   await expect(page.getByRole("table")).toContainText("installment_id");
-  await expect(page.getByRole("button", { name: "تعديل السجلات" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "تعديل السجلات" })).toBeEnabled();
 });
 
-test("JSON workbench validates drafts locally and never enables database writes", async ({
-  page,
-}) => {
+test("JSON workbench validates syntax and offers a transaction rehearsal", async ({ page }) => {
   await page.goto("/database/json");
   await page.getByRole("button", { name: "تحقق من JSON", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "اجتاز فحص الصيغة" })).toBeVisible();
@@ -53,7 +51,7 @@ test("JSON workbench validates drafts locally and never enables database writes"
   await expect(
     page.getByRole("alert").filter({ hasText: "تحتاج المسودة إلى تصحيح" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "مراجعة وحفظ", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "مراجعة وحفظ", exact: true })).toBeEnabled();
 });
 
 test("every database collection and server screen renders without runtime errors", async ({

@@ -8,7 +8,9 @@
   },
   "type": "module",
   "exports": {
-    ".": "./src/main.ts"
+    ".": "./src/main.ts",
+    "./work": "./src/commands/work.ts",
+    "./db": "./src/db.ts"
   },
   "scripts": {
     "arcadia": "tsx src/main.ts",

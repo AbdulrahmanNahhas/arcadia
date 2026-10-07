@@ -17,11 +17,13 @@ import {
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { databaseTools, serverSectionFor } from "@/features/dashboard/navigation";
+import { dashboardSearch } from "@/features/dashboard/search";
 import { collectionFor } from "@/features/database/collections";
 
 import appCss from "../styles.css?url";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  validateSearch: dashboardSearch,
   component: AppShell,
   ssr: false,
   shellComponent: RootDocument,
@@ -72,7 +74,7 @@ function AppShell() {
             </BreadcrumbList>
           </Breadcrumb>
           <div className="ms-auto">
-            <Badge variant="outline">واجهة معاينة</Badge>
+            <Badge variant="outline">إدارة محلية</Badge>
           </div>
         </header>
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-5 lg:p-8">

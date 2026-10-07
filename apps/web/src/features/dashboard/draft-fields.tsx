@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface DraftFieldProps {
   label: string;
+  disabled?: boolean;
   placeholder?: string;
   description?: string;
   multiline?: boolean;
@@ -24,6 +25,7 @@ interface DraftFieldProps {
 }
 export function DraftField({
   label,
+  disabled,
   placeholder,
   description,
   multiline = false,
@@ -37,9 +39,18 @@ export function DraftField({
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       {multiline ? (
-        <Textarea id={id} placeholder={placeholder} rows={4} />
+        <Textarea disabled={disabled} name={label} id={id} placeholder={placeholder} rows={4} />
       ) : (
-        <Input id={id} type={type} step={step} min={min} max={max} placeholder={placeholder} />
+        <Input
+          disabled={disabled}
+          name={label}
+          id={id}
+          type={type}
+          step={step}
+          min={min}
+          max={max}
+          placeholder={placeholder}
+        />
       )}
       {description && <FieldDescription>{description}</FieldDescription>}
     </Field>
@@ -54,7 +65,7 @@ export function ChoiceField({ label, options }: ChoiceFieldProps) {
   return (
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Select items={options} defaultValue={options[0]?.value ?? null}>
+      <Select name={label} items={options} defaultValue={options[0]?.value ?? null}>
         <SelectTrigger id={id}>
           <SelectValue />
         </SelectTrigger>

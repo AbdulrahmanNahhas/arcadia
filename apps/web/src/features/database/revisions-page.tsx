@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/features/dashboard/page-header";
 import { RecordTable } from "@/features/dashboard/record-table";
-import { ServiceNotice } from "@/features/dashboard/service-notice";
 export function RevisionsPage() {
   return (
     <>
@@ -12,7 +11,6 @@ export function RevisionsPage() {
         title="السجل وسلة المحذوفات"
         description="من غيّر ماذا، مقارنة النسخ، واستعادة السجلات المحذوفة مع مراجعة روابطها."
         eyebrow="قاعدة البيانات / التاريخ"
-        upcoming
         actions={
           <Button variant="outline" disabled>
             <ArchiveRestoreIcon data-icon="inline-start" />
@@ -20,7 +18,7 @@ export function RevisionsPage() {
           </Button>
         }
       />
-      <ServiceNotice />
+
       <Tabs defaultValue="revisions">
         <TabsList>
           <TabsTrigger value="revisions">نسخ السجلات</TabsTrigger>
@@ -29,18 +27,22 @@ export function RevisionsPage() {
         </TabsList>
         <TabsContent value="revisions">
           <RecordTable
+            table="editorial_revisions"
             title="تاريخ التعديلات"
             columns={["السجل", "الإصدار", "التغيير", "الكاتب", "الوقت"]}
           />
         </TabsContent>
         <TabsContent value="audit">
           <RecordTable
+            table="audit_logs"
             title="سجل العمليات"
             columns={["العملية", "الهدف", "المستخدم", "النتيجة", "الوقت"]}
           />
         </TabsContent>
         <TabsContent value="trash">
           <RecordTable
+            table="audit_logs"
+            filters={{ action: "local.delete" }}
             title="السجلات المحذوفة"
             columns={["السجل", "النوع", "حُذف بواسطة", "التاريخ", "الاستعادة"]}
           />

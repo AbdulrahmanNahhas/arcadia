@@ -85,8 +85,9 @@ hash compatibility with fixtures before cutover. Do not weaken existing producti
 The legacy test bypass requires both `NODE_ENV=test` and `ARCADIA_MOCK_AUTH=true`.
 Do not log secrets, database connection strings, password hashes, or session tokens.
 
-The Rust foundation exposes health checks only and sets database sessions read-only. Later
-catalog, source, device, sync, and job routes need explicit authorization before exposure.
+Rust database sessions default to read-only. Explicitly authorized local development catalog
+operations require the private server token; writes opt into transactional read-write mode.
+Production setup/auth and device, sync, and job authorization remain future work.
 Keep user identity, viewing profile, device, and library policy as distinct concepts.
 
 ## Rust and playback

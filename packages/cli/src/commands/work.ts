@@ -324,28 +324,40 @@ async function assignMedia(
         "Roles are poster, banner, logo, and profile.",
       );
     }
-    await transaction.unsafe(
-      `delete from media_asset_assignments
-       where "${owner.column}" = $1 and role = $2 and is_primary`,
-      [owner.id, role],
-    );
-    if (!path) continue;
+    if (!path) {
+      await transaction.unsafe(
+        `update media_asset_assignments set is_primary=false where "${owner.column}"=$1 and role=$2 and is_primary`,
+        [owner.id, role],
+      );
+      continue;
+    }
     const assets = await transaction.unsafe<Array<{ id: string }>>(
-      `select id from media_assets where path = $1`,
+      `select id from media_assets where path=$1`,
       [path],
     );
     const asset = assets[0];
-    if (!asset) {
+    if (!asset)
       throw new CliError(
         `No registered media asset at "${path}"`,
         `Ingest it first: arcadia media ingest <file-or-url> --role ${role}`,
       );
-    }
     await transaction.unsafe(
-      `insert into media_asset_assignments (asset_id, role, "${owner.column}", is_primary)
-       values ($1, $2, $3, true) on conflict do nothing`,
-      [asset.id, role, owner.id],
+      `update media_asset_assignments set is_primary=false where "${owner.column}"=$1 and role=$2 and is_primary and asset_id<>$3`,
+      [owner.id, role, asset.id],
     );
+    const existing = await transaction.unsafe<Array<{ id: string }>>(
+      `select id from media_asset_assignments where "${owner.column}"=$1 and role=$2 and asset_id=$3 order by created_at limit 1`,
+      [owner.id, role, asset.id],
+    );
+    if (existing[0])
+      await transaction.unsafe(`update media_asset_assignments set is_primary=true where id=$1`, [
+        existing[0].id,
+      ]);
+    else
+      await transaction.unsafe(
+        `insert into media_asset_assignments (asset_id,role,"${owner.column}",is_primary) values($1,$2,$3,true)`,
+        [asset.id, role, owner.id],
+      );
   }
 }
 
@@ -796,6 +808,9 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
     }
   }
 
+  if (existingId && boolFlag(args, "create-only"))
+    throw new CliError("A work with this title already exists; open the existing record instead.");
+
   const run = async (transaction: TransactionSql) => {
     const { id: titleId, created } = await upsertTitle(transaction, document, existingId);
 
@@ -831,7 +846,16 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
         parameters([titleId]),
       );
       const nextPosition = row ? Number(row.next_position) : 0;
-      for (const [offset, text] of document.trivia.entries()) {
+      const existingFacts =
+        mode === "merge"
+          ? await transaction.unsafe<Array<{ text: string }>>(
+              `select text from title_trivia where title_id = $1`,
+              [titleId],
+            )
+          : [];
+      const knownFacts = new Set(existingFacts.map((fact) => fact.text));
+      const additions = document.trivia.filter((text) => !knownFacts.has(text));
+      for (const [offset, text] of additions.entries()) {
         await transaction.unsafe(
           `insert into title_trivia (title_id, position, text) values ($1, $2, $3)`,
           [titleId, nextPosition + offset, text],

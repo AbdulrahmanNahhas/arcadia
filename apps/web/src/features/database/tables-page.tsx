@@ -1,3 +1,5 @@
+import { useQuery } from "@tanstack/react-query";
+import { useSearch, useNavigate } from "@tanstack/react-router";
 import { DatabaseIcon, KeyRoundIcon, LockKeyholeIcon, SaveIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -32,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/features/dashboard/page-header";
 import { RecordTable } from "@/features/dashboard/record-table";
 
+import { databaseSchemaOptions } from "./database.queries";
 import schemaCatalog from "./schema-catalog.json";
 
 const tables = [...new Set(schemaCatalog.map((column) => column.table_name))].map((table) => ({
@@ -39,8 +42,26 @@ const tables = [...new Set(schemaCatalog.map((column) => column.table_name))].ma
   label: table,
 }));
 export function TablesPage() {
-  const [selected, setSelected] = useState("titles");
-  const columns = schemaCatalog.filter((column) => column.table_name === selected);
+  const liveSchema = useQuery(databaseSchemaOptions());
+  const [activeTab, setActiveTab] = useState("schema");
+  const search = useSearch({ from: "__root__" });
+  const selected = search.table ?? "titles";
+  const navigate = useNavigate();
+  function setSelected(value: string) {
+    void navigate({
+      to: ".",
+      search: (previous) => ({ ...previous, table: value, q: undefined, offset: 0 }),
+    });
+  }
+  const actual = liveSchema.data?.find((table) => table.name === selected);
+  const columns = actual
+    ? actual.columns.map((column) => ({
+        column_name: column.name,
+        data_type: column.data_type,
+        is_nullable: column.nullable ? "YES" : "NO",
+        primary_key: column.primary,
+      }))
+    : schemaCatalog.filter((column) => column.table_name === selected);
   const sensitive = selected.startsWith("auth_");
   return (
     <>
@@ -54,7 +75,7 @@ export function TablesPage() {
         <CardHeader>
           <CardTitle>اختيار الجدول</CardTitle>
           <CardDescription>
-            مخطط محفوظ من قاعدة البيانات الحالية؛ لا يتضمن أي قيم خاصة أو جلسات.
+            مخطط قاعدة البيانات المتصلة، مع استعراض السجلات والتحرير وفق قيودها.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -91,7 +112,7 @@ export function TablesPage() {
           </span>
         </CardFooter>
       </Card>
-      <Tabs defaultValue="schema">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="schema">الحقول والقيود</TabsTrigger>
           <TabsTrigger value="records">السجلات</TabsTrigger>
@@ -140,7 +161,7 @@ export function TablesPage() {
               </Table>
             </CardContent>
             <CardFooter>
-              <Button disabled>
+              <Button onClick={() => setActiveTab("records")}>
                 <SaveIcon data-icon="inline-start" />
                 تعديل السجلات
               </Button>
@@ -155,6 +176,7 @@ export function TablesPage() {
             </p>
           )}
           <RecordTable
+            table={selected}
             title={`سجلات ${selected}`}
             columns={columns.slice(0, 6).map((column) => column.column_name)}
           />

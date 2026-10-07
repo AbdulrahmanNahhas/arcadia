@@ -4,6 +4,12 @@
   "private": true,
   "description": "Hono and OpenAPI service for the Arcadia v2 catalog.",
   "type": "module",
+  "exports": {
+    "./artwork": "./src/integrations/artwork-search.ts",
+    "./media-storage": "./src/media-storage.ts",
+    "./validation": "./src/features/admin-maintenance/validation.ts",
+    "./tmdb": "./src/integrations/tmdb.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",

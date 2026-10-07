@@ -9,8 +9,13 @@ license = "MIT"
 
 [workspace.dependencies]
 axum = "0.8.9"
+serde_json = "1"
 serde = { version = "1", features = ["derive"] }
-sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "postgres"] }
+sqlx = { version = "0.9", default-features = false, features = [
+  "runtime-tokio",
+  "postgres",
+  "json",
+] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["trace"] }

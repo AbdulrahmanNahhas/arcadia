@@ -25,14 +25,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { DatabaseRow } from "@/features/database/database-model";
+import { DatabaseRecordTable } from "@/features/database/database-record-table";
 
 interface RecordTableProps {
+  table?: string;
+  filters?: DatabaseRow;
   title: string;
   columns: readonly string[];
   search?: string;
 }
 
-export function RecordTable({ title, columns, search = "البحث في السجلات" }: RecordTableProps) {
+export function RecordTable({
+  title,
+  columns,
+  table,
+  filters,
+  search = "البحث في السجلات",
+}: RecordTableProps) {
+  if (table)
+    return (
+      <DatabaseRecordTable
+        key={table}
+        title={title}
+        table={table}
+        filters={filters}
+        searchPlaceholder={search}
+      />
+    );
   return (
     <Card>
       <CardHeader>

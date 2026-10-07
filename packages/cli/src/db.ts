@@ -3,8 +3,8 @@ import postgres from "postgres";
 import { CliError } from "./output";
 import type { Row, SqlValue } from "./types";
 
-export type Sql = postgres.Sql<Record<string, never>>;
-export type TransactionSql = postgres.TransactionSql<Record<string, never>>;
+export type Sql = postgres.Sql<{ calendarDate: string }>;
+export type TransactionSql = postgres.TransactionSql<{ calendarDate: string }>;
 
 let client: Sql | undefined;
 
@@ -16,7 +16,14 @@ export function openDatabase(): Sql {
     onnotice: () => {},
     // Keep numeric/date columns as strings so scores like `8.0` survive the round trip and
     // `date` columns stay calendar dates instead of becoming timezone-shifted Date objects.
-    types: {},
+    types: {
+      calendarDate: {
+        to: 1082,
+        from: [1082],
+        serialize: (value: string) => value,
+        parse: (value: string) => value,
+      },
+    },
     transform: { undefined: null },
   });
   return client;

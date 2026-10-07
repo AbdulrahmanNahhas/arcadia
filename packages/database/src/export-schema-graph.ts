@@ -46,7 +46,7 @@ const tables = Object.values(schema)
         unique: indexConfig.unique,
         method: indexConfig.method,
         columns: indexConfig.columns.map((column) =>
-          is(column, SQL) ? dialect.sqlToQuery(column).sql : column.name,
+          is(column, SQL) ? dialect.sqlToQuery(column).sql : "name" in column ? column.name : null,
         ),
         where: indexConfig.where ? dialect.sqlToQuery(indexConfig.where).sql : null,
       })),

@@ -136,3 +136,14 @@ No Podman, remote deployment, or update agent is introduced for local laptop tes
 
 The UI phase was subsequently expanded by Aqua to a dashboard-only website with all admin pages.
 The initial shell measurements above are a historical checkpoint; record the expanded UI below.
+
+## Current review checkpoint — 2026-10-07
+
+Aqua expanded today's scope to Start migration and connected database workflows, then asked for a
+final commit, change list, next steps and a stop. The framework/spacing migration is `edcb858`.
+The database implementation now includes local guarded Rust CRUD, real records and artwork,
+whole-work JSON rehearsal/merge, source searches, season previews, validation and audit recovery.
+This is a local development review checkpoint; production identity/setup/authorization and advanced
+structured editorial UX remain unfinished. Server-management services remain upcoming.
+No schema migration was made. Live catalog fingerprints remain unchanged apart from the two
+previously documented activity-table changes. Future work begins after Aqua reviews this checkpoint.
