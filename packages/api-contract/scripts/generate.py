@@ -1,4 +1,4 @@
-"""Generate Kotlin serializable models and a validated TypeScript client from OpenAPI.
+"""Generate a validated TypeScript client from OpenAPI.
 
 The generator supports the local contract's object/ref/array/nullable subset and
 rejects unsupported model constructs. Generated outputs are never hand-maintained.
@@ -38,20 +38,6 @@ def visit(name):
 for name in schemas:
     visit(name)
 schemas = ordered
-
-
-def kotlin_type(schema):
-    if '$ref' in schema:
-        result = schema['$ref'].split('/')[-1]
-    elif 'allOf' in schema:
-        if len(schema['allOf']) != 1:
-            raise ValueError('Only single-ref allOf is supported')
-        result = kotlin_type(schema['allOf'][0])
-    elif schema['type'] == 'array':
-        result = f'List<{kotlin_type(schema["items"])}>'
-    else:
-        result = {'string': 'String', 'integer': 'Long', 'number': 'Double', 'boolean': 'Boolean'}[schema['type']]
-    return result + '?' if schema.get('nullable') else result
 
 
 def validator(schema):
@@ -95,16 +81,10 @@ def ts_type(schema):
     return {'integer': 'number', 'number': 'number', 'boolean': 'boolean'}[schema['type']]
 
 
-kotlin = ['// Generated from packages/api-contract/openapi.json. Do not edit.',
-          'package io.nahhasio.client.generated', '', 'import kotlinx.serialization.Serializable', '']
 typescript = ['// Generated from openapi.json. Do not edit.', 'import { z } from "zod";', '']
 for name, schema in schemas.items():
     if schema['type'] != 'object':
         raise ValueError(f'Unsupported model: {name}')
-    kotlin += ['@Serializable', f'data class {name}(']
-    for field, prop in schema['properties'].items():
-        kotlin.append(f'    val {field}: {kotlin_type(prop)},')
-    kotlin += [')', '']
     typescript += [f'export const {name}Schema = {validator(schema)};',
                    f'export type {name} = z.infer<typeof {name}Schema>;', '']
 
@@ -152,11 +132,8 @@ for path, operations in document['paths'].items():
             typescript.append(f'    return {result}Schema.parse(await response.json());')
         typescript.append('  }')
 typescript += ['}', '']
-kotlin_path = ROOT / 'apps/linux/composeApp/src/main/kotlin/io/nahhasio/client/generated/Models.kt'
-kotlin_path.parent.mkdir(parents=True, exist_ok=True)
-kotlin_path.write_text('\n'.join(kotlin))
 ts_path = PACKAGE / 'src/generated.ts'
 ts_path.parent.mkdir(parents=True, exist_ok=True)
 ts_path.write_text('\n'.join(typescript))
 subprocess.run(['pnpm', 'exec', 'oxfmt', '--write', str(ts_path)], cwd=ROOT, check=True)
-print('Generated Kotlin models and validated TypeScript client from OpenAPI.')
+print('Generated validated TypeScript client from OpenAPI.')

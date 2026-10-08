@@ -22,8 +22,11 @@ If Aqua rejects a design, discuss the direction before another implementation pa
 continue polishing, propagate changes, delete a client, or start another milestone silently.
 Permission already given for the current step covers its necessary implementation and checks.
 
-Current approved step: repair/verify devenv and write the plan/project instructions. Kotlin
-retirement and the new GTK shell follow review. Do not remove existing uncommitted work as cleanup.
+Current approved milestone: Aqua confirmed the plan and authorized one continuous pass through
+Kotlin retirement and the minimal runnable GTK client (real login and main library page), with
+clean committed checkpoints before and after. Those steps may proceed within this approval;
+stop at the resulting milestone or if Aqua rejects a visible direction. Playback/download
+expansion and the learning phase need later review. Preserve unrelated work.
 
 ## Rust learning ownership
 
@@ -51,15 +54,14 @@ acceptance checks and reviews instead of automatically completing Aqua's client 
 - `packages/database`: existing PostgreSQL schema and the single migration history.
 - Other `packages/*`: existing contracts, domain rules, vocabulary, and database CLI.
 
-`apps/linux` currently contains the rejected Kotlin prototype, pending approved retirement.
-The planned Rust shell and its React UI will have distinct modules/workspaces described in the
-Linux plan. Do not create empty packages. Share media behavior in UI-independent Rust and network
+`apps/linux` contains the Rust GTK shell; `apps/linux/ui` is the separate React/Vite viewing UI.
+The rejected Kotlin prototype was retired after a committed checkpoint. Do not create empty packages. Share media behavior in UI-independent Rust and network
 contracts through the existing single generated OpenAPI definition.
 
 ## Development and checks
 
 Use the repository's Nix/devenv environment: Node 26, pnpm 11.11.0, and Rust.
-`devenv up` starts PostgreSQL, Rust, and the new website. The reference Hono API is available
+`devenv up` starts PostgreSQL, the Rust API, dashboard and GTK desktop with dependency ordering. The reference Hono API is available
 with `devenv --profile reference-api up`. Do not inspect `/saved/nixos-config` without Aqua's permission.
 
 - `pnpm lint`: Oxlint, the generic anti-slop plugin, and six shadcn design-system rules.

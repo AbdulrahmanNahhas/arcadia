@@ -20,10 +20,10 @@ The Git repository is still Arcadia; the product and new packages are named Nahh
 | `oxlint.config.ts`                       | Oxlint, generic anti-slop, and six shadcn rules for new website source                      |
 | `.oxfmtrc.jsonc`                         | Oxfmt formatting/import sorting; excludes generated/vendor/historical code                  |
 
-`apps/linux` currently holds the rejected Kotlin prototype, pending approved retirement.
-The new client is planned as a Rust GTK4/libadwaita/WebKitGTK/libmpv shell with a separate
-React/Vite/TypeScript UI. Read `linux-client-plan.md` for the current scope and learning ownership.
-`packages/api-contract` owns OpenAPI/generated contracts; Kotlin output retires with the prototype.
+`apps/linux` is the Rust GTK4/libadwaita/WebKitGTK shell; `apps/linux/ui` is its independent
+React/Vite/TypeScript viewing interface. Libmpv playback follows its own milestone.
+Read `linux-client-plan.md` for scope and learning ownership. `packages/api-contract` owns
+OpenAPI/generated TypeScript contracts; Kotlin output and Gradle were retired.
 Do not create empty packages or copy desktop/player responsibilities into the dashboard.
 
 ## Transition code and data
@@ -168,9 +168,20 @@ verification precedes SSH/deployment.
 
 ## Current handoff: GTK transition
 
-Read [linux-client-plan.md](./linux-client-plan.md) before client work. Default devenv starts only
-PostgreSQL, API and dashboard during retirement; server/dashboard wait for their dependency readiness.
-The old JVM prototype is opt-in through `legacy-kotlin` until its approved deletion. The future
-GTK desktop joins default startup after its first verified login/library checkpoint. Aqua explicitly
+Read [linux-client-plan.md](./linux-client-plan.md) before client work. Default devenv starts
+PostgreSQL, API, dashboard and the verified GTK desktop with dependency readiness.
+Kotlin/Gradle and their legacy profile were retired after a clean committed checkpoint. Aqua explicitly
 requires confirmation after each step or visible change. Agent implements the first bootstrap;
 then client Rust practice belongs to Aqua through commented tasks, hints and review.
+
+## Verified GTK bootstrap — current
+
+Kotlin/Gradle has been retired. `apps/linux` is a Rust GTK4/libadwaita/WebKitGTK shell;
+`apps/linux/ui` is the separate React/Vite/TypeScript viewing interface. Production uses the
+contained `nahhasio://app/` bundle origin. Native Rust owns the bearer session and HTTP requests;
+UI replies are sanitized and parsed with the generated API contract.
+
+`devenv up` now starts PostgreSQL, API, dashboard and the GTK desktop. `devenv up postgres server web`
+starts only the backend; `devenv shell -- nahhasio-client` opens the desktop separately. No Java,
+Gradle or broad Compose graphics environment remains. GTK/WebKit/GStreamer runtime dependencies
+are project-local. See the client README and Linux plan for checks, boundaries and remaining work.

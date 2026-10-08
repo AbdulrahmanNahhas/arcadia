@@ -1,47 +1,52 @@
-# Nahhasio Linux client
+# Nahhasio Linux shell
 
-First Compose Desktop/JVM client. Requires JDK 21, a graphical Linux session, and `mpv`
-on PATH. The repository devenv provides these tools.
+Rust GTK4/libadwaita window with WebKitGTK hosting an independent React/Vite/TypeScript viewing UI.
+The rejected Kotlin prototype is recoverable at commit `28e3c72`; it is removed from active source.
+The server and administration dashboard remain separate.
 
-```sh
-devenv shell -- nahhasio-client
-devenv shell -- apps/linux/gradlew -p apps/linux :composeApp:compileKotlin
-```
+## First milestone
 
-`devenv up` starts PostgreSQL, the Rust API, the dashboard and this desktop client.
-Use `devenv up postgres server web` when you only want the backend/dashboard.
-If those services are already running, use the client-only command above rather than
-starting a second copy. The first Gradle run may need to build before the window opens.
+Real owner login, native in-memory session, catalog shelves, discovery search/filter/sort with
+bounded paging, registered artwork and selected-work overview/family/data preview. Native tokens
+never cross into JavaScript. The UI checks generated OpenAPI schemas at its transport boundary.
+No startup migration or seed. Playback, torrents, Jellyfin resolution, saved packs, downloads and
+progress synchronization are subsequent milestones, with pending controls visibly disabled.
 
-The server must expose the versioned `/api/v1` catalog and auth endpoints. Use a real
-existing catalog account. Sessions stay in memory and are removed on logout; secure
-desktop credential persistence is future work. HTTP is accepted only for loopback;
-remote connections require HTTPS to protect passwords and bearer sessions.
+## Organization
 
-Implemented: owner login, paginated search, filters/sorting, authorized poster loading,
-responsive library browsing, a cinematic work page with six tabs for full catalog details,
-installment/episode selection and local file playback in an external mpv window.
-mpv handles subtitles, audio tracks, seeking and fullscreen. Player commands use a
-private temporary Unix socket; closing the client terminates its player.
+- `src/main.rs`: application/window lifecycle, approved UI origin and WebKit integration.
+- `src/bridge.rs`: bounded request/reply protocol and resource identifiers.
+- `src/services.rs`: timed/bounded authenticated HTTP operations and session ownership.
+- `src/assets.rs`: contained `nahhasio://app/` production bundle serving.
+- `src/smoke.rs`: explicit app-owned native UI verification using private stdin credentials.
+- `ui/src/app`: app/session composition.
+- `ui/src/features`: login, catalog and selected-work preview.
+- `ui/src/lib/bridge.ts`: typed gateway and native reply parsing.
+- `ui/src/styles`: reviewed responsive client tokens and layout.
 
-The selected local file is not registered as the work's media file. Streaming,
-Jellyfin source resolution, torrents, download queues, saved work packages and progress
-sync are pending. Their controls are disabled. The client cannot administer the server.
+Use the project devenv environment. Native builds use GTK4, libadwaita and WebKitGTK6 development
+libraries from the locked Nix environment. Build UI with `pnpm --filter @nahhasio/linux-ui build`,
+then native with `cargo build -p nahhasio-linux --locked -j 2`. Launch everything with `devenv up`, or just the desktop with
+`devenv shell -- nahhasio-client`. Backend only: `devenv up postgres server web`.
+The production UI is served as `nahhasio://app/`; no unrestricted file access or remote app UI.
 
-Source is split by authentication, API transport, library screens and desktop playback.
-Generated contract models belong under `generated/` and are regenerated from the shared
-OpenAPI contract. Linux packaging tasks exist, but distributable packages require separate
-runtime verification on the target Fedora machine.
+For transport checks, `--bridge-smoke` accepts bounded JSONL commands on stdin. `--ui-smoke` accepts
+one private `{email,password}` object on stdin, drives the actual login/catalog/logout flow and
+captures app-owned WebKit snapshots. Neither mode logs credentials. Do not pass secrets in argv
+or commit screenshots/session fixtures. UI browser tests use a clearly isolated bridge fixture;
+native/server checks use actual endpoints separately.
 
-For an isolated API integration check, run the generated JAR with `--smoke` and provide
-one JSON `LoginRequest` on standard input. Set `NAHHASIO_CLIENT_SERVER` to the disposable
-server. The check logs in, decodes list/detail/filter responses with generated Kotlin
-models, downloads authorized artwork, and logs out. It never changes catalog records.
-Do not place credentials in command arguments or shell history.
+## Rust practice after review
 
-The `--preview /absolute/output.png` mode renders app-owned responsive snapshots beside
-that output location, using actual library and Arcane data. It verifies tab selection,
-episode selection and RTL keyboard tab navigation through Compose semantics at widths
-1440/1024/640/480 and height600; additional desktop previews use1440×900. Input credentials
-use the same private standard-input mechanism. Details and verification limits are in
-[DESIGN.md](./DESIGN.md).
+Today's bootstrap was implemented by the agent with Aqua's explicit approval. Once this baseline
+is reviewed, Aqua owns the selected client Rust exercises; the agent handles UI/API/database/setup
+and provides comments, hints, docs and review. Preserve the working app while practicing.
+
+Initial exercises can work on the real boundaries: configuration/address validation and errors;
+typed catalog response handling; cancellation/session lifetime; then libmpv events/commands and
+transfer/download recovery. Every task gets a stable ID, goal, allowed tools, constraints and
+acceptance checks before Aqua starts. No full solution is inserted unless requested.
+
+Stremio's shell was inspected for its architecture and APIs, not copied. The implementation is
+independent. See `docs/linux-client-plan.md` and `ui/README.md` for the approved design and security
+boundaries. Dependency/library license decisions precede any future upstream source reuse.

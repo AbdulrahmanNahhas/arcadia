@@ -21,9 +21,8 @@ core.*
 # typescript
 *.tsbuildinfo
 
-# Rust workspace and future Kotlin client build artifacts.
+# Native workspace and build artifacts.
 /target/
-**/.gradle/
 **/build/
 
 # Local library state (created on first run)

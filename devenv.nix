@@ -25,7 +25,13 @@
   env.DATABASE_URL = "postgresql://127.0.0.1:23102/arcadia";
   env.NAHHASIO_BIND = "127.0.0.1:23103";
 
-  packages = with pkgs; [ typos pkg-config openssl mpv chromium ];
+  packages = with pkgs; [
+    typos pkg-config openssl mpv chromium
+    gtk4 libadwaita webkitgtk_6_0
+    gtk4.dev libadwaita.dev webkitgtk_6_0.dev
+    gst_all_1.gstreamer gst_all_1.gst-plugins-base
+  ];
+  env.GST_PLUGIN_SYSTEM_PATH_1_0 = "${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0";
   env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "${pkgs.chromium}/bin/chromium";
 
   # SQLx uses the system account database for its default user; the local Node CLI uses USER.
@@ -48,19 +54,12 @@
     timeout = 120;
   };
 
-  # Temporary opt-in access while the rejected prototype awaits retirement.
-  # The GTK client will join default startup only after its first reviewed milestone.
-  profiles.legacy-kotlin.module = {
-    packages = with pkgs; [ jdk21 gradle ];
-    env.JAVA_HOME = "${pkgs.jdk21}";
-    env.LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
-      pkgs.libGL pkgs.fontconfig pkgs.freetype
-      pkgs.xorg.libX11 pkgs.xorg.libXext pkgs.xorg.libXrender
-    ];
-    scripts.nahhasio-legacy-client.exec = ''
-      exec "${config.devenv.root}/apps/linux/gradlew" \
-        -p "${config.devenv.root}/apps/linux" :composeApp:run
-    '';
+  scripts.nahhasio-client.exec = ''
+    exec "${config.devenv.root}/bin/nahhasio-client"
+  '';
+  processes.client = {
+    exec = "nahhasio-client";
+    after = [ "devenv:processes:server" "devenv:processes:web" ];
   };
 
   # Optional local reference API for migration comparisons; no old desktop runtime.
@@ -71,8 +70,9 @@
 
   enterShell = ''
     echo "Nahhasio environment ready"
-    echo "Run: devenv up (PostgreSQL -> Rust API -> dashboard)"
-    echo "The new GTK desktop joins startup after its first reviewed milestone"
+    echo "Run: devenv up (PostgreSQL -> Rust API -> dashboard + GTK desktop)"
+    echo "Desktop only: devenv shell -- nahhasio-client"
+    echo "Backend only: devenv up postgres server web"
     echo "Reference API: devenv --profile reference-api up"
   '';
 

@@ -17,10 +17,11 @@ are historical evidence, not the next implementation target.
   exercises; the agent handles UI/UX, API/database, project setup and organization.
 - Confirmation after **each step and each visible change**. Show a concrete result and actual
   verification, then stop. A rejected design requires discussion before another coding pass.
-- Current step: repair/verify devenv, record this plan, update AGENTS/context, and return for review.
-  Kotlin removal and new-client implementation are the next approved checkpoint, not this step.
-- `devenv up` should ultimately start backend plus the new desktop. During the transition it starts
-  PostgreSQL → API → dashboard, without automatically launching the rejected Kotlin prototype.
+- The environment/planning step was reviewed. Aqua then approved one continuous pass through
+  Kotlin retirement and the first runnable login/library client, with clean commits before/after.
+  That bootstrap is implemented; broader playback/learning work follows review.
+- `devenv up` starts PostgreSQL → API → dashboard plus the GTK desktop. Backend-only startup
+  remains available; Kotlin is no longer an active process or profile.
 
 ## Product scope to preserve
 
@@ -86,7 +87,7 @@ credentials in either client UI or native client.
 apps/
   server/                      Rust/Axum API and later durable workers
   web/                         TanStack Start administration dashboard
-  linux/                       replace Kotlin only after retirement review
+  linux/                       Rust GTK shell; Kotlin retirement approved and completed
     Cargo.toml                 Rust GTK shell package, added when it has working code
     src/
       main.rs                  small entry point
@@ -116,8 +117,7 @@ requirements must not weaken the server's no-unsafe boundary. Keep the shared me
 GTK/Tauri/WebKit/UI types.
 
 The TypeScript UI uses a small typed gateway interface: login/logout, list/filter catalog and
-work details first. The approved implementation must establish which calls stay in native Rust
-and which safe HTTP operations can be direct. Do not put a bearer token into URLs or publish a
+work details first. Native Rust owns authenticated HTTP operations; the web UI calls only the typed bridge. Do not put a bearer token into URLs or publish a
 private administrator token to JavaScript. Supply clear response types and errors, not an
 unrestricted command/function dispatch bridge.
 
@@ -134,8 +134,8 @@ unrestricted command/function dispatch bridge.
   Git history without checking out over dirty work. Initial inventory: `src-tauri/src/player/`,
   `torrent/`, `downloads/`, `diagnostics.rs`, with libmpv2/librqbit/range gateway and download registry.
   Behavior/package tests are evidence to carry forward; platform-specific GTK3/Tauri glue needs adaptation.
-- Current Kotlin code is a rejected prototype, not a new fallback design. Remove it only at the
-  next explicit retirement step, including Gradle/JVM launch/tooling and Kotlin codegen output.
+- The rejected Kotlin prototype is retired, including Gradle/JVM launch/tooling and Kotlin
+  codegen output. Its committed checkpoint remains available for recovery/reference.
 - Keep Hono/provider/CLI modules until final consumers migrate. Preserve Drizzle's migration history,
   live UUIDs, identities, watched state, progress, notes, scores, relations and artwork.
 
@@ -187,9 +187,9 @@ Subagents obey the same ownership boundary.
 
 1. **Now:** repaired devenv + this plan + AGENTS/context. Show actual startup/shutdown checks;
    stop for review and commit confirmation. Preserve all unrelated pending source work.
-2. **Next:** approved Kotlin retirement, inspect the old player and Stremio bridge/render approach,
+2. **Retirement (complete):** remove Kotlin after its checkpoint, inspect the old player and Stremio bridge/render approach,
    agree minimal GTK package/UI boundary, then stop for review.
-3. **Bootstrap:** agent implements a runnable GTK shell with real login and a main library page,
+3. **Bootstrap (implemented, review next):** agent implements a runnable GTK shell with real login and a main library page,
    verifies it on Shadow and stops after each visible milestone. Add desktop to `devenv up` only
    when this startup path is working.
 4. **Learning:** Aqua owns the selected Rust exercises; agent owns UI/UX/API/database support.
@@ -216,3 +216,46 @@ of these before starting): [Rust + GTK4 book](https://gtk-rs.org/gtk4-rs/stable/
 [WebKitGTK Rust bindings](https://docs.rs/webkit6/latest/webkit6/), and
 [reqwest HTTP client](https://docs.rs/reqwest/latest/reqwest/). Select dependency versions against
 our locked Nix toolchain when implementing, rather than copying upstream version numbers.
+
+## Implemented bootstrap checkpoint
+
+Aqua approved one continuous pass after the planning review, including clean commits before and
+at completion. Initial commits `28e3c72` and `e8da773` preserved all earlier work and established a
+clean tree before retirement. Kotlin/Gradle source, launch configuration and Kotlin code generation
+are now removed from active work; the checkpoint retains their history.
+
+The native Rust package is `apps/linux`, with React/Vite/TypeScript in `apps/linux/ui`. Production
+loads the owned bundle at `nahhasio://app/` through a canonical, size-bounded asset handler with
+an explicit MIME allowlist. It cannot serve neighboring files/escaping symlinks. The WebKit bridge
+accepts only the bounded auth/catalog/artwork commands and keeps bearer sessions in native memory.
+The production UI has a restrictive CSP; frames/direct network/form navigation are disabled.
+
+Verified first scope: real login/logout, real catalog shelves and discovery search/filter/sort,
+bounded page loading, actual artwork, and selected-work overview/family/data preview. Player,
+torrent/Jellyfin resolution, saved packs, downloads and progress synchronization remain disabled
+and belong to later reviewed tasks. The earlier Tauri code was inspected for player/gateway/download
+responsibilities; no unrelated playback rewrite or GPL source copy was introduced.
+
+After the app's first review, Aqua owns the chosen Rust exercises. The source is organized by
+bridge, services, assets, native window and app-owned smoke verification. UI/setup/API/database
+remain agent responsibilities. The next chat should begin with review of the minimal app and a
+small explicitly chosen Rust exercise, rather than another broad client rewrite.
+
+### Final bootstrap verification — 2026-10-09
+
+Native build, Clippy and six tests passed. The five React browser journeys passed at480/640/1024/1440
+CSS pixels, including login rejection/retry, browsing, family metadata, search, logout and responsive
+preview/keyboard behavior. Two actual packaged GTK/WebKit smoke runs passed real login, catalog,
+registered-image decoding and logout through the native bridge. Native screenshot pixel dimensions
+reflect monitor scale/Niri allocation and are not advertised as exact CSS viewport tests.
+
+Runtime startup required the contained custom asset origin instead of raw file-based ES modules.
+GStreamer base runtime is now declared and `appsink` inspection passed. Existing host Fontconfig,
+accessibility-bus and Vulkan-resize warnings remain observations, not proof of complete platform
+integration. No runtime sandbox/security bypass was introduced. Private smoke credentials and
+screenshots are outside tracked source.
+
+Full default devenv cold startup was verified after managed shutdown: PostgreSQL/API/dashboard
+readiness passed and the GTK `client` process reported ready with zero restarts. `pnpm check`,
+`pnpm build` and all16safeRustworkspace tests passed on the completed source. The app is a local
+checkout bootstrap, not yet a Fedora installer/hosted release or a working torrent/Jellyfin player.

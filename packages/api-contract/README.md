@@ -5,11 +5,11 @@ revocable owner Bearer sessions. It does not grant ordinary family accounts acce
 until their content policies are enforced. No administrator token is sent to a client.
 
 Run `devenv shell -- pnpm --filter @nahhasio/api-contract generate` to
-regenerate the TypeScript models/fetch client and Kotlin serializable models. The command formats the generated TypeScript. The generator supports this contract's
+regenerate the TypeScript models and validated fetch client. The command formats the generated TypeScript. The generator supports this contract's
 explicit object/ref/array/nullable subset and rejects unsupported model constructs.
 The generated TypeScript transport validates response structure and enum values
-against the same OpenAPI source. Kotlin transport decodes the generated serializable
-models. Kotlin screens and transport behavior remain owned by the client.
+against the same OpenAPI source. The GTK web interface parses these generated schemas after native replies. Native Rust owns
+authentication/session secrets and bounded HTTP transport; only active TypeScript output is generated.
 
 List filters combine with AND. Text searches literal title/Arabic title/aliases, so `%`
 and `_` are not wildcard characters. Lists default to 24 results and are capped at 100.

@@ -1,13 +1,14 @@
 # Nahhasio
 
 A private family media hub: a Rust server for the catalog and home library, an Arabic-first
-administration dashboard, and a planned Rust GTK4/WebKitGTK viewing client.
+administration dashboard, and a Rust GTK4/WebKitGTK viewing client.
 The Git repository remains Arcadia while the product is rewritten in reviewed phases.
 
 **Current milestone: local server/client foundation.** The dashboard has real local catalog
 administration, structured and JSON editing, provider/artwork workflows, and schema inspection.
 Owner authentication and the client catalog API are implemented. The rejected Kotlin prototype
-is being retired in favor of a GTK4/libadwaita/WebKitGTK/libmpv shell with a React/Vite/TypeScript UI. Torrent playback, durable downloads, offline saving, and deployment remain later
+has been retired for a GTK4/libadwaita/WebKitGTK shell with a React/Vite/TypeScript UI.
+The first client checkpoint covers login and catalog browsing; libmpv playback follows its own milestone. Torrent playback, durable downloads, offline saving, and deployment remain later
 checkpoints. See [the current Linux transition plan](docs/linux-client-plan.md) and [review milestones](docs/phases.md).
 
 ## Workspace
@@ -15,15 +16,16 @@ checkpoints. See [the current Linux transition plan](docs/linux-client-plan.md) 
 ```text
 apps/server          Rust server (Axum, Tokio, SQLx/PostgreSQL)
 apps/web             TanStack Start administration dashboard (Base UI shadcn)
-apps/linux           Rejected Kotlin prototype; GTK replacement awaits review
-packages/api-contract OpenAPI and generated Kotlin/TypeScript models/clients
+apps/linux           Rust GTK4/libadwaita/WebKitGTK native shell
+apps/linux/ui        React/Vite/TypeScript viewing interface
+packages/api-contract OpenAPI and generated TypeScript schemas/client
 reference/arcadia-web      Previous website, isolated for migration/reference
 apps/api             Previous API, retained until Rust endpoint parity
 packages/database    Existing catalog schema and the single migration history
 packages/*           Existing catalog contracts, rules, vocabulary, and CLI
 ```
 
-This is one monorepo with pnpm/Cargo workspaces and an optional legacy Gradle prototype. The shared Rust media crate
+This is one monorepo with pnpm/Cargo workspaces. The shared Rust media crate
 will join when torrent playback is introduced. PostgreSQL and existing catalog data remain.
 
 ## Run locally
@@ -41,6 +43,9 @@ uses port 23102. Startup does not migrate or seed the database.
 If the backend is already running, open just the desktop with `devenv shell -- nahhasio-client`.
 For backend/dashboard only, use `devenv up postgres server web`. Do not start duplicate copies
 on the same fixed ports; strict port checking deliberately reports the conflict.
+
+For backend only, use `devenv up postgres server web`. For the desktop separately, use
+`devenv shell -- nahhasio-client`. The launcher builds the owned UI bundle before opening GTK.
 
 The reference Hono API is available explicitly with `devenv --profile reference-api up`.
 See [the workspace map](docs/AGENT-CONTEXT.md) for individual commands and transition paths.

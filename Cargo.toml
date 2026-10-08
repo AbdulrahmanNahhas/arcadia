@@ -1,5 +1,5 @@
 [workspace]
-members = ["apps/server"]
+members = ["apps/server", "apps/linux"]
 resolver = "3"
 
 [workspace.package]
@@ -33,3 +33,7 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = "warn"
+
+# GTK's generated bindings are large; keep local builds within laptop memory.
+[profile.dev]
+debug = 0
