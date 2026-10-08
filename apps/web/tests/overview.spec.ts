@@ -1,4 +1,10 @@
+// Authenticated journeys require a session on a disposable test server.
 import { expect, test } from "@playwright/test";
+
+test.skip(
+  !process.env.NAHHASIO_E2E_STORAGE_STATE,
+  "Provide disposable-server authenticated storage state; live credentials are never used by default tests.",
+);
 
 test("shows a ready server and retries on request", async ({ page }) => {
   let requests = 0;
@@ -7,10 +13,10 @@ test("shows a ready server and retries on request", async ({ page }) => {
     return route.fulfill({ json: { status: "ready" } });
   });
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "لوحة التحكم" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "لوحة المكتبة" })).toBeVisible();
   await expect(page.getByRole("status")).toHaveText("متصل");
   await page.evaluate(() => document.fonts.ready);
-  await page.screenshot({ path: "../../docs/screenshots/phase1-desktop.png", fullPage: true });
+  await page.screenshot({ path: "../../data/previews/dashboard-desktop.png", fullPage: true });
   const initialRequests = requests;
   await page.getByRole("button", { name: "إعادة فحص الاتصال" }).click();
   await expect.poll(() => requests).toBe(initialRequests + 1);
@@ -63,7 +69,7 @@ test("the official sidebar collapses on desktop and opens as a mobile drawer", a
   await page.getByRole("button", { name: "إظهار أو إخفاء القائمة" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.screenshot({
-    path: "../../docs/screenshots/phase1-mobile-sidebar.png",
+    path: "../../data/previews/dashboard-mobile-sidebar.png",
     fullPage: true,
   });
   await page.keyboard.press("Escape");

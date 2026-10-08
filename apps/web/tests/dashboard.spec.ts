@@ -1,7 +1,13 @@
+// Authenticated journeys require a session on a disposable test server.
 import { expect, test } from "@playwright/test";
 
-import { serverSections } from "../src/features/dashboard/navigation";
-import { collections } from "../src/features/database/collections";
+import { serverSections } from "../src/features/dashboard/shell/navigation";
+import { collections } from "../src/features/database/records/collections";
+
+test.skip(
+  !process.env.NAHHASIO_E2E_STORAGE_STATE,
+  "Provide disposable-server authenticated storage state; live credentials are never used by default tests.",
+);
 
 test("Database switches the entire sidebar workspace and opens the work draft", async ({
   page,
@@ -30,7 +36,7 @@ test("workspace selector switches back to server management", async ({ page }) =
   await page.goto("/database");
   await page.getByRole("button", { name: "اختيار مساحة العمل" }).click();
   await page.getByRole("menuitem", { name: "إدارة الخادم", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "لوحة التحكم", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "لوحة المكتبة", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "الأجهزة", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "الأشخاص", exact: true })).toHaveCount(0);
 });
@@ -73,29 +79,51 @@ test("selected works open a projected JSON workspace with invalid drafts blocked
   }
 });
 
-test("every database collection and server screen renders without runtime errors", async ({
+test("sidebar navigation opens every database collection and server screen without runtime errors", async ({
   page,
 }) => {
   test.setTimeout(90_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  for (const collection of collections) {
-    await page.goto(`/database/${collection.slug}`);
+  await page.goto("/database/works");
+  for (const collection of collections.filter(
+    (item) => !["installments", "episodes"].includes(item.slug),
+  )) {
+    await page
+      .getByLabel("التنقل الرئيسي")
+      .getByRole("link", { name: collection.title, exact: true })
+      .click();
     await expect(page.getByRole("heading", { name: collection.title, exact: true })).toBeVisible();
   }
-  for (const section of serverSections) {
-    await page.goto(`/server/${section.slug}`);
-    await expect(page.getByRole("heading", { name: section.title, exact: true })).toBeVisible();
-  }
-  for (const [path, title] of [
-    ["/database/images", "مكتبة الصور"],
-    ["/database/imports", "TMDB وFanart"],
-    ["/database/validation", "التحقق والصيانة"],
-    ["/database/revisions", "السجل وسلة المحذوفات"],
-    ["/login", "تسجيل الدخول"],
-  ] as const) {
-    await page.goto(path);
+  for (const title of ["مكتبة الصور", "التحقق والصيانة", "السجل وسلة المحذوفات"]) {
+    await page.getByLabel("التنقل الرئيسي").getByRole("link", { name: title, exact: true }).click();
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   }
+  await page.getByRole("button", { name: "اختيار مساحة العمل" }).click();
+  await page.getByRole("menuitem", { name: "إدارة الخادم", exact: true }).click();
+  for (const section of serverSections) {
+    await page
+      .getByLabel("التنقل الرئيسي")
+      .getByRole("link", { name: section.title, exact: true })
+      .click();
+    await expect(page.getByRole("heading", { name: section.title, exact: true })).toBeVisible();
+  }
+  await page
+    .getByLabel("التنقل الرئيسي")
+    .getByRole("link", { name: "تسجيل الدخول", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { name: "تسجيل الدخول", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+for (const collection of collections.filter((item) =>
+  ["installments", "episodes"].includes(item.slug),
+)) {
+  test(`direct catalog route ${collection.slug} loads without runtime errors`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(`/database/${collection.slug}`);
+    await expect(page.getByRole("heading", { name: collection.title, exact: true })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+}

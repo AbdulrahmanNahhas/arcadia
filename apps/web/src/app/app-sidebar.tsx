@@ -28,8 +28,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { databaseTools, serverSections } from "@/features/dashboard/navigation";
-import { collections } from "@/features/database/collections";
+import { databaseTools, serverSections } from "@/features/dashboard/shell/navigation";
+import { collections } from "@/features/database/records/collections";
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });

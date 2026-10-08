@@ -1,4 +1,10 @@
+// Authenticated journeys require a session on a disposable test server.
 import { expect, test } from "@playwright/test";
+
+test.skip(
+  !process.env.NAHHASIO_E2E_STORAGE_STATE,
+  "Provide disposable-server authenticated storage state; live credentials are never used by default tests.",
+);
 
 test("live catalog loads, searches and scrolls without writing", async ({ page }) => {
   await page.goto("/database/works");
@@ -295,6 +301,42 @@ test("work refinements use radar comparisons, compact actions and scoped movie I
 });
 
 test("source results open above the search dialog and return to its inputs", async ({ page }) => {
+  let searches = 0;
+  await page.route("https://fixture.invalid/artwork.png", (route) =>
+    route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jBp0AAAAASUVORK5CYII=",
+        "base64",
+      ),
+    }),
+  );
+  await page.route("**/_serverFn/**", (route) => {
+    const payload = new URL(route.request().url()).searchParams.get("payload") ?? "";
+    if (!payload.includes("tmdbId") || !payload.includes("530915")) return route.continue();
+    searches++;
+    return route.fulfill({
+      json: {
+        result: {
+          candidates: [
+            {
+              provider: "tmdb",
+              externalId: "fixture-530915",
+              role: "poster",
+              previewUrl: "https://fixture.invalid/artwork.png",
+              downloadUrl: "https://fixture.invalid/artwork.png",
+              width: 100,
+              height: 150,
+              language: null,
+              matchLabel: "1917 fixture poster",
+            },
+          ],
+          warnings: [],
+        },
+        context: {},
+      },
+    });
+  });
   await page.goto("/database/works/b635c9fb-8425-4c69-b720-4b1449c48033?section=images");
   await page.getByRole("button", { name: "المصادر أو رفع صورة", exact: true }).first().click();
   const form = page.getByRole("dialog", { name: "اختيار صورة: 1917", exact: true });
@@ -302,10 +344,12 @@ test("source results open above the search dialog and return to its inputs", asy
   await expect(form.getByText(/tmdb: 530915/)).toBeVisible();
   await form.getByRole("button", { name: "البحث عن الصور", exact: true }).click();
   const results = page.getByRole("dialog", { name: "نتائج البحث عن الصور", exact: true });
-  await expect(results).toBeVisible({ timeout: 60000 });
+  await expect(results).toBeVisible();
+  expect(searches).toBe(1);
   await expect(page.getByRole("dialog", { includeHidden: true })).toHaveCount(2);
   const image = results.locator("img").first();
-  if (await image.count()) await expect(image).toHaveClass(/aspect-2\/3/);
+  await expect(image).toHaveClass(/aspect-2\/3/);
+  await expect(image).toHaveAttribute("alt", "1917 fixture poster");
   await page.keyboard.press("Escape");
   await expect(results).toHaveCount(0);
   await expect(form.getByText(/tmdb: 530915/)).toBeVisible();
@@ -351,7 +395,7 @@ test("new work uses every editor tab and round-trips its local JSON draft", asyn
   await page.getByRole("tab", { name: "البنية", exact: true }).click();
   await page.getByRole("button", { name: "إضافة جزء", exact: true }).click();
   await page.getByRole("textbox", { name: "اسم الجزء", exact: true }).fill("Draft season");
-  await page.getByRole("spinbutton", { name: "القصة", exact: true }).fill("8");
+  await page.getByRole("spinbutton", { name: /^القصة والحبكة ·/ }).fill("8");
   await page.getByRole("button", { name: "إضافة حلقة", exact: true }).click();
   await page.getByRole("textbox", { name: "اسم الحلقة 1", exact: true }).fill("Draft episode");
   await page.getByRole("tab", { name: "الفهرسة", exact: true }).click();

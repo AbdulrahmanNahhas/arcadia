@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import { serverSectionFor } from "@/features/dashboard/navigation";
-import { ServerSectionPage } from "@/features/dashboard/server-section-page";
+import { serverSectionFor } from "@/features/dashboard/shell/navigation";
+import { ServerSectionPage } from "@/features/server/overview/server-section-page";
 export const Route = createFileRoute("/server/$section")({
   beforeLoad: ({ params }) => {
     const section = serverSectionFor(params.section);

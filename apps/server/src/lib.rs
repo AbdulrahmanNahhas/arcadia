@@ -1,3 +1,5 @@
+mod auth;
+mod catalog;
 mod database;
 use std::time::Duration;
 
@@ -28,12 +30,19 @@ pub fn router(pool: PgPool) -> Router {
 
 pub fn router_with_admin(pool: PgPool, token: Option<String>) -> Router {
     let catalog = database::routes(pool.clone(), token);
+    let client = catalog::routes(pool.clone()).route_layer(axum::middleware::from_fn_with_state(
+        pool.clone(),
+        auth::require_owner,
+    ));
+    let auth = auth::routes(pool.clone());
     Router::new()
         .route("/api/health/live", get(live))
         .route("/api/health/ready", get(ready))
         .layer(TraceLayer::new_for_http())
         .with_state(pool)
         .merge(catalog)
+        .merge(client)
+        .merge(auth)
 }
 
 #[derive(Serialize)]
@@ -122,11 +131,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn catalog_is_not_exposed_before_authentication_is_implemented() {
+    async fn catalog_requires_authentication() {
         let response = router(unavailable_database())
-            .oneshot(Request::get("/api/v1/titles").body(Body::empty()).unwrap())
+            .oneshot(Request::get("/api/v1/works").body(Body::empty()).unwrap())
             .await
             .unwrap();
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 }
