@@ -128,6 +128,32 @@ async fn table(pool: &PgPool, name: &str) -> ApiResult<Table> {
         .find(|table| table.name == name)
         .ok_or_else(|| ApiError(StatusCode::NOT_FOUND, "الجدول غير موجود".into()))
 }
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+enum CatalogSort {
+    #[default]
+    Title,
+    YearDesc,
+    YearAsc,
+    Updated,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum CatalogStructure {
+    Movie,
+    Series,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum CatalogGap {
+    Poster,
+    Summary,
+    ArabicName,
+    Structure,
+}
+const CATALOG_POSTER: &str = "(select a.path from public.media_asset_assignments m join public.media_assets a on a.id=m.asset_id where m.title_id=t.id and m.role='poster' order by m.is_primary desc,m.id limit 1)";
+const CATALOG_SERIES: &str = "exists(select 1 from public.installments i where i.title_id=t.id and (i.kind='season' or exists(select 1 from public.episodes e where e.installment_id=i.id)))";
+
 #[derive(Deserialize)]
 struct Page {
     #[serde(default)]
@@ -135,6 +161,12 @@ struct Page {
     limit: Option<u32>,
     search: Option<String>,
     filters: Option<String>,
+    #[serde(default)]
+    catalog: bool,
+    #[serde(default)]
+    sort: CatalogSort,
+    structure: Option<CatalogStructure>,
+    gap: Option<CatalogGap>,
 }
 async fn records(
     State(state): State<DatabaseState>,
@@ -181,23 +213,68 @@ async fn records(
         .map(|column| format!("t.{}", quote(&column.name)))
         .collect::<Vec<_>>()
         .join(",");
-    let order = if ordering.is_empty() {
+    let catalog = page.catalog && name == "titles";
+    let order = if catalog {
+        match page.sort {
+            CatalogSort::Title => "coalesce(nullif(t.title_ar,''),t.sort_title),t.id".to_owned(),
+            CatalogSort::YearDesc => "t.release_year desc nulls last,t.sort_title,t.id".to_owned(),
+            CatalogSort::YearAsc => "t.release_year asc nulls last,t.sort_title,t.id".to_owned(),
+            CatalogSort::Updated => "t.updated_at desc,t.id".to_owned(),
+        }
+    } else if ordering.is_empty() {
         "to_jsonb(t)::text".to_owned()
     } else {
         ordering
     };
+    let projection = if catalog {
+        format!(
+            "to_jsonb(t) || jsonb_build_object('catalog', jsonb_build_object('poster',{CATALOG_POSTER},'is_series',{CATALOG_SERIES},'installments',(select count(*) from public.installments i where i.title_id=t.id),'episodes',(select count(*) from public.episodes e join public.installments i on i.id=e.installment_id where i.title_id=t.id)))"
+        )
+    } else {
+        "to_jsonb(t)".to_owned()
+    };
+    let mut predicate = "to_jsonb(t) @> $1::jsonb".to_owned();
+    if catalog {
+        predicate.push_str(" and (t.canonical_title ilike $2 or t.title_ar ilike $2 or exists(select 1 from public.title_aliases a where a.title_id=t.id and a.title ilike $2))");
+        match page.structure {
+            Some(CatalogStructure::Series) => predicate.push_str(&format!(" and {CATALOG_SERIES}")),
+            Some(CatalogStructure::Movie) => predicate.push_str(&format!(" and not {CATALOG_SERIES} and exists(select 1 from public.installments i where i.title_id=t.id)")),
+            None => (),
+        }
+        match page.gap {
+            Some(CatalogGap::Poster) => {
+                predicate.push_str(&format!(" and {CATALOG_POSTER} is null"))
+            }
+            Some(CatalogGap::Summary) => predicate.push_str(" and btrim(t.summary)=''"),
+            Some(CatalogGap::ArabicName) => {
+                predicate.push_str(" and coalesce(btrim(t.title_ar),'')=''")
+            }
+            Some(CatalogGap::Structure) => predicate.push_str(
+                " and not exists(select 1 from public.installments i where i.title_id=t.id)",
+            ),
+            None => (),
+        }
+    } else {
+        predicate.push_str(" and to_jsonb(t)::text ilike $2");
+    }
     let query = format!(
-        "select to_jsonb(t)-$3::text[] from {source} t where to_jsonb(t) @> $1::jsonb and to_jsonb(t)::text ilike $2 order by {order} limit $4 offset $5"
+        "select ({projection})-$3::text[] from {source} t where {predicate} order by {order} limit $4 offset $5"
     );
     let rows = sqlx::query_scalar::<_, SqlJson<Value>>(AssertSqlSafe(query))
         .bind(SqlJson(filter.clone()))
         .bind(&search)
         .bind(secret)
-        .bind(i64::from(page.limit.unwrap_or(30).clamp(1, 100)))
+        .bind(i64::from(page.limit.unwrap_or(50).clamp(1, 100)))
         .bind(i64::from(page.offset))
         .fetch_all(&state.pool)
         .await?;
-    let count=sqlx::query_scalar::<_,i64>(AssertSqlSafe(format!("select count(*) from {source} t where to_jsonb(t) @> $1::jsonb and to_jsonb(t)::text ilike $2"))).bind(SqlJson(filter)).bind(&search).fetch_one(&state.pool).await?;
+    let count = sqlx::query_scalar::<_, i64>(AssertSqlSafe(format!(
+        "select count(*) from {source} t where {predicate}"
+    )))
+    .bind(SqlJson(filter))
+    .bind(&search)
+    .fetch_one(&state.pool)
+    .await?;
     Ok(Json(
         json!({"table":meta,"rows":rows.into_iter().map(|row|row.0).collect::<Vec<_>>(),"total":count,"offset":page.offset}),
     ))

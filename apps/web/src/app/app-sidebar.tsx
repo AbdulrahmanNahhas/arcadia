@@ -53,7 +53,7 @@ export function AppSidebar() {
                 render={<SidebarMenuButton size="lg" isActive={workspaceOpen} />}
                 aria-label="اختيار مساحة العمل"
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-primary text-primary-foreground shadow-sm">
                   <WorkspaceIcon />
                 </span>
                 <span className="grid flex-1 text-start leading-tight">
@@ -97,7 +97,7 @@ export function AppSidebar() {
               <SidebarGroupLabel>قاعدة البيانات</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  <SidebarMenuItem>
+                  <SidebarMenuItem className="not-last:mb-1">
                     <SidebarMenuButton
                       isActive={pathname === "/database" || pathname === "/database/"}
                       tooltip="نظرة عامة"
@@ -107,20 +107,22 @@ export function AppSidebar() {
                       <span>نظرة عامة</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  {collections.slice(0, 3).map((item) => (
-                    <SidebarMenuItem key={item.slug}>
-                      <SidebarMenuButton
-                        isActive={pathname.startsWith(`/database/${item.slug}`)}
-                        tooltip={item.title}
-                        render={
-                          <Link to="/database/$collection" params={{ collection: item.slug }} />
-                        }
-                      >
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {collections
+                    .filter((item) => item.slug === "works")
+                    .map((item) => (
+                      <SidebarMenuItem key={item.slug} className="not-last:mb-1">
+                        <SidebarMenuButton
+                          isActive={pathname.startsWith(`/database/${item.slug}`)}
+                          tooltip={item.title}
+                          render={
+                            <Link to="/database/$collection" params={{ collection: item.slug }} />
+                          }
+                        >
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -129,7 +131,7 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {collections.slice(3).map((item) => (
-                    <SidebarMenuItem key={item.slug}>
+                    <SidebarMenuItem key={item.slug} className="not-last:mb-1">
                       <SidebarMenuButton
                         isActive={pathname === `/database/${item.slug}`}
                         tooltip={item.title}
@@ -150,7 +152,7 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {databaseTools.map((item) => (
-                    <SidebarMenuItem key={item.slug}>
+                    <SidebarMenuItem key={item.slug} className="not-last:mb-1">
                       <SidebarMenuButton
                         isActive={pathname === `/database/${item.slug}`}
                         tooltip={item.title}
@@ -171,7 +173,7 @@ export function AppSidebar() {
               <SidebarGroupLabel>مساحات العمل</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  <SidebarMenuItem>
+                  <SidebarMenuItem className="not-last:mb-1">
                     <SidebarMenuButton
                       isActive={pathname === "/"}
                       tooltip="لوحة التحكم"
@@ -195,7 +197,7 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {serverSections.map((item) => (
-                    <SidebarMenuItem key={item.slug}>
+                    <SidebarMenuItem key={item.slug} className="not-last:mb-1">
                       <SidebarMenuButton
                         isActive={pathname === `/server/${item.slug}`}
                         tooltip={item.title}
@@ -212,18 +214,18 @@ export function AppSidebar() {
           </>
         )}
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            {!database && (
+      {!database && (
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
               <SidebarMenuButton tooltip="تسجيل الدخول" render={<Link to="/login" />}>
                 <LogInIcon />
                 <span>تسجيل الدخول</span>
               </SidebarMenuButton>
-            )}
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
     </Sidebar>
   );
 }

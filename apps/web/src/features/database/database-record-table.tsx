@@ -244,14 +244,14 @@ export function DatabaseRecordTable({
             <Button
               variant="outline"
               disabled={offset === 0 || query.isFetching}
-              onClick={() => setOffset(Math.max(0, offset - 30))}
+              onClick={() => setOffset(Math.max(0, offset - 50))}
             >
               السابق
             </Button>
             <Button
               variant="outline"
-              disabled={!query.data || offset + 30 >= query.data.total || query.isFetching}
-              onClick={() => setOffset(offset + 30)}
+              disabled={!query.data || offset + 50 >= query.data.total || query.isFetching}
+              onClick={() => setOffset(offset + 50)}
             >
               التالي
             </Button>

@@ -9,8 +9,12 @@ export const searchArtwork = createServerFn({ method: "GET" })
   .inputValidator(artworkSearchQuerySchema)
   .handler(async ({ data }) => {
     requireLocalAdmin();
-    const { searchArtwork: search } = await import("@arcadia/api/artwork");
-    return z.array(artworkCandidateSchema).parse(await search(data));
+    const { searchArtworkDetailed: search } = await import("@arcadia/api/artwork");
+    const result = await search(data);
+    return {
+      candidates: z.array(artworkCandidateSchema).parse(result.candidates),
+      warnings: result.warnings,
+    };
   });
 export const getTmdbSeason = createServerFn({ method: "GET" })
   .inputValidator(
@@ -33,11 +37,7 @@ export const ingestArtwork = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     requireLocalAdmin();
     const host = new URL(data.url).hostname;
-    if (
-      !["image.tmdb.org", "assets.fanart.tv", "artworks.thetvdb.com", "s4.anilist.co"].includes(
-        host,
-      )
-    )
+    if (!["image.tmdb.org", "assets.fanart.tv", "s4.anilist.co"].includes(host))
       throw new Error("مصدر الصورة غير مسموح");
     const { storeMediaFromUrl } = await import("@arcadia/api/media-storage");
     const stored = await storeMediaFromUrl({

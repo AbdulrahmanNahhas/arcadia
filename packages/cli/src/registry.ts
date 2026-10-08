@@ -260,7 +260,7 @@ export const resources: readonly Resource[] = [
     table: "external_identities",
     summary:
       "Free-form references (Wikipedia, official site, trailer, Fanart image ids) for a title " +
-      "or installment. The five typed catalog ids (tmdb/imdb/tvdb/anilist/mal) live as columns " +
+      "or installment. The four typed catalog ids (tmdb/imdb/anilist/mal) live as columns " +
       "on `title`/`installment` directly, not here.",
     listColumns: ["id", "title_id", "installment_id", "provider", "external_id", "url"],
     orderBy: "provider",

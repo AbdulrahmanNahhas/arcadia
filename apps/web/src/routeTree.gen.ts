@@ -24,6 +24,7 @@ import { Route as DatabaseTablesRouteImport } from './routes/database.tables'
 import { Route as DatabaseValidationRouteImport } from './routes/database.validation'
 import { Route as MediaSplatRouteImport } from './routes/media.$'
 import { Route as ServerSectionRouteImport } from './routes/server.$section'
+import { Route as DatabaseWorksWorkIdRouteImport } from './routes/database.works.$workId'
 import { Route as DatabaseWorksNewRouteImport } from './routes/database.works.new'
 
 const IndexRoute = IndexRouteImport.update({
@@ -101,6 +102,11 @@ const ServerSectionRoute = ServerSectionRouteImport.update({
   path: '/$section',
   getParentRoute: () => ServerRoute,
 } as any)
+const DatabaseWorksWorkIdRoute = DatabaseWorksWorkIdRouteImport.update({
+  id: '/works/$workId',
+  path: '/works/$workId',
+  getParentRoute: () => DatabaseRoute,
+} as any)
 const DatabaseWorksNewRoute = DatabaseWorksNewRouteImport.update({
   id: '/works/new',
   path: '/works/new',
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/media/$': typeof MediaSplatRoute
   '/server/$section': typeof ServerSectionRoute
   '/database/': typeof DatabaseIndexRoute
+  '/database/works/$workId': typeof DatabaseWorksWorkIdRoute
   '/database/works/new': typeof DatabaseWorksNewRoute
 }
 export interface FileRoutesByTo {
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/media/$': typeof MediaSplatRoute
   '/server/$section': typeof ServerSectionRoute
   '/database': typeof DatabaseIndexRoute
+  '/database/works/$workId': typeof DatabaseWorksWorkIdRoute
   '/database/works/new': typeof DatabaseWorksNewRoute
 }
 export interface FileRoutesById {
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/media/$': typeof MediaSplatRoute
   '/server/$section': typeof ServerSectionRoute
   '/database/': typeof DatabaseIndexRoute
+  '/database/works/$workId': typeof DatabaseWorksWorkIdRoute
   '/database/works/new': typeof DatabaseWorksNewRoute
 }
 export interface FileRouteTypes {
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/media/$'
     | '/server/$section'
     | '/database/'
+    | '/database/works/$workId'
     | '/database/works/new'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/media/$'
     | '/server/$section'
     | '/database'
+    | '/database/works/$workId'
     | '/database/works/new'
   id:
     | '__root__'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/media/$'
     | '/server/$section'
     | '/database/'
+    | '/database/works/$workId'
     | '/database/works/new'
   fileRoutesById: FileRoutesById
 }
@@ -332,6 +344,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServerSectionRouteImport
       parentRoute: typeof ServerRoute
     }
+    '/database/works/$workId': {
+      id: '/database/works/$workId'
+      path: '/works/$workId'
+      fullPath: '/database/works/$workId'
+      preLoaderRoute: typeof DatabaseWorksWorkIdRouteImport
+      parentRoute: typeof DatabaseRoute
+    }
     '/database/works/new': {
       id: '/database/works/new'
       path: '/works/new'
@@ -352,6 +371,7 @@ interface DatabaseRouteChildren {
   DatabaseTablesRoute: typeof DatabaseTablesRoute
   DatabaseValidationRoute: typeof DatabaseValidationRoute
   DatabaseIndexRoute: typeof DatabaseIndexRoute
+  DatabaseWorksWorkIdRoute: typeof DatabaseWorksWorkIdRoute
   DatabaseWorksNewRoute: typeof DatabaseWorksNewRoute
 }
 
@@ -365,6 +385,7 @@ const DatabaseRouteChildren: DatabaseRouteChildren = {
   DatabaseTablesRoute: DatabaseTablesRoute,
   DatabaseValidationRoute: DatabaseValidationRoute,
   DatabaseIndexRoute: DatabaseIndexRoute,
+  DatabaseWorksWorkIdRoute: DatabaseWorksWorkIdRoute,
   DatabaseWorksNewRoute: DatabaseWorksNewRoute,
 }
 

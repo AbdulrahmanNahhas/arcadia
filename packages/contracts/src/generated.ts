@@ -250,7 +250,6 @@ export interface paths {
                                 isPlayable: boolean;
                                 tmdbId: number | null;
                                 imdbId: string | null;
-                                tvdbId: number | null;
                                 anilistId: number | null;
                                 malId: number | null;
                             })[];
@@ -382,7 +381,6 @@ export interface paths {
                             isPlayable: boolean;
                             tmdbId: number | null;
                             imdbId: string | null;
-                            tvdbId: number | null;
                             anilistId: number | null;
                             malId: number | null;
                             trivia: string[];
@@ -455,7 +453,6 @@ export interface paths {
                                 isPlayable: boolean;
                                 tmdbId: number | null;
                                 imdbId: string | null;
-                                tvdbId: number | null;
                                 anilistId: number | null;
                                 malId: number | null;
                             }[];

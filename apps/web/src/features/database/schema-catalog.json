@@ -2374,13 +2374,6 @@
   },
   {
     "table_name": "installments",
-    "column_name": "tvdb_id",
-    "data_type": "integer",
-    "is_nullable": "YES",
-    "primary_key": false
-  },
-  {
-    "table_name": "installments",
     "column_name": "anilist_id",
     "data_type": "integer",
     "is_nullable": "YES",
@@ -3769,13 +3762,6 @@
     "table_name": "titles",
     "column_name": "imdb_id",
     "data_type": "text",
-    "is_nullable": "YES",
-    "primary_key": false
-  },
-  {
-    "table_name": "titles",
-    "column_name": "tvdb_id",
-    "data_type": "integer",
     "is_nullable": "YES",
     "primary_key": false
   },

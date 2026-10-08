@@ -112,14 +112,20 @@ export function ArtworkSearchPanel() {
           <AlertDescription>الصورة مسجلة في مكتبة الوسائط ويمكن ربطها بسجل.</AlertDescription>
         </Alert>
       )}
-      {search.isSuccess && search.data.length === 0 && (
+      {search.data?.warnings.length ? (
+        <Alert>
+          <AlertTitle>بعض المصادر غير متاحة</AlertTitle>
+          <AlertDescription>{search.data.warnings.join(" · ")}</AlertDescription>
+        </Alert>
+      ) : null}
+      {search.isSuccess && search.data.candidates.length === 0 && (
         <Alert>
           <AlertTitle>لا توجد صور مطابقة</AlertTitle>
           <AlertDescription>راجع الاسم ومفاتيح TMDB وFanart.</AlertDescription>
         </Alert>
       )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {search.data?.map((candidate) => (
+        {search.data?.candidates.map((candidate) => (
           <Card key={candidate.downloadUrl}>
             <CardHeader>
               <CardTitle>{candidate.matchLabel}</CardTitle>

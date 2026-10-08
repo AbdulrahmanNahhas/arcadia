@@ -65,7 +65,6 @@ const installmentDocument = z.object({
     .regex(/^tt\d{7,10}$/)
     .nullable()
     .optional(),
-  tvdbId: z.number().int().positive().nullable().optional(),
   anilistId: z.number().int().positive().nullable().optional(),
   malId: z.number().int().positive().nullable().optional(),
   score: z
@@ -90,6 +89,9 @@ const creditDocument = z.object({
 });
 
 const awardDocument = z.object({
+  id: z.string().uuid().optional(),
+  ceremonyId: z.string().uuid().nullable().optional(),
+  position: z.number().int().min(0).optional(),
   organization: z.string().min(1),
   category: z.string().min(1),
   year: z.number().int().min(1900).max(2100).nullable().optional(),
@@ -122,7 +124,7 @@ export const workDocument = z.object({
   sexualityRisk: z.enum(["none", "low", "medium", "high"]).optional(),
   behavioralRisk: z.enum(["none", "low", "medium", "high"]).optional(),
   theologyRisk: z.enum(["none", "low", "medium", "high"]).optional(),
-  // A franchise title's own ids (AniList/MAL/TVDB); a movie installment carries its own
+  // A franchise title's own ids (AniList/MAL); a movie installment carries its own
   // tmdbId/imdbId separately (see `installmentDocument`).
   tmdbId: z.number().int().positive().nullable().optional(),
   imdbId: z
@@ -130,7 +132,6 @@ export const workDocument = z.object({
     .regex(/^tt\d{7,10}$/)
     .nullable()
     .optional(),
-  tvdbId: z.number().int().positive().nullable().optional(),
   anilistId: z.number().int().positive().nullable().optional(),
   malId: z.number().int().positive().nullable().optional(),
   aliases: z.array(z.string().min(1)).optional(),
@@ -259,7 +260,7 @@ async function resolveEntity(
   const rows = await transaction.unsafe<Array<{ id: string }>>(
     `select e.id from entities e
      where e.kind = $2 and (
-       lower(btrim(e.name)) = lower(btrim($1)) or lower(btrim(e.sort_name)) = lower(btrim($1))
+       e.id::text = $1 or lower(btrim(e.name)) = lower(btrim($1)) or lower(btrim(e.sort_name)) = lower(btrim($1))
        or exists (select 1 from entity_aliases a
                   where a.entity_id = e.id and lower(btrim(a.alias)) = lower(btrim($1)))
      ) limit 2`,
@@ -381,7 +382,6 @@ const titleScalarColumns: Array<[keyof WorkDocument, string]> = [
   ["theologyRisk", "theology_risk"],
   ["tmdbId", "tmdb_id"],
   ["imdbId", "imdb_id"],
-  ["tvdbId", "tvdb_id"],
   ["anilistId", "anilist_id"],
   ["malId", "mal_id"],
 ];
@@ -390,6 +390,7 @@ async function upsertTitle(
   transaction: TransactionSql,
   document: WorkDocument,
   existingId: string | undefined,
+  createId?: string,
 ): Promise<{ id: string; created: boolean }> {
   const values = new Map<string, SqlValue>();
   for (const [key, column] of titleScalarColumns) {
@@ -416,6 +417,7 @@ async function upsertTitle(
     return { id: existingId, created: false };
   }
 
+  if (createId) values.set("id", createId);
   const names = [...values.keys()];
   const rows = await transaction.unsafe<Array<{ id: string }>>(
     `insert into titles (${names.map((name) => `"${name}"`).join(", ")})
@@ -463,7 +465,6 @@ async function syncInstallments(
       ["theologyRiskOverride", "theology_risk_override"],
       ["tmdbId", "tmdb_id"],
       ["imdbId", "imdb_id"],
-      ["tvdbId", "tvdb_id"],
       ["anilistId", "anilist_id"],
       ["malId", "mal_id"],
     ] as const) {
@@ -483,6 +484,7 @@ async function syncInstallments(
       installmentId = match.id;
     } else {
       values.set("title_id", titleId);
+      if (document.id) values.set("id", document.id);
       const names = [...values.keys()];
       const rows = await transaction.unsafe<Array<{ id: string }>>(
         `insert into installments (${names.map((name) => `"${name}"`).join(", ")})
@@ -586,6 +588,7 @@ async function syncEpisodes(
       continue;
     }
     values.set("installment_id", installmentId);
+    if (document.id) values.set("id", document.id);
     const names = [...values.keys()];
     const rows = await transaction.unsafe<Array<{ id: string }>>(
       `insert into episodes (${names.map((name) => `"${name}"`).join(", ")})
@@ -670,7 +673,7 @@ async function syncAwards(
       Array<{ id: string; slug: string; name_ar: string }>
     >(
       `select id, slug, name_ar from award_organizations
-       where slug = $1 or lower(name_ar) = lower($1) or lower(name_en) = lower($1) limit 1`,
+       where id::text = $1 or slug = $1 or lower(name_ar) = lower($1) or lower(name_en) = lower($1) limit 1`,
       [document.organization],
     );
     let organization = organizations[0];
@@ -694,7 +697,7 @@ async function syncAwards(
 
     const categories = await transaction.unsafe<Array<{ id: string }>>(
       `select id from award_categories
-       where organization_id = $1 and (slug = $2 or lower(name_ar) = lower($2) or lower(name_en) = lower($2))
+       where organization_id = $1 and (id::text = $2 or slug = $2 or lower(name_ar) = lower($2) or lower(name_en) = lower($2))
        limit 1`,
       [organization.id, document.category],
     );
@@ -725,43 +728,61 @@ async function syncAwards(
       }
     }
 
-    await transaction.unsafe(
-      // `award_recognitions` has no unique constraint to conflict on, so re-applying the same
-      // document would otherwise insert a second copy of every award. Match on the tuple that
-      // makes a recognition the same recognition, treating null installment/year as equal.
-      `insert into award_recognitions
-         (title_id, installment_id, organization_id, category_id, organization_slug,
-          organization_name, category, year, result, is_featured, source_url, notes, position)
-       select $1,$2::uuid,$3,$4,$5,$6,$7,$8::int,$9::award_result,$10,$11,$12,$13
-       where not exists (
-         select 1 from award_recognitions existing
-         where existing.title_id = $1
-           and existing.installment_id is not distinct from $2::uuid
-           and existing.organization_slug = $5
-           and existing.category = $7
-           and existing.year is not distinct from $8::int
-           and existing.result = $9::award_result
-       )`,
-      parameters([
-        titleId,
-        installmentId,
-        organization.id,
-        categoryId ?? null,
-        organization.slug,
-        organization.name_ar,
-        document.category,
-        document.year ?? null,
-        document.result,
-        document.isFeatured ?? false,
-        document.sourceUrl ?? null,
-        document.notes ?? null,
-        index,
-      ]),
-    );
+    if (document.ceremonyId) {
+      const ceremonies =
+        await transaction`select id from award_ceremonies where id = ${document.ceremonyId} and organization_id = ${organization.id} and year = ${document.year ?? null}`;
+      if (!ceremonies.length)
+        throw new CliError("Award ceremony must belong to the selected organization and year");
+    }
+    const values = [
+      titleId,
+      installmentId,
+      organization.id,
+      categoryId ?? null,
+      organization.slug,
+      organization.name_ar,
+      document.category,
+      document.year ?? null,
+      document.result,
+      document.isFeatured ?? false,
+      document.sourceUrl ?? null,
+      document.notes ?? null,
+      document.position ?? index,
+      document.ceremonyId ?? null,
+    ];
+    if (document.id) {
+      const existing =
+        await transaction`select title_id from award_recognitions where id = ${document.id}`;
+      if (existing[0] && existing[0].title_id !== titleId)
+        throw new CliError("Award does not belong to this work");
+      if (existing.length) {
+        await transaction.unsafe(
+          `update award_recognitions set installment_id=$2::uuid, organization_id=$3, category_id=$4, organization_slug=$5, organization_name=$6, category=$7, year=$8::int, result=$9::award_result, is_featured=$10, source_url=$11, notes=$12, position=$13, ceremony_id=$14::uuid, updated_at=now() where title_id=$1 and id=$15::uuid`,
+          parameters([...values, document.id]),
+        );
+      } else {
+        await transaction.unsafe(
+          `insert into award_recognitions (title_id, installment_id, organization_id, category_id, organization_slug, organization_name, category, year, result, is_featured, source_url, notes, position, ceremony_id, id) values ($1,$2::uuid,$3,$4,$5,$6,$7,$8::int,$9::award_result,$10,$11,$12,$13,$14::uuid,$15::uuid)`,
+          parameters([...values, document.id]),
+        );
+      }
+    } else {
+      await transaction.unsafe(
+        `insert into award_recognitions (title_id, installment_id, organization_id, category_id, organization_slug, organization_name, category, year, result, is_featured, source_url, notes, position, ceremony_id) select $1,$2::uuid,$3,$4,$5,$6,$7,$8::int,$9::award_result,$10,$11,$12,$13,$14::uuid where not exists (select 1 from award_recognitions existing where existing.title_id=$1 and existing.installment_id is not distinct from $2::uuid and existing.organization_slug=$5 and existing.category=$7 and existing.year is not distinct from $8::int and existing.result=$9::award_result)`,
+        parameters(values),
+      );
+    }
   }
 }
 
-export async function workApply(sql: Sql, args: ParsedArgs, target: string | undefined) {
+export async function workApply(
+  sql: Sql,
+  args: ParsedArgs,
+  target: string | undefined,
+  enclosingTransaction?: TransactionSql,
+  replaceLists: readonly string[] = [],
+  createId?: string,
+) {
   const file = stringFlag(args, "file") ?? target;
   const inline = stringFlag(args, "json");
   if (!file && !inline) {
@@ -795,30 +816,39 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
   const mode: ApplyMode = stringFlag(args, "mode") === "replace" ? "replace" : "merge";
   const createMissing = boolFlag(args, "create-missing");
   const dryRun = boolFlag(args, "dry-run");
+  if (enclosingTransaction && dryRun) throw new CliError("The caller owns transaction rollback.");
 
-  const schema = await loadSchema(sql);
+  const schema = await loadSchema(enclosingTransaction ?? sql);
   const titlesTable = requireTable(schema, "titles");
 
   let existingId = document.id;
   if (!existingId) {
     try {
-      existingId = await resolveRef(sql, titlesTable, document.canonicalTitle);
+      existingId = await resolveRef(
+        enclosingTransaction ?? sql,
+        titlesTable,
+        document.canonicalTitle,
+      );
     } catch {
       existingId = undefined;
     }
   }
 
-  if (existingId && boolFlag(args, "create-only"))
+  if (createId && (document.id || !enclosingTransaction))
+    throw new CliError("Creation review owns the transaction and new identifier.");
+  if (existingId && (createId || boolFlag(args, "create-only")))
     throw new CliError("A work with this title already exists; open the existing record instead.");
 
   const run = async (transaction: TransactionSql) => {
-    const { id: titleId, created } = await upsertTitle(transaction, document, existingId);
+    const listMode = (field: string): ApplyMode =>
+      replaceLists.includes(field) ? "replace" : mode;
+    const { id: titleId, created } = await upsertTitle(transaction, document, existingId, createId);
 
     if (document.aliases) {
-      if (mode === "replace") {
+      if (listMode("aliases") === "replace") {
         await transaction.unsafe(
-          `delete from title_aliases where title_id = $1`,
-          parameters([titleId]),
+          `delete from title_aliases where title_id = $1 and not (title = any($2::text[]))`,
+          [titleId, document.aliases],
         );
       }
       for (const alias of document.aliases) {
@@ -834,18 +864,38 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
     // whatever positions already exist) without touching or reordering existing ones — there's
     // no id to merge entries against, so "append" is the closest analogue to "add without
     // removing".
-    if (document.trivia) {
-      if (mode === "replace") {
-        await transaction.unsafe(
-          `delete from title_trivia where title_id = $1`,
-          parameters([titleId]),
-        );
+    if (document.trivia && replaceLists.includes("trivia")) {
+      const existingFacts = await transaction.unsafe<Array<{ id: string; position: number }>>(
+        `select id, position from title_trivia where title_id = $1 order by position, id`,
+        [titleId],
+      );
+      for (const [index, text] of document.trivia.entries()) {
+        const existing = existingFacts[index];
+        if (existing)
+          await transaction.unsafe(`update title_trivia set text = $2 where id = $1`, [
+            existing.id,
+            text,
+          ]);
+        else
+          await transaction.unsafe(
+            `insert into title_trivia (title_id, position, text) values ($1, $2, $3)`,
+            [
+              titleId,
+              (existingFacts.at(-1)?.position ?? -1) + index - existingFacts.length + 1,
+              text,
+            ],
+          );
       }
+      const removed = existingFacts.slice(document.trivia.length).map((fact) => fact.id);
+      if (removed.length)
+        await transaction.unsafe(`delete from title_trivia where id = any($1::uuid[])`, [removed]);
+    } else if (document.trivia) {
+      if (mode === "replace")
+        await transaction.unsafe(`delete from title_trivia where title_id = $1`, [titleId]);
       const [row] = await transaction.unsafe<Array<{ next_position: number }>>(
         `select coalesce(max(position) + 1, 0) as next_position from title_trivia where title_id = $1`,
-        parameters([titleId]),
+        [titleId],
       );
-      const nextPosition = row ? Number(row.next_position) : 0;
       const existingFacts =
         mode === "merge"
           ? await transaction.unsafe<Array<{ text: string }>>(
@@ -854,27 +904,24 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
             )
           : [];
       const knownFacts = new Set(existingFacts.map((fact) => fact.text));
-      const additions = document.trivia.filter((text) => !knownFacts.has(text));
-      for (const [offset, text] of additions.entries()) {
+      for (const [index, factText] of document.trivia
+        .filter((text) => !knownFacts.has(text))
+        .entries()) {
         await transaction.unsafe(
           `insert into title_trivia (title_id, position, text) values ($1, $2, $3)`,
-          [titleId, nextPosition + offset, text],
+          [titleId, Number(row?.next_position ?? 0) + index, factText],
         );
       }
     }
 
     for (const name of ["genres", "tones", "tags", "countries"] as const) {
       const values = document[name];
-      if (values) await syncLookup(transaction, titleId, name, values, mode, createMissing);
+      if (values)
+        await syncLookup(transaction, titleId, name, values, listMode(name), createMissing);
     }
 
     if (document.planets) {
-      if (mode === "replace") {
-        await transaction.unsafe(
-          `delete from title_planets where title_id = $1`,
-          parameters([titleId]),
-        );
-      }
+      const planetIds: string[] = [];
       for (const planet of document.planets) {
         const rows = await transaction.unsafe<Array<{ id: string }>>(
           `select id from planets where slug = $1 or lower(name_ar) = lower($1) or lower(name_en) = lower($1) limit 1`,
@@ -887,14 +934,32 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
             'List them with "arcadia planet list".',
           );
         }
+        planetIds.push(row.id);
         await transaction.unsafe(
           `insert into title_planets (title_id, planet_id) values ($1, $2) on conflict do nothing`,
           [titleId, row.id],
         );
       }
+      if (listMode("planets") === "replace")
+        await transaction.unsafe(
+          `delete from title_planets where title_id = $1 and not (planet_id = any($2::uuid[]))`,
+          [titleId, planetIds],
+        );
     }
 
     if (document.externalIds) {
+      if (listMode("externalIds") === "replace") {
+        await transaction.unsafe(
+          `delete from external_identities e where e.title_id = $1 and e.installment_id is null
+           and not exists (select 1 from unnest($2::text[], $3::text[]) as kept(provider, external_id)
+             where lower(btrim(e.provider)) = lower(btrim(kept.provider)) and e.external_id = kept.external_id)`,
+          [
+            titleId,
+            document.externalIds.map((item) => item.provider),
+            document.externalIds.map((item) => item.externalId),
+          ],
+        );
+      }
       for (const identity of document.externalIds) {
         await transaction.unsafe(
           `insert into external_identities (title_id, installment_id, provider, external_id, url)
@@ -907,10 +972,21 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
     }
 
     if (document.credits) {
-      await syncCredits(transaction, titleId, document.credits, mode, createMissing);
+      await syncCredits(transaction, titleId, document.credits, listMode("credits"), createMissing);
     }
 
     if (document.relations) {
+      if (listMode("relations") === "replace") {
+        const targets = [];
+        for (const relation of document.relations)
+          targets.push(await resolveRef(transaction, titlesTable, relation.target));
+        await transaction.unsafe(
+          `delete from title_relations r where r.source_title_id = $1
+           and not exists (select 1 from unnest($2::uuid[], $3::text[]) as kept(target_id, kind)
+             where r.target_title_id = kept.target_id and r.kind::text = kept.kind)`,
+          [titleId, targets, document.relations.map((relation) => relation.kind)],
+        );
+      }
       for (const relation of document.relations) {
         const targetId = await resolveRef(transaction, titlesTable, relation.target);
         await transaction.unsafe(
@@ -928,10 +1004,21 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
 
     const positions = document.installments
       ? await syncInstallments(transaction, titleId, document.installments, mode)
-      : new Map<number, string>();
+      : new Map(
+          (
+            await transaction<
+              { position: number; id: string }[]
+            >`select position, id from installments where title_id = ${titleId}`
+          ).map((row) => [row.position, row.id]),
+        );
 
     if (document.awards) {
-      if (mode === "replace") {
+      if (replaceLists.includes("awards")) {
+        await transaction.unsafe(
+          `delete from award_recognitions where title_id = $1 and not (id = any($2::uuid[]))`,
+          [titleId, document.awards.flatMap((award) => (award.id ? [award.id] : []))],
+        );
+      } else if (mode === "replace") {
         await transaction.unsafe(
           `delete from award_recognitions where title_id = $1`,
           parameters([titleId]),
@@ -970,7 +1057,9 @@ export async function workApply(sql: Sql, args: ParsedArgs, target: string | und
     };
   }
 
-  const result: ApplyOutcome = await sql.begin(run);
+  const result: ApplyOutcome = enclosingTransaction
+    ? await run(enclosingTransaction)
+    : await sql.begin(run);
   return { ok: true, mode, created: result.created, titleId: result.titleId };
 }
 
@@ -981,7 +1070,7 @@ class RollbackSignal extends Error {
   }
 }
 
-export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
+export async function workExport(sql: Sql | TransactionSql, ref: string): Promise<WorkDocument> {
   const schema = await loadSchema(sql);
   const titleId = await resolveRef(sql, requireTable(schema, "titles"), ref);
 
@@ -1028,30 +1117,39 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
     sql<Array<{ entity: string; role: string; is_primary: boolean; position: number }>>`
         select e.name as entity, r.slug as role, c.is_primary, c.position
         from contributions c join entities e on e.id = c.entity_id join roles r on r.id = c.role_id
-        where c.title_id = ${titleId} order by c.position`,
+        where c.title_id = ${titleId} order by c.position, c.entity_id, c.role_id`,
     sql<Array<{ provider: string; external_id: string; url: string | null }>>`
-        select provider, external_id, url from external_identities where title_id = ${titleId} order by provider`,
+        select provider, external_id, url from external_identities where title_id = ${titleId} order by provider, external_id, id`,
     sql<Array<{ target: string; kind: string; notes: string }>>`
         select t.canonical_title as target, r.kind, r.notes
         from title_relations r join titles t on t.id = r.target_title_id
-        where r.source_title_id = ${titleId} order by r.kind`,
+        where r.source_title_id = ${titleId} order by r.kind, r.target_title_id`,
     sql<Array<{ role: string; path: string }>>`
         select x.role, a.path from media_asset_assignments x join media_assets a on a.id = x.asset_id
-        where x.title_id = ${titleId} and x.is_primary`,
+        where x.title_id = ${titleId} and x.is_primary order by x.role, x.id`,
     sql<Row[]>`
         select i.*, s.story, s.characters, s.depth, s.world_building, s.originality, s.craft
         from installments i left join installment_scores s on s.installment_id = i.id
-        where i.title_id = ${titleId} order by i.position`,
+        where i.title_id = ${titleId} order by i.position, i.id`,
     sql<Row[]>`
-        select organization_slug, category, year, result, is_featured, source_url, notes, installment_id
-        from award_recognitions where title_id = ${titleId} order by position`,
+        select id, position, ceremony_id, organization_slug, category, year, result, is_featured, source_url, notes, installment_id
+        from award_recognitions where title_id = ${titleId} order by position, id`,
   ]);
 
   const episodesByInstallment = new Map<string, Row[]>();
+  const mediaByInstallment = new Map<string, Record<string, string>>();
   if (installments.length > 0) {
     const episodeRows = await sql<Row[]>`
       select * from episodes where installment_id in ${sql(installments.map((row) => String(row.id)))}
-      order by position`;
+      order by position, id`;
+    const artwork = await sql<
+      { installment_id: string; role: string; path: string }[]
+    >`select x.installment_id, x.role, a.path from media_asset_assignments x join media_assets a on a.id = x.asset_id where x.installment_id in ${sql(installments.map((row) => String(row.id)))} and x.is_primary order by x.role, x.id`;
+    for (const asset of artwork)
+      mediaByInstallment.set(asset.installment_id, {
+        ...mediaByInstallment.get(asset.installment_id),
+        [asset.role]: asset.path,
+      });
     for (const episode of episodeRows) {
       const key = String(episode.installment_id);
       const bucket = episodesByInstallment.get(key);
@@ -1089,7 +1187,6 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
     theologyRisk: title.theology_risk as WorkDocument["theologyRisk"],
     tmdbId: number(title.tmdb_id),
     imdbId: (title.imdb_id as string | null) ?? null,
-    tvdbId: number(title.tvdb_id),
     anilistId: number(title.anilist_id),
     malId: number(title.mal_id),
     aliases: aliases.map((row) => row.title),
@@ -1132,7 +1229,6 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
       theologyRiskOverride: (row.theology_risk_override as string | null) ?? null,
       tmdbId: number(row.tmdb_id),
       imdbId: (row.imdb_id as string | null) ?? null,
-      tvdbId: number(row.tvdb_id),
       anilistId: number(row.anilist_id),
       malId: number(row.mal_id),
       score: {
@@ -1143,6 +1239,7 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
         originality: number(row.originality),
         craft: number(row.craft),
       },
+      media: mediaByInstallment.get(String(row.id)) ?? {},
       episodes: (episodesByInstallment.get(String(row.id)) ?? []).map((episode) => ({
         id: String(episode.id),
         number: Number(episode.number),
@@ -1154,6 +1251,9 @@ export async function workExport(sql: Sql, ref: string): Promise<WorkDocument> {
       })),
     })),
     awards: awards.map((row) => ({
+      id: String(row.id),
+      ceremonyId: (row.ceremony_id as string | null) ?? null,
+      position: Number(row.position),
       organization: String(row.organization_slug),
       category: String(row.category),
       year: number(row.year),

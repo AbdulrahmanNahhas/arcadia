@@ -8,7 +8,7 @@
  * `arcadia schema` is always describing what actually exists.
  */
 
-import { assertIdentifier, type Sql } from "./db";
+import { assertIdentifier, type Sql, type TransactionSql } from "./db";
 import { CliError } from "./output";
 
 export type ColumnInfo = {
@@ -43,7 +43,7 @@ export type SchemaInfo = {
 
 let cached: SchemaInfo | undefined;
 
-export async function loadSchema(sql: Sql): Promise<SchemaInfo> {
+export async function loadSchema(sql: Sql | TransactionSql): Promise<SchemaInfo> {
   if (cached) return cached;
 
   const [columnRows, enumRows, primaryKeyRows, foreignKeyRows] = await Promise.all([

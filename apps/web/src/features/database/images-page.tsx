@@ -87,14 +87,14 @@ export function ImagesPage() {
               <Button
                 variant="outline"
                 disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - 30))}
+                onClick={() => setOffset(Math.max(0, offset - 50))}
               >
                 السابق
               </Button>
               <Button
                 variant="outline"
-                disabled={!images.data || offset + 30 >= images.data.total}
-                onClick={() => setOffset(offset + 30)}
+                disabled={!images.data || offset + 50 >= images.data.total}
+                onClick={() => setOffset(offset + 50)}
               >
                 التالي
               </Button>

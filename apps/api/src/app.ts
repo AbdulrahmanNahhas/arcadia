@@ -248,7 +248,6 @@ export const adminStructureSchema = z.object({
           .regex(/^tt\d{7,10}$/)
           .nullable()
           .optional(),
-        tvdbId: z.number().int().positive().nullable().optional(),
         anilistId: z.number().int().positive().nullable().optional(),
         malId: z.number().int().positive().nullable().optional(),
         units: z

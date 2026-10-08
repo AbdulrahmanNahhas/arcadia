@@ -86,7 +86,6 @@ export async function saveTitleStructure(titleId: string, input: StructureInput)
       const ids = {
         tmdb: season.tmdbId,
         imdb: season.imdbId,
-        tvdb: season.tvdbId,
         anilist: season.anilistId,
         mal: season.malId,
       };
@@ -102,7 +101,6 @@ export async function saveTitleStructure(titleId: string, input: StructureInput)
             status=${season.releaseStatus},
             tmdb_id=${ids.tmdb !== undefined ? ids.tmdb : transaction`tmdb_id`},
             imdb_id=${ids.imdb !== undefined ? ids.imdb : transaction`imdb_id`},
-            tvdb_id=${ids.tvdb !== undefined ? ids.tvdb : transaction`tvdb_id`},
             anilist_id=${ids.anilist !== undefined ? ids.anilist : transaction`anilist_id`},
             mal_id=${ids.mal !== undefined ? ids.mal : transaction`mal_id`},
             updated_at=now()
@@ -110,10 +108,10 @@ export async function saveTitleStructure(titleId: string, input: StructureInput)
       } else {
         const [created] = await transaction`insert into installments
             (title_id, kind, position, title, summary, release_date, runtime_minutes, status,
-             tmdb_id, imdb_id, tvdb_id, anilist_id, mal_id)
+             tmdb_id, imdb_id, anilist_id, mal_id)
           values (${titleId}, ${kind}, ${position}, ${season.title}, ${season.summary},
             ${releaseDate}, ${season.runtimeMinutes ?? null}, ${season.releaseStatus},
-            ${ids.tmdb ?? null}, ${ids.imdb ?? null}, ${ids.tvdb ?? null},
+            ${ids.tmdb ?? null}, ${ids.imdb ?? null},
             ${ids.anilist ?? null}, ${ids.mal ?? null}) returning id`;
         if (!created) throw new Error("Could not create installment");
         installmentId = String(created.id);

@@ -56,7 +56,7 @@ function AppShell() {
         انتقل إلى المحتوى
       </a>
       <AppSidebar />
-      <SidebarInset id="main-content" tabIndex={-1}>
+      <SidebarInset className="min-w-0" id="main-content" tabIndex={-1}>
         <header className="flex h-16 items-center gap-3 border-b px-6">
           <SidebarTrigger aria-label="إظهار أو إخفاء القائمة" />
           {/*<Separator orientation="vertical" className="h-16" />*/}
@@ -77,7 +77,7 @@ function AppShell() {
             <Badge variant="outline">إدارة محلية</Badge>
           </div>
         </header>
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-5 lg:p-8">
+        <div className="mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-6 p-5 lg:p-8">
           <Outlet />
         </div>
       </SidebarInset>

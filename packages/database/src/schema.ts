@@ -92,17 +92,15 @@ const timestamps = {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 };
 /**
- * The five external-catalog identifiers Phase 0 of the player/torrent roadmap needs, kept as
+ * The four external-catalog identifiers Phase 0 of the player/torrent roadmap needs, kept as
  * typed columns (not `external_identities` rows) so they can be looked up and written without a
  * join, and so `tmdb`/`anilist` ingest can update-in-place instead of insert-or-noop. Present on
- * both `titles` and `installments`: a franchise title carries its own `anilist_id`/`mal_id`/
- * `tvdb_id`, while each film installment carries its own `tmdb_id`/`imdb_id` — Torrentio and
+ * both `titles` and `installments`: a franchise title carries its own `anilist_id`/`mal_id`, while each film installment carries its own `tmdb_id`/`imdb_id` — Torrentio and
  * Jellyfin both key off the installment-level ids for movie playback.
  */
 const externalIdColumns = {
   tmdbId: integer("tmdb_id"),
   imdbId: text("imdb_id"),
-  tvdbId: integer("tvdb_id"),
   anilistId: integer("anilist_id"),
   malId: integer("mal_id"),
 };
@@ -151,9 +149,6 @@ export const titles = pgTable(
     uniqueIndex("titles_imdb_id_uq")
       .on(t.imdbId)
       .where(sql`${t.imdbId} is not null`),
-    uniqueIndex("titles_tvdb_id_uq")
-      .on(t.tvdbId)
-      .where(sql`${t.tvdbId} is not null`),
     uniqueIndex("titles_anilist_id_uq")
       .on(t.anilistId)
       .where(sql`${t.anilistId} is not null`),
@@ -244,9 +239,6 @@ export const installments = pgTable(
     uniqueIndex("installments_imdb_id_uq")
       .on(t.imdbId)
       .where(sql`${t.imdbId} is not null`),
-    uniqueIndex("installments_tvdb_id_uq")
-      .on(t.tvdbId)
-      .where(sql`${t.tvdbId} is not null`),
     uniqueIndex("installments_anilist_id_uq")
       .on(t.anilistId)
       .where(sql`${t.anilistId} is not null`),
@@ -630,8 +622,8 @@ export const externalIdentities = pgTable(
   (t) => [
     // Scoped per owner, not global: two different titles/installments are allowed to reference
     // the same free-form URL (e.g. a shared franchise Wikipedia page). This table now only holds
-    // free-form references (Wikipedia, official site, trailer, Fanart image ids) — the five
-    // typed catalog ids (tmdb/imdb/tvdb/anilist/mal) live on `titles`/`installments` directly.
+    // free-form references (Wikipedia, official site, trailer, Fanart image ids) — the four
+    // typed catalog ids (tmdb/imdb/anilist/mal) live on `titles`/`installments` directly.
     uniqueIndex("external_identity_provider_uq").on(
       t.titleId,
       t.installmentId,

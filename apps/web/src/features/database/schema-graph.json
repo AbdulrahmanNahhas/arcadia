@@ -4454,15 +4454,6 @@
         "enumValues": []
       },
       {
-        "name": "tvdb_id",
-        "type": "integer",
-        "nullable": true,
-        "primary": false,
-        "unique": false,
-        "default": null,
-        "enumValues": []
-      },
-      {
         "name": "anilist_id",
         "type": "integer",
         "nullable": true,
@@ -4537,13 +4528,6 @@
         "method": "btree",
         "columns": ["imdb_id"],
         "where": "\"installments\".\"imdb_id\" is not null"
-      },
-      {
-        "name": "installments_tvdb_id_uq",
-        "unique": true,
-        "method": "btree",
-        "columns": ["tvdb_id"],
-        "where": "\"installments\".\"tvdb_id\" is not null"
       },
       {
         "name": "installments_anilist_id_uq",
@@ -7248,15 +7232,6 @@
         "enumValues": []
       },
       {
-        "name": "tvdb_id",
-        "type": "integer",
-        "nullable": true,
-        "primary": false,
-        "unique": false,
-        "default": null,
-        "enumValues": []
-      },
-      {
         "name": "anilist_id",
         "type": "integer",
         "nullable": true,
@@ -7374,13 +7349,6 @@
         "method": "btree",
         "columns": ["imdb_id"],
         "where": "\"titles\".\"imdb_id\" is not null"
-      },
-      {
-        "name": "titles_tvdb_id_uq",
-        "unique": true,
-        "method": "btree",
-        "columns": ["tvdb_id"],
-        "where": "\"titles\".\"tvdb_id\" is not null"
       },
       {
         "name": "titles_anilist_id_uq",

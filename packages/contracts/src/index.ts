@@ -348,6 +348,7 @@ export const artworkRoleSchema = z.enum(["poster", "banner", "logo"]);
 export const artworkProviderSchema = z.enum(["tmdb", "anilist", "fanart"]);
 export const artworkSearchQuerySchema = z.object({
   title: z.string().trim().min(1).max(200),
+  seriesTitle: z.string().trim().min(1).max(200).optional(),
   year: z.coerce.number().int().min(1850).max(2100).optional(),
   /** Routes the search: the series/movie half picks TMDB's `/tv` vs `/movie` endpoint, and the
    *  animated half decides whether AniList is worth querying at all. */
@@ -357,6 +358,7 @@ export const artworkSearchQuerySchema = z.object({
    * looks the row up directly instead of fuzzy-searching by `title`/`year`. */
   tmdbId: z.coerce.number().int().positive().optional(),
   anilistId: z.coerce.number().int().positive().optional(),
+  season: z.coerce.number().int().nonnegative().optional(),
 });
 export const artworkCandidateSchema = z.object({
   provider: artworkProviderSchema,

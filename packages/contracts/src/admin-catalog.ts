@@ -41,7 +41,7 @@ const isoDateSchema = z
 const openVocabularyArray = z.array(z.string().trim().min(1)).default([]);
 
 /**
- * The five typed external-catalog identifiers, present on both `titles` and `installments`
+ * The four typed external-catalog identifiers, present on both `titles` and `installments`
  * (see the player/torrent roadmap's "Database migration" section). Shared here so the read-side
  * schemas in `index.ts` and the write-side input schemas below stay in sync.
  */
@@ -51,7 +51,6 @@ export const externalIdFieldsSchema = z.object({
     .string()
     .regex(/^tt\d{7,10}$/)
     .nullable(),
-  tvdbId: z.number().int().positive().nullable(),
   anilistId: z.number().int().positive().nullable(),
   malId: z.number().int().positive().nullable(),
 });
@@ -62,7 +61,6 @@ export const externalIdFieldsInputSchema = z.object({
     .regex(/^tt\d{7,10}$/)
     .nullable()
     .default(null),
-  tvdbId: z.number().int().positive().nullable().default(null),
   anilistId: z.number().int().positive().nullable().default(null),
   malId: z.number().int().positive().nullable().default(null),
 });

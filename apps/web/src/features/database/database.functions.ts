@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import type { DatabaseRow } from "./database-model";
 import { mutationInput, pageInput, pageSchema, rowSchema, tableSchema } from "./database-model";
 import { databaseRequest } from "./database.server";
+import { worksInputSchema, worksPageSchema } from "./works-model";
 
 export const getDatabaseSchema = createServerFn({ method: "GET" }).handler(async () =>
   z.array(tableSchema).parse(await databaseRequest("schema")),
@@ -12,7 +14,7 @@ export const getDatabaseRecords = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const params = new URLSearchParams({
       offset: String(data.offset),
-      limit: "30",
+      limit: "50",
       search: data.search,
       filters: JSON.stringify(data.filters),
     });
@@ -34,3 +36,43 @@ export const restoreDatabaseRecord = createServerFn({ method: "POST" })
   .handler(async ({ data }) =>
     rowSchema.parse(await databaseRequest("restore", "POST", JSON.stringify(data))),
   );
+
+function catalogParams(data: z.infer<typeof worksInputSchema>, limit: number) {
+  const filters: DatabaseRow = {};
+  if (data.format) filters.format = data.format;
+  if (data.workflow) filters.workflow_status = data.workflow;
+  if (data.visibility) filters.is_private = data.visibility === "private";
+  const params = new URLSearchParams({
+    offset: String(data.offset),
+    limit: String(limit),
+    search: data.search,
+    catalog: "true",
+    sort: data.sort ?? "title",
+    filters: JSON.stringify(filters),
+  });
+  if (data.structure) params.set("structure", data.structure);
+  if (data.gap) params.set("gap", data.gap);
+  return params;
+}
+export const getWorksPage = createServerFn({ method: "GET" })
+  .validator(worksInputSchema)
+  .handler(async ({ data }) =>
+    worksPageSchema.parse(await databaseRequest(`titles?${catalogParams(data, 30)}`)),
+  );
+
+// Resolve selection only on explicit intent; browsing still loads 30 works at a time.
+export const getWorksSelection = createServerFn({ method: "GET" })
+  .validator(worksInputSchema.omit({ offset: true }))
+  .handler(async ({ data }) => {
+    const ids = new Set<string>();
+    let offset = 0;
+    while (true) {
+      const page = worksPageSchema.parse(
+        await databaseRequest(`titles?${catalogParams({ ...data, offset }, 100)}`),
+      );
+      for (const { work } of page.items) ids.add(work.id);
+      offset += page.items.length;
+      if (page.items.length === 0 || offset >= page.total) break;
+    }
+    return [...ids];
+  });

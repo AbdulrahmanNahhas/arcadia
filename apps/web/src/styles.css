@@ -297,3 +297,22 @@
     border-bottom: 1px solid var(--border);
   }
 }
+
+/* The catalog follows available content width, including the open sidebar. */
+@utility catalog-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  column-gap: calc(var(--spacing) * 6);
+  row-gap: calc(var(--spacing) * 8);
+}
+@utility catalog-gallery-compact {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8rem), 1fr));
+  column-gap: calc(var(--spacing) * 4);
+}
+
+@utility catalog-gallery-large {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+}
+@utility catalog-gallery-largest {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+}

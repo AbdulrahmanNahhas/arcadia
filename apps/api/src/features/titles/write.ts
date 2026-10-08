@@ -47,7 +47,6 @@ export type LegacyTitleWritePayload = Partial<{
   externalLinks: Array<{ provider: string; label: string; url: string }>;
   tmdbId: number | null;
   imdbId: string | null;
-  tvdbId: number | null;
   anilistId: number | null;
   malId: number | null;
   /**
@@ -206,8 +205,8 @@ export function legacyTitleInputToCanonical(
       direction: relation.direction,
       notes: relation.notes ?? "",
     })),
-    // The URL identifies a free-form reference row now that the five typed catalog ids
-    // (tmdb/imdb/tvdb/anilist/mal) no longer flow through this list at all — they have their own
+    // The URL identifies a free-form reference row now that the four typed catalog ids
+    // (tmdb/imdb/anilist/mal) no longer flow through this list at all — they have their own
     // fields below. Falling back to the label only covers a link with no URL, which the schema
     // itself otherwise requires.
     externalIdentities: (raw.externalLinks ?? []).map((link) => ({
@@ -218,7 +217,6 @@ export function legacyTitleInputToCanonical(
 
     tmdbId: raw.tmdbId ?? null,
     imdbId: raw.imdbId ?? null,
-    tvdbId: raw.tvdbId ?? null,
     anilistId: raw.anilistId ?? null,
     malId: raw.malId ?? null,
 
@@ -281,7 +279,7 @@ export async function applyTitleWrite(
             quality_score=${input.qualityScore}, curator_notes=${input.curatorNotes},
             provenance=${JSON.stringify(input.provenance)}::jsonb, verified_at=${input.verifiedAt},
             verified_by_account_id=${verifiedByAccountId},
-            tmdb_id=${input.tmdbId}, imdb_id=${input.imdbId}, tvdb_id=${input.tvdbId},
+            tmdb_id=${input.tmdbId}, imdb_id=${input.imdbId},
             anilist_id=${input.anilistId}, mal_id=${input.malId}, updated_at=now()
           where id=${titleId} returning id`;
         return row ? String(row.id) : null;
@@ -292,14 +290,14 @@ export async function applyTitleWrite(
             analysis_notes, release_year, format, is_private, audience, age, sexuality_risk,
             behavioral_risk, theology_risk, workflow_status, quality_score, curator_notes,
             provenance, verified_at, verified_by_account_id,
-            tmdb_id, imdb_id, tvdb_id, anilist_id, mal_id)
+            tmdb_id, imdb_id, anilist_id, mal_id)
           values (${input.canonicalTitle}, ${input.canonicalTitle.toLocaleLowerCase()},
             ${input.titleAr}, ${input.summary}, ${input.contentWarnings}, ${input.analysisNotes},
             ${input.releaseYear}, ${input.format}, ${input.isPrivate}, ${input.audience}, ${input.age},
             ${input.sexualityRisk}, ${input.behavioralRisk}, ${input.theologyRisk},
             ${input.workflowStatus}, ${input.qualityScore}, ${input.curatorNotes},
             ${JSON.stringify(input.provenance)}::jsonb, ${input.verifiedAt}, ${verifiedByAccountId},
-            ${input.tmdbId}, ${input.imdbId}, ${input.tvdbId}, ${input.anilistId}, ${input.malId})
+            ${input.tmdbId}, ${input.imdbId}, ${input.anilistId}, ${input.malId})
           returning id`;
         return row ? String(row.id) : null;
       })();

@@ -7,6 +7,7 @@ import { PageHeader } from "@/features/dashboard/page-header";
 import { RecordTable } from "@/features/dashboard/record-table";
 
 import type { collections } from "./collections";
+import { WorksCatalog } from "./works-catalog";
 
 const collectionTables = {
   works: "titles",
@@ -30,14 +31,18 @@ export function CollectionPage({ collection }: CollectionPageProps) {
     <>
       <PageHeader
         title={collection.title}
-        description={collection.description}
-        eyebrow="قاعدة البيانات / المحتوى"
+        description={
+          collection.slug === "works" ? "تصفح الأعمال وحدد ما تريد تحريره." : collection.description
+        }
+        eyebrow={collection.slug === "works" ? undefined : "قاعدة البيانات / المحتوى"}
         actions={
           <>
-            <Button variant="outline" disabled>
-              <UploadIcon data-icon="inline-start" />
-              استيراد
-            </Button>
+            {collection.slug !== "works" && (
+              <Button variant="outline" disabled>
+                <UploadIcon data-icon="inline-start" />
+                استيراد
+              </Button>
+            )}
             {collection.slug === "works" ? (
               <Link to="/database/works/new" className={buttonVariants()}>
                 <PlusIcon data-icon="inline-start" />
@@ -53,7 +58,9 @@ export function CollectionPage({ collection }: CollectionPageProps) {
         }
       />
 
-      {collection.slug === "awards" ? (
+      {collection.slug === "works" ? (
+        <WorksCatalog />
+      ) : collection.slug === "awards" ? (
         <Tabs defaultValue="recognitions">
           <TabsList>
             <TabsTrigger value="recognitions">الترشيحات والنتائج</TabsTrigger>

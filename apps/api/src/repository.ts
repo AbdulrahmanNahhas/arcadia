@@ -432,7 +432,6 @@ function installment(
     isPlayable,
     tmdbId: numeric(row.tmdb_id),
     imdbId: row.imdb_id ? String(row.imdb_id) : null,
-    tvdbId: numeric(row.tvdb_id),
     anilistId: numeric(row.anilist_id),
     malId: numeric(row.mal_id),
   };
@@ -695,7 +694,6 @@ export async function titleDetail(
     ...summary(row, data, includePrivate),
     tmdbId: numeric(row.tmdb_id),
     imdbId: row.imdb_id ? String(row.imdb_id) : null,
-    tvdbId: numeric(row.tvdb_id),
     anilistId: numeric(row.anilist_id),
     malId: numeric(row.mal_id),
     trivia: trivia.map((item) => String(item.text)),

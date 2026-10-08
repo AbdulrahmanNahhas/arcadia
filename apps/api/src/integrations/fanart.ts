@@ -12,12 +12,7 @@ function readApiKey() {
   return process.env.FANART_API_KEY ?? null;
 }
 
-/**
- * Fanart.tv's movie endpoint is keyed directly by TMDB movie id — its TV endpoint needs a
- * TheTVDB id instead, which nothing else here resolves, so this only ever runs for movie-shaped
- * matches (see tmdb.ts). Fanart specializes in transparent "clearlogo" art, which is the main
- * reason to call it at all — TMDB's own logo coverage is inconsistent.
- */
+/** Movie artwork is resolved using the TMDB movie ID. */
 export async function fetchFanartMovieArtwork(input: {
   tmdbId: number;
   role: "poster" | "banner" | "logo";
@@ -27,8 +22,10 @@ export async function fetchFanartMovieArtwork(input: {
   if (!apiKey) return { candidates: [] };
   const response = await fetch(
     `https://webservice.fanart.tv/v3/movies/${input.tmdbId}?api_key=${apiKey}`,
+    { signal: AbortSignal.timeout(10000) },
   );
-  if (!response.ok) return { candidates: [] };
+  if (response.status === 404) return { candidates: [] };
+  if (!response.ok) throw new Error("تعذّر الاتصال بـ Fanart. راجع مفتاح المصدر.");
   // SAFETY: Fanart's movie endpoint responds with an object keyed by art-type slugs (or omits a
   // key entirely when it has no art of that type); FanartMovieResponse models exactly that shape.
   const body = (await response.json()) as FanartMovieResponse;
@@ -40,7 +37,7 @@ export async function fetchFanartMovieArtwork(input: {
         ? (body.moviebackground ?? [])
         : (body.movieposter ?? []);
 
-  const candidates: ArtworkCandidate[] = images.slice(0, 12).map((image) => ({
+  const candidates: ArtworkCandidate[] = images.slice(0, 100).map((image) => ({
     provider: "fanart",
     externalId: image.id,
     role: input.role,
@@ -52,4 +49,8 @@ export async function fetchFanartMovieArtwork(input: {
     matchLabel: input.matchLabel,
   }));
   return { candidates };
+}
+
+export function fanartConfigured() {
+  return readApiKey() !== null;
 }
