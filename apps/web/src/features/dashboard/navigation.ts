@@ -1,7 +1,6 @@
 import {
   ActivityIcon,
   ArchiveIcon,
-  ArrowDownToLineIcon,
   BracesIcon,
   DownloadIcon,
   HardDriveIcon,
@@ -115,7 +114,6 @@ export const serverSections = [
 
 export const databaseTools = [
   { slug: "images", title: "مكتبة الصور", icon: ImagesIcon },
-  { slug: "imports", title: "TMDB وFanart", icon: ArrowDownToLineIcon },
   { slug: "json", title: "محرر JSON", icon: BracesIcon },
   { slug: "validation", title: "التحقق والصيانة", icon: ListChecksIcon },
   { slug: "revisions", title: "السجل وسلة المحذوفات", icon: ScrollTextIcon },

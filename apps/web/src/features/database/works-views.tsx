@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { WorkScoreBadge } from "@/features/scoring/work-score";
 
 import type { DatabaseRow } from "./database-model";
 import type { CatalogWork } from "./works-model";
@@ -161,6 +162,7 @@ export function WorksGallery({
           </div>
           <div className="flex min-w-0 flex-col gap-2">
             <Names work={work} />
+            <WorkScoreBadge score={work.catalog.score} />
             {/*<Metadata work={work} />*/}
           </div>
         </article>
@@ -191,6 +193,7 @@ export function WorksList({ items, selected, onSelect, disabled }: ViewProps) {
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             <Names work={work} />
             <Metadata work={work} />
+            <WorkScoreBadge score={work.catalog.score} />
             {work.summary && (
               <p className="line-clamp-2 text-sm leading-7 text-muted-foreground">{work.summary}</p>
             )}
@@ -259,6 +262,7 @@ export function WorksTable({ items, selected, onSelect, disabled }: ViewProps) {
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <Names work={work} />
                     <Metadata work={work} />
+                    <WorkScoreBadge score={work.catalog.score} />
                   </div>
                 </div>
               </TableCell>

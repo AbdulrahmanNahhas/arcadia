@@ -56,9 +56,18 @@ function catalogParams(data: z.infer<typeof worksInputSchema>, limit: number) {
 }
 export const getWorksPage = createServerFn({ method: "GET" })
   .validator(worksInputSchema)
-  .handler(async ({ data }) =>
-    worksPageSchema.parse(await databaseRequest(`titles?${catalogParams(data, 30)}`)),
-  );
+  .handler(async ({ data }) => {
+    const page = worksPageSchema.parse(await databaseRequest(`titles?${catalogParams(data, 30)}`));
+    const { getTitleScores } = await import("@/features/scoring/score.server");
+    const scores = await getTitleScores(page.items.map(({ work }) => work.id));
+    return {
+      ...page,
+      items: page.items.map((item) => ({
+        ...item,
+        work: { ...item.work, catalog: { ...item.work.catalog, score: scores.get(item.work.id) } },
+      })),
+    };
+  });
 
 // Resolve selection only on explicit intent; browsing still loads 30 works at a time.
 export const getWorksSelection = createServerFn({ method: "GET" })

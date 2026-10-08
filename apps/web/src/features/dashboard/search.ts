@@ -10,6 +10,10 @@ export const dashboardSearch = catalogSearchSchema.extend({
     .regex(/^[a-z_][a-z0-9_]*$/)
     .optional(),
   work: z.string().uuid().optional(),
+  record: z.string().uuid().optional(),
+  catalogSort: z.enum(["name", "related", "updated"]).optional(),
+  catalogImage: z.enum(["all", "with-image", "without-image"]).optional(),
+  planetStatus: z.enum(["all", "active", "inactive"]).optional(),
   ids: z.array(z.string().uuid()).optional(),
   section: z
     .enum(["identity", "structure", "indexing", "editorial", "images", "references", "awards"])

@@ -1,4 +1,5 @@
 import type { WorkDocument } from "@arcadia/cli/work";
+import { workScore } from "@arcadia/domain";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { CheckIcon } from "lucide-react";
@@ -17,6 +18,7 @@ import {
   riskChoices,
 } from "@/features/database/classification-choices";
 import { workflowLabels } from "@/features/database/works-model";
+import { WorkScoreBadge, WorkScoreDetails } from "@/features/scoring/work-score";
 
 import { AwardsEditor } from "./awards-editor";
 import { ChangeReview } from "./change-review";
@@ -103,6 +105,9 @@ export function WorkWorkspace({
                 {workflowLabels[snapshot.document.workflowStatus ?? "draft"]}
               </Badge>
               {snapshot.document.isPrivate && <Badge variant="secondary">خاص</Badge>}
+              <WorkScoreBadge
+                score={workScore((draft.installments ?? []).map((item) => item.score ?? {}))}
+              />
             </div>
           </div>
         </div>
@@ -221,6 +226,7 @@ export function WorkWorkspace({
                     </FieldGroup>
                   </CardContent>
                 </Card>
+                <WorkScoreDetails installments={draft.installments ?? []} />
               </TabsContent>
               <TabsContent value="structure">
                 <Suspense fallback={<Skeleton className="h-96" />}>

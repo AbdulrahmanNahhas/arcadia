@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { workScoreSchema } from "@/features/scoring/score-model";
+
 import { rowSchema, tableSchema } from "./database-model";
 
 export const workflowLabels = {
@@ -35,6 +37,7 @@ export const catalogWorkSchema = z.object({
   workflow_status: workflowSchema,
   is_private: z.boolean(),
   catalog: z.object({
+    score: workScoreSchema.optional(),
     poster: z.string().nullable(),
     is_series: z.boolean(),
     installments: z.number().int().nonnegative(),

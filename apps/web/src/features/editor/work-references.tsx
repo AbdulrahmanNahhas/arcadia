@@ -13,6 +13,7 @@ import { IdentityFields } from "./identity-fields";
 import { OrderActions } from "./order-actions";
 import { moveOrderedRow, withPositions } from "./ordered-rows";
 import { findReferences, ReferenceField } from "./reference-field";
+import { useEditorRows } from "./use-editor-rows";
 import { SelectField, TextField } from "./work-fields";
 
 type Update = <K extends keyof WorkDocument>(key: K, value: WorkDocument[K]) => void;
@@ -35,6 +36,8 @@ export function WorkReferences({
   creditsOnly?: boolean;
 }) {
   const credits = draft.credits ?? [];
+  const identityRows = useEditorRows(draft.externalIds ?? []);
+  const relationRows = useEditorRows(draft.relations ?? []);
   if (creditsOnly)
     return (
       <FieldGroup>
@@ -114,8 +117,8 @@ export function WorkReferences({
           إضافة مرجع
         </Button>
       </div>
-      {identities.map((item, index) => (
-        <div key={index} className="rounded-lg border p-4">
+      {identityRows.map(({ key, value: item }, index) => (
+        <div key={key} className="rounded-lg border p-4">
           <FieldGroup>
             <FieldGroup className="grid md:grid-cols-3">
               <TextField
@@ -186,8 +189,8 @@ export function WorkReferences({
           إضافة علاقة
         </Button>
       </div>
-      {relations.map((item, index) => (
-        <div key={index} className="rounded-lg border p-4">
+      {relationRows.map(({ key, value: item }, index) => (
+        <div key={key} className="rounded-lg border p-4">
           <FieldGroup>
             <FieldGroup className="grid md:grid-cols-2">
               <ReferenceField

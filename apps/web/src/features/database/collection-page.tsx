@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/features/dashboard/page-header";
 import { RecordTable } from "@/features/dashboard/record-table";
 
+import { CatalogPage } from "./catalog-page";
 import type { collections } from "./collections";
 import { WorksCatalog } from "./works-catalog";
 
@@ -27,6 +28,12 @@ interface CollectionPageProps {
   collection: (typeof collections)[number];
 }
 export function CollectionPage({ collection }: CollectionPageProps) {
+  if (
+    collection.slug === "people" ||
+    collection.slug === "studios" ||
+    collection.slug === "planets"
+  )
+    return <CatalogPage kind={collection.slug} />;
   return (
     <>
       <PageHeader
@@ -126,13 +133,6 @@ export function CollectionPage({ collection }: CollectionPageProps) {
       ) : (
         <RecordTable
           table={collectionTables[collection.slug]}
-          filters={
-            collection.slug === "people"
-              ? { kind: "person" }
-              : collection.slug === "studios"
-                ? { kind: "organization" }
-                : undefined
-          }
           title={`سجلات ${collection.title}`}
           columns={collection.columns}
         />

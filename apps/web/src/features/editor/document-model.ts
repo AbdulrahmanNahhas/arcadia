@@ -63,10 +63,18 @@ function isDocumentObject(value: DocumentValue): value is { [key: string]: Docum
 export function isJsonObject(value: JsonValue): value is { [key: string]: JsonValue } {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
-export function isJsonString(value: JsonValue): value is string {
+export function isJsonString(value: JsonValue | undefined): value is string {
   return typeof value === "string";
 }
-function identified(value: JsonValue): value is { [key: string]: JsonValue } & { id: string } {
+export function isJsonNumber(value: JsonValue | undefined): value is number {
+  return typeof value === "number";
+}
+export function isJsonBoolean(value: JsonValue | undefined): value is boolean {
+  return typeof value === "boolean";
+}
+export function isIdentifiedJson(
+  value: JsonValue,
+): value is { [key: string]: JsonValue } & { id: string } {
   return isJsonObject(value) && typeof value.id === "string";
 }
 export function equalValue(left: DocumentValue, right: DocumentValue): boolean {
@@ -109,14 +117,18 @@ export function documentChanges(before: JsonValue, after: JsonValue, path = ""):
       documentChanges(before[key] ?? null, after[key] ?? null, path ? `${path}.${key}` : key),
     );
   }
-  if (Array.isArray(before) && Array.isArray(after) && [...before, ...after].every(identified)) {
+  if (
+    Array.isArray(before) &&
+    Array.isArray(after) &&
+    [...before, ...after].every(isIdentifiedJson)
+  ) {
     const ids = [
-      ...new Set([...before, ...after].map((value) => (identified(value) ? value.id : ""))),
+      ...new Set([...before, ...after].map((value) => (isIdentifiedJson(value) ? value.id : ""))),
     ];
     return ids.flatMap((id) =>
       documentChanges(
-        before.find((value) => identified(value) && value.id === id) ?? null,
-        after.find((value) => identified(value) && value.id === id) ?? null,
+        before.find((value) => isIdentifiedJson(value) && value.id === id) ?? null,
+        after.find((value) => isIdentifiedJson(value) && value.id === id) ?? null,
         `${path}[${id}]`,
       ),
     );

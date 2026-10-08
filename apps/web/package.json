@@ -14,6 +14,7 @@
     "@arcadia/api": "workspace:*",
     "@arcadia/cli": "workspace:*",
     "@arcadia/contracts": "workspace:*",
+    "@arcadia/domain": "workspace:*",
     "@arcadia/i18n": "workspace:*",
     "@base-ui/react": "^1.7.0",
     "@codemirror/lang-json": "^6.0.2",

@@ -91,7 +91,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="dark">
+      <body className="light">
         <DirectionProvider direction="rtl">
           <TooltipProvider>{children}</TooltipProvider>
         </DirectionProvider>

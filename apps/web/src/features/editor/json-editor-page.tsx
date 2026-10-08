@@ -1,7 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearch } from "@tanstack/react-router";
-import { BracesIcon, CopyIcon, Undo2Icon, WandSparklesIcon } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import {
+  BracesIcon,
+  CheckCheckIcon,
+  SearchIcon,
+  UploadIcon,
+  XIcon,
+  CopyIcon,
+  DownloadIcon,
+  Minimize2Icon,
+  Undo2Icon,
+  WandSparklesIcon,
+} from "lucide-react";
+import { lazy, Suspense, useRef, useState } from "react";
+import { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +23,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/features/dashboard/page-header";
 
 import { ChangeReview } from "./change-review";
@@ -19,19 +39,63 @@ import {
   documentRow,
   equalValue,
   fieldKeys,
-  projectDocuments,
-  projectionSchema,
   workFields,
   type WorkField,
   type WorkSnapshot,
 } from "./document-model";
 import { workSnapshotsOptions } from "./document.queries";
+import { readEditorDocument, jsonIssueKey } from "./json-document-input";
+import { JsonEnumReference } from "./json-enum-reference";
+import {
+  episodeFields,
+  installmentFields,
+  fullStructureScope,
+  preserveHidden,
+  projectRows,
+  type StructureScope,
+} from "./json-projection";
+import { JsonTreeEditor } from "./json-tree-editor";
 import { useDocumentReview } from "./use-document-review";
 import { SelectField } from "./work-fields";
 
 const CodeEditor = lazy(() =>
   import("./code-editor").then((module) => ({ default: module.CodeEditor })),
 );
+const completionKeys = [
+  ...fieldKeys,
+  ...installmentFields.map(({ key }) => key),
+  ...episodeFields.map(({ key }) => key),
+  "id",
+  "schemaVersion",
+  "records",
+  "fields",
+  "story",
+  "characters",
+  "depth",
+  "worldBuilding",
+  "originality",
+  "craft",
+  "entity",
+  "role",
+  "isPrimary",
+  "target",
+  "kind",
+  "notes",
+  "poster",
+  "banner",
+  "logo",
+  "provider",
+  "externalId",
+  "url",
+  "organization",
+  "category",
+  "year",
+  "result",
+  "installment",
+  "isFeatured",
+  "sourceUrl",
+  "ceremonyId",
+];
 const groups = [...new Set(workFields.map((field) => field.group))];
 const identityFields: WorkField[] = ["canonicalTitle", "titleAr", "aliases", "trivia", "summary"];
 export function JsonEditorPage() {
@@ -91,76 +155,135 @@ function JsonLoader({ ids }: { ids: string[] }) {
   );
 }
 function JsonWorkspace({ snapshots }: { snapshots: WorkSnapshot[] }) {
-  const [fields, setFields] = useState<WorkField[]>(identityFields);
+  const [fields, setFields] = useState<WorkField[]>(fieldKeys);
+  const [scope, setScope] = useState<StructureScope>(fullStructureScope);
   const [buffers, setBuffers] = useState(
     snapshots.map(({ document }) => documentRow.parse(document)),
   );
-  const initial = JSON.stringify(
-    projectDocuments(
-      snapshots.map(({ document }) => document),
-      fields,
-    ),
-    null,
-    2,
-  );
+  const originalRows = snapshots.map(({ document }) => documentRow.parse(document));
+  const initial = JSON.stringify(projectRows(originalRows, fields, scope), null, 2);
   const [draft, setDraft] = useState(initial);
   const [fieldSearch, setFieldSearch] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [preset, setPreset] = useState("identity");
-  const parsed = (() => {
-    try {
-      return projectionSchema.safeParse(JSON.parse(draft));
-    } catch {
-      return null;
+  const [preset, setPreset] = useState("all");
+  const input = readEditorDocument(draft);
+  const parsed = "projection" in input ? input.projection : null;
+  const visibleFields = parsed?.success ? parsed.data.fields : fields;
+  const mergedRows = parsed?.success
+    ? buffers.map((record) => {
+        const patch = parsed.data.records.find((value) => value.id === record.id);
+        return patch ? documentRow.parse(preserveHidden(record, patch)) : record;
+      })
+    : buffers;
+  const recordIdCounts = new Map<string, number>();
+  if (parsed?.success)
+    for (const record of parsed.data.records) {
+      const id = z.string().safeParse(record.id).data;
+      if (id) recordIdCounts.set(id, (recordIdCounts.get(id) ?? 0) + 1);
     }
-  })();
-  const dirty = parsed?.success ? !equalValue(JSON.parse(initial), parsed.data) : draft !== initial;
-  const flow = useDocumentReview(snapshots, draft, dirty);
+  const originalIds = new Set(
+    originalRows.flatMap((record) => {
+      const id = z.string().safeParse(record.id).data;
+      return id ? [id] : [];
+    }),
+  );
+  const originalIdByTitle = new Map<string, string>();
+  for (const record of originalRows) {
+    const id = z.string().safeParse(record.id).data;
+    const title = z.string().safeParse(record.canonicalTitle).data;
+    if (id && title) originalIdByTitle.set(title, id);
+  }
+  const identityIssues: Array<{
+    title: string;
+    id: string | null;
+    expectedId: string | null;
+    reason: string;
+  }> = [];
+  if (parsed?.success)
+    parsed.data.records.forEach((record, index) => {
+      const id = z.string().safeParse(record.id).data ?? null;
+      const canonicalTitle = z.string().safeParse(record.canonicalTitle).data;
+      const title =
+        z.string().safeParse(record.titleAr).data || canonicalTitle || `السجل ${index + 1}`;
+      if (!id) {
+        identityIssues.push({ title, id, expectedId: null, reason: "لا يوجد معرّف نصي." });
+        return;
+      }
+      if ((recordIdCounts.get(id) ?? 0) > 1) {
+        if (
+          index ===
+          parsed.data.records.findIndex(
+            (candidate) => z.string().safeParse(candidate.id).data === id,
+          )
+        )
+          identityIssues.push({
+            title,
+            id,
+            expectedId: null,
+            reason: "هذا المعرّف مستخدم في أكثر من سجل.",
+          });
+        return;
+      }
+      if (originalIds.has(id)) return;
+      const expectedId = canonicalTitle ? (originalIdByTitle.get(canonicalTitle) ?? null) : null;
+      identityIssues.push({
+        title,
+        id,
+        expectedId,
+        reason: expectedId
+          ? "المعرّف لا يطابق العمل الأصلي."
+          : "هذا المعرّف لا ينتمي إلى الأعمال المحددة للتحرير.",
+      });
+    });
+  const scopeValid = parsed?.success && identityIssues.length === 0;
+  const reviewJson = JSON.stringify({ schemaVersion: 1, fields: fieldKeys, records: mergedRows });
+  const dirty =
+    !equalValue(originalRows, mergedRows) ||
+    ((!parsed?.success || !scopeValid) && draft !== initial);
+  const flow = useDocumentReview(snapshots, reviewJson, dirty);
   function update(value: string) {
     setDraft(value);
     setNotice(null);
     flow.changed();
   }
-  function choose(next: WorkField[]) {
+  function choose(next: WorkField[], nextScope = scope) {
     if (!parsed?.success) {
       setNotice("صحّح JSON قبل تغيير نطاق الحقول حتى تبقى المسودة محفوظة.");
       return;
     }
-    const merged = buffers.map((record) => ({
-      ...record,
-      ...parsed.data.records.find((value) => value.id === record.id),
-    }));
-    setBuffers(merged);
+    if (!scopeValid) {
+      setNotice("معرّفات الأعمال ثابتة؛ أعد المعرّفات الأصلية وأزل السجلات المكررة قبل تغيير النطاق.");
+      return;
+    }
+    if (!next.length) next = ["canonicalTitle"];
+    setBuffers(mergedRows);
     setFields(next);
-    update(
-      JSON.stringify(
-        {
-          schemaVersion: 1,
-          fields: next,
-          records: merged.map((record) =>
-            Object.fromEntries([
-              ["id", record.id],
-              ...next.filter((key) => record[key] !== undefined).map((key) => [key, record[key]]),
-            ]),
-          ),
-        },
-        null,
-        2,
-      ),
-    );
+    if (!equalValue(next, visibleFields)) setPreset("custom");
+    setScope(nextScope);
+    update(JSON.stringify(projectRows(mergedRows, next, nextScope), null, 2));
   }
-  const error = flow.save.error ?? flow.prepare.error;
+  function download() {
+    const blob = new Blob([draft], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `works-${snapshots.length}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+  const operationError = flow.save.error ?? flow.prepare.error;
   return (
-    <div className="flex min-w-0 flex-col gap-5">
+    <div className="flex min-w-0 flex-col gap-5 overflow-x-clip">
       <div className="flex flex-wrap items-center gap-3">
         <Badge variant={flow.review ? "outline" : "secondary"}>1 · المحرر</Badge>
         <span className="text-muted-foreground">←</span>
         <Badge variant={flow.review ? "secondary" : "outline"}>2 · مراجعة التغييرات</Badge>
       </div>
-      {error && (
+      {operationError && (
         <Alert variant="destructive">
           <AlertTitle>لم تُحفظ التغييرات</AlertTitle>
-          <AlertDescription>{error.message}</AlertDescription>
+          <AlertDescription>{operationError.message}</AlertDescription>
         </Alert>
       )}
       {notice && (
@@ -180,139 +303,40 @@ function JsonWorkspace({ snapshots }: { snapshots: WorkSnapshot[] }) {
       ) : (
         <>
           <div className="grid min-w-0 items-start gap-5 xl:grid-cols-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>نطاق التحرير</CardTitle>
-                <CardDescription>
-                  الحقول غير المختارة تبقى كما هي. معرّفات الأعمال ثابتة.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <FieldGroup>
-                  <SelectField
-                    label="قالب الحقول"
-                    value={preset}
-                    items={[
-                      { value: "identity", label: "هوية العمل" },
-                      { value: "indexing", label: "الفهرسة" },
-                      { value: "editorial", label: "التحرير" },
-                      { value: "structure", label: "البنية والتقييمات" },
-                      { value: "all", label: "كل الحقول المتاحة" },
-                    ]}
-                    onChange={(value) => {
-                      if (!parsed?.success) return;
-                      setPreset(value);
-                      choose(
-                        value === "all"
-                          ? fieldKeys
-                          : value === "identity"
-                            ? identityFields
-                            : value === "structure"
-                              ? ["installments"]
-                              : workFields
-                                  .filter(
-                                    (field) =>
-                                      field.group ===
-                                      (value === "indexing" ? "الفهرسة" : "التحرير"),
-                                  )
-                                  .map((field) => field.key),
-                      );
-                    }}
-                  />
-                  <Input
-                    aria-label="بحث عن الحقول"
-                    placeholder="ابحث عن حقل…"
-                    value={fieldSearch}
-                    onChange={(event) => setFieldSearch(event.target.value)}
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={flow.busy}
-                      onClick={() => choose(fieldKeys)}
-                    >
-                      الكل
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={flow.busy}
-                      onClick={() => choose(["canonicalTitle"])}
-                    >
-                      العنوان فقط
-                    </Button>
-                  </div>
-                  <div className="max-h-96 overflow-y-auto">
-                    <FieldGroup>
-                      {groups.map((group) => {
-                        const items = workFields.filter(
-                          (field) =>
-                            field.group === group &&
-                            `${field.label} ${field.key}`
-                              .toLowerCase()
-                              .includes(fieldSearch.toLowerCase()),
-                        );
-                        return items.length ? (
-                          <FieldSet key={group}>
-                            <FieldLegend variant="label">{group}</FieldLegend>
-                            <FieldGroup>
-                              {items.map((field) => (
-                                <Field key={field.key} orientation="horizontal">
-                                  <Checkbox
-                                    id={`json-field-${field.key}`}
-                                    checked={fields.includes(field.key)}
-                                    disabled={flow.busy}
-                                    onCheckedChange={(checked) =>
-                                      choose(
-                                        checked
-                                          ? [...fields, field.key]
-                                          : fields.filter((key) => key !== field.key),
-                                      )
-                                    }
-                                  />
-                                  <FieldLabel htmlFor={`json-field-${field.key}`}>
-                                    <span>
-                                      {field.label}
-                                      <span
-                                        dir="ltr"
-                                        className="block font-utility text-xs text-muted-foreground"
-                                      >
-                                        {field.key}
-                                      </span>
-                                    </span>
-                                  </FieldLabel>
-                                </Field>
-                              ))}
-                            </FieldGroup>
-                          </FieldSet>
-                        ) : null;
-                      })}
-                    </FieldGroup>
-                  </div>
-                </FieldGroup>
-              </CardContent>
-            </Card>
             <div className="flex min-w-0 flex-col gap-3 xl:col-span-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <Badge variant={parsed?.success ? "outline" : "destructive"}>
-                  {parsed?.success ? "JSON صالح" : "JSON يحتاج تصحيحاً"}
+                <Badge variant={parsed?.success && scopeValid ? "outline" : "destructive"}>
+                  {parsed?.success && scopeValid
+                    ? "بنية JSON صالحة · القيود تُراجع قبل الحفظ"
+                    : "JSON يحتاج تصحيحاً"}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  {snapshots.length} سجل · {fields.length} حقل · {draft.length.toLocaleString()} حرف
+                  {snapshots.length} سجل · {visibleFields.length} حقل ·{" "}
+                  {draft.length.toLocaleString()} حرف
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={!parsed?.success || flow.busy}
+                  disabled={!("raw" in input) || flow.busy}
                   onClick={() => {
-                    if (parsed?.success) update(JSON.stringify(parsed.data, null, 2));
+                    if ("raw" in input) update(JSON.stringify(input.raw, null, 2));
                   }}
                 >
                   <WandSparklesIcon data-icon="inline-start" />
                   تنسيق
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!("raw" in input) || flow.busy}
+                  onClick={() => {
+                    if ("raw" in input) update(JSON.stringify(input.raw));
+                  }}
+                >
+                  <Minimize2Icon data-icon="inline-start" />
+                  سطر واحد
                 </Button>
                 <Button
                   variant="outline"
@@ -327,6 +351,67 @@ function JsonWorkspace({ snapshots }: { snapshots: WorkSnapshot[] }) {
                   <CopyIcon data-icon="inline-start" />
                   نسخ
                 </Button>
+                <Button variant="outline" size="sm" onClick={download}>
+                  <DownloadIcon data-icon="inline-start" />
+                  تصدير JSON
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={flow.busy}
+                  aria-controls="json-file"
+                  onClick={() => fileInput.current?.click()}
+                >
+                  <UploadIcon data-icon="inline-start" />
+                  استيراد JSON
+                </Button>
+                <Input
+                  ref={fileInput}
+                  id="json-file"
+                  aria-label="استيراد مسودة JSON"
+                  hidden
+                  tabIndex={-1}
+                  type="file"
+                  accept="application/json,.json"
+                  disabled={flow.busy}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 4000000) {
+                      setNotice("حجم الملف يتجاوز الحد المتاح (4 MB).");
+                      return;
+                    }
+                    void file
+                      .text()
+                      .then((text) => {
+                        const imported = readEditorDocument(text);
+                        if (!("projection" in imported)) throw new Error(imported.error);
+                        const result = imported.projection;
+                        if (!result.success)
+                          throw new Error(
+                            "الملف لا يطابق قالب المستند. صدّر المسودة الحالية للاطلاع على القالب.",
+                          );
+                        if (
+                          new Set(result.data.records.map((record) => record.id)).size !==
+                            result.data.records.length ||
+                          result.data.records.some(
+                            (record) => !originalRows.some((original) => original.id === record.id),
+                          )
+                        )
+                          throw new Error("الملف يحتوي أعمالاً خارج نطاق التحرير الحالي.");
+                        if (dirty && !window.confirm("استبدال المسودة الحالية بالملف؟"))
+                          return false;
+                        setBuffers(originalRows);
+                        setFields(result.data.fields);
+                        setScope(fullStructureScope);
+                        update(text);
+                        return true;
+                      })
+                      .catch((cause: Error) => setNotice(cause.message));
+                    event.target.value = "";
+                  }}
+                />
                 <Button
                   variant="ghost"
                   size="sm"
@@ -342,58 +427,406 @@ function JsonWorkspace({ snapshots }: { snapshots: WorkSnapshot[] }) {
                   استعادة الأصل
                 </Button>
               </div>
-              <Suspense fallback={<Skeleton className="h-96" />}>
-                <CodeEditor value={draft} onChange={update} />
-              </Suspense>
-              <p className="text-xs leading-6 text-muted-foreground">
-                Ctrl / ⌘ + F للبحث داخل JSON. إزالة حقل من المستند لا تحذفه من العمل. القوائم
-                المختارة تمثل قيمها الجديدة؛ حذف الأجزاء والحلقات يتطلب مساراً مستقلاً.
-              </p>
-              <Card>
-                <CardHeader>
-                  <CardTitle>مرجع القيم</CardTitle>
-                  <CardDescription>
-                    أمثلة على القيم المسموحة؛ فحص العلاقات والمراجع يتم عند المراجعة.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <dl className="grid gap-3 text-xs sm:grid-cols-2">
-                    <div>
-                      <dt className="font-medium">الصيغة</dt>
-                      <dd dir="ltr" className="mt-1 font-utility text-muted-foreground">
-                        animated · live-action
-                      </dd>
+              <Tabs defaultValue="json">
+                <TabsList>
+                  <TabsTrigger value="json">JSON</TabsTrigger>
+                  <TabsTrigger value="cards" disabled={!parsed?.success}>
+                    البطاقات والتفاصيل
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="json">
+                  <Suspense fallback={<Skeleton className="h-96" />}>
+                    <CodeEditor
+                      value={draft}
+                      onChange={update}
+                      readOnly={flow.busy}
+                      suggestions={completionKeys}
+                    />
+                  </Suspense>
+                </TabsContent>
+                <TabsContent value="cards">
+                  {parsed?.success && (
+                    <div className="flex flex-col gap-4">
+                      {parsed.data.records.map((record, index) => (
+                        <JsonTreeEditor
+                          key={String(record.id)}
+                          value={record}
+                          label={String(
+                            record.titleAr ||
+                              record.canonicalTitle ||
+                              snapshots[index]?.document.canonicalTitle ||
+                              `عمل ${index + 1}`,
+                          )}
+                          readOnly={flow.busy}
+                          profile="work"
+                          onChange={(next) =>
+                            update(
+                              JSON.stringify(
+                                {
+                                  ...parsed.data,
+                                  records: parsed.data.records.map((value, position) =>
+                                    position === index ? next : value,
+                                  ),
+                                },
+                                null,
+                                2,
+                              ),
+                            )
+                          }
+                        />
+                      ))}
                     </div>
-                    <div>
-                      <dt className="font-medium">حالة النشر</dt>
-                      <dd dir="ltr" className="mt-1 font-utility text-muted-foreground">
-                        draft · in_review · approved · published · archived
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium">المخاطر</dt>
-                      <dd dir="ltr" className="mt-1 font-utility text-muted-foreground">
-                        none · low · medium · high
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium">الأجزاء</dt>
-                      <dd dir="ltr" className="mt-1 font-utility text-muted-foreground">
-                        season · movie · special
-                      </dd>
-                    </div>
-                  </dl>
-                </CardContent>
-              </Card>
+                  )}
+                </TabsContent>
+              </Tabs>
+              {parsed?.success && !scopeValid && (
+                <Alert variant="destructive">
+                  <AlertTitle>بعض معرّفات الأعمال تحتاج إلى تصحيح</AlertTitle>
+                  <AlertDescription>
+                    لا يمكن ربط هذه السجلات بالأعمال المحددة. أعد المعرّف الأصلي لكل عمل؛ لا تعدّل قيمة id
+                    عند تحرير بقية الحقول.
+                    <ul className="mt-2 flex flex-col gap-2">
+                      {identityIssues.map((issue) => (
+                        <li key={`${issue.id ?? "missing"}-${issue.title}`}>
+                          <span className="font-medium">{issue.title}:</span> {issue.reason}
+                          {issue.expectedId && (
+                            <span className="flex flex-wrap items-baseline gap-x-1">
+                              <span>الموجود</span>
+                              <code dir="ltr" className="wrap-break-word">
+                                {issue.id}
+                              </code>
+                              <span>والصحيح</span>
+                              <code dir="ltr" className="wrap-break-word">
+                                {issue.expectedId}
+                              </code>
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2">لإضافة عمل جديد، افتح صفحة إنشاء العمل.</p>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {"error" in input && (
+                <Alert variant="destructive">
+                  <AlertTitle>صيغة JSON غير مكتملة</AlertTitle>
+                  <AlertDescription>{input.error}</AlertDescription>
+                </Alert>
+              )}
+              {parsed && !parsed.success && (
+                <Alert variant="destructive">
+                  <AlertTitle>راجع الحقول التالية</AlertTitle>
+                  <AlertDescription>
+                    <ul>
+                      {parsed.error.issues.map((issue) => (
+                        <li key={jsonIssueKey(issue.path, issue.code, issue.message)}>
+                          <code dir="ltr">{issue.path.join(".") || "JSON"}</code>: {issue.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <JsonEnumReference fields={visibleFields} scope={scope} />
             </div>
+
+            <Card size="sm" className="min-w-0 xl:sticky xl:top-4 xl:order-last">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle>محتوى JSON</CardTitle>
+                  <Badge variant="secondary">
+                    {visibleFields.length} / {fieldKeys.length}
+                  </Badge>
+                </div>
+                <CardDescription>
+                  اختر ما يظهر في النص. إخفاء الحقول يحفظ قيمها وتعديلاتها.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FieldGroup>
+                  <SelectField
+                    label="قالب الحقول"
+                    value={
+                      preset !== "custom" && sameFields(visibleFields, presetFields(preset))
+                        ? preset
+                        : "custom"
+                    }
+                    items={[
+                      { value: "all", label: "كل الحقول" },
+                      { value: "identity", label: "هوية العمل" },
+                      { value: "indexing", label: "الفهرسة والعلاقات" },
+                      { value: "editorial", label: "التحرير" },
+                      { value: "structure", label: "الأجزاء والحلقات والتقييمات" },
+                      { value: "custom", label: "اختيار مخصص" },
+                    ]}
+                    onChange={(value) => {
+                      if (!parsed?.success || !scopeValid || value === "custom") return;
+                      choose(presetFields(value));
+                      setPreset(value);
+                    }}
+                  />
+                  <Field>
+                    <FieldLabel htmlFor="json-field-search" className="sr-only">
+                      بحث في الحقول والتفاصيل
+                    </FieldLabel>
+                    <InputGroup>
+                      <InputGroupInput
+                        id="json-field-search"
+                        value={fieldSearch}
+                        onChange={(event) => setFieldSearch(event.target.value)}
+                        placeholder="بحث بالاسم أو المفتاح…"
+                      />
+                      <InputGroupAddon>
+                        <SearchIcon />
+                      </InputGroupAddon>
+                      {fieldSearch && (
+                        <InputGroupAddon align="inline-end">
+                          <InputGroupButton
+                            size="icon-xs"
+                            aria-label="مسح بحث الحقول"
+                            onClick={() => setFieldSearch("")}
+                          >
+                            <XIcon data-icon="inline-start" />
+                          </InputGroupButton>
+                        </InputGroupAddon>
+                      )}
+                    </InputGroup>
+                  </Field>
+                  <Tabs defaultValue="fields">
+                    <TabsList className="w-full">
+                      <TabsTrigger value="fields">الحقول</TabsTrigger>
+                      <TabsTrigger value="structure">الأجزاء</TabsTrigger>
+                      <TabsTrigger value="episodes">الحلقات</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="fields">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Field orientation="horizontal">
+                            <Checkbox
+                              id="json-select-all"
+                              checked={visibleFields.length === fieldKeys.length}
+                              indeterminate={
+                                visibleFields.length > 0 && visibleFields.length < fieldKeys.length
+                              }
+                              disabled={flow.busy}
+                              onCheckedChange={(checked) => {
+                                choose(checked === true ? fieldKeys : ["canonicalTitle"]);
+                                if (checked === true) setPreset("all");
+                              }}
+                            />
+                            <FieldLabel htmlFor="json-select-all">تحديد الكل</FieldLabel>
+                          </Field>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={flow.busy}
+                            onClick={() => choose(["canonicalTitle"])}
+                          >
+                            العنوان فقط
+                          </Button>
+                        </div>
+                        <ScrollArea className="h-80">
+                          <div className="pe-3">
+                            <FieldGroup>
+                              {groups.map((group) => {
+                                const all = workFields.filter((field) => field.group === group);
+                                const items = all.filter((field) =>
+                                  matchesFieldSearch(field, fieldSearch),
+                                );
+                                if (!items.length) return null;
+                                return (
+                                  <JsonScopeGroup
+                                    key={group}
+                                    prefix={`json-${group.replace(/\s+/g, "-")}`}
+                                    label={group}
+                                    items={items}
+                                    allItems={all}
+                                    selected={visibleFields}
+                                    disabled={flow.busy}
+                                    onChange={(next) => {
+                                      const keys = new Set(all.map(({ key }) => key));
+                                      choose([
+                                        ...visibleFields.filter((key) => !keys.has(key)),
+                                        ...next,
+                                      ]);
+                                    }}
+                                  />
+                                );
+                              })}
+                              {!workFields.some((field) =>
+                                matchesFieldSearch(field, fieldSearch),
+                              ) && (
+                                <Empty>
+                                  <EmptyHeader>
+                                    <EmptyTitle>لا توجد حقول مطابقة</EmptyTitle>
+                                    <EmptyDescription>
+                                      جرّب اسم الحقل بالعربية أو مفتاحه.
+                                    </EmptyDescription>
+                                  </EmptyHeader>
+                                </Empty>
+                              )}
+                            </FieldGroup>
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="structure">
+                      {visibleFields.includes("installments") ? (
+                        <div className="flex flex-col gap-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              المعرّف والعنوان ثابتان في النص.
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={flow.busy}
+                              onClick={() =>
+                                choose(visibleFields, {
+                                  ...scope,
+                                  installments: fullStructureScope.installments,
+                                })
+                              }
+                            >
+                              <CheckCheckIcon data-icon="inline-start" />
+                              كل التفاصيل
+                            </Button>
+                          </div>
+                          <ScrollArea className="h-80">
+                            <div className="pe-3">
+                              <FieldGroup>
+                                {installmentGroups.map((group) => {
+                                  const all = installmentFields.filter((field) =>
+                                    group.keys.some((key) => key === field.key),
+                                  );
+                                  const items = all.filter((field) =>
+                                    matchesFieldSearch(field, fieldSearch),
+                                  );
+                                  if (!items.length) return null;
+                                  return (
+                                    <JsonScopeGroup
+                                      key={group.label}
+                                      prefix={`json-part-${group.keys[0]}`}
+                                      label={group.label}
+                                      items={items}
+                                      allItems={all}
+                                      selected={scope.installments}
+                                      disabled={flow.busy}
+                                      onChange={(next) => {
+                                        const keys = all.map(({ key }) => key);
+                                        choose(visibleFields, {
+                                          ...scope,
+                                          installments: [
+                                            ...scope.installments.filter(
+                                              (key) => !keys.some((value) => value === key),
+                                            ),
+                                            ...next,
+                                          ],
+                                        });
+                                      }}
+                                    />
+                                  );
+                                })}
+                                {!installmentFields.some((field) =>
+                                  matchesFieldSearch(field, fieldSearch),
+                                ) && (
+                                  <Empty>
+                                    <EmptyHeader>
+                                      <EmptyTitle>لا توجد تفاصيل مطابقة</EmptyTitle>
+                                    </EmptyHeader>
+                                  </Empty>
+                                )}
+                              </FieldGroup>
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      ) : (
+                        <Empty>
+                          <EmptyHeader>
+                            <EmptyTitle>الأجزاء مخفية في النص</EmptyTitle>
+                            <EmptyDescription>
+                              أظهر الأجزاء لتحديد الحلقات والتقييمات وبقية التفاصيل.
+                            </EmptyDescription>
+                          </EmptyHeader>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={flow.busy}
+                            onClick={() => choose([...visibleFields, "installments"])}
+                          >
+                            إظهار الأجزاء
+                          </Button>
+                        </Empty>
+                      )}
+                    </TabsContent>
+                    <TabsContent value="episodes">
+                      <FieldGroup>
+                        <Field orientation="horizontal">
+                          <Checkbox
+                            id="json-include-episodes"
+                            checked={
+                              visibleFields.includes("installments") &&
+                              scope.installments.includes("episodes")
+                            }
+                            disabled={flow.busy}
+                            onCheckedChange={(checked) =>
+                              choose(
+                                visibleFields.includes("installments")
+                                  ? visibleFields
+                                  : [...visibleFields, "installments"],
+                                {
+                                  ...scope,
+                                  installments:
+                                    checked === true
+                                      ? [...new Set([...scope.installments, "episodes"])]
+                                      : scope.installments.filter((key) => key !== "episodes"),
+                                },
+                              )
+                            }
+                          />
+                          <FieldLabel htmlFor="json-include-episodes">
+                            إظهار الحلقات في JSON
+                          </FieldLabel>
+                        </Field>
+                        {visibleFields.includes("installments") &&
+                        scope.installments.includes("episodes") ? (
+                          <>
+                            <p className="text-xs text-muted-foreground">
+                              رقم الحلقة ومعرّفها يظهران دائماً. اختر التفاصيل الإضافية.
+                            </p>
+                            <JsonScopeGroup
+                              prefix="json-episodes"
+                              label="تفاصيل الحلقات"
+                              items={episodeFields.filter((field) =>
+                                matchesFieldSearch(field, fieldSearch),
+                              )}
+                              allItems={episodeFields}
+                              selected={scope.episodes}
+                              disabled={flow.busy}
+                              onChange={(episodes) => choose(visibleFields, { ...scope, episodes })}
+                            />
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            الحلقات المخفية محفوظة ولا تتأثر بتعديل بقية العمل.
+                          </p>
+                        )}
+                      </FieldGroup>
+                    </TabsContent>
+                  </Tabs>
+                </FieldGroup>
+              </CardContent>
+            </Card>
           </div>
-          <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background p-4 shadow-sm">
+          <div className="relative flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background p-4 shadow-sm">
             <span className="text-sm text-muted-foreground">
               {dirty ? "مسودة غير محفوظة" : "لا توجد تغييرات"}
             </span>
             <Button
-              disabled={!dirty || !parsed?.success || flow.busy}
-              onClick={() => flow.prepare.mutate(draft)}
+              disabled={!dirty || !parsed?.success || !scopeValid || flow.busy}
+              onClick={() => flow.prepare.mutate(reviewJson)}
             >
               {flow.prepare.isPending ? "جارٍ إعداد المراجعة…" : "مراجعة التغييرات"}
             </Button>
@@ -402,4 +835,112 @@ function JsonWorkspace({ snapshots }: { snapshots: WorkSnapshot[] }) {
       )}
     </div>
   );
+}
+
+const installmentGroups = [
+  {
+    label: "الهوية والعرض",
+    keys: ["kind", "position", "summary", "status", "releaseDate", "runtimeMinutes"],
+  },
+  {
+    label: "التصنيف والمخاطر",
+    keys: [
+      "audienceOverride",
+      "ageOverride",
+      "sexualityRiskOverride",
+      "behavioralRiskOverride",
+      "theologyRiskOverride",
+    ],
+  },
+  { label: "التقييمات والصور والحلقات", keys: ["score", "media", "episodes"] },
+  { label: "المعرّفات الخارجية", keys: ["tmdbId", "imdbId", "anilistId", "malId"] },
+] as const;
+function matchesFieldSearch(field: { key: string; label: string }, search: string) {
+  return `${field.label} ${field.key}`.toLowerCase().includes(search.trim().toLowerCase());
+}
+function JsonScopeGroup<Key extends string>({
+  prefix,
+  label,
+  items,
+  allItems,
+  selected,
+  disabled,
+  onChange,
+}: {
+  prefix: string;
+  label: string;
+  items: readonly { key: Key; label: string }[];
+  allItems: readonly { key: Key; label: string }[];
+  selected: readonly Key[];
+  disabled: boolean;
+  onChange: (keys: Key[]) => void;
+}) {
+  const keys = allItems.map(({ key }) => key);
+  const count = keys.filter((key) => selected.includes(key)).length;
+  return (
+    <FieldSet>
+      <FieldLegend variant="label" className="sr-only">
+        {label}
+      </FieldLegend>
+      <FieldGroup data-slot="checkbox-group">
+        <Field orientation="horizontal">
+          <Checkbox
+            id={`${prefix}-all`}
+            checked={count === keys.length}
+            indeterminate={count > 0 && count < keys.length}
+            disabled={disabled}
+            onCheckedChange={(checked) => onChange(checked === true ? keys : [])}
+          />
+          <FieldLabel htmlFor={`${prefix}-all`}>{label}</FieldLabel>
+          <Badge variant="outline">
+            {count}/{keys.length}
+          </Badge>
+        </Field>
+        <div className="ps-6">
+          <FieldGroup data-slot="checkbox-group">
+            {items.map((field) => (
+              <Field key={field.key} orientation="horizontal">
+                <Checkbox
+                  id={`${prefix}-${field.key}`}
+                  checked={selected.includes(field.key)}
+                  disabled={disabled}
+                  onCheckedChange={(checked) =>
+                    onChange(
+                      checked === true
+                        ? [...keys.filter((key) => selected.includes(key)), field.key]
+                        : keys.filter((key) => selected.includes(key) && key !== field.key),
+                    )
+                  }
+                />
+                <FieldLabel htmlFor={`${prefix}-${field.key}`}>
+                  <span>
+                    {field.label}
+                    <span
+                      dir="ltr"
+                      className="block break-all font-utility text-xs text-muted-foreground"
+                    >
+                      {field.key}
+                    </span>
+                  </span>
+                </FieldLabel>
+              </Field>
+            ))}
+          </FieldGroup>
+        </div>
+      </FieldGroup>
+    </FieldSet>
+  );
+}
+
+function presetFields(value: string): WorkField[] {
+  if (value === "all") return [...fieldKeys];
+  if (value === "identity") return [...identityFields];
+  if (value === "structure") return ["canonicalTitle", "installments", "awards"];
+  return workFields
+    .filter((field) => field.group === (value === "indexing" ? "الفهرسة" : "التحرير"))
+    .map((field) => field.key);
+}
+
+function sameFields(left: readonly WorkField[], right: readonly WorkField[]) {
+  return left.length === right.length && right.every((key) => left.includes(key));
 }

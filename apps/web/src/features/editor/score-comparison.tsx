@@ -1,4 +1,5 @@
 import type { WorkDocument } from "@arcadia/cli/work";
+import { installmentRating } from "@arcadia/domain";
 import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart } from "recharts";
 
 import {
@@ -7,15 +8,9 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { scoreDefinitions } from "@/features/scoring/score-model";
 
-export const scoreCriteria = [
-  { key: "story", label: "القصة" },
-  { key: "characters", label: "الشخصيات" },
-  { key: "depth", label: "العمق" },
-  { key: "worldBuilding", label: "بناء العالم" },
-  { key: "originality", label: "الأصالة" },
-  { key: "craft", label: "الصنعة" },
-] as const;
+export const scoreCriteria = scoreDefinitions;
 type Installment = NonNullable<WorkDocument["installments"]>[number];
 export function ScoreComparison({
   installments,
@@ -26,6 +21,7 @@ export function ScoreComparison({
 }) {
   const item = installments[selected];
   if (!item) return null;
+  const rating = installmentRating(item.score ?? {});
   const config: ChartConfig = Object.fromEntries(
     installments.map((part, index) => [
       `part${index}`,
@@ -41,7 +37,9 @@ export function ScoreComparison({
   return (
     <figure className="flex min-w-0 flex-col gap-3">
       <figcaption className="flex flex-wrap justify-between gap-2 text-sm">
-        <span className="font-medium">تقييم {item.title}</span>
+        <span className="font-medium">
+          تقييم {item.title} · {rating === null ? "غير مكتمل" : `${rating}`}
+        </span>
         <span className="text-muted-foreground">المضلعات الباهتة: بقية الأجزاء · من 10</span>
       </figcaption>
       <ChartContainer

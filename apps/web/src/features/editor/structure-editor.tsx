@@ -155,7 +155,7 @@ export function StructureEditor({
                     {scoreCriteria.map((criterion) => (
                       <TextField
                         key={criterion.key}
-                        label={criterion.label}
+                        label={`${criterion.label} · ${criterion.weight * 100}%`}
                         type="number"
                         min={0}
                         max={10}

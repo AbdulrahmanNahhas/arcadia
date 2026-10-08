@@ -8,12 +8,14 @@ import {
   documentChanges,
   documentRow,
   isJsonObject,
+  isJsonNumber,
   equalValue,
   fieldKeys,
   projectionSchema,
   type JsonValue,
   type DocumentReview,
 } from "./document-model";
+import { preserveHidden } from "./json-projection";
 
 const secret = randomBytes(32);
 const rowWithId = documentRow.refine((row) => z.string().uuid().safeParse(row.id).success);
@@ -100,7 +102,95 @@ function prepareStructure(patch: WorkDocument, current: WorkDocument) {
     );
   return removed;
 }
+function requireSingle(rows: { id: string }[], label: string, value: string) {
+  if (!rows.length) throw new Error(`${label}: لا يوجد سجل بالاسم أو slug «${value}».`);
+  if (rows.length > 1)
+    throw new Error(
+      `${label}: الاسم «${value}» يطابق أكثر من سجل. استخدم slug مميزاً أو اسماً فريداً.`,
+    );
+  return rows[0]!;
+}
+
+async function validateHumanReferences(transaction: TransactionSql, patch: WorkDocument) {
+  for (const value of patch.planets ?? [])
+    requireSingle(
+      await transaction<{ id: string }[]>`
+    select id from planets where slug = ${value} or lower(name_ar) = lower(${value}) or lower(name_en) = lower(${value}) limit 2`,
+      "الكواكب",
+      value,
+    );
+  for (const key of ["genres", "tones", "tags", "countries"] as const)
+    for (const value of patch[key] ?? [])
+      requireSingle(
+        await transaction.unsafe<{ id: string }[]>(
+          `select id from "${key}" where lower(btrim(slug)) = lower(btrim($1)) or lower(btrim(label_en)) = lower(btrim($1)) or lower(btrim(label_ar)) = lower(btrim($1)) limit 2`,
+          [value],
+        ),
+        "الفهرسة",
+        value,
+      );
+  for (const credit of patch.credits ?? []) {
+    const roles = await transaction<{ id: string; entity_kind: string }[]>`
+      select id, entity_kind from roles where slug = ${credit.role} or lower(label_en) = lower(${credit.role}) or lower(label_ar) = lower(${credit.role}) limit 2`;
+    requireSingle(roles, "دور المساهمة", credit.role);
+    const role = roles[0]!;
+    requireSingle(
+      await transaction<{ id: string }[]>`
+      select e.id from entities e where e.kind = ${role.entity_kind} and
+      (e.id::text = ${credit.entity} or lower(btrim(e.name)) = lower(btrim(${credit.entity}))
+      or lower(btrim(e.sort_name)) = lower(btrim(${credit.entity}))
+      or exists (select 1 from entity_aliases a where a.entity_id = e.id and lower(btrim(a.alias)) = lower(btrim(${credit.entity})))) limit 2`,
+      "الشخص / الاستوديو",
+      credit.entity,
+    );
+  }
+}
+async function prepareOrdering(transaction: TransactionSql, patch: WorkDocument) {
+  if (!patch.id || !patch.installments?.length) return;
+  const current = await workExport(transaction, patch.id);
+  if (
+    patch.installments.some((item, index) => {
+      const original = current.installments?.find((value) => value.id === item.id);
+      return original && original.position !== (item.position ?? index + 1);
+    })
+  ) {
+    const high = Math.max(
+      0,
+      ...(current.installments ?? []).map((item) => item.position ?? 0),
+      ...patch.installments.map((item, index) => item.position ?? index + 1),
+    );
+    for (const [index, item] of (current.installments ?? []).entries())
+      if (item.id)
+        await transaction`update installments set position = ${high + index + 1} where id = ${item.id}`;
+  }
+  for (const item of patch.installments) {
+    const original = current.installments?.find((value) => value.id === item.id);
+    if (
+      !item.episodes ||
+      !original ||
+      !item.episodes.some((episode, index) => {
+        const previous = original.episodes?.find((value) => value.id === episode.id);
+        return (
+          previous &&
+          (previous.position !== (episode.position ?? index + 1) ||
+            previous.number !== episode.number)
+        );
+      })
+    )
+      continue;
+    const high = Math.max(
+      0,
+      ...(original.episodes ?? []).map((episode) => episode.position ?? 0),
+      ...item.episodes.map((episode, index) => episode.position ?? index + 1),
+    );
+    const low = Math.min(0, ...(original.episodes ?? []).map((episode) => episode.number));
+    for (const [index, episode] of (original.episodes ?? []).entries())
+      if (episode.id && item.episodes.some((next) => next.id === episode.id))
+        await transaction`update episodes set position = ${high + index + 1}, number = ${low - index - 1} where id = ${episode.id}`;
+  }
+}
 async function applyPatch(transaction: TransactionSql, patch: WorkDocument, create = false) {
+  await validateHumanReferences(transaction, patch);
   if (!create && patch.installments && patch.id) {
     const current = await workExport(transaction, patch.id);
     const retained = new Set(
@@ -120,6 +210,7 @@ async function applyPatch(transaction: TransactionSql, patch: WorkDocument, crea
       }
     }
   }
+  if (!create) await prepareOrdering(transaction, patch);
   const { id, ...creation } = patch;
   await workApply(
     openDatabase(),
@@ -187,8 +278,14 @@ export async function prepareWorkReview(
             throw new Error(`الحقل ${key} خارج نطاق التحرير.`);
         const current = baseline.get(id);
         if (!current) throw new Error("العمل غير موجود في نطاق التحرير.");
-        const candidate = workDocument.partial().required({ id: true }).strict().parse(raw);
-        guardKeys(raw, documentRow.parse(candidate));
+        const completed = { ...raw };
+        if (Object.hasOwn(raw, "installments"))
+          completed.installments = preserveHidden(
+            documentRow.parse(current).installments ?? [],
+            raw.installments ?? [],
+          );
+        const candidate = workDocument.partial().required({ id: true }).strict().parse(completed);
+        guardKeys(completed, documentRow.parse(candidate));
         const patch: WorkDocument = { id, canonicalTitle: current.canonicalTitle };
         for (const key of projection.fields) {
           if (Object.hasOwn(candidate, key) && !equalValue(current[key], candidate[key]))
@@ -200,6 +297,17 @@ export async function prepareWorkReview(
           for (const award of patch.awards) {
             if (award.id && !current.awards?.some((original) => original.id === award.id))
               throw new Error("معرّف جائزة لا ينتمي إلى العمل.");
+            const previous = current.awards?.find((value) => value.id === award.id);
+            if (
+              previous &&
+              isJsonNumber(award.installment) &&
+              award.installment === previous.installment
+            ) {
+              const originalPart = current.installments?.find(
+                (value) => value.position === award.installment,
+              );
+              if (originalPart?.id) award.installment = originalPart.id;
+            }
             award.id ??= randomUUID();
             if (awardIds.has(award.id)) throw new Error("معرّف جائزة مكرر.");
             awardIds.add(award.id);

@@ -31,9 +31,9 @@ export function SchemaGraphPage() {
   const related = useMemo(
     () =>
       new Set(
-        schemaEdges
-          .filter((edge) => edge.source === selected || edge.target === selected)
-          .flatMap((edge) => [edge.source, edge.target]),
+        schemaEdges.flatMap((edge) =>
+          edge.source === selected || edge.target === selected ? [edge.source, edge.target] : [],
+        ),
       ),
     [selected],
   );

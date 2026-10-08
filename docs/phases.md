@@ -1,6 +1,6 @@
 # Nahhasio rewrite phases
 
-Updated 2026-10-07. Work happens on `codex/nahhasio-server-first`.
+Updated 2026-10-08. Work happens on `codex/nahhasio-server-first`.
 Complete one phase, report changes and verification, then stop for Aqua's review.
 Do not start the next phase until Aqua asks to continue.
 
@@ -26,24 +26,142 @@ Do not start the next phase until Aqua asks to continue.
 - Nuvio is a product/architecture reference. Implement Nahhasio's own code and retain this
   repository's license. Its family catalog/dashboard remain first-party responsibilities.
 
+## V1.0 direction — local server and Linux client
+
+This section records Aqua's updated product direction and supersedes the older milestone order
+below where they conflict. V1.0 runs the Nahhasio server on Aqua's PC and the first native desktop
+client on Linux. It supports catalog browsing and administration, torrent based playback or device
+downloads, and playback of completed home-library files through Jellyfin. Remote access, public
+accounts, Android/TV, iOS, and Netflix-style profile management are outside this first release.
+
+Login should be small and real: one local owner account, securely stored password hash, revocable
+session, and explicit owner/client permissions. Keep identity, profile, and device concepts
+separate in the schema so profiles and additional accounts can be added later without replacing
+the authentication foundation. Do not build profile selection or family account UX for V1.0.
+
+The API is the main product foundation. Define one versioned OpenAPI contract, generate TypeScript
+and Kotlin clients from it, and keep administrative endpoints separate from client permissions.
+The client API needs paginated library search, composable filters and sorting, full work/episode
+details, provider/source availability, registered artwork, playback resolution, download
+operations, and playback-state sync. Keep filtering and pagination in SQL; never fetch the whole
+catalog into the client. Design the first useful slice around login, browse/filter, work details,
+and play one already available video.
+
+Treat playback options as distinct workflows:
+
+- **Save work** stores a local metadata/artwork/source pack, torrent identifiers or metainfo, and
+  stable work/file mappings. It does not mean video is downloaded.
+- **Device download** stores video on the Linux client for offline playback and is managed by the
+  client.
+- **Home-library download** is a durable server job. Verify the file before importing it to the
+  library and making it available through Jellyfin.
+- **Stream** resolves a playable source. Prefer the matching completed local file when present;
+  otherwise use an available home-library or torrent source. Reuse in-progress torrent data where
+  supported, and report source availability and failures honestly.
+
+Release scheduling should be date driven rather than requiring an administrator to flip an
+episode between upcoming/released states every week. Store the scheduled air/release date, source
+and last verification; derive upcoming/available from that date and whether a playable source/file
+exists. Allow an explicit correction/override with a reason for delays, regional dates, specials,
+or provider mistakes. A date passing alone must not claim an episode is playable. Provider adapters
+should preview proposed additions/changes before applying them, preserve editorial fields, and
+record field provenance. Start with existing TMDB, AniList, Fanart and subtitle integrations where
+they fit; treat provider IDs as identifiers and do not assume every provider supplies every field.
+
+Database work may include removal or redesign of genuinely obsolete tables and fields. First
+inventory live reads/writes, foreign keys, migration history, and data ownership. Preserve stable
+catalog IDs, editorial notes/scores, identity ownership, playback history, source mappings, and
+artwork unless Aqua explicitly approves a data-loss decision. Rehearse additive/backfill/retirement
+migrations on a restored disposable copy, compare content fingerprints and constraints, and define
+rollback before changing the live catalog. `packages/database/drizzle/` remains the sole migration
+history unless a deliberate reviewed handover preserves its ledger.
+
+### Work sequence before broad client development
+
+| Step | Work                                                                                                                                                              | Exit point                                                                              |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| A    | Review the current dashboard/editor revision; organize TanStack routes and features so route entries stay small and feature data/UI are easy to find.             | Aqua can review the editorial workflows and proposed structure.                         |
+| B    | Agree on the data model and release/source rules; inventory legacy tables and map current schema to catalog, identity, playback, source, media, and job concepts. | Migration plan and data-preservation/rollback evidence on a restored copy.              |
+| C    | Establish minimal local login and authorization; write/version OpenAPI and generate web/Kotlin clients.                                                           | Owner dashboard and client permissions are enforced at server boundaries.               |
+| D    | Implement client catalog read APIs, SQL pagination/filter/sort, work/episode details, provider-backed release dates and artwork, plus source availability.        | Linux client can browse real authorized catalog data without fetching the full library. |
+| E    | Implement playback resolution and progress rules; test a completed Jellyfin file and a torrent through the Rust media core/mpv path.                              | One end-to-end play/resume journey works, including the downloaded-file preference.     |
+| F    | Add durable home-library download jobs, verification/import/Jellyfin linking, and the essential dashboard queue/storage/recovery screens.                         | A selected episode reaches Jellyfin and survives server/worker restart and retry.       |
+| G    | Add local saved-work packs, device downloads, offline playback/progress outbox, and client recovery.                                                              | Linux client can save metadata separately from video and play an offline download.      |
+
+Steps can overlap when their contracts are stable. Start the Compose shell and a thin browse/detail
+prototype as soon as steps C–D provide real endpoints; do not wait for every dashboard operations
+screen or Android decision. Keep the v1 local deployment plain devenv processes until the product
+works; packaging and Fedora/LAN deployment are separate release work.
+
+### Proposed repository structure
+
+This is the target organization to review before moving files; it does not authorize a large
+mechanical refactor by itself. Retain current packages and migration ownership where useful, migrate
+feature by feature, and keep generated files generated.
+
+```text
+apps/
+  server/                       Rust API and worker entry points
+  web/                          TanStack Start administration dashboard
+    src/
+      app/                      router, query client, app providers
+      routes/                   thin route definitions and layouts
+      features/
+        catalog/                works, people, studios, planets, editorial forms
+        images/                 image search, assignments, library
+        imports/                provider previews and merge review
+        operations/             jobs, storage, backups, health
+        access/                 owner login, accounts, devices
+      components/               shared dashboard composition
+  linux/                        Kotlin/Gradle Compose desktop client
+    composeApp/src/
+      commonMain/               shared Compose screens and client logic
+      jvmMain/                  Linux desktop, mpv and local storage adapters
+      commonTest/               shared client tests
+crates/
+  api/                          Axum routes, auth middleware, OpenAPI
+  application/                  catalog, access, playback and job use cases
+  catalog/                      catalog rules and provider-independent models
+  media/                         torrent transfer, local gateway and file verification
+  integrations/                  TMDB, AniList, Fanart and subtitle provider adapters
+packages/
+  api-contract/                 OpenAPI source and generated TypeScript/Kotlin clients
+  contracts/                    existing domain/import/editor contracts during migration
+  database/                     schema, existing Drizzle migration ledger and DB tooling
+  domain/                        existing TypeScript rules until each is deliberately migrated
+  i18n/                           shared web vocabulary/localization
+  cli/                            existing catalog maintenance CLI
+docs/
+  decisions/                     short architecture decision records
+  runbooks/                      backup, restore, local setup, release recovery
+  phases.md                      current delivery order and review checkpoints
+```
+
+TanStack organization rule: a route file declares path/layout and composes the feature page;
+each feature keeps its query keys, typed server functions, schemas, and UI together. Shared code
+belongs in `components` only after more than one feature needs it. Keep client-safe code separate
+from server-only database/provider modules, and do not import private server implementation into
+browser bundles. Rust crates should follow real dependency boundaries; do not create empty crates
+just to match the diagram. The generated OpenAPI output is not hand-edited.
+
 ## Review milestones
 
-| Phase | Deliverable                                                    | Review evidence                                                                                                         | State                          |
-| ----- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| 0     | Existing-data baseline, restore and artwork verification       | Restored snapshot, checked hashes, preserved runtime activity                                                           | Done                           |
-| 1     | Local monorepo/tools/Rust foundation and complete dashboard UI | All database/server screens, context-switching sidebar, work/JSON editors, disabled upcoming services, browser checks   | In progress — expanded by Aqua |
-| 2     | Rust authentication and authorized catalog/schema reads        | Existing credentials/ownership retained; real paginated records; editor/owner boundaries                                | Pending                        |
-| 3     | Full database control and editorial services                   | Transactional create/update/trash/restore, episodes, vocabularies, awards, bulk/JSON, TMDB/Fanart, images and revisions | Pending                        |
-| 4     | Data-model and watch-state improvements                        | Additive/backfilled profile/device/progress model; no lost manual states; sync conflict tests                           | Pending                        |
-| 5     | Server operations and connected services                       | Durable jobs, library/downloads/Jellyfin, backups, logs, controlled updates; complete dashboard/API checks              | Pending                        |
-| 6     | Minimal Kotlin/Compose Linux app                               | Login, browse, detail, mpv playback, persisted progress; extend after review                                            | Pending                        |
-| 7     | Home deployment and subsequent platforms                       | Fedora rootless Podman, LAN auth, monitored releases; Android/TV later                                                  | Pending                        |
+| Milestone | Deliverable                                                                           | State                                                                                                                        |
+| --------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 0         | Existing data restore and artwork verification                                        | Complete; baseline recorded below.                                                                                           |
+| 1         | Local server foundation and administration dashboard                                  | Review ongoing; dashboard/editor changes are present in the working tree and must be reviewed before further implementation. |
+| 2         | V1 data model, minimal local login, authorization, and API contract                   | Pending review of this plan.                                                                                                 |
+| 3         | Client catalog API, release-date/provider workflows, and organized dashboard features | Pending.                                                                                                                     |
+| 4         | Compose Linux browse/detail prototype and local-file/Jellyfin playback                | Pending; may begin once the needed API slice is stable.                                                                      |
+| 5         | Torrent playback, server download jobs, and device offline/download workflows         | Pending.                                                                                                                     |
+| 6         | V1.0 local packaging, recovery, and handoff                                           | Pending.                                                                                                                     |
 
-Fedora deployment can begin once a reviewed Rust release is ready; local laptop testing remains
-plain devenv processes. Desktop implementation does not begin ahead of dashboard/API/data work.
+Later: remote/LAN deployment, Android/Android TV, multiple Netflix-style profiles, and broader
+account management. These should build on the V1 identity/device boundaries and API contract.
 
-Android and Android TV follow the verified Linux client. Remote access, iOS, custom Jellyfin
-API emulation, server remux exports, and larger integrations are later milestones.
+Fedora deployment can begin once a reviewed Rust release is ready; local v1 testing remains plain
+devenv processes. Remote access, iOS, custom Jellyfin API emulation, and server remux exports remain
+later work.
 
 ## Phase 1 boundaries
 

@@ -70,3 +70,6 @@ devenv.local.yaml
 .claude/settings.json
 apps/*/.claude/
 apps/*/src/**/.claude/
+
+reference
+reference/*

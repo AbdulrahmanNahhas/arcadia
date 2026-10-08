@@ -15,6 +15,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 import { ReferencePicker } from "./reference-picker";
+import { useEditorRows } from "./use-editor-rows";
 
 export function TextField({
   label,
@@ -113,6 +114,7 @@ export function StringListField({
 }) {
   const [draft, setDraft] = useState("");
   const id = useId();
+  const rows = useEditorRows(values);
   function add(value: string) {
     const text = value.trim();
     if (text && !values.includes(text)) onChange([...values, text]);
@@ -123,8 +125,8 @@ export function StringListField({
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <div className="flex flex-col gap-3">
         {ordered ? (
-          values.map((value, index) => (
-            <div key={index} className="flex items-start gap-2">
+          rows.map(({ key, value }, index) => (
+            <div key={key} className="flex items-start gap-2">
               <Textarea
                 aria-label={`${label} ${index + 1}`}
                 rows={2}

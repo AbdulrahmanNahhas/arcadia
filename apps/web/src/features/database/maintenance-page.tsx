@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,39 +13,63 @@ import {
 } from "@/components/ui/card";
 import { PageHeader } from "@/features/dashboard/page-header";
 
+import { ValidationResults } from "./validation-results";
 import { validateCatalog } from "./validation.functions";
+
 export function MaintenancePage() {
-  const validation = useMutation({ mutationFn: () => validateCatalog() });
+  const [hasRun, setHasRun] = useState(false);
+  const validation = useMutation({
+    mutationFn: () => validateCatalog(),
+    onSuccess: () => setHasRun(true),
+  });
+  const buttonLabel = validation.isPending
+    ? "جارٍ فحص المكتبة…"
+    : validation.isError
+      ? "إعادة الفحص"
+      : hasRun
+        ? "تحديث نتائج الفحص"
+        : "تشغيل الفحص";
+
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="التحقق والصيانة"
-        description="فحص سلامة بيانات المكتبة الحالية دون تطبيق إصلاحات تلقائية."
+        description="راجع سلامة بيانات المكتبة، ثم افتح السجل المناسب لمعالجة كل ملاحظة."
         eyebrow="قاعدة البيانات / الجودة"
       />
       <Card>
         <CardHeader>
           <CardTitle>فحص المكتبة</CardTitle>
-          <CardDescription>العناوين والصور والمعلومات التحريرية والعلاقات.</CardDescription>
+          <CardDescription>
+            يفحص المعلومات التحريرية، بنية الأعمال، المفردات، وملفات الصور. لا يغيّر الفحص أي بيانات.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          {validation.isError && (
+        {validation.isError && (
+          <CardContent>
             <Alert variant="destructive">
-              <AlertTitle>تعذّر الفحص</AlertTitle>
+              <AlertTitle>تعذّر إكمال الفحص</AlertTitle>
               <AlertDescription>{validation.error.message}</AlertDescription>
             </Alert>
-          )}
-          {validation.isSuccess && <Badge variant="outline">{validation.data.length} ملاحظة</Badge>}
-          <pre className="max-h-96 overflow-auto" dir="ltr">
-            {validation.data ? JSON.stringify(validation.data, null, 2) : ""}
-          </pre>
-        </CardContent>
+          </CardContent>
+        )}
+        {validation.isSuccess && (
+          <CardContent>
+            <ValidationResults issues={validation.data} />
+          </CardContent>
+        )}
+        {!hasRun && !validation.isError && (
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              ابدأ الفحص لعرض الملاحظات كبطاقات مع روابط مباشرة إلى السجلات ذات الصلة.
+            </p>
+          </CardContent>
+        )}
         <CardFooter>
           <Button disabled={validation.isPending} onClick={() => validation.mutate()}>
-            {validation.isPending ? "جارٍ الفحص…" : "تشغيل الفحص"}
+            {buttonLabel}
           </Button>
         </CardFooter>
       </Card>
-    </>
+    </div>
   );
 }

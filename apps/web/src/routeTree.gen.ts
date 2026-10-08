@@ -17,7 +17,6 @@ import { Route as DatabaseIndexRouteImport } from './routes/database.index'
 import { Route as DatabaseCollectionRouteImport } from './routes/database.$collection'
 import { Route as DatabaseGraphRouteImport } from './routes/database.graph'
 import { Route as DatabaseImagesRouteImport } from './routes/database.images'
-import { Route as DatabaseImportsRouteImport } from './routes/database.imports'
 import { Route as DatabaseJsonRouteImport } from './routes/database.json'
 import { Route as DatabaseRevisionsRouteImport } from './routes/database.revisions'
 import { Route as DatabaseTablesRouteImport } from './routes/database.tables'
@@ -65,11 +64,6 @@ const DatabaseGraphRoute = DatabaseGraphRouteImport.update({
 const DatabaseImagesRoute = DatabaseImagesRouteImport.update({
   id: '/images',
   path: '/images',
-  getParentRoute: () => DatabaseRoute,
-} as any)
-const DatabaseImportsRoute = DatabaseImportsRouteImport.update({
-  id: '/imports',
-  path: '/imports',
   getParentRoute: () => DatabaseRoute,
 } as any)
 const DatabaseJsonRoute = DatabaseJsonRouteImport.update({
@@ -121,7 +115,6 @@ export interface FileRoutesByFullPath {
   '/database/$collection': typeof DatabaseCollectionRoute
   '/database/graph': typeof DatabaseGraphRoute
   '/database/images': typeof DatabaseImagesRoute
-  '/database/imports': typeof DatabaseImportsRoute
   '/database/json': typeof DatabaseJsonRoute
   '/database/revisions': typeof DatabaseRevisionsRoute
   '/database/tables': typeof DatabaseTablesRoute
@@ -139,7 +132,6 @@ export interface FileRoutesByTo {
   '/database/$collection': typeof DatabaseCollectionRoute
   '/database/graph': typeof DatabaseGraphRoute
   '/database/images': typeof DatabaseImagesRoute
-  '/database/imports': typeof DatabaseImportsRoute
   '/database/json': typeof DatabaseJsonRoute
   '/database/revisions': typeof DatabaseRevisionsRoute
   '/database/tables': typeof DatabaseTablesRoute
@@ -159,7 +151,6 @@ export interface FileRoutesById {
   '/database/$collection': typeof DatabaseCollectionRoute
   '/database/graph': typeof DatabaseGraphRoute
   '/database/images': typeof DatabaseImagesRoute
-  '/database/imports': typeof DatabaseImportsRoute
   '/database/json': typeof DatabaseJsonRoute
   '/database/revisions': typeof DatabaseRevisionsRoute
   '/database/tables': typeof DatabaseTablesRoute
@@ -180,7 +171,6 @@ export interface FileRouteTypes {
     | '/database/$collection'
     | '/database/graph'
     | '/database/images'
-    | '/database/imports'
     | '/database/json'
     | '/database/revisions'
     | '/database/tables'
@@ -198,7 +188,6 @@ export interface FileRouteTypes {
     | '/database/$collection'
     | '/database/graph'
     | '/database/images'
-    | '/database/imports'
     | '/database/json'
     | '/database/revisions'
     | '/database/tables'
@@ -217,7 +206,6 @@ export interface FileRouteTypes {
     | '/database/$collection'
     | '/database/graph'
     | '/database/images'
-    | '/database/imports'
     | '/database/json'
     | '/database/revisions'
     | '/database/tables'
@@ -295,13 +283,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DatabaseImagesRouteImport
       parentRoute: typeof DatabaseRoute
     }
-    '/database/imports': {
-      id: '/database/imports'
-      path: '/imports'
-      fullPath: '/database/imports'
-      preLoaderRoute: typeof DatabaseImportsRouteImport
-      parentRoute: typeof DatabaseRoute
-    }
     '/database/json': {
       id: '/database/json'
       path: '/json'
@@ -365,7 +346,6 @@ interface DatabaseRouteChildren {
   DatabaseCollectionRoute: typeof DatabaseCollectionRoute
   DatabaseGraphRoute: typeof DatabaseGraphRoute
   DatabaseImagesRoute: typeof DatabaseImagesRoute
-  DatabaseImportsRoute: typeof DatabaseImportsRoute
   DatabaseJsonRoute: typeof DatabaseJsonRoute
   DatabaseRevisionsRoute: typeof DatabaseRevisionsRoute
   DatabaseTablesRoute: typeof DatabaseTablesRoute
@@ -379,7 +359,6 @@ const DatabaseRouteChildren: DatabaseRouteChildren = {
   DatabaseCollectionRoute: DatabaseCollectionRoute,
   DatabaseGraphRoute: DatabaseGraphRoute,
   DatabaseImagesRoute: DatabaseImagesRoute,
-  DatabaseImportsRoute: DatabaseImportsRoute,
   DatabaseJsonRoute: DatabaseJsonRoute,
   DatabaseRevisionsRoute: DatabaseRevisionsRoute,
   DatabaseTablesRoute: DatabaseTablesRoute,

@@ -16,7 +16,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/features/dashboard/page-header";
 import { RecordTable } from "@/features/dashboard/record-table";
 
-import { ArtworkUpload } from "./artwork-upload";
 import { databaseRecordsOptions } from "./database.queries";
 const assetPreview = z.object({
   id: z.string(),
@@ -35,7 +34,6 @@ export function ImagesPage() {
         description="الصور الحقيقية والملصقات والخلفيات والشعارات وروابطها بالسجلات."
         eyebrow="قاعدة البيانات / الوسائط"
       />
-      <ArtworkUpload />
       <Tabs defaultValue="gallery">
         <TabsList>
           <TabsTrigger value="gallery">معرض الصور</TabsTrigger>
