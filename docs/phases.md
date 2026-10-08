@@ -4,6 +4,15 @@ Updated 2026-10-08. Work happens on `codex/nahhasio-server-first`.
 Complete one phase, report changes and verification, then stop for Aqua's review.
 Do not start the next phase until Aqua asks to continue.
 
+## Current Linux transition — 2026-10-08
+
+[The Linux client plan](./linux-client-plan.md) supersedes the Kotlin/Compose direction below.
+Aqua chose Rust GTK4/libadwaita/WebKitGTK/libmpv with a separate React/Vite/TypeScript UI.
+The approved current step is devenv repair plus planning/instructions; retirement and the first
+minimal GTK login/library shell follow review. Today the agent writes the needed bootstrap Rust;
+after it works, Aqua practices through commented exercises and guided review. Stop for confirmation
+after every step or visible change. Older Kotlin milestones below are historical checkpoints.
+
 ## Decisions
 
 - One repository: a pnpm workspace for the website/packages and a Cargo workspace for Rust.
@@ -25,6 +34,13 @@ Do not start the next phase until Aqua asks to continue.
   scores, relations, artwork, and stable ids. A snapshot restore was verified before this work.
 - Nuvio is a product/architecture reference. Implement Nahhasio's own code and retain this
   repository's license. Its family catalog/dashboard remain first-party responsibilities.
+
+## Authorized local foundation checkpoint — 2026-10-08
+
+Aqua authorized dashboard organization and concurrent auth, catalog API, and Kotlin client work.
+The family PC is Fedora Atomic with Podman and an existing Jellyfin. Local integration comes first;
+SSH/deployment follow review. See [the implementation checkpoint](./local-client-foundation-2026-10-08.md)
+for actual changes, verification, limitations, and the remaining source/download/data work.
 
 ## V1.0 direction — local server and Linux client
 
@@ -146,15 +162,15 @@ just to match the diagram. The generated OpenAPI output is not hand-edited.
 
 ## Review milestones
 
-| Milestone | Deliverable                                                                           | State                                                                                                                        |
-| --------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 0         | Existing data restore and artwork verification                                        | Complete; baseline recorded below.                                                                                           |
-| 1         | Local server foundation and administration dashboard                                  | Review ongoing; dashboard/editor changes are present in the working tree and must be reviewed before further implementation. |
-| 2         | V1 data model, minimal local login, authorization, and API contract                   | Pending review of this plan.                                                                                                 |
-| 3         | Client catalog API, release-date/provider workflows, and organized dashboard features | Pending.                                                                                                                     |
-| 4         | Compose Linux browse/detail prototype and local-file/Jellyfin playback                | Pending; may begin once the needed API slice is stable.                                                                      |
-| 5         | Torrent playback, server download jobs, and device offline/download workflows         | Pending.                                                                                                                     |
-| 6         | V1.0 local packaging, recovery, and handoff                                           | Pending.                                                                                                                     |
+| Milestone | Deliverable                                                                           | State                                                                                                                                     |
+| --------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 0         | Existing data restore and artwork verification                                        | Complete; baseline recorded below.                                                                                                        |
+| 1         | Local server foundation and administration dashboard                                  | Review ongoing; dashboard/editor changes are present in the working tree and must be reviewed before further implementation.              |
+| 2         | V1 data model, minimal local login, authorization, and API contract                   | Owner login, session guards and generated contract implemented; schema redesign remains pending.                                          |
+| 3         | Client catalog API, release-date/provider workflows, and organized dashboard features | Organization and authorized list/detail/artwork implemented; provider synchronization remains pending.                                    |
+| 4         | Compose Linux browse/detail prototype and local-file/Jellyfin playback                | JVM client built; browse/detail/artwork and mpv local-file adapter verified. Responsive design under review; Jellyfin resolution pending. |
+| 5         | Torrent playback, server download jobs, and device offline/download workflows         | Pending.                                                                                                                                  |
+| 6         | V1.0 local packaging, recovery, and handoff                                           | Pending.                                                                                                                                  |
 
 Later: remote/LAN deployment, Android/Android TV, multiple Netflix-style profiles, and broader
 account management. These should build on the V1 identity/device boundaries and API contract.

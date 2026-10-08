@@ -32,6 +32,7 @@ data/*.db-*
 data/media/*
 data/backups/
 data/previews/
+data/ideas/
 
 # Devenv
 .devenv*

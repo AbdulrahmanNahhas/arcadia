@@ -1,27 +1,30 @@
 # Nahhasio
 
 A private family media hub: a Rust server for the catalog and home library, an Arabic-first
-administration dashboard, and Kotlin/Compose clients for playback.
+administration dashboard, and a planned Rust GTK4/WebKitGTK viewing client.
 The Git repository remains Arcadia while the product is rewritten in reviewed phases.
 
-**Current milestone: Phase 1 — foundation.** The Rust server exposes read-only health checks;
-the dashboard contains all planned database/server page layouts, a real schema explorer, and
-local work/JSON drafts. Record access and mutations arrive after authentication/API connection;
-upcoming service actions remain disabled. Desktop work starts after dashboard/API/data completion. See [the phases and review milestones](docs/phases.md).
+**Current milestone: local server/client foundation.** The dashboard has real local catalog
+administration, structured and JSON editing, provider/artwork workflows, and schema inspection.
+Owner authentication and the client catalog API are implemented. The rejected Kotlin prototype
+is being retired in favor of a GTK4/libadwaita/WebKitGTK/libmpv shell with a React/Vite/TypeScript UI. Torrent playback, durable downloads, offline saving, and deployment remain later
+checkpoints. See [the current Linux transition plan](docs/linux-client-plan.md) and [review milestones](docs/phases.md).
 
 ## Workspace
 
 ```text
 apps/server          Rust server (Axum, Tokio, SQLx/PostgreSQL)
-apps/web             New React/Vite website (TanStack, Base UI shadcn)
+apps/web             TanStack Start administration dashboard (Base UI shadcn)
+apps/linux           Rejected Kotlin prototype; GTK replacement awaits review
+packages/api-contract OpenAPI and generated Kotlin/TypeScript models/clients
 reference/arcadia-web      Previous website, isolated for migration/reference
 apps/api             Previous API, retained until Rust endpoint parity
 packages/database    Existing catalog schema and the single migration history
 packages/*           Existing catalog contracts, rules, vocabulary, and CLI
 ```
 
-This is one monorepo with pnpm and Cargo workspaces. The Kotlin/Gradle client and shared Rust
-media crate join it in their respective phases. PostgreSQL and all existing catalog data remain.
+This is one monorepo with pnpm/Cargo workspaces and an optional legacy Gradle prototype. The shared Rust media crate
+will join when torrent playback is introduced. PostgreSQL and existing catalog data remain.
 
 ## Run locally
 
@@ -31,9 +34,13 @@ Use the project's Nix/devenv environment, targeting Node 26:
 devenv up
 ```
 
-This starts PostgreSQL, the Rust server, and the new website. Open
+This starts PostgreSQL, the Rust server, the dashboard, and the Linux desktop client. Open
 [the website](http://127.0.0.1:23100). The Rust server uses port 23103 and the existing database
 uses port 23102. Startup does not migrate or seed the database.
+
+If the backend is already running, open just the desktop with `devenv shell -- nahhasio-client`.
+For backend/dashboard only, use `devenv up postgres server web`. Do not start duplicate copies
+on the same fixed ports; strict port checking deliberately reports the conflict.
 
 The reference Hono API is available explicitly with `devenv --profile reference-api up`.
 See [the workspace map](docs/AGENT-CONTEXT.md) for individual commands and transition paths.
@@ -47,8 +54,8 @@ devenv shell -- cargo test --workspace --locked
 ```
 
 Oxlint, the existing anti-slop plugin, Oxfmt, and `@shadcn/lint` enforce the new code conventions.
-Biome is removed. The website is a plain SPA: no desktop bridge, video player, global focus
-scanner, or Node rendering server. Read [the design rules](docs/design-rules.md).
+The dashboard uses TanStack Start server functions with route SSR disabled. Its private backend
+bridge stays on the server; playback belongs to the Linux client. Read [the design rules](docs/design-rules.md).
 
 Database mutation tests require a disposable database. Never run migrations, imports, seeds,
 or cleanup jobs against the live family catalog just to get a test to pass.

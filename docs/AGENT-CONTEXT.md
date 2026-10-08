@@ -1,6 +1,6 @@
 # Nahhasio — current workspace map
 
-Updated 2026-10-07. Read [phases.md](./phases.md) for the current milestone and review boundary.
+Updated 2026-10-08. Read [phases.md](./phases.md) for the current milestone and review boundary.
 The Git repository is still Arcadia; the product and new packages are named Nahhasio.
 
 ## Active code
@@ -20,8 +20,11 @@ The Git repository is still Arcadia; the product and new packages are named Nahh
 | `oxlint.config.ts`                       | Oxlint, generic anti-slop, and six shadcn rules for new website source                      |
 | `.oxfmtrc.jsonc`                         | Oxfmt formatting/import sorting; excludes generated/vendor/historical code                  |
 
-The Kotlin Linux app and shared Rust media crate are introduced in their phases. Do not create
-empty packages or copy the legacy player/web architecture into the new website.
+`apps/linux` currently holds the rejected Kotlin prototype, pending approved retirement.
+The new client is planned as a Rust GTK4/libadwaita/WebKitGTK/libmpv shell with a separate
+React/Vite/TypeScript UI. Read `linux-client-plan.md` for the current scope and learning ownership.
+`packages/api-contract` owns OpenAPI/generated contracts; Kotlin output retires with the prototype.
+Do not create empty packages or copy desktop/player responsibilities into the dashboard.
 
 ## Transition code and data
 
@@ -66,7 +69,8 @@ The Vite proxy sends `/api` to Rust; deployment addresses are not baked into the
 
 Rust configuration: `DATABASE_URL`, `NAHHASIO_BIND` (default loopback:23103), `RUST_LOG`.
 Do not log database URLs, secrets, credential hashes, or raw session tokens.
-Native Linux playback is a future Compose/mpv client milestone, not part of the website.
+Viewing playback belongs to the client; the selected GTK/libmpv shell follows the reviewed
+transition plan. No player is introduced in the administration website.
 
 ## Data baseline
 
@@ -95,9 +99,13 @@ New web main/overview JS total 153.4 KiB gzip, CSS 10.9 KiB gzip; entry alone is
 Aqua expanded Phase 1 to the complete dashboard UI. Desktop work follows dashboard/API/database
 completion. See `phases.md` for the current sequence.
 
-Dashboard UI: `features/dashboard` owns shared headers/tables/server pages;
-`features/database` owns collections/images/imports/schema/maintenance;
-`features/editor` owns the work form and lazy CodeMirror JSON workbench.
+Dashboard UI: `components/dashboard` owns reusable headers/tables;
+`features/dashboard/{home,shell}` owns overview and navigation;
+`features/catalog/{works,entities}` owns work browsing and people/studio/planet editing;
+`features/artwork/library` owns registered images and provider helpers;
+`features/database/{data,records,schema,validation,revisions,overview}` owns database tools;
+`features/editor/{work,fields,references,artwork,structure,json}` owns structured/JSON editing.
+Server pages live in `features/server/overview`; login lives in `features/auth`.
 Database and server use different sidebar contexts. Current schema snapshot contains 71 public
 tables and 559 columns, with no private row values. Upcoming mutation/service controls are disabled.
 
@@ -125,7 +133,7 @@ No migration or live catalog mutation was performed in implementation/testing. M
 `nahhasio_dashboard_test`, restored from the verified snapshot. Private previews live in ignored
 `data/previews`; secrets and backups remain ignored.
 
-Current review order: manual dashboard feedback, improve structured editors and import previews,
+Review order at this historical checkpoint: manual dashboard feedback, improve structured editors and import previews,
 complete production identity/setup and authorization, then watch-state/data-model work, server operations,
 and finally Kotlin/Compose Linux. Do not start another milestone without Aqua's instruction.
 
@@ -137,3 +145,32 @@ Run `node apps/server/tests/database-smoke.mjs` only with the isolated API on po
 checks its connected database name before writing. `pnpm --filter @arcadia/cli exec tsx scripts/check-work-roundtrip.mts`
 requires `DATABASE_URL` to point to `nahhasio_dashboard_test` and checks that name before writing.
 These tests are intentionally outside default test commands.
+
+## Local client foundation checkpoint — 2026-10-08
+
+Aqua authorized three parallel tasks plus dashboard organization. Rust now exposes owner-only
+login/session/logout and authorized `/api/v1/works`, work details, filters and registered artwork.
+The shared OpenAPI contract and generator live in `packages/api-contract`; generate instead of
+hand-editing Kotlin/TypeScript DTOs. The Linux client lives in `apps/linux` and consumes those models.
+See [the detailed checkpoint](./local-client-foundation-2026-10-08.md) for verification and limits.
+
+Minimal owner login uses existing credential hashes and linked active accounts. Aqua separately
+requested a new local admin identity; it was created transactionally and audited without storing
+credentials in source or audit metadata. Dashboard authentication uses HttpOnly cookies and
+owner checks before its existing private local-admin bridge. Production/LAN dashboard admin is
+still disabled. Do not reinstate an anonymous bridge or startup seed to make local access easier.
+
+The first Linux client runs via `devenv shell -- apps/linux/gradlew -p apps/linux :composeApp:run`.
+The project environment includes JDK21, Gradle, mpv, Chromium and Compose runtime libraries.
+Streaming resolution, torrent transfer, downloads, saved packs, progress sync and provider sync
+remain pending. The family PC runs Fedora Atomic with Podman and an existing Jellyfin; local
+verification precedes SSH/deployment.
+
+## Current handoff: GTK transition
+
+Read [linux-client-plan.md](./linux-client-plan.md) before client work. Default devenv starts only
+PostgreSQL, API and dashboard during retirement; server/dashboard wait for their dependency readiness.
+The old JVM prototype is opt-in through `legacy-kotlin` until its approved deletion. The future
+GTK desktop joins default startup after its first verified login/library checkpoint. Aqua explicitly
+requires confirmation after each step or visible change. Agent implements the first bootstrap;
+then client Rust practice belongs to Aqua through commented tasks, hints and review.

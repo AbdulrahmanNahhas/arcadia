@@ -8,6 +8,40 @@ Read `docs/AGENT-CONTEXT.md` first, then `docs/phases.md` for the active milesto
 Complete one phase, report verification and limits, and stop for Aqua's review. Do not begin
 another phase until Aqua asks to continue. The old v0.3.5 plans are historical references.
 
+## Current Linux direction and approval checkpoints
+
+Read `docs/linux-client-plan.md` for the latest decisions. It supersedes Kotlin/Compose plans.
+The Linux client will use a Rust GTK4/libadwaita shell, WebKitGTK, a separate React/Vite/TypeScript
+interface, and libmpv. The administration dashboard remains separate from the viewing client.
+Stremio's Linux shell and Aqua's screenshots are architectural/design references; inspect licenses
+and implementation boundaries before reusing source. Preserve Nahhasio's catalog/family logic.
+
+For this transition, Aqua explicitly requires confirmation after each step or visible change.
+Work only within the approved step, show the concrete result and actual checks, then stop.
+If Aqua rejects a design, discuss the direction before another implementation pass. Do not
+continue polishing, propagate changes, delete a client, or start another milestone silently.
+Permission already given for the current step covers its necessary implementation and checks.
+
+Current approved step: repair/verify devenv and write the plan/project instructions. Kotlin
+retirement and the new GTK shell follow review. Do not remove existing uncommitted work as cleanup.
+
+## Rust learning ownership
+
+Aqua has nearly completed the Rust Book. For today's initial minimal runnable GTK client,
+the agent may implement the Rust needed for a working shell, login and main library page.
+After that reviewed baseline, Aqua practices the client Rust through small Rustlings-style tasks.
+The agent owns UI/UX, API/database work, setup and organization; it supplies interfaces, guidance,
+acceptance checks and reviews instead of automatically completing Aqua's client Rust exercises.
+
+- Put a stable exercise ID, goal, allowed tools/crates, constraints, documentation links and
+  acceptance criteria in task comments. Explain how the task fits the actual application.
+- Ask short concept questions when useful; give progressively stronger hints, and let Aqua attempt
+  the solution. Full solutions follow an explicit request, not an unattended subagent rewrite.
+- Keep the working application intact while exercises are unfinished. Do not wire `todo!`,
+  panics or simulated success into normal user flows. Prefer an isolated exercise/test module.
+- Explain Rust changes and review reasoning, ownership/lifetimes, errors and async behavior.
+- Subagents inherit these boundaries. Do not delegate Aqua's exercise implementation to them.
+
 ## Monorepo boundaries
 
 - `apps/server`: Rust/Axum/Tokio/SQLx server, in the root Cargo workspace.
@@ -17,9 +51,10 @@ another phase until Aqua asks to continue. The old v0.3.5 plans are historical r
 - `packages/database`: existing PostgreSQL schema and the single migration history.
 - Other `packages/*`: existing contracts, domain rules, vocabulary, and database CLI.
 
-Kotlin/Compose clients and the shared Rust media core join the repository in their phases.
-Do not create empty packages or share React UI with Kotlin. Share media behavior in Rust and
-network contracts through a single generated OpenAPI definition when that contract is introduced.
+`apps/linux` currently contains the rejected Kotlin prototype, pending approved retirement.
+The planned Rust shell and its React UI will have distinct modules/workspaces described in the
+Linux plan. Do not create empty packages. Share media behavior in UI-independent Rust and network
+contracts through the existing single generated OpenAPI definition.
 
 ## Development and checks
 
@@ -42,6 +77,11 @@ can include integration suites: never point them at the live family catalog.
 Keep commits focused and conventional. Include actual checks and material limitations in reports.
 
 ## Website rules
+
+These shadcn/TanStack composition rules apply to `apps/web`, the administration dashboard.
+The separate viewing-client UI uses its own reviewed design tokens/components and responsive
+layout. Preserve accessible labels, keyboard focus/navigation, RTL, reduced motion and typed
+HTTP/native-bridge boundaries there as well. No dashboard interface inside the viewing client.
 
 Follow the `shadcn` skill and `docs/design-rules.md`. Components use the official `@shadcn`
 registry; retrieve current docs before composing them, inspect generated output, and install
@@ -95,8 +135,9 @@ Keep user identity, viewing profile, device, and library policy as distinct conc
 Keep unsafe code out of the server workspace. Use bounded pools/timeouts, structured tracing,
 clear feature boundaries, graceful shutdown, and ordinary transactional SQL.
 The media core must not depend on Tauri/GTK or UI types. Platform players use adapters.
-Begin Linux playback with mpv local IPC and measure it on the actual desktop before deciding
-how to embed video. Device downloads, saved metadata/source packs, and home-library downloads
+The selected new Linux player uses libmpv through an isolated native adapter; measure its actual
+Wayland/XWayland/GPU/subtitle behavior. Inspect the working legacy Tauri player in Git history
+before rewriting transfer/player logic. Device downloads, saved metadata/source packs, and home-library downloads
 are different workflows with different ownership and recovery behavior.
 
 ## Current product order
@@ -106,4 +147,5 @@ sidebar context. Cover existing editorial/admin workflows, TMDB, Fanart, images,
 inspection, JSON/bulk editing, maintenance, revisions, users/devices, and server operations.
 UI routes may be prepared before their services; pending actions must stay visibly disabled.
 Do not claim full database control from UI layouts. Connect authorization and transactional
-mutations before enabling them. Finish dashboard/API/database work before desktop implementation.
+mutations before enabling them. The approved next client checkpoint is only a runnable GTK shell,
+real login and main library page; torrent/Jellyfin playback and downloads follow separate reviews.

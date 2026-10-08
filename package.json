@@ -2,7 +2,7 @@
   "name": "nahhasio",
   "version": "0.1.0",
   "private": true,
-  "description": "Private family media server, web dashboard, and Kotlin playback clients.",
+  "description": "Private family media server, web dashboard, and Linux playback clients.",
   "license": "MIT",
   "type": "module",
   "scripts": {
