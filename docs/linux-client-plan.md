@@ -185,6 +185,10 @@ Subagents obey the same ownership boundary.
 
 ## Approval checkpoints and fresh-chat handoff
 
+The current UI review queue is [linux-ui-review-tasks.md](./linux-ui-review-tasks.md), recording
+Aqua's newer home, cards, comments, installment browsing, complete work-page and performance
+requests. Implement and review one checkpoint at a time; H01 (hero) is first.
+
 1. **Now:** repaired devenv + this plan + AGENTS/context. Show actual startup/shutdown checks;
    stop for review and commit confirmation. Preserve all unrelated pending source work.
 2. **Retirement (complete):** remove Kotlin after its checkpoint, inspect the old player and Stremio bridge/render approach,

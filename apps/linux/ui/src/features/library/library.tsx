@@ -377,7 +377,12 @@ export function Library({ user }: { user: User }) {
           </span>
         </header>
         <div className={selected ? "library-layout has-preview" : "library-layout"}>
-          <main className="library-main" onKeyDown={movePoster}>
+          <main
+            className={
+              !discovering && view === "home" ? "library-main library-home" : "library-main"
+            }
+            onKeyDown={movePoster}
+          >
             {logout.error && (
               <p className="error" role="alert">
                 {logout.error.message}

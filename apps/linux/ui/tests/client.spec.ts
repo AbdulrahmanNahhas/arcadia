@@ -215,3 +215,28 @@ test("planet navigation, private opt-in and scoped arrow keys", async ({ page })
   await page.getByRole("option", { name: "تمثيل حي", exact: true }).click();
   await expect(page.getByRole("button", { name: "الصيغة", exact: true })).toContainText("تمثيل حي");
 });
+
+test("hero has real metadata, manual selection, pause and a working details action", async ({
+  page,
+}) => {
+  await login(page);
+  const hero = page.getByRole("region", { name: "أحدث الأعمال" });
+  await expect(hero.getByRole("list", { name: "معلومات العمل" })).toContainText("2021");
+  await expect(hero.getByRole("list", { name: "معلومات العمل" })).toContainText("2 حلقة");
+  await expect(hero.getByRole("button", { name: "المشاهدة قريبًا" })).toBeDisabled();
+  await hero.getByRole("button", { name: "إيقاف التبديل التلقائي" }).click();
+  await expect(hero.getByRole("button", { name: "تشغيل التبديل التلقائي" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await hero.getByRole("button", { name: "عرض رحلة أخرى", exact: true }).click();
+  await expect(hero.getByRole("heading", { name: "رحلة أخرى" })).toBeVisible();
+  await expect(hero.getByRole("button", { name: "عرض رحلة أخرى", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await hero.getByRole("button", { name: "العمل السابق" }).click();
+  await expect(hero.getByRole("heading", { name: "رحلة في المكتبة" })).toBeVisible();
+  await hero.getByRole("button", { name: "عرض التفاصيل", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "معاينة العمل" })).toBeVisible();
+});

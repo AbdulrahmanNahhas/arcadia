@@ -7,10 +7,12 @@ export function Artwork({
   id,
   alt,
   className = "",
+  priority = false,
 }: {
   id?: string | null;
   alt: string;
   className?: string;
+  priority?: boolean;
 }) {
   const [element, setElement] = useState<Element | null>(null);
   const [near, setNear] = useState(false);
@@ -31,12 +33,19 @@ export function Artwork({
   const query = useQuery({
     queryKey: ["artwork", id],
     queryFn: ({ signal }) => gateway.artwork(id ?? "", signal),
-    enabled: Boolean(id) && near,
+    enabled: Boolean(id) && (priority || near),
     staleTime: Infinity,
     gcTime: 600000,
   });
   return query.data ? (
-    <img ref={setElement} className={className} src={query.data} alt={alt} loading="lazy" />
+    <img
+      ref={setElement}
+      className={className}
+      src={query.data}
+      alt={alt}
+      loading={priority ? "eager" : "lazy"}
+      decoding="async"
+    />
   ) : (
     <span
       ref={setElement}

@@ -11,6 +11,7 @@ another phase until Aqua asks to continue. The old v0.3.5 plans are historical r
 ## Current Linux direction and approval checkpoints
 
 Read `docs/linux-client-plan.md` for the latest decisions. It supersedes Kotlin/Compose plans.
+Read `docs/linux-ui-review-tasks.md` for Aqua's current design checklist and the one-task review queue.
 The Linux client will use a Rust GTK4/libadwaita shell, WebKitGTK, a separate React/Vite/TypeScript
 interface, and libmpv. The administration dashboard remains separate from the viewing client.
 Stremio's Linux shell and Aqua's screenshots are architectural/design references; inspect licenses
