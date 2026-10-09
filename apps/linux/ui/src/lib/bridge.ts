@@ -1,5 +1,8 @@
 import {
   CatalogFiltersSchema,
+  CatalogPageSchema,
+  FacetCatalogSchema,
+  RecommendationPageSchema,
   HomeFeedSchema,
   SessionSchema,
   WorkDetailSchema,
@@ -7,6 +10,7 @@ import {
 } from "@nahhasio/api-contract";
 import type { ApiClient, LoginRequest } from "@nahhasio/api-contract";
 import { z } from "zod";
+export type CatalogQuery = NonNullable<Parameters<ApiClient["browseCatalog"]>[0]>;
 export type LibraryQuery = NonNullable<Parameters<ApiClient["listWorks"]>[0]>;
 const ReplySchema = z.discriminatedUnion("ok", [
   z.object({ id: z.string(), ok: z.literal(true), result: z.json().optional() }),
@@ -86,6 +90,12 @@ export const gateway = {
   },
   works: async (query: LibraryQuery, signal?: AbortSignal) =>
     WorkPageSchema.parse(await call("works", query, signal)),
+  browse: async (query: CatalogQuery, signal?: AbortSignal) =>
+    CatalogPageSchema.parse(await call("browse", query, signal)),
+  facets: async (query: CatalogQuery, signal?: AbortSignal) =>
+    FacetCatalogSchema.parse(await call("facets", query, signal)),
+  recommendations: async (workId?: string, signal?: AbortSignal) =>
+    RecommendationPageSchema.parse(await call("recommendations", workId ? { workId } : {}, signal)),
   home: async (signal?: AbortSignal) => HomeFeedSchema.parse(await call("home", {}, signal)),
   filters: async (signal?: AbortSignal) =>
     CatalogFiltersSchema.parse(await call("filters", {}, signal)),

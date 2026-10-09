@@ -55,6 +55,8 @@ then s.story::double precision*0.25+s.characters::double precision*0.20+s.depth:
 
 pub(super) fn summary() -> String {
     format!(
-        "{SUMMARY} || jsonb_build_object('score',(select jsonb_build_object('rating',floor(avg(rating order by position,id)*10+0.5)/10,'scored',count(rating),'total',count(*)) from (select {SCORE_VALUE} rating,i.position,i.id from installments i left join installment_scores s on s.installment_id=i.id where i.title_id=t.id) rated))"
+        "{SUMMARY} || jsonb_build_object('banner',(select {ARTWORK} from media_asset_assignments m join media_assets a on a.id=m.asset_id where m.title_id=t.id and m.role='banner' order by m.is_primary desc,m.id limit 1),'logo',(select {ARTWORK} from media_asset_assignments m join media_assets a on a.id=m.asset_id where m.title_id=t.id and m.role='logo' order by m.is_primary desc,m.id limit 1),'score',(select jsonb_build_object('rating',floor(avg(rating order by position,id)*10+0.5)/10,'scored',count(rating),'total',count(*)) from (select {SCORE_VALUE} rating,i.position,i.id from installments i left join installment_scores s on s.installment_id=i.id where i.title_id=t.id) rated))"
     )
 }
+
+pub(super) const ARTWORK: &str = "jsonb_build_object('id',a.id,'url','/api/v1/artwork/'||a.id,'mimeType',a.mime_type,'width',a.width,'height',a.height,'byteSize',a.byte_size,'sha256',a.sha256,'originalFilename',a.original_filename,'focalX',a.focal_x,'focalY',a.focal_y)";

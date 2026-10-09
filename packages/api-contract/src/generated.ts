@@ -201,6 +201,8 @@ export const WorkSummarySchema = z.strictObject({
   episodeCount: z.number().int(),
   isPrivate: z.boolean(),
   score: ScoreSummarySchema,
+  banner: ArtworkSchema.nullable(),
+  logo: ArtworkSchema.nullable(),
 });
 export type WorkSummary = z.infer<typeof WorkSummarySchema>;
 
@@ -322,9 +324,9 @@ export const WorkDetailSchema = z.strictObject({
   episodeCount: z.number().int(),
   contentWarnings: z.string().nullable(),
   analysisNotes: z.string().nullable(),
-  sexualityRisk: z.string(),
-  behavioralRisk: z.string(),
-  theologyRisk: z.string(),
+  sexualityRisk: z.enum(["none", "low", "medium", "high"]),
+  behavioralRisk: z.enum(["none", "low", "medium", "high"]),
+  theologyRisk: z.enum(["none", "low", "medium", "high"]),
   externalIds: ExternalIdsSchema,
   aliases: z.array(AliasSchema),
   trivia: z.array(z.string()),
@@ -347,6 +349,8 @@ export const WorkDetailSchema = z.strictObject({
   sortTitle: z.string(),
   isPrivate: z.boolean(),
   score: ScoreSummarySchema,
+  banner: ArtworkSchema.nullable(),
+  logo: ArtworkSchema.nullable(),
 });
 export type WorkDetail = z.infer<typeof WorkDetailSchema>;
 
@@ -412,6 +416,82 @@ export const HomeFeedSchema = z.strictObject({
   upcoming: z.array(UpcomingInstallmentSchema),
 });
 export type HomeFeed = z.infer<typeof HomeFeedSchema>;
+
+export const CatalogCriteriaSchema = z.strictObject({
+  story: z.number().nullable(),
+  characters: z.number().nullable(),
+  depth: z.number().nullable(),
+  worldBuilding: z.number().nullable(),
+  originality: z.number().nullable(),
+  craft: z.number().nullable(),
+});
+export type CatalogCriteria = z.infer<typeof CatalogCriteriaSchema>;
+
+export const CatalogEntrySchema = z.strictObject({
+  work: WorkSummarySchema,
+  installment: UpcomingInstallmentSchema.nullable(),
+  classification: ClassificationSchema,
+  status: z.string(),
+  watchState: z.string(),
+  criteria: CatalogCriteriaSchema,
+});
+export type CatalogEntry = z.infer<typeof CatalogEntrySchema>;
+
+export const CatalogPageSchema = z.strictObject({
+  items: z.array(CatalogEntrySchema),
+  total: z.number().int(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+});
+export type CatalogPage = z.infer<typeof CatalogPageSchema>;
+
+export const FacetOptionSchema = z.strictObject({
+  value: z.string(),
+  label: z.string(),
+  count: z.number().int(),
+});
+export type FacetOption = z.infer<typeof FacetOptionSchema>;
+
+export const FacetGroupSchema = z.strictObject({
+  key: z.string(),
+  label: z.string(),
+  options: z.array(FacetOptionSchema),
+});
+export type FacetGroup = z.infer<typeof FacetGroupSchema>;
+
+export const FacetCatalogSchema = z.strictObject({
+  groups: z.array(FacetGroupSchema),
+  yearMin: z.number().int().nullable(),
+  yearMax: z.number().int().nullable(),
+});
+export type FacetCatalog = z.infer<typeof FacetCatalogSchema>;
+
+export const FacetSelectionSchema = z.strictObject({
+  key: z.string(),
+  include: z.array(z.string()),
+  exclude: z.array(z.string()),
+});
+export type FacetSelection = z.infer<typeof FacetSelectionSchema>;
+
+export const BrowseFiltersSchema = z.strictObject({
+  facets: z.array(FacetSelectionSchema),
+  minimumRating: z.number(),
+  minimumScores: z.strictObject({
+    story: z.number(),
+    characters: z.number(),
+    depth: z.number(),
+    worldBuilding: z.number(),
+    originality: z.number(),
+    craft: z.number(),
+  }),
+});
+export type BrowseFilters = z.infer<typeof BrowseFiltersSchema>;
+
+export const RecommendationPageSchema = z.strictObject({
+  items: z.array(WorkSummarySchema),
+  basis: z.enum(["related", "personal", "editorial"]),
+});
+export type RecommendationPage = z.infer<typeof RecommendationPageSchema>;
 
 export class ApiClient {
   private readonly baseUrl: string;
@@ -495,5 +575,60 @@ export class ApiClient {
   async getHomeFeed(signal?: AbortSignal): Promise<HomeFeed> {
     const response = await this.request("/api/v1/catalog/home", "GET", undefined, signal);
     return HomeFeedSchema.parse(await response.json());
+  }
+  async browseCatalog(
+    query: {
+      page?: number;
+      pageSize?: number;
+      q?: string;
+      sort?: string;
+      view?: "works" | "installments";
+      privacy?: "public" | "all" | "private";
+      filters?: string;
+      yearFrom?: number;
+      yearTo?: number;
+    } = {},
+    signal?: AbortSignal,
+  ): Promise<CatalogPage> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value !== undefined) params.set(key, String(value));
+    const response = await this.request(
+      "/api/v1/catalog/browse" + (params.size ? `?${params}` : ""),
+      "GET",
+      undefined,
+      signal,
+    );
+    return CatalogPageSchema.parse(await response.json());
+  }
+  async getCatalogFacets(
+    query: { view?: "works" | "installments"; privacy?: "public" | "all" | "private" } = {},
+    signal?: AbortSignal,
+  ): Promise<FacetCatalog> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value !== undefined) params.set(key, String(value));
+    const response = await this.request(
+      "/api/v1/catalog/facets" + (params.size ? `?${params}` : ""),
+      "GET",
+      undefined,
+      signal,
+    );
+    return FacetCatalogSchema.parse(await response.json());
+  }
+  async getRecommendations(
+    query: { workId?: string } = {},
+    signal?: AbortSignal,
+  ): Promise<RecommendationPage> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value !== undefined) params.set(key, String(value));
+    const response = await this.request(
+      "/api/v1/catalog/recommendations" + (params.size ? `?${params}` : ""),
+      "GET",
+      undefined,
+      signal,
+    );
+    return RecommendationPageSchema.parse(await response.json());
   }
 }

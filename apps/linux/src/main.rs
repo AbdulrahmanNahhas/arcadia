@@ -310,13 +310,13 @@ fn smoke(runtime: &tokio::runtime::Runtime, service: &Services) -> glib::ExitCod
     let mut bytes = Vec::new();
     loop {
         bytes.clear();
-        let mut take = std::io::Read::take(&mut reader, 4097);
+        let mut take = std::io::Read::take(&mut reader, 16385);
         match take.read_until(b'\n', &mut bytes) {
             Ok(0) => break,
             Ok(_) => {}
             Err(_) => return glib::ExitCode::FAILURE,
         };
-        if bytes.len() > 4096 {
+        if bytes.len() > 16384 {
             return glib::ExitCode::FAILURE;
         }
         let Ok(raw) = std::str::from_utf8(&bytes) else {

@@ -69,6 +69,34 @@ struct Browse {
     #[serde(skip_serializing_if = "Option::is_none")]
     planet: Option<String>,
 }
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CatalogQuery {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page_size: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    q: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sort: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    view: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    privacy: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    filters: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    year_from: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    year_to: Option<u32>,
+}
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RecommendationQuery {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    work_id: Option<String>,
+}
 fn parse<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, Error> {
     serde_json::from_value(value).map_err(|_| Error::new("bad_request", "Invalid command fields"))
 }
@@ -256,6 +284,43 @@ impl Services {
                 }
                 let response = self
                     .authorized(Method::GET, "api/v1/works")
+                    .await?
+                    .query(&input)
+                    .send()
+                    .await
+                    .map_err(network)?;
+                self.json(response).await
+            }
+            "browse" | "facets" => {
+                let input: CatalogQuery = parse(request.payload)?;
+                if input.page_size.is_some_and(|n| n == 0 || n > 100)
+                    || input.page.is_some_and(|n| n == 0 || n > 100_000)
+                    || input.q.as_ref().is_some_and(|v| v.chars().count() > 200)
+                    || input.filters.as_ref().is_some_and(|v| v.len() > 8000)
+                {
+                    return Err(Error::new("bad_request", "Invalid catalog query"));
+                }
+                let path = if request.command == "browse" {
+                    "api/v1/catalog/browse"
+                } else {
+                    "api/v1/catalog/facets"
+                };
+                let response = self
+                    .authorized(Method::GET, path)
+                    .await?
+                    .query(&input)
+                    .send()
+                    .await
+                    .map_err(network)?;
+                self.json(response).await
+            }
+            "recommendations" => {
+                let input: RecommendationQuery = parse(request.payload)?;
+                if input.work_id.as_ref().is_some_and(|id| !valid_id(id)) {
+                    return Err(Error::new("bad_request", "Invalid catalog identifier"));
+                }
+                let response = self
+                    .authorized(Method::GET, "api/v1/catalog/recommendations")
                     .await?
                     .query(&input)
                     .send()

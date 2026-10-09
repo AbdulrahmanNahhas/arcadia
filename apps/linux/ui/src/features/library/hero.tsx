@@ -49,13 +49,13 @@ export function Hero({
       </p>
     ) : candidates.isLoading ? (
       <div
-        className="mb-9 grid min-h-[470px] place-items-center bg-card text-muted-foreground"
+        className="mb-9 grid min-h-117.5 place-items-center bg-card text-muted-foreground"
         aria-busy="true"
       >
         جارٍ تحميل أبرز الأعمال…
       </div>
     ) : (
-      <div className="mb-9 grid min-h-[470px] place-items-center bg-card text-muted-foreground">
+      <div className="mb-9 grid min-h-117.5 place-items-center bg-card text-muted-foreground">
         لا توجد أعمال عامة لعرضها بعد.
       </div>
     );
@@ -63,7 +63,7 @@ export function Hero({
   const logo = detail.data?.artwork.find((image) => image.role === "logo");
   return (
     <section
-      className="relative isolate -mx-[var(--hero-gutter)] mb-9 h-[clamp(550px,80vh,820px)] min-h-[550px] overflow-hidden bg-card [--hero-gutter:38px] min-[1700px]:[--hero-gutter:52px] max-[1100px]:[--hero-gutter:25px] max-[800px]:[--hero-gutter:20px] max-[640px]:-mx-[15px] max-[640px]:h-auto max-[640px]:min-h-[500px]"
+      className="relative isolate -mx-(--hero-gutter) mb-9 h-[clamp(550px,80vh,820px)] min-h-137.5 overflow-hidden bg-card [--hero-gutter:38px] min-[1700px]:[--hero-gutter:52px] max-[1100px]:[--hero-gutter:25px] max-[800px]:[--hero-gutter:20px] max-[640px]:-mx-[15px] max-[640px]:h-auto max-[640px]:min-h-[500px]"
       aria-label="أحدث الأعمال"
       aria-roledescription="عرض أعمال متغيّر"
       onMouseEnter={() => setPaused(true)}

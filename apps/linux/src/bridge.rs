@@ -15,7 +15,7 @@ fn empty_object() -> Value {
 }
 impl Request {
     pub fn parse(raw: &str) -> Result<Self, Error> {
-        if raw.len() > 4096 {
+        if raw.len() > 16384 {
             return Err(Error::new("bad_request", "Request is too large"));
         }
         let request: Self = serde_json::from_str(raw)
@@ -68,7 +68,7 @@ mod tests {
     use super::*;
     #[test]
     fn rejects_unbounded_and_ambiguous_messages() {
-        assert!(Request::parse(&"x".repeat(4097)).is_err());
+        assert!(Request::parse(&"x".repeat(16385)).is_err());
         assert!(
             Request::parse(
                 r#"{"id":"1","command":"works","payload":[],"url":"file:///etc/passwd"}"#

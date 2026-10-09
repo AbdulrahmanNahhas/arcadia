@@ -37,6 +37,7 @@ export function Artwork({
     staleTime: Infinity,
     gcTime: 600000,
   });
+
   return query.data ? (
     <img
       ref={setElement}

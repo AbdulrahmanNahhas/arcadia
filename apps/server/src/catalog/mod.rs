@@ -1,6 +1,8 @@
 mod artwork;
+mod browse;
 mod home;
 mod queries;
+mod recommendations;
 
 use axum::{
     Json, Router,
@@ -18,6 +20,12 @@ use sqlx::{AssertSqlSafe, PgPool, types::Json as SqlJson};
 pub fn routes(pool: PgPool) -> Router {
     Router::new()
         .route("/api/v1/works", get(works))
+        .route("/api/v1/catalog/browse", get(browse::browse))
+        .route("/api/v1/catalog/facets", get(browse::options))
+        .route(
+            "/api/v1/catalog/recommendations",
+            get(recommendations::recommend),
+        )
         .route("/api/v1/works/{id}", get(work))
         .route("/api/v1/catalog/filters", get(filters))
         .route("/api/v1/catalog/home", get(home::feed))
@@ -34,7 +42,11 @@ impl IntoResponse for ApiError {
 }
 impl From<sqlx::Error> for ApiError {
     fn from(error: sqlx::Error) -> Self {
-        tracing::warn!(kind=?std::mem::discriminant(&error), "catalog query failed");
+        if let Some(database) = error.as_database_error() {
+            tracing::warn!(code=?database.code(),message=database.message(),"catalog query failed");
+        } else {
+            tracing::warn!(kind=?std::mem::discriminant(&error), "catalog query failed");
+        }
         Self(
             StatusCode::SERVICE_UNAVAILABLE,
             "Catalog is temporarily unavailable",

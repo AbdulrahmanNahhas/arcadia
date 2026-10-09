@@ -665,6 +665,170 @@
           }
         }
       }
+    },
+    "/api/v1/catalog/browse": {
+      "get": {
+        "operationId": "browseCatalog",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["works", "installments"]
+            }
+          },
+          {
+            "name": "privacy",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["public", "all", "private"]
+            }
+          },
+          {
+            "name": "filters",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "yearFrom",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "yearTo",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated owner viewing API; bounded read-only result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter values"
+          },
+          "401": {
+            "description": "Owner authentication required"
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/facets": {
+      "get": {
+        "operationId": "getCatalogFacets",
+        "parameters": [
+          {
+            "name": "view",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["works", "installments"]
+            }
+          },
+          {
+            "name": "privacy",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["public", "all", "private"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated owner viewing API; bounded read-only result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FacetCatalog"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter values"
+          },
+          "401": {
+            "description": "Owner authentication required"
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/recommendations": {
+      "get": {
+        "operationId": "getRecommendations",
+        "parameters": [
+          {
+            "name": "workId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated owner viewing API; bounded read-only result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter values"
+          },
+          "401": {
+            "description": "Owner authentication required"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1164,7 +1328,9 @@
           "installmentCount",
           "episodeCount",
           "isPrivate",
-          "score"
+          "score",
+          "banner",
+          "logo"
         ],
         "properties": {
           "id": {
@@ -1215,6 +1381,22 @@
           },
           "score": {
             "$ref": "#/components/schemas/ScoreSummary"
+          },
+          "banner": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Artwork"
+              }
+            ],
+            "nullable": true
+          },
+          "logo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Artwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -1388,7 +1570,9 @@
           "awards",
           "sortTitle",
           "isPrivate",
-          "score"
+          "score",
+          "banner",
+          "logo"
         ],
         "properties": {
           "id": {
@@ -1443,13 +1627,16 @@
             "nullable": true
           },
           "sexualityRisk": {
-            "type": "string"
+            "type": "string",
+            "enum": ["none", "low", "medium", "high"]
           },
           "behavioralRisk": {
-            "type": "string"
+            "type": "string",
+            "enum": ["none", "low", "medium", "high"]
           },
           "theologyRisk": {
-            "type": "string"
+            "type": "string",
+            "enum": ["none", "low", "medium", "high"]
           },
           "externalIds": {
             "$ref": "#/components/schemas/ExternalIds"
@@ -1559,6 +1746,22 @@
           },
           "score": {
             "$ref": "#/components/schemas/ScoreSummary"
+          },
+          "banner": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Artwork"
+              }
+            ],
+            "nullable": true
+          },
+          "logo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Artwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -2170,6 +2373,215 @@
             "items": {
               "$ref": "#/components/schemas/UpcomingInstallment"
             }
+          }
+        }
+      },
+      "CatalogCriteria": {
+        "type": "object",
+        "required": ["story", "characters", "depth", "worldBuilding", "originality", "craft"],
+        "properties": {
+          "story": {
+            "type": "number",
+            "nullable": true
+          },
+          "characters": {
+            "type": "number",
+            "nullable": true
+          },
+          "depth": {
+            "type": "number",
+            "nullable": true
+          },
+          "worldBuilding": {
+            "type": "number",
+            "nullable": true
+          },
+          "originality": {
+            "type": "number",
+            "nullable": true
+          },
+          "craft": {
+            "type": "number",
+            "nullable": true
+          }
+        }
+      },
+      "CatalogEntry": {
+        "type": "object",
+        "required": ["work", "installment", "classification", "status", "watchState", "criteria"],
+        "properties": {
+          "work": {
+            "$ref": "#/components/schemas/WorkSummary"
+          },
+          "installment": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpcomingInstallment"
+              }
+            ],
+            "nullable": true
+          },
+          "classification": {
+            "$ref": "#/components/schemas/Classification"
+          },
+          "status": {
+            "type": "string"
+          },
+          "watchState": {
+            "type": "string"
+          },
+          "criteria": {
+            "$ref": "#/components/schemas/CatalogCriteria"
+          }
+        }
+      },
+      "CatalogPage": {
+        "type": "object",
+        "required": ["items", "total", "page", "pageSize"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogEntry"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "pageSize": {
+            "type": "integer"
+          }
+        }
+      },
+      "FacetOption": {
+        "type": "object",
+        "required": ["value", "label", "count"],
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
+        }
+      },
+      "FacetGroup": {
+        "type": "object",
+        "required": ["key", "label", "options"],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetOption"
+            }
+          }
+        }
+      },
+      "FacetCatalog": {
+        "type": "object",
+        "required": ["groups", "yearMin", "yearMax"],
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetGroup"
+            }
+          },
+          "yearMin": {
+            "type": "integer",
+            "nullable": true
+          },
+          "yearMax": {
+            "type": "integer",
+            "nullable": true
+          }
+        }
+      },
+      "FacetSelection": {
+        "type": "object",
+        "required": ["key", "include", "exclude"],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "include": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exclude": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "BrowseFilters": {
+        "type": "object",
+        "required": ["facets", "minimumRating", "minimumScores"],
+        "properties": {
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetSelection"
+            }
+          },
+          "minimumRating": {
+            "type": "number"
+          },
+          "minimumScores": {
+            "type": "object",
+            "required": ["story", "characters", "depth", "worldBuilding", "originality", "craft"],
+            "properties": {
+              "story": {
+                "type": "number"
+              },
+              "characters": {
+                "type": "number"
+              },
+              "depth": {
+                "type": "number"
+              },
+              "worldBuilding": {
+                "type": "number"
+              },
+              "originality": {
+                "type": "number"
+              },
+              "craft": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      },
+      "RecommendationPage": {
+        "type": "object",
+        "required": ["items", "basis"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkSummary"
+            }
+          },
+          "basis": {
+            "type": "string",
+            "enum": ["related", "personal", "editorial"]
           }
         }
       }

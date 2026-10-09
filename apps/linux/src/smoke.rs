@@ -40,6 +40,7 @@ pub fn install(
     input: Input,
     passed: Rc<Cell<bool>>,
 ) {
+    let home_only = std::env::var_os("NAHHASIO_SMOKE_HOME_ONLY").is_some();
     let app = app.clone();
     let weak = view.downgrade();
     let step = Rc::new(Cell::new(0u8));
@@ -68,7 +69,7 @@ pub fn install(
             0=>"JSON.stringify({ready:!!document.querySelector('#email') && typeof window.__nahhasioReply === 'function'})".into(),
             1=>format!("(()=>{{const input={credentials}; for(const name of ['email','password']){{const element=document.getElementById(name);Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(element,input[name]);element.dispatchEvent(new Event('input',{{bubbles:true}}));}} return 'filled';}})()"),
             2=>"(()=>{document.querySelector('.login-form').requestSubmit();return 'submitted';})()".into(),
-            3=>"JSON.stringify({posters:document.querySelectorAll('.poster-card').length,images:Array.from(document.querySelectorAll('.poster-card img')).filter(img=>img.complete&&img.naturalWidth>0).length,errors:document.querySelectorAll('[role=alert]').length,heroReady:Array.from(document.querySelectorAll('.library-hero .hero-backdrop,.library-hero .hero-logo')).every(image=>image.tagName==='IMG'?image.complete&&image.naturalWidth>0:!image.textContent.includes('جارٍ تحميل الصورة'))})".into(),
+            3=>"JSON.stringify({posters:document.querySelectorAll('.home-fitted-row article a').length,images:Array.from(document.querySelectorAll('.home-fitted-row article img')).filter(img=>img.complete&&img.naturalWidth>0).length,errors:document.querySelectorAll('[role=alert]').length,heroReady:Array.from(document.querySelectorAll('.home-hero-backdrop,.home-hero-logo')).every(image=>image.tagName==='IMG'?image.complete&&image.naturalWidth>0:!image.textContent.includes('جارٍ تحميل الصورة'))})".into(),
             4=>"(()=>{document.querySelector('.poster-card').click();return 'open';})()".into(),
             5=>"JSON.stringify({workReady:!!document.querySelector('.work-page h1')&&Array.from(document.querySelectorAll('.work-page-banner,.work-page-poster')).every(image=>image.tagName==='IMG'?image.complete&&image.naturalWidth>0:!image.textContent.includes('جارٍ تحميل الصورة')),errors:document.querySelectorAll('[role=alert]').length})".into(),
             6=>"(()=>{document.querySelector('.work-page button').click();return 'back';})()".into(),
@@ -113,7 +114,17 @@ pub fn install(
                             println!(
                                 "Native WebKit login, catalog and artwork rendered successfully"
                             );
-                            step.set(4);
+                            if home_only {
+                                passed.set(true);
+                                step.set(250);
+                                let done = app.clone();
+                                glib::timeout_add_local_once(
+                                    Duration::from_millis(800),
+                                    move || done.quit(),
+                                );
+                            } else {
+                                step.set(4);
+                            }
                         }
                     }
                     4 => step.set(5),

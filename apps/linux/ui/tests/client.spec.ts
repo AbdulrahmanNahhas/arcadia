@@ -13,6 +13,8 @@ const work: WorkSummary = {
   audience: "general",
   age: "7+",
   poster: null,
+  banner: null,
+  logo: null,
   installmentCount: 1,
   episodeCount: 2,
 };
@@ -355,3 +357,60 @@ test("home logic: scores, planet reset, spoilers and installment destination", a
     page.getByRole("article", { name: "صفحة العمل" }).getByText("7.1", { exact: true }),
   ).toBeVisible();
 });
+
+for (const width of [480, 1440]) {
+  test(`sidebar-home-only ${width}: clean header and fitted rows adapt without clipping`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate((seed) => {
+      const handler = window.webkit?.messageHandlers?.nahhasio;
+      if (!handler) throw new Error("Fixture bridge missing");
+      const original = handler.postMessage.bind(handler);
+      handler.postMessage = (message: string) => {
+        const request = JSON.parse(message);
+        const items = Array.from({ length: 12 }, (_, index) => ({
+          ...seed,
+          id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+          titleAr: `${seed.titleAr} ${index + 1}`,
+        }));
+        if (request.command === "works" || request.command === "recommendations") {
+          const result =
+            request.command === "recommendations"
+              ? { items, basis: "editorial" }
+              : {
+                  items: items.slice(0, request.payload.pageSize ?? 12),
+                  total: 12,
+                  page: 1,
+                  pageSize: request.payload.pageSize ?? 12,
+                };
+          queueMicrotask(() => window["__nahhasioReply"]?.({ id: request.id, ok: true, result }));
+        } else original(message);
+      };
+    }, work);
+    await login(page);
+    const rail = page.getByRole("navigation", { name: "التنقل الرئيسي" });
+    await expect(rail.getByRole("link", { name: "الرئيسية", exact: true })).toBeVisible();
+    await expect(page.locator(".stremio-topbar nav")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "ابحث في الأرشيف", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "الملف والحساب" })).toBeVisible();
+    const row = page.locator(".home-fitted-row").first();
+    await expect(row.locator("article").first()).toBeVisible();
+    await expect(row.locator("article")).toHaveCount(width < 600 ? 2 : 8);
+    const metrics = await row.evaluate((element) => ({
+      width: element.clientWidth,
+      scroll: element.scrollWidth,
+      tops: [...element.querySelectorAll("article")].map((card) =>
+        Math.round(card.getBoundingClientRect().top),
+      ),
+    }));
+    expect(metrics.scroll).toBeLessThanOrEqual(metrics.width + 1);
+    expect(new Set(metrics.tops).size).toBe(1);
+    const hero = await page.getByRole("region", { name: "أحدث الأعمال" }).boundingBox();
+    expect(hero?.height).toBeLessThan(570);
+    await page.getByRole("button", { name: "ابحث في الأرشيف", exact: true }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "ابحث في الأرشيف", exact: true })).toBeFocused();
+  });
+}
