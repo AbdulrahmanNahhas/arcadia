@@ -68,7 +68,7 @@ pub fn install(
             0=>"JSON.stringify({ready:!!document.querySelector('#email') && typeof window.__nahhasioReply === 'function'})".into(),
             1=>format!("(()=>{{const input={credentials}; for(const name of ['email','password']){{const element=document.getElementById(name);Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(element,input[name]);element.dispatchEvent(new Event('input',{{bubbles:true}}));}} return 'filled';}})()"),
             2=>"(()=>{document.querySelector('.login-form').requestSubmit();return 'submitted';})()".into(),
-            3=>"JSON.stringify({posters:document.querySelectorAll('.poster-card').length,images:Array.from(document.querySelectorAll('.poster-card img')).filter(img=>img.complete&&img.naturalWidth>0).length,errors:document.querySelectorAll('[role=alert]').length})".into(),
+            3=>"JSON.stringify({posters:document.querySelectorAll('.poster-card').length,images:Array.from(document.querySelectorAll('.poster-card img')).filter(img=>img.complete&&img.naturalWidth>0).length,errors:document.querySelectorAll('[role=alert]').length,heroReady:Array.from(document.querySelectorAll('.library-hero .hero-backdrop,.library-hero .hero-logo')).every(image=>image.tagName==='IMG'?image.complete&&image.naturalWidth>0:!image.textContent.includes('جارٍ تحميل الصورة'))})".into(),
             4=>"(()=>{document.querySelector('button[aria-label=\"تسجيل الخروج\"]').click();return 'logout';})()".into(),
             _=>"JSON.stringify({signedOut:!!document.querySelector('#email')})".into(),
         };
@@ -102,6 +102,7 @@ pub fn install(
                             && value["posters"].as_u64().unwrap_or(0) > 0
                             && value["images"].as_u64().unwrap_or(0) > 0
                             && value["errors"] == 0
+                            && value["heroReady"] == true
                         {
                             if let Some(view) = weak.upgrade() {
                                 snapshot(&view, "home");

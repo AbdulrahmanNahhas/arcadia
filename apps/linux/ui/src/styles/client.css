@@ -37,8 +37,8 @@
 body {
   margin: 0;
 }
-button,
-input,
+button:where(:not([data-slot])),
+input:where(:not([data-slot])),
 select {
   font: inherit;
 }
@@ -51,11 +51,11 @@ select {
 button {
   cursor: pointer;
 }
-button:disabled {
+button:where(:not([data-slot])):disabled {
   cursor: default;
   opacity: 0.38;
 }
-button {
+button:where(:not([data-slot])) {
   border: 0;
   color: inherit;
 }
@@ -63,7 +63,7 @@ a {
   color: inherit;
   text-decoration: none;
 }
-input,
+input:where(:not([data-slot])),
 select {
   color: var(--text);
   background: var(--surface);
@@ -72,17 +72,17 @@ select {
   padding: 11px 14px;
   min-width: 0;
 }
-input:focus,
+input:where(:not([data-slot])):focus,
 select:focus {
   border-color: var(--accent);
   outline: none;
 }
-button:focus-visible,
+button:where(:not([data-slot])):focus-visible,
 a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 5px;
 }
-button:hover:not(:disabled) {
+button:where(:not([data-slot])):hover:not(:disabled) {
   filter: brightness(1.13);
 }
 h1,
@@ -222,19 +222,33 @@ h3 {
   margin-top: auto;
 }
 .application {
+  position: relative;
   min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 .topbar {
-  height: 50px !important;
+  min-height: 72px;
   display: flex;
   align-items: center;
-  gap: 32px;
-  padding: 18px 38px;
+  gap: 24px;
+  padding: 12px 38px;
   background: var(--background);
   flex-shrink: 0;
+}
+.application-home .topbar {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 2;
+  min-height: 110px;
+  align-items: flex-start;
+  background: linear-gradient(180deg, var(--background), #11111dcc 48%, transparent);
+  pointer-events: none;
+}
+.application-home .topbar > * {
+  pointer-events: auto;
 }
 .wordmark {
   font-size: 23px;
@@ -246,35 +260,6 @@ h3 {
   color: var(--muted);
   font-size: 11px;
   font-weight: 400;
-}
-.search-field {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  max-width: 600px;
-  flex: 1;
-  min-width: 100px;
-  margin-inline: auto;
-  background: var(--surface);
-  border-radius: 50px;
-  padding: 2px 18px;
-  color: var(--muted);
-}
-.search-field input {
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  flex: 1;
-  padding: 11px 0;
-  outline: none;
-  width: 100%;
-  font-size: 14px;
-}
-.search-field input::placeholder {
-  color: var(--muted);
-}
-.search-field:focus-within {
-  outline: 1px solid var(--accent);
 }
 .user-chip {
   display: flex;
@@ -1067,49 +1052,6 @@ h3 {
   position: relative;
   min-width: 150px;
 }
-.choice-trigger {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 12px 18px;
-  border-radius: 12px;
-  background: var(--surface);
-}
-.choice-trigger:hover,
-.choice-trigger[aria-expanded="true"] {
-  background: var(--hover);
-}
-.choice-menu {
-  position: absolute;
-  inset-inline: 0;
-  top: calc(100% + 8px);
-  z-index: 20;
-  min-width: 210px;
-  border: 1px solid var(--line);
-  padding: 6px;
-  background: var(--panel);
-  border-radius: 12px;
-  box-shadow: 0 14px 36px #0008;
-}
-.choice-menu button {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 10px 12px;
-  text-align: start;
-  border-radius: 8px;
-  background: transparent;
-}
-.choice-menu button:hover,
-.choice-menu button:focus-visible {
-  background: var(--hover);
-}
-.choice-menu button[aria-selected="true"] {
-  color: var(--accent);
-}
 .private-toggle {
   display: flex;
   gap: 8px;
@@ -1157,7 +1099,7 @@ h3 {
   position: relative;
   width: min(620px, 72%);
   height: 100%;
-  padding: clamp(28px, 5vw, 68px) var(--hero-gutter) 88px;
+  padding: 128px var(--hero-gutter) 88px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -1389,4 +1331,28 @@ h3 {
   font-size: 11px;
   padding: 3px 7px;
   border-radius: 5px;
+}
+
+.topbar-search {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+.topbar .wordmark {
+  font-size: 21px;
+  line-height: 1.35;
+}
+.topbar .user-chip {
+  min-height: 44px;
+}
+@media (max-width: 800px) {
+  .application-home .topbar {
+    min-height: 96px;
+  }
+}
+@media (max-width: 640px) {
+  .application-home .topbar {
+    min-height: 88px;
+  }
 }

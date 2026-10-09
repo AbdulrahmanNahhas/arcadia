@@ -30,7 +30,15 @@ whole checklist without those reviews. Keep commits focused and the working app 
 - [x] Pause rotation on focus/hover, an explicit pause control, and respect reduced motion.
 - [x] Good loading/empty/image-fallback behavior; no horizontal overflow at narrow sizes.
 - [x] Browser behavior/responsive checks and actual packaged GTK/WebKit rendering.
-- [ ] Aqua reviews the visible result before H02.
+- [x] Aqua approved the hero.
+
+### H01a — Compact topbar and shared controls
+
+- [x] Fix the conflicting fixed height/padding and keep search/account controls usable.
+- [x] Home topbar overlays the hero with background-to-transparent fade; browse retains a solid bar.
+- [x] Tailwind 4 + official shadcn controls, mapped to the client palette and RTL.
+- [x] Replace current dropdowns; preserve keyboard behavior, focus, and packaged CSP.
+- [x] Verify browser sizes and actual GTK rendering; stop for review without committing.
 
 ### H02 — Shared work and installment cards, reference image 1
 
@@ -120,7 +128,7 @@ whole checklist without those reviews. Keep commits focused and the working app 
 ## Checkpoint status
 
 - Previous small polish pass preserved in commit `952ad3c` before this design pass.
-- H01 is implemented and awaiting Aqua's review. Other items remain pending.
+- H01 is approved. H01a is the current checkpoint; remaining home tasks follow review.
 - Existing minimal login/library works; this checklist does not claim player, comprehensive
   filters, comments feed or full work pages are already implemented.
 
@@ -134,3 +142,15 @@ whole checklist without those reviews. Keep commits focused and the working app 
 - Host font/accessibility/graphics warnings remain; smoothness is not proven by this smoke run.
 - H01 adds no schema changes or catalog writes. Login/logout creates/revokes an ordinary session.
 - Score badges await H02; details currently open the existing preview until W01 is implemented.
+
+## H01a verification and review boundary
+
+The topbar/control checkpoint is implemented and awaiting review. Tailwind 4 and official
+shadcn Select/Button/InputGroup (with their Input/Textarea dependencies) use the existing client
+palette. All five existing dropdowns now use Select; media cards retain their own composition.
+The native capture waits for hero images before saving the home screen. The packaged policy
+was not relaxed. No catalog/schema changes were introduced.
+
+Aqua explicitly requires commit confirmation from this point onward. Leave this checkpoint
+uncommitted until requested. The next home tasks remain scored cards, a selected-planet section,
+latest family comments/reviews and anticipated installments, with review after each task.

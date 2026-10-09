@@ -17,6 +17,12 @@ import type { KeyboardEvent } from "react";
 
 import { Artwork } from "../../components/artwork";
 import { Choice } from "../../components/choice";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "../../components/ui/input-group";
 import { gateway } from "../../lib/bridge";
 import type { LibraryQuery } from "../../lib/bridge";
 import { Hero } from "./hero";
@@ -351,26 +357,39 @@ export function Library({ user }: { user: User }) {
           </button>
         </div>
       </nav>
-      <div className="application">
+      <div
+        className={!discovering && view === "home" ? "application application-home" : "application"}
+      >
         <header className="topbar">
           <div className="wordmark">
             نحّاسيو <span>مكتبتنا</span>
           </div>
-          <label className="search-field">
-            <Search size={21} />
-            <span className="sr-only">ابحث في المكتبة</span>
-            <input
-              type="search"
-              placeholder="ابحث عن حكايتك التالية…"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            {search && (
-              <button className="icon-button" aria-label="مسح البحث" onClick={() => setSearch("")}>
-                <X size={17} />
-              </button>
-            )}
-          </label>
+          <div className="topbar-search">
+            <InputGroup className="h-11 min-w-0 max-w-xl flex-1">
+              <InputGroupAddon>
+                <Search data-icon="inline-start" />
+              </InputGroupAddon>
+              <InputGroupInput
+                className="h-full"
+                type="search"
+                aria-label="ابحث في المكتبة"
+                placeholder="ابحث عن حكايتك التالية…"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              {search && (
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-xs"
+                    aria-label="مسح البحث"
+                    onClick={() => setSearch("")}
+                  >
+                    <X data-icon="inline-start" />
+                  </InputGroupButton>
+                </InputGroupAddon>
+              )}
+            </InputGroup>
+          </div>
           <span className="user-chip" title={user.name}>
             <span>{user.name.charAt(0)}</span>
             <b>{user.name}</b>
@@ -459,78 +478,70 @@ export function Library({ user }: { user: User }) {
                 </div>
                 {showFilters && (
                   <div className="advanced-filters">
-                    <label>
-                      التصنيف
-                      <select
-                        value={filters.genre ?? ""}
-                        onChange={(event) =>
-                          setFilters({ ...filters, genre: event.target.value || undefined })
-                        }
-                      >
-                        <option value="">كل التصنيفات</option>
-                        {options.data?.genres.map((item) => (
-                          <option key={item.id} value={item.slug}>
-                            {item.labelAr || item.labelEn}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      الجمهور
-                      <select
-                        value={filters.audience ?? ""}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setFilters({
-                            ...filters,
-                            audience:
-                              value === "general"
-                                ? "general"
-                                : value === "teen"
-                                  ? "teen"
-                                  : value === "young-adult"
-                                    ? "young-adult"
-                                    : value === "adult"
-                                      ? "adult"
-                                      : undefined,
-                          });
-                        }}
-                      >
-                        <option value="">كل الأعمار</option>
-                        <option value="general">عام</option>
-                        <option value="teen">للمراهقين</option>
-                        <option value="young-adult">للشباب</option>
-                        <option value="adult">للبالغين</option>
-                      </select>
-                    </label>
-                    <label>
-                      حالة الإصدار
-                      <select
-                        value={filters.status ?? ""}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setFilters({
-                            ...filters,
-                            status:
-                              value === "announced"
-                                ? "announced"
-                                : value === "airing"
-                                  ? "airing"
-                                  : value === "completed"
-                                    ? "completed"
-                                    : value === "unknown"
-                                      ? "unknown"
-                                      : undefined,
-                          });
-                        }}
-                      >
-                        <option value="">كل الحالات</option>
-                        <option value="announced">معلن</option>
-                        <option value="airing">يُعرض حاليًا</option>
-                        <option value="completed">مكتمل</option>
-                        <option value="unknown">غير معروف</option>
-                      </select>
-                    </label>
+                    <Choice
+                      label="التصنيف"
+                      value={filters.genre ?? ""}
+                      options={[
+                        { value: "", label: "كل التصنيفات" },
+                        ...(options.data?.genres.map((item) => ({
+                          value: item.slug,
+                          label: item.labelAr || item.labelEn,
+                        })) ?? []),
+                      ]}
+                      onChange={(value) => setFilters({ ...filters, genre: value || undefined })}
+                    />
+                    <Choice
+                      label="الجمهور"
+                      value={filters.audience ?? ""}
+                      options={[
+                        { value: "", label: "كل الأعمار" },
+                        { value: "general", label: "عام" },
+                        { value: "teen", label: "للمراهقين" },
+                        { value: "young-adult", label: "للشباب" },
+                        { value: "adult", label: "للبالغين" },
+                      ]}
+                      onChange={(value) =>
+                        setFilters({
+                          ...filters,
+                          audience:
+                            value === "general"
+                              ? "general"
+                              : value === "teen"
+                                ? "teen"
+                                : value === "young-adult"
+                                  ? "young-adult"
+                                  : value === "adult"
+                                    ? "adult"
+                                    : undefined,
+                        })
+                      }
+                    />
+                    <Choice
+                      label="حالة الإصدار"
+                      value={filters.status ?? ""}
+                      options={[
+                        { value: "", label: "كل الحالات" },
+                        { value: "announced", label: "معلن" },
+                        { value: "airing", label: "يُعرض حاليًا" },
+                        { value: "completed", label: "مكتمل" },
+                        { value: "unknown", label: "غير معروف" },
+                      ]}
+                      onChange={(value) =>
+                        setFilters({
+                          ...filters,
+                          status:
+                            value === "announced"
+                              ? "announced"
+                              : value === "airing"
+                                ? "airing"
+                                : value === "completed"
+                                  ? "completed"
+                                  : value === "unknown"
+                                    ? "unknown"
+                                    : undefined,
+                        })
+                      }
+                    />
                     <label>
                       من سنة
                       <input

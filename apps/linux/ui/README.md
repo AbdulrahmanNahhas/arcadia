@@ -21,6 +21,18 @@ Discovery requests another page only on explicit intent. The selected-work previ
 family guide and data tabs and adapts to narrow widths. The upcoming full work page will replace
 that limited presentation after review. Player/download/saved controls remain disabled.
 
+## Shared controls
+
+Tailwind CSS 4 is integrated through the Vite plugin. Official shadcn Base UI controls live in
+`src/components/ui`; add/update them with the CLI rather than editing vendored primitives.
+`src/styles/tailwind.css` maps their semantic colors to the viewing palette. Media cards remain
+app-specific. RTL comes from Base UI's DirectionProvider. CSPProvider disables injected style
+blocks; the packaged CSP remains unchanged. Browser journeys now run the production bundle,
+including dropdown positioning, selection, Escape/focus return and narrow topbar layout.
+
+Home's topbar overlays the banner with a background-to-transparent fade. Browse keeps a compact
+solid bar. Legacy CSS resets exclude official controls without increasing their specificity.
+
 ## Boundary
 
 UI never owns a bearer token or directly accesses the server. `src/lib/bridge.ts` permits only the agreed typed catalog/auth commands, validates native replies and parses catalog data through `@nahhasio/api-contract` schemas. Rust retains the session token in memory. Reloading the interface can recover the native in-memory session; closing the application ends that local session. No browser/localStorage persistence.

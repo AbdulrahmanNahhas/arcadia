@@ -8,6 +8,7 @@ export default defineConfig({
     "packages/contracts/src/generated.ts",
     // Vendored shadcn output, replaced wholesale by the shadcn CLI — hand-edits would be lost.
     "apps/web/src/components/ui/**",
+    "apps/linux/ui/src/components/ui/**",
     "tools/oxlint/anti-slop/**",
     ".agents/**",
     ".claude/**",

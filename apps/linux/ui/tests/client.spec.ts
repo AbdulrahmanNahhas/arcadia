@@ -211,9 +211,11 @@ test("planet navigation, private opt-in and scoped arrow keys", async ({ page })
   await expect(page.getByRole("button", { name: "تفاصيل عمل خاص" })).toBeVisible();
   await page.getByLabel("إظهار الأعمال الخاصة").uncheck();
   await expect(page.getByRole("button", { name: "تفاصيل عمل خاص" })).toHaveCount(0);
-  await page.getByRole("button", { name: "الصيغة", exact: true }).click();
+  await page.getByRole("combobox", { name: "الصيغة", exact: true }).click();
   await page.getByRole("option", { name: "تمثيل حي", exact: true }).click();
-  await expect(page.getByRole("button", { name: "الصيغة", exact: true })).toContainText("تمثيل حي");
+  await expect(page.getByRole("combobox", { name: "الصيغة", exact: true })).toContainText(
+    "تمثيل حي",
+  );
 });
 
 test("hero has real metadata, manual selection, pause and a working details action", async ({
@@ -240,3 +242,46 @@ test("hero has real metadata, manual selection, pause and a working details acti
   await hero.getByRole("button", { name: "عرض التفاصيل", exact: true }).click();
   await expect(page.getByRole("complementary", { name: "معاينة العمل" })).toBeVisible();
 });
+
+for (const width of [480, 1440]) {
+  test(`topbar ${width}: readable hero overlay and keyboard dropdown under packaged CSP`, async ({
+    page,
+  }) => {
+    const cspErrors: string[] = [];
+    page.on("console", (message) => {
+      if (/Content Security Policy|violates.*policy/i.test(message.text()))
+        cspErrors.push(message.text());
+    });
+    await page.setViewportSize({ width, height: 900 });
+    await login(page);
+    const input = page.getByRole("searchbox");
+    const hero = page.getByRole("region", { name: "أحدث الأعمال" });
+    const inputBox = await input.boundingBox();
+    const heroBox = await hero.boundingBox();
+    expect(inputBox).not.toBeNull();
+    expect(heroBox).not.toBeNull();
+    if (inputBox && heroBox) {
+      expect(inputBox.height).toBeGreaterThanOrEqual(40);
+      expect(inputBox.y).toBeGreaterThanOrEqual(heroBox.y);
+      expect(inputBox.y + inputBox.height).toBeLessThan(heroBox.y + heroBox.height);
+    }
+    await input.fill("missing");
+    await expect(page.getByRole("heading", { name: "لا توجد أعمال مطابقة" })).toBeVisible();
+    await page.getByRole("button", { name: "مسح البحث" }).click();
+    await expect(hero).toBeVisible();
+    await page.getByRole("button", { name: "اكتشف المكتبة", exact: true }).click();
+    const format = page.getByRole("combobox", { name: "الصيغة", exact: true });
+    await format.focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(format).toBeFocused();
+    await page.getByRole("button", { name: "مرشحات", exact: true }).click();
+    await page.getByRole("combobox", { name: "حالة الإصدار", exact: true }).click();
+    await page.getByRole("option", { name: "مكتمل", exact: true }).click();
+    await expect(page.getByRole("combobox", { name: "حالة الإصدار", exact: true })).toContainText(
+      "مكتمل",
+    );
+    expect(cspErrors).toEqual([]);
+  });
+}

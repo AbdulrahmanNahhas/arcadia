@@ -22,6 +22,8 @@ Work only within the approved step, show the concrete result and actual checks, 
 If Aqua rejects a design, discuss the direction before another implementation pass. Do not
 continue polishing, propagate changes, delete a client, or start another milestone silently.
 Permission already given for the current step covers its necessary implementation and checks.
+Do not create commits without Aqua's explicit confirmation for that checkpoint. Include the actual
+command in command-approval requests so Aqua can see what will run.
 
 Current approved milestone: Aqua confirmed the plan and authorized one continuous pass through
 Kotlin retirement and the minimal runnable GTK client (real login and main library page), with
