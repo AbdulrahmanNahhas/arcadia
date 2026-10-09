@@ -4,6 +4,7 @@ import type { Page } from "@playwright/test";
 const work: WorkSummary = {
   id: "00000000-0000-4000-8000-000000000001",
   isPrivate: false,
+  score: { rating: 7.1, scored: 1, total: 1 },
   canonicalTitle: "A library work",
   titleAr: "رحلة في المكتبة",
   summary: "حكاية من مكتبة العائلة",
@@ -77,6 +78,38 @@ test.beforeEach(async ({ page }) => {
                   signedIn = false;
                   result = null;
                   break;
+                case "home":
+                  result = {
+                    comments: [
+                      {
+                        id: "00000000-0000-4000-8000-000000000006",
+                        kind: "comment",
+                        body: "حرق أحداث محفوظ",
+                        containsSpoilers: true,
+                        rating: null,
+                        createdAt: "2026-10-08T12:00:00Z",
+                        authorName: "أحد أفراد العائلة",
+                        avatarKey: "default",
+                        work: fixtureWork,
+                      },
+                    ],
+                    upcoming: [
+                      {
+                        id: "00000000-0000-4000-8000-000000000007",
+                        workId: fixtureWork.id,
+                        workTitle: fixtureWork.canonicalTitle,
+                        workTitleAr: fixtureWork.titleAr,
+                        title: "الموسم القادم",
+                        kind: "season",
+                        releaseDate: "2027-01-02",
+                        runtimeMinutes: null,
+                        episodeCount: 12,
+                        poster: null,
+                        score: { rating: null, scored: 0, total: 1 },
+                      },
+                    ],
+                  };
+                  break;
                 case "filters":
                   result = {
                     planets: [
@@ -104,11 +137,15 @@ test.beforeEach(async ({ page }) => {
                         ? []
                         : [
                             fixtureWork,
-                            {
-                              ...fixtureWork,
-                              id: "00000000-0000-4000-8000-000000000003",
-                              titleAr: "رحلة أخرى",
-                            },
+                            ...(request.payload.planet
+                              ? []
+                              : [
+                                  {
+                                    ...fixtureWork,
+                                    id: "00000000-0000-4000-8000-000000000003",
+                                    titleAr: "رحلة أخرى",
+                                  },
+                                ]),
                             ...(request.payload.includePrivate
                               ? [
                                   {
@@ -123,7 +160,10 @@ test.beforeEach(async ({ page }) => {
                     page: request.payload.page ?? 1,
                     pageSize: request.payload.pageSize ?? 10,
                     total:
-                      request.payload.q === "missing" ? 0 : request.payload.includePrivate ? 3 : 2,
+                      request.payload.q === "missing"
+                        ? 0
+                        : (request.payload.planet ? 1 : 2) +
+                          (request.payload.includePrivate ? 1 : 0),
                   };
                   break;
                 case "work":
@@ -166,21 +206,21 @@ test("real bridge states: reject login, browse details, family guide, search and
   await page.getByRole("button", { name: "تفاصيل رحلة في المكتبة" }).first().click();
   await expect(
     page
-      .getByRole("complementary", { name: "معاينة العمل" })
+      .getByRole("article", { name: "صفحة العمل" })
       .getByRole("heading", { name: "رحلة في المكتبة" }),
   ).toBeVisible();
   await page.getByRole("tab", { name: "دليل العائلة" }).click();
   await expect(page.getByText("تنبيه تحريري محفوظ")).toBeVisible();
   await expect(page.getByText("متوسط", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "المشاهدة", exact: true })).toBeDisabled();
-  await page.getByRole("button", { name: "إغلاق المعاينة" }).click();
+  await page.getByRole("button", { name: "العودة إلى المكتبة" }).click();
   await page.getByRole("searchbox").fill("missing");
   await expect(page.getByRole("heading", { name: "لا توجد أعمال مطابقة" })).toBeVisible();
   await page.getByRole("button", { name: "تسجيل الخروج" }).click();
   await expect(page.getByRole("heading", { name: "ادخل إلى مكتبتك" })).toBeVisible();
 });
 for (const width of [480, 640, 1024, 1440])
-  test(`responsive ${width}: library and preview fit window`, async ({ page }) => {
+  test(`responsive ${width}: library and work page fit window`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await login(page);
     await expect(page.getByRole("searchbox")).toBeVisible();
@@ -240,7 +280,7 @@ test("hero has real metadata, manual selection, pause and a working details acti
   await hero.getByRole("button", { name: "العمل السابق" }).click();
   await expect(hero.getByRole("heading", { name: "رحلة في المكتبة" })).toBeVisible();
   await hero.getByRole("button", { name: "عرض التفاصيل", exact: true }).click();
-  await expect(page.getByRole("complementary", { name: "معاينة العمل" })).toBeVisible();
+  await expect(page.getByRole("article", { name: "صفحة العمل" })).toBeVisible();
 });
 
 for (const width of [480, 1440]) {
@@ -285,3 +325,33 @@ for (const width of [480, 1440]) {
     expect(cspErrors).toEqual([]);
   });
 }
+
+test("home logic: scores, planet reset, spoilers and installment destination", async ({ page }) => {
+  await login(page);
+  await expect(
+    page.locator(".poster-shelf").first().getByText("7.1", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("حرق أحداث محفوظ", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "إظهار تعليق يحتوي على حرق" }).click();
+  await expect(page.getByText("حرق أحداث محفوظ", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "تفاصيل الموسم القادم" }).click();
+  await expect(page.getByRole("article", { name: "صفحة العمل" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "الأجزاء", exact: true })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await page.getByRole("button", { name: "العودة إلى المكتبة" }).click();
+  await expect(page.getByRole("button", { name: "تفاصيل الموسم القادم" })).toBeFocused();
+  await page.getByRole("button", { name: "العوالم", exact: true }).click();
+  await page.getByRole("button", { name: /الخيال/ }).click();
+  await expect(page.getByRole("button", { name: "مسح اختيار العالم" })).toBeVisible();
+  await expect(page.locator(".poster-grid .poster-card")).toHaveCount(1);
+  await page.getByRole("button", { name: "اكتشف المكتبة", exact: true }).click();
+  await expect(page.getByRole("button", { name: "مسح اختيار العالم" })).toHaveCount(0);
+  await expect(page.locator(".poster-grid .poster-card")).toHaveCount(2);
+  await page.getByRole("button", { name: "تفاصيل رحلة في المكتبة" }).click();
+  await expect(page.getByRole("complementary")).toHaveCount(0);
+  await expect(
+    page.getByRole("article", { name: "صفحة العمل" }).getByText("7.1", { exact: true }),
+  ).toBeVisible();
+});

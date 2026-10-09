@@ -271,6 +271,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@nahhasio/api-contract':
+        specifier: workspace:*
+        version: link:../api-contract
       '@types/node':
         specifier: ^22
         version: 22.20.1

@@ -645,6 +645,26 @@
           }
         }
       }
+    },
+    "/api/v1/catalog/home": {
+      "get": {
+        "operationId": "getHomeFeed",
+        "responses": {
+          "200": {
+            "description": "Bounded public family activity and anticipated installments, nearest known date first. Published comments/reviews from active discoverable accounts only.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeFeed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Owner authentication required"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1143,7 +1163,8 @@
           "poster",
           "installmentCount",
           "episodeCount",
-          "isPrivate"
+          "isPrivate",
+          "score"
         ],
         "properties": {
           "id": {
@@ -1191,6 +1212,9 @@
           },
           "isPrivate": {
             "type": "boolean"
+          },
+          "score": {
+            "$ref": "#/components/schemas/ScoreSummary"
           }
         }
       },
@@ -1363,7 +1387,8 @@
           "planets",
           "awards",
           "sortTitle",
-          "isPrivate"
+          "isPrivate",
+          "score"
         ],
         "properties": {
           "id": {
@@ -1531,6 +1556,9 @@
           },
           "isPrivate": {
             "type": "boolean"
+          },
+          "score": {
+            "$ref": "#/components/schemas/ScoreSummary"
           }
         }
       },
@@ -2000,6 +2028,148 @@
           },
           "count": {
             "type": "integer"
+          }
+        }
+      },
+      "ScoreSummary": {
+        "type": "object",
+        "required": ["rating", "scored", "total"],
+        "properties": {
+          "rating": {
+            "type": "number",
+            "nullable": true
+          },
+          "scored": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "FamilyActivity": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "body",
+          "containsSpoilers",
+          "rating",
+          "createdAt",
+          "authorName",
+          "avatarKey",
+          "work"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["comment", "review"]
+          },
+          "body": {
+            "type": "string"
+          },
+          "containsSpoilers": {
+            "type": "boolean"
+          },
+          "rating": {
+            "type": "integer",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "avatarKey": {
+            "type": "string"
+          },
+          "work": {
+            "$ref": "#/components/schemas/WorkSummary"
+          }
+        }
+      },
+      "UpcomingInstallment": {
+        "type": "object",
+        "required": [
+          "id",
+          "workId",
+          "workTitle",
+          "workTitleAr",
+          "title",
+          "kind",
+          "releaseDate",
+          "runtimeMinutes",
+          "episodeCount",
+          "poster",
+          "score"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workTitle": {
+            "type": "string"
+          },
+          "workTitleAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["season", "movie", "special"]
+          },
+          "releaseDate": {
+            "type": "string",
+            "nullable": true
+          },
+          "runtimeMinutes": {
+            "type": "integer",
+            "nullable": true
+          },
+          "episodeCount": {
+            "type": "integer"
+          },
+          "poster": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Artwork"
+              }
+            ],
+            "nullable": true
+          },
+          "score": {
+            "$ref": "#/components/schemas/ScoreSummary"
+          }
+        }
+      },
+      "HomeFeed": {
+        "type": "object",
+        "required": ["comments", "upcoming"],
+        "properties": {
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FamilyActivity"
+            }
+          },
+          "upcoming": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UpcomingInstallment"
+            }
           }
         }
       }

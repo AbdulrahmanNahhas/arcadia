@@ -42,46 +42,47 @@ whole checklist without those reviews. Keep commits focused and the working app 
 
 ### H02 — Shared work and installment cards, reference image 1
 
-- [ ] Improve image/title/metadata hierarchy, hover and visible focus without clipped edges.
-- [ ] One shared card supports works and individual installments with distinct identifiers
+- [x] Improve image/title/metadata hierarchy, hover and visible focus without clipped edges.
+- [x] One shared card supports works and individual installments with distinct identifiers
       and correct destination/context.
-- [ ] Show the dashboard's calculated score, not external ratings or `qualityScore`.
+- [x] Show the dashboard's calculated score, not external ratings or `qualityScore`.
       Source of truth: `packages/domain/src/scoring.ts` and
       `apps/web/src/features/scoring/score.server.ts`.
-- [ ] Use six complete criteria with existing weights: story 25%, characters 20%, depth 20%,
+- [x] Use six complete criteria with existing weights: story 25%, characters 20%, depth 20%,
       world building 10%, originality 10%, craft 15%. Installment rating uses its own criteria;
       work rating averages complete installment values before rounding to one decimal.
-- [ ] Incomplete scores stay unrated; show coverage where helpful. Do not treat null as zero.
-- [ ] Installment cards show episode count or movie runtime, release/status and own score.
-- [ ] Add bounded API fields/contract coverage, verify dashboard parity and review examples.
+- [x] Incomplete scores stay unrated; show coverage where helpful. Do not treat null as zero.
+- [x] Installment cards show episode count or movie runtime, release/status and own score.
+- [x] Add bounded API fields/contract coverage, verify dashboard parity and review examples.
 
 ### H03 — Latest updates and planet selector, reference image 1
 
-- [ ] Keep latest updates directly after the hero.
-- [ ] Replace the long list of individual planet shelves with one selected-planet shelf.
-- [ ] Heading dropdown contains real planet names and stored icons, selected state and counts.
-- [ ] Selecting a planet changes the bounded server query; “view all” carries its filter.
-- [ ] Keep the rail's planet entry; no private works appear in public shelves or their counts.
-- [ ] Review dropdown keyboard behavior, shelf sizing and loading/empty/error states.
+- [x] Keep latest updates directly after the hero.
+- [x] Replace the long list of individual planet shelves with one selected-planet shelf.
+- [x] Heading dropdown contains real planet names and stored icons, selected state and counts.
+- [x] Selecting a planet changes the bounded server query; “view all” carries its filter.
+- [x] Keep the rail's planet entry; no private works appear in public shelves or their counts.
+- [x] Review dropdown keyboard behavior, shelf sizing and loading/empty/error states.
 
 ### H04 — Latest family comments/reviews, reference image 3
 
-- [ ] Use existing `title_comments` and `title_reviews`; inspect account/visibility rules
+- [x] Use existing `title_comments` and `title_reviews`; inspect account/visibility rules
       before exposing their contents. Do not create another comments schema.
-- [ ] Read-only bounded feed: work poster/title, author/avatar, time and comment/review body.
-- [ ] Published entries only; exclude private works and unavailable accounts as policy requires.
-- [ ] Respect spoilers with an explicit reveal; never render arbitrary comment HTML.
-- [ ] Link each entry to its work and relevant comments area.
-- [ ] Real empty state when no eligible comments exist; no fabricated activity.
+- [x] Read-only bounded feed: work poster/title, author/avatar, time and comment/review body.
+- [x] Published entries only; exclude private works and unavailable accounts as policy requires.
+- [x] Respect spoilers with an explicit reveal; never render arbitrary comment HTML.
+- [x] Link each entry to its work.
+- [ ] A dedicated work-page comments area follows the expanded work page.
+- [x] Real empty state when no eligible comments exist; no fabricated activity.
 
 ### H05 — Most anticipated installments
 
-- [ ] Query installment release dates/statuses, not only title release years.
-- [ ] Include new seasons, movies and other upcoming installments of existing works.
-- [ ] Nearest known release first, stable ordering, public works only and bounded results.
-- [ ] Show parent work, installment name/kind and honest release-date precision/status.
-- [ ] Agree handling of announced entries with no date; no invented countdown/popularity.
-- [ ] Use H02 installment cards; opening a card selects that installment on its work page.
+- [x] Query installment release dates/statuses, not only title release years.
+- [x] Include new seasons, movies and other upcoming installments of existing works.
+- [x] Nearest known release first, stable ordering, public works only and bounded results.
+- [x] Show parent work, installment name/kind and honest release-date precision/status.
+- [x] Agree handling of announced entries with no date; no invented countdown/popularity.
+- [x] Use H02 installment cards; opening a card selects that installment on its work page.
 
 ### B01 — Browse and complete filters
 
@@ -128,9 +129,9 @@ whole checklist without those reviews. Keep commits focused and the working app 
 ## Checkpoint status
 
 - Previous small polish pass preserved in commit `952ad3c` before this design pass.
-- H01 is approved. H01a is the current checkpoint; remaining home tasks follow review.
+- H01 is approved. H01a is approved and committed as `14ea629`. Aqua authorized a faster combined logic pass for home/cards, a minimal work page and the Browse planet reset. This new pass remains uncommitted for review.
 - Existing minimal login/library works; this checklist does not claim player, comprehensive
-  filters, comments feed or full work pages are already implemented.
+  filters, the full work-data inventory or complete playback are implemented. The new home feed and minimal work page are recorded below.
 
 ## H01 verification — 2026-10-09
 
@@ -145,7 +146,7 @@ whole checklist without those reviews. Keep commits focused and the working app 
 
 ## H01a verification and review boundary
 
-The topbar/control checkpoint is implemented and awaiting review. Tailwind 4 and official
+The topbar/control checkpoint was approved and committed as `14ea629`. Tailwind 4 and official
 shadcn Select/Button/InputGroup (with their Input/Textarea dependencies) use the existing client
 palette. All five existing dropdowns now use Select; media cards retain their own composition.
 The native capture waits for hero images before saving the home screen. The packaged policy
@@ -154,3 +155,37 @@ was not relaxed. No catalog/schema changes were introduced.
 Aqua explicitly requires commit confirmation from this point onward. Leave this checkpoint
 uncommitted until requested. The next home tasks remain scored cards, a selected-planet section,
 latest family comments/reviews and anticipated installments, with review after each task.
+
+## Combined logic pass — 2026-10-09
+
+Aqua approved the topbar and its commit, then explicitly asked for a faster pass focused on logic.
+This authorizes H02–H05 together and a minimal work page; detailed design/full filter expansion
+still follow review. Do not commit this new pass until Aqua confirms.
+
+- Shared cards support works and anticipated installments, with calculated scores/coverage and
+  episode counts or movie runtime. Incomplete scores remain unrated.
+- Home order is hero, latest updates, selected-planet shelf, family comments/reviews, anticipated
+  installments. Public-only feeds are bounded (6 comments/reviews, 10 installments).
+- Published activity follows active/discoverable account visibility; spoilers require reveal.
+  The live catalog has no comments/reviews, so it shows a real empty state.
+- Known release dates sort first; announced entries without a date follow with an explicit
+  unknown-date label. No popularity/anticipation ranking is invented.
+- Works now open a full content-area page with overview, family, installments and data tabs.
+  The old side preview is removed. Back/Escape restore the library's scroll and focus. The
+  exhaustive W01 inventory and deep linking remain future work; this is the requested minimal page.
+- Browse navigation clears the planet selection; deliberate planet links still filter Browse.
+- Scores use IEEE double arithmetic and installment order to match `@arcadia/domain` exactly,
+  including borderline rounding. Read-only verification matched all 176 public works and the
+  10 returned upcoming installments; a decimal-rounding mismatch was corrected before handoff.
+- Read-only verifier: `pnpm --filter @arcadia/cli exec tsx scripts/check-client-home.mts`, private
+  login credentials on stdin. It validates generated contract shapes, 401 without auth, visibility,
+  score parity, limits and release ordering, and revokes its ordinary login session afterward.
+- No migration or catalog mutation. Ordinary verification login/logout changes session records.
+
+Verification for the combined pass: repository checks and workspace build passed; all 16 Rust
+unit tests and 10 packaged client browser journeys passed. Actual GTK/WebKit smoke passed login,
+home artwork, full work-page rendering, return and logout; native home/work snapshots were
+inspected under ignored `data/previews/home-logic-review/`. The read-only parity check matched
+176 public works and 10 upcoming installments. Current comment/review count is zero; browser
+fixtures cover spoiler reveal and entry navigation. No measured claim of perfect native scroll
+smoothness is made. Changes remain uncommitted; only the earlier approved checkpoint was committed.

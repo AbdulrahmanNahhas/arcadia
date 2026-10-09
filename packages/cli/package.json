@@ -26,6 +26,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@nahhasio/api-contract": "workspace:*",
     "@types/node": "^22",
     "tsx": "^4.23.1",
     "typescript": "^6",

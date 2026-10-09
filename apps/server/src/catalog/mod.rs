@@ -1,4 +1,5 @@
 mod artwork;
+mod home;
 mod queries;
 
 use axum::{
@@ -19,6 +20,7 @@ pub fn routes(pool: PgPool) -> Router {
         .route("/api/v1/works", get(works))
         .route("/api/v1/works/{id}", get(work))
         .route("/api/v1/catalog/filters", get(filters))
+        .route("/api/v1/catalog/home", get(home::feed))
         .route("/api/v1/artwork/{id}", get(artwork::serve))
         .with_state(pool)
 }
@@ -103,7 +105,7 @@ async fn works(
     let query = format!(
         "select jsonb_build_object('items',coalesce(jsonb_agg(page.item order by page.ordinal),'[]'::jsonb),'total',(select count(*) from titles t where {filter}),'page',$8::bigint,'pageSize',$9::bigint) from (select {summary} as item,row_number() over(order by {order}) ordinal from titles t where {filter} order by {order} limit $9 offset (($8-1)*$9)) page",
         filter = queries::FILTER,
-        summary = queries::SUMMARY
+        summary = queries::summary()
     );
     let value = sqlx::query_scalar::<_, SqlJson<Value>>(AssertSqlSafe(query))
         .bind(input.q.as_deref().map(str::trim).filter(|s| !s.is_empty()))
@@ -141,7 +143,7 @@ async fn work(State(pool): State<PgPool>, Path(id): Path<String>) -> ApiResult<J
     validate_id(&id)?;
     let query = format!(
         "select {summary} || ({detail}) from titles t where t.id=$1::uuid",
-        summary = queries::SUMMARY,
+        summary = queries::summary(),
         detail = queries::DETAIL
     );
     let value = sqlx::query_scalar::<_, SqlJson<Value>>(AssertSqlSafe(query))

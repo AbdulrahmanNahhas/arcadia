@@ -180,6 +180,13 @@ export const InstallmentSchema = z.strictObject({
 });
 export type Installment = z.infer<typeof InstallmentSchema>;
 
+export const ScoreSummarySchema = z.strictObject({
+  rating: z.number().nullable(),
+  scored: z.number().int(),
+  total: z.number().int(),
+});
+export type ScoreSummary = z.infer<typeof ScoreSummarySchema>;
+
 export const WorkSummarySchema = z.strictObject({
   id: z.string().uuid(),
   canonicalTitle: z.string(),
@@ -193,6 +200,7 @@ export const WorkSummarySchema = z.strictObject({
   installmentCount: z.number().int(),
   episodeCount: z.number().int(),
   isPrivate: z.boolean(),
+  score: ScoreSummarySchema,
 });
 export type WorkSummary = z.infer<typeof WorkSummarySchema>;
 
@@ -338,6 +346,7 @@ export const WorkDetailSchema = z.strictObject({
   awards: z.array(AwardRecognitionSchema),
   sortTitle: z.string(),
   isPrivate: z.boolean(),
+  score: ScoreSummarySchema,
 });
 export type WorkDetail = z.infer<typeof WorkDetailSchema>;
 
@@ -369,6 +378,40 @@ export const CatalogFiltersSchema = z.strictObject({
   planets: z.array(CatalogPlanetSchema),
 });
 export type CatalogFilters = z.infer<typeof CatalogFiltersSchema>;
+
+export const FamilyActivitySchema = z.strictObject({
+  id: z.string().uuid(),
+  kind: z.enum(["comment", "review"]),
+  body: z.string(),
+  containsSpoilers: z.boolean(),
+  rating: z.number().int().nullable(),
+  createdAt: z.string(),
+  authorName: z.string(),
+  avatarKey: z.string(),
+  work: WorkSummarySchema,
+});
+export type FamilyActivity = z.infer<typeof FamilyActivitySchema>;
+
+export const UpcomingInstallmentSchema = z.strictObject({
+  id: z.string().uuid(),
+  workId: z.string().uuid(),
+  workTitle: z.string(),
+  workTitleAr: z.string().nullable(),
+  title: z.string(),
+  kind: z.enum(["season", "movie", "special"]),
+  releaseDate: z.string().nullable(),
+  runtimeMinutes: z.number().int().nullable(),
+  episodeCount: z.number().int(),
+  poster: ArtworkSchema.nullable(),
+  score: ScoreSummarySchema,
+});
+export type UpcomingInstallment = z.infer<typeof UpcomingInstallmentSchema>;
+
+export const HomeFeedSchema = z.strictObject({
+  comments: z.array(FamilyActivitySchema),
+  upcoming: z.array(UpcomingInstallmentSchema),
+});
+export type HomeFeed = z.infer<typeof HomeFeedSchema>;
 
 export class ApiClient {
   private readonly baseUrl: string;
@@ -448,5 +491,9 @@ export class ApiClient {
   async getCatalogFilters(signal?: AbortSignal): Promise<CatalogFilters> {
     const response = await this.request("/api/v1/catalog/filters", "GET", undefined, signal);
     return CatalogFiltersSchema.parse(await response.json());
+  }
+  async getHomeFeed(signal?: AbortSignal): Promise<HomeFeed> {
+    const response = await this.request("/api/v1/catalog/home", "GET", undefined, signal);
+    return HomeFeedSchema.parse(await response.json());
   }
 }

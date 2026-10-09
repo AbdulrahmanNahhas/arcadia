@@ -1,5 +1,6 @@
 import {
   CatalogFiltersSchema,
+  HomeFeedSchema,
   SessionSchema,
   WorkDetailSchema,
   WorkPageSchema,
@@ -85,6 +86,7 @@ export const gateway = {
   },
   works: async (query: LibraryQuery, signal?: AbortSignal) =>
     WorkPageSchema.parse(await call("works", query, signal)),
+  home: async (signal?: AbortSignal) => HomeFeedSchema.parse(await call("home", {}, signal)),
   filters: async (signal?: AbortSignal) =>
     CatalogFiltersSchema.parse(await call("filters", {}, signal)),
   work: async (id: string, signal?: AbortSignal) =>

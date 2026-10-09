@@ -69,7 +69,10 @@ pub fn install(
             1=>format!("(()=>{{const input={credentials}; for(const name of ['email','password']){{const element=document.getElementById(name);Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(element,input[name]);element.dispatchEvent(new Event('input',{{bubbles:true}}));}} return 'filled';}})()"),
             2=>"(()=>{document.querySelector('.login-form').requestSubmit();return 'submitted';})()".into(),
             3=>"JSON.stringify({posters:document.querySelectorAll('.poster-card').length,images:Array.from(document.querySelectorAll('.poster-card img')).filter(img=>img.complete&&img.naturalWidth>0).length,errors:document.querySelectorAll('[role=alert]').length,heroReady:Array.from(document.querySelectorAll('.library-hero .hero-backdrop,.library-hero .hero-logo')).every(image=>image.tagName==='IMG'?image.complete&&image.naturalWidth>0:!image.textContent.includes('جارٍ تحميل الصورة'))})".into(),
-            4=>"(()=>{document.querySelector('button[aria-label=\"تسجيل الخروج\"]').click();return 'logout';})()".into(),
+            4=>"(()=>{document.querySelector('.poster-card').click();return 'open';})()".into(),
+            5=>"JSON.stringify({workReady:!!document.querySelector('.work-page h1')&&Array.from(document.querySelectorAll('.work-page-banner,.work-page-poster')).every(image=>image.tagName==='IMG'?image.complete&&image.naturalWidth>0:!image.textContent.includes('جارٍ تحميل الصورة')),errors:document.querySelectorAll('[role=alert]').length})".into(),
+            6=>"(()=>{document.querySelector('.work-page button').click();return 'back';})()".into(),
+            7=>"(()=>{document.querySelector('button[aria-label=\"تسجيل الخروج\"]').click();return 'logout';})()".into(),
             _=>"JSON.stringify({signedOut:!!document.querySelector('#email')})".into(),
         };
         view.evaluate_javascript(
@@ -114,6 +117,20 @@ pub fn install(
                         }
                     }
                     4 => step.set(5),
+                    5 => {
+                        if serde_json::from_str::<serde_json::Value>(&text)
+                            .ok()
+                            .is_some_and(|value| value["workReady"] == true && value["errors"] == 0)
+                        {
+                            if let Some(view) = weak.upgrade() {
+                                snapshot(&view, "work");
+                            }
+                            println!("Native WebKit full work page rendered successfully");
+                            step.set(6);
+                        }
+                    }
+                    6 => step.set(7),
+                    7 => step.set(8),
                     _ => {
                         if serde_json::from_str::<serde_json::Value>(&text)
                             .ok()

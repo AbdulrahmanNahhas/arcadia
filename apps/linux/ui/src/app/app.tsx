@@ -20,7 +20,7 @@ export function App() {
   });
   if (session.isLoading)
     return (
-      <main className="startup" aria-busy="true">
+      <main className="grid h-dvh place-items-center text-muted-foreground" aria-busy="true">
         جارٍ فتح المكتبة…
       </main>
     );

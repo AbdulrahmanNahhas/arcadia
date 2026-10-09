@@ -132,10 +132,12 @@ mod tests {
 
     #[tokio::test]
     async fn catalog_requires_authentication() {
-        let response = router(unavailable_database())
-            .oneshot(Request::get("/api/v1/works").body(Body::empty()).unwrap())
-            .await
-            .unwrap();
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        for path in ["/api/v1/works", "/api/v1/catalog/home"] {
+            let response = router(unavailable_database())
+                .oneshot(Request::get(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
     }
 }

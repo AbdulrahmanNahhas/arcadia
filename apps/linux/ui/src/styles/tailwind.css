@@ -2,6 +2,20 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@font-face {
+  font-family: Plex Arabic;
+  src: url("../assets/fonts/IBMPlexSansArabic-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Plex Arabic;
+  src: url("../assets/fonts/IBMPlexSansArabic-SemiBold.ttf") format("truetype");
+  font-weight: 600 800;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* Map controls to the viewing client's palette; catalog art remains the visual focus. */
@@ -33,6 +47,62 @@
 }
 
 :root {
+  color-scheme: dark;
+  font-family: "Plex Arabic", system-ui, sans-serif;
+  font-synthesis: none;
+  --background: #11111d;
+  --rail: #0d0e18;
+  --panel: #191a2c;
+  --surface: #232438;
+  --hover: #2d2e47;
+  --accent: #aa9aff;
+  --text: #f2f1fa;
+  --muted: #a3a4bb;
+  --line: #303148;
+  --danger: #ffc3c6;
+  --radius: 12px;
   --foreground: var(--text);
   --secondary: var(--surface);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-width: 0;
+    min-height: 100%;
+    margin: 0;
+  }
+
+  body {
+    color: var(--text);
+    background: var(--background);
+  }
+
+  button,
+  a,
+  input,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+
+  ::selection {
+    color: var(--rail);
+    background: var(--accent);
+  }
 }

@@ -263,9 +263,16 @@ impl Services {
                     .map_err(network)?;
                 self.json(response).await
             }
-            "filters" => {
+            "filters" | "home" => {
                 let response = self
-                    .authorized(Method::GET, "api/v1/catalog/filters")
+                    .authorized(
+                        Method::GET,
+                        if request.command == "home" {
+                            "api/v1/catalog/home"
+                        } else {
+                            "api/v1/catalog/filters"
+                        },
+                    )
                     .await?
                     .send()
                     .await

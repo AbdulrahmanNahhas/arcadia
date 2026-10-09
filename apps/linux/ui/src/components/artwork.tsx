@@ -49,11 +49,11 @@ export function Artwork({
   ) : (
     <span
       ref={setElement}
-      className={`artwork-placeholder ${className}`}
+      className={`flex! flex-col! items-center! justify-center! gap-2.5! bg-secondary! text-center! text-xs! text-muted-foreground! ${className}`}
       role="img"
       aria-label={alt}
     >
-      <Film aria-hidden="true" />
+      <Film className="size-7 opacity-50" aria-hidden="true" />
       <span>{query.isLoading ? "جارٍ تحميل الصورة" : "لا توجد صورة"}</span>
     </span>
   );
