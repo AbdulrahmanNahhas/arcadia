@@ -1,5 +1,6 @@
 import type { FamilyActivity } from "@nahhasio/api-contract";
 import { useQuery } from "@tanstack/react-query";
+import { MessageCircle, CalendarDays } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -14,6 +15,13 @@ import {
 import { MediaCard } from "../../components/media-card";
 import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from "../../components/ui/empty";
 import { gateway } from "../../lib/bridge";
 import { emptyFilters } from "../catalog/filter-model";
 import { entityLink, workLink } from "../shell/navigation";
@@ -127,9 +135,15 @@ export function HomePage() {
             ))}
           </div>
           {feed.data?.comments.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              لا توجد تعليقات أو مراجعات عامة من العائلة بعد.
-            </p>
+            <Empty className="border border-border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <MessageCircle />
+                </EmptyMedia>
+                <EmptyTitle>لا توجد تعليقات بعد</EmptyTitle>
+                <EmptyDescription>لا توجد تعليقات أو مراجعات عامة من العائلة بعد.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </section>
         <section className="mb-9" aria-label="الإصدارات القادمة">
@@ -150,7 +164,15 @@ export function HomePage() {
             render={(unit) => <MediaCard key={unit.id} installment={unit} />}
           />
           {feed.data?.upcoming.length === 0 && (
-            <p className="text-sm text-muted-foreground">لا توجد إصدارات قادمة معلنة حاليًا.</p>
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <CalendarDays />
+                </EmptyMedia>
+                <EmptyTitle>لا توجد إصدارات قادمة</EmptyTitle>
+                <EmptyDescription>لا توجد إصدارات قادمة معلنة حاليًا.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </section>
       </div>
