@@ -162,6 +162,7 @@ fn build_window(
         .build();
     if let Some(settings) = webkit6::prelude::WebViewExt::settings(&view) {
         settings.set_enable_developer_extras(config.dev);
+        settings.set_enable_smooth_scrolling(true);
         settings.set_allow_universal_access_from_file_urls(false);
         settings.set_enable_html5_database(false);
         settings.set_enable_html5_local_storage(false);
@@ -271,6 +272,27 @@ fn build_window(
         .content(&content)
         .build();
     window.set_size_request(520, 480);
+    let fullscreen_header = header.clone();
+    window.connect_fullscreened_notify(move |window| {
+        fullscreen_header.set_visible(!window.is_fullscreen());
+    });
+    let keys = gtk::EventControllerKey::new();
+    keys.set_propagation_phase(gtk::PropagationPhase::Capture);
+    let weak_window = window.downgrade();
+    keys.connect_key_pressed(move |_, key, _, _| {
+        if key == gtk::gdk::Key::F11 {
+            if let Some(window) = weak_window.upgrade() {
+                if window.is_fullscreen() {
+                    window.unfullscreen();
+                } else {
+                    window.fullscreen();
+                }
+            }
+            return glib::Propagation::Stop;
+        }
+        glib::Propagation::Proceed
+    });
+    window.add_controller(keys);
     view.load_uri(&config.ui);
     window.present();
     if let Some(input) = smoke {

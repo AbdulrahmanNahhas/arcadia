@@ -54,6 +54,8 @@ struct Browse {
     status: Option<String>,
     year_from: Option<i32>,
     year_to: Option<i32>,
+    include_private: Option<bool>,
+    planet: Option<String>,
 }
 impl Browse {
     fn validate(&self) -> ApiResult<(i64, i64, &'static str)> {
@@ -66,6 +68,7 @@ impl Browse {
             || !(1..=100).contains(&size)
             || self.q.as_ref().is_some_and(|q| q.chars().count() > 200)
             || self.genre.as_ref().is_some_and(|v| v.len() > 100)
+            || self.planet.as_ref().is_some_and(|v| v.len() > 100)
             || !valid_choice(&self.format, &["animated", "live-action"])
             || !valid_choice(&self.audience, &["general", "teen", "young-adult", "adult"])
             || !valid_choice(
@@ -83,6 +86,7 @@ impl Browse {
             "year-desc" => "t.release_year desc nulls last,t.sort_title,t.id",
             "year-asc" => "t.release_year asc nulls last,t.sort_title,t.id",
             "updated-desc" => "t.updated_at desc,t.id",
+            "added-desc" => "t.created_at desc,t.id",
             _ => return Err(ApiError(StatusCode::BAD_REQUEST, "Invalid catalog sort")),
         };
         Ok((page, size, order))
@@ -111,6 +115,8 @@ async fn works(
         .bind(input.year_to)
         .bind(page)
         .bind(size)
+        .bind(input.include_private.unwrap_or(false))
+        .bind(input.planet)
         .fetch_one(&pool)
         .await?;
     Ok(Json(value.0))
@@ -147,7 +153,11 @@ async fn work(State(pool): State<PgPool>, Path(id): Path<String>) -> ApiResult<J
 }
 
 async fn filters(State(pool): State<PgPool>) -> ApiResult<Json<Value>> {
-    let value=sqlx::query_scalar::<_,SqlJson<Value>>("select jsonb_build_object('genres',coalesce((select jsonb_agg(jsonb_build_object('id',id,'slug',slug,'labelEn',label_en,'labelAr',label_ar,'descriptionEn',description_en,'descriptionAr',description_ar) order by position,slug) from genres where is_active),'[]'::jsonb),'formats',jsonb_build_array('animated','live-action'),'audiences',jsonb_build_array('general','teen','young-adult','adult'),'statuses',jsonb_build_array('announced','airing','completed','unknown'),'yearMin',(select min(release_year) from titles),'yearMax',(select max(release_year) from titles))").fetch_one(&pool).await?;
+    let value = sqlx::query_scalar::<_, SqlJson<Value>>(r#"select jsonb_build_object(
+'genres',coalesce((select jsonb_agg(jsonb_build_object('id',id,'slug',slug,'labelEn',label_en,'labelAr',label_ar,'descriptionEn',description_en,'descriptionAr',description_ar) order by position,slug) from genres where is_active),'[]'::jsonb),
+'formats',jsonb_build_array('animated','live-action'),'audiences',jsonb_build_array('general','teen','young-adult','adult'),'statuses',jsonb_build_array('announced','airing','completed','unknown'),
+'planets',coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'slug',p.slug,'nameAr',p.name_ar,'nameEn',p.name_en,'icon',p.icon,'count',(select count(*) from title_planets tp join titles t on t.id=tp.title_id where tp.planet_id=p.id and not t.is_private)) order by p.display_order,p.id) from planets p where p.is_active),'[]'::jsonb),
+'yearMin',(select min(release_year) from titles where not is_private),'yearMax',(select max(release_year) from titles where not is_private))"#).fetch_one(&pool).await?;
     Ok(Json(value.0))
 }
 

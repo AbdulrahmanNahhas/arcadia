@@ -5,20 +5,68 @@ import {
   Compass,
   Download,
   Home,
+  Orbit,
   Library as LibraryIcon,
   LogOut,
   Search,
-  Shield,
   SlidersHorizontal,
-  Sparkles,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
 
 import { Artwork } from "../../components/artwork";
+import { Choice } from "../../components/choice";
 import { gateway } from "../../lib/bridge";
 import type { LibraryQuery } from "../../lib/bridge";
+import { Hero } from "./hero";
 import { Preview } from "./preview";
+function movePoster(event: KeyboardEvent<HTMLElement>) {
+  if (
+    !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key) ||
+    !(event.target instanceof Element)
+  )
+    return;
+  const current = event.target.closest<HTMLButtonElement>(".poster-card");
+  if (!current) return;
+  const box = current.getBoundingClientRect();
+  const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
+  const sign = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+  const candidates = Array.from(
+    event.currentTarget.querySelectorAll<HTMLButtonElement>(".poster-card"),
+  )
+    .filter((card) => card !== current)
+    .map((card) => {
+      const rect = card.getBoundingClientRect();
+      const dx = rect.x + rect.width / 2 - box.x - box.width / 2;
+      const dy = rect.y + rect.height / 2 - box.y - box.height / 2;
+      return { card, along: horizontal ? dx : dy, cross: horizontal ? dy : dx };
+    })
+    .filter(
+      (candidate) =>
+        candidate.along * sign > 5 && (!horizontal || Math.abs(candidate.cross) < box.height / 2),
+    )
+    .toSorted(
+      (a, b) =>
+        Math.abs(a.along) + Math.abs(a.cross) * 4 - Math.abs(b.along) - Math.abs(b.cross) * 4,
+    );
+  if (!candidates[0] && event.key === "ArrowRight") {
+    event.preventDefault();
+    event.currentTarget
+      .closest(".client-shell")
+      ?.querySelector<HTMLButtonElement>(".navigation-rail button.active")
+      ?.focus();
+  }
+  if (candidates[0]) {
+    event.preventDefault();
+    candidates[0].card.focus({ preventScroll: true });
+    candidates[0].card.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+      behavior: window.matchMedia("(prefers-reduced-motion:reduce)").matches ? "auto" : "smooth",
+    });
+  }
+}
 const formats = [
   { value: "animated", label: "رسوم متحركة" },
   { value: "live-action", label: "تمثيل حي" },
@@ -42,6 +90,7 @@ function Poster({
       <span className="poster-image">
         <Artwork id={work.poster?.id} alt="" />
         {work.age && <span className="poster-age">{work.age}</span>}
+        {work.isPrivate && <span className="poster-private">خاص</span>}
       </span>
       <span className="poster-title" dir="auto">
         {work.titleAr || work.canonicalTitle}
@@ -71,6 +120,22 @@ function Shelf({
     queryKey: ["works", "shelf", query],
     queryFn: ({ signal }) => gateway.works(query, signal),
   });
+  const row = useRef<HTMLDivElement>(null);
+  const [columns, setColumns] = useState(6);
+  useEffect(() => {
+    if (!result.data) return;
+    const observer = new ResizeObserver(([entry]) =>
+      setColumns(Math.max(2, Math.floor((entry.contentRect.width + 18) / 156))),
+    );
+    if (row.current) {
+      observer.observe(row.current);
+      if (document.activeElement === document.body)
+        row.current
+          .querySelector<HTMLButtonElement>(".poster-card")
+          ?.focus({ preventScroll: true });
+    }
+    return () => observer.disconnect();
+  }, [result.data]);
   return (
     <section className="shelf">
       <header className="section-heading">
@@ -91,8 +156,8 @@ function Shelf({
           جارٍ تحميل الأعمال…
         </div>
       ) : result.data?.items.length ? (
-        <div className="poster-shelf">
-          {result.data.items.map((work) => (
+        <div ref={row} className="poster-shelf">
+          {result.data.items.slice(0, columns).map((work) => (
             <Poster key={work.id} work={work} selected={selected === work.id} onSelect={onSelect} />
           ))}
         </div>
@@ -192,7 +257,28 @@ export function Library({ user }: { user: User }) {
   const discovering = view === "discover" || Boolean(search);
   return (
     <div className="client-shell">
-      <nav className="navigation-rail" aria-label="التنقل الرئيسي">
+      <nav
+        className="navigation-rail"
+        aria-label="التنقل الرئيسي"
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            event.currentTarget
+              .closest(".client-shell")
+              ?.querySelector<HTMLButtonElement>(".library-main .poster-card")
+              ?.focus();
+          } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            const controls = Array.from(
+              event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
+            );
+            const index = controls.findIndex((button) => button === document.activeElement);
+            controls[
+              (index + (event.key === "ArrowDown" ? 1 : controls.length - 1)) % controls.length
+            ]?.focus();
+          }
+        }}
+      >
         <a
           className="rail-brand"
           href="#home"
@@ -200,6 +286,7 @@ export function Library({ user }: { user: User }) {
           onClick={(event) => {
             event.preventDefault();
             setView("home");
+            setSelected(null);
             setSearch("");
           }}
         >
@@ -211,6 +298,7 @@ export function Library({ user }: { user: User }) {
           title="الرئيسية"
           onClick={() => {
             setView("home");
+            setSelected(null);
             setSearch("");
           }}
         >
@@ -223,6 +311,17 @@ export function Library({ user }: { user: User }) {
           onClick={() => setView("discover")}
         >
           <Compass />
+        </button>
+        <button
+          className={view === "planets" ? "rail-button active" : "rail-button"}
+          aria-label="العوالم"
+          title="العوالم"
+          onClick={() => {
+            setView("planets");
+            setSearch("");
+          }}
+        >
+          <Orbit />
         </button>
         <button
           className="rail-button"
@@ -278,7 +377,7 @@ export function Library({ user }: { user: User }) {
           </span>
         </header>
         <div className={selected ? "library-layout has-preview" : "library-layout"}>
-          <main className="library-main">
+          <main className="library-main" onKeyDown={movePoster}>
             {logout.error && (
               <p className="error" role="alert">
                 {logout.error.message}
@@ -287,57 +386,64 @@ export function Library({ user }: { user: User }) {
             {discovering ? (
               <>
                 <div className="filter-toolbar">
-                  <label className="select-field">
-                    <span className="sr-only">الصيغة</span>
-                    <select
-                      aria-label="الصيغة"
-                      value={filters.format ?? ""}
-                      onChange={(event) =>
-                        setFilters({
-                          ...filters,
-                          format:
-                            event.target.value === "animated"
-                              ? "animated"
-                              : event.target.value === "live-action"
-                                ? "live-action"
-                                : undefined,
-                        })
-                      }
-                    >
-                      <option value="">كل الصيغ</option>
-                      {formats.map((item) => (
-                        <option key={item.value} value={item.value}>
-                          {item.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="select-field">
-                    <span className="sr-only">الترتيب</span>
-                    <select
-                      aria-label="الترتيب"
-                      value={filters.sort ?? "title"}
+                  <Choice
+                    label="الصيغة"
+                    value={filters.format ?? ""}
+                    options={[{ value: "", label: "كل الصيغ" }, ...formats]}
+                    onChange={(value) =>
+                      setFilters({
+                        ...filters,
+                        format:
+                          value === "animated"
+                            ? "animated"
+                            : value === "live-action"
+                              ? "live-action"
+                              : undefined,
+                      })
+                    }
+                  />
+                  <Choice
+                    label="الترتيب"
+                    value={filters.sort ?? "title"}
+                    options={[
+                      { value: "title", label: "الاسم" },
+                      { value: "year-desc", label: "الأحدث إصدارًا" },
+                      { value: "year-asc", label: "الأقدم إصدارًا" },
+                      { value: "updated-desc", label: "آخر تحديث" },
+                    ]}
+                    onChange={(value) =>
+                      setFilters({
+                        ...filters,
+                        sort:
+                          value === "year-desc"
+                            ? "year-desc"
+                            : value === "year-asc"
+                              ? "year-asc"
+                              : value === "updated-desc"
+                                ? "updated-desc"
+                                : "title",
+                      })
+                    }
+                  />
+                  <label className="private-toggle">
+                    <input
+                      type="checkbox"
+                      checked={filters.includePrivate ?? false}
                       onChange={(event) => {
-                        const value = event.target.value;
-                        setFilters({
-                          ...filters,
-                          sort:
-                            value === "year-desc"
-                              ? "year-desc"
-                              : value === "year-asc"
-                                ? "year-asc"
-                                : value === "updated-desc"
-                                  ? "updated-desc"
-                                  : "title",
-                        });
+                        setSelected(null);
+                        setFilters({ ...filters, includePrivate: event.target.checked });
                       }}
-                    >
-                      <option value="title">الاسم</option>
-                      <option value="year-desc">الأحدث إصدارًا</option>
-                      <option value="year-asc">الأقدم إصدارًا</option>
-                      <option value="updated-desc">آخر تحديث</option>
-                    </select>
+                    />
+                    إظهار الأعمال الخاصة
                   </label>
+                  {filters.planet && (
+                    <button
+                      className="text-button"
+                      onClick={() => setFilters({ ...filters, planet: undefined })}
+                    >
+                      مسح اختيار العالم
+                    </button>
+                  )}
                   <button
                     className={showFilters ? "filter-button active" : "filter-button"}
                     aria-expanded={showFilters}
@@ -466,18 +572,28 @@ export function Library({ user }: { user: User }) {
                   onSelect={choose}
                 />
               </>
+            ) : view === "planets" ? (
+              <section className="planet-directory">
+                <h1>العوالم</h1>
+                <div className="planet-grid">
+                  {options.data?.planets.map((planet) => (
+                    <button
+                      key={planet.id}
+                      onClick={() => {
+                        setView("discover");
+                        setFilters({ sort: "title", planet: planet.slug });
+                      }}
+                    >
+                      <span>{planet.icon}</span>
+                      <h2>{planet.nameAr}</h2>
+                      <small>{planet.count} عمل</small>
+                    </button>
+                  ))}
+                </div>
+              </section>
             ) : (
               <>
-                <div className="home-intro">
-                  <div>
-                    <p className="eyebrow">مساحة للحكايات</p>
-                    <h1>مكتبة العائلة</h1>
-                    <p>اكتشف أعمالنا، واقرأ ما وراء كل حكاية.</p>
-                  </div>
-                  <span className="curated-mark">
-                    <Shield size={19} /> اختيارات مدروسة
-                  </span>
-                </div>
+                <Hero onSelect={choose} />
                 <Shelf
                   title="آخر تحديثات المكتبة"
                   query={{ sort: "updated-desc", pageSize: 10 }}
@@ -488,24 +604,26 @@ export function Library({ user }: { user: User }) {
                     setFilters({ sort: "updated-desc" });
                   }}
                 />
-                <Shelf
-                  title="عوالم مرسومة"
-                  query={{ format: "animated", sort: "year-desc", pageSize: 10 }}
-                  selected={selected}
-                  onSelect={choose}
-                  onBrowse={() => browse("animated")}
-                />
-                <Shelf
-                  title="على الشاشة"
-                  query={{ format: "live-action", sort: "year-desc", pageSize: 10 }}
-                  selected={selected}
-                  onSelect={choose}
-                  onBrowse={() => browse("live-action")}
-                />
-                <div className="library-end">
-                  <Sparkles size={17} />
-                  <span>كل عمل يحمل تفاصيله. اختر ملصقًا لقراءتها.</span>
-                </div>
+                {options.data?.planets
+                  .filter((planet) => planet.count > 0)
+                  .map((planet) => (
+                    <Shelf
+                      key={planet.id}
+                      title={`${planet.icon} ${planet.nameAr}`}
+                      query={{
+                        planet: planet.slug,
+                        sort: "updated-desc",
+                        pageSize: 10,
+                        includePrivate: false,
+                      }}
+                      selected={selected}
+                      onSelect={choose}
+                      onBrowse={() => {
+                        setView("discover");
+                        setFilters({ sort: "title", planet: planet.slug });
+                      }}
+                    />
+                  ))}
               </>
             )}
           </main>

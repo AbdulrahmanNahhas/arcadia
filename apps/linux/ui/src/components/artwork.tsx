@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Film } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { gateway } from "../lib/bridge";
 export function Artwork({
@@ -11,17 +12,38 @@ export function Artwork({
   alt: string;
   className?: string;
 }) {
+  const [element, setElement] = useState<Element | null>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    if (!element) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setNear(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "300px" },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element]);
   const query = useQuery({
     queryKey: ["artwork", id],
     queryFn: ({ signal }) => gateway.artwork(id ?? "", signal),
-    enabled: Boolean(id),
+    enabled: Boolean(id) && near,
     staleTime: Infinity,
     gcTime: 600000,
   });
   return query.data ? (
-    <img className={className} src={query.data} alt={alt} loading="lazy" />
+    <img ref={setElement} className={className} src={query.data} alt={alt} loading="lazy" />
   ) : (
-    <span className={`artwork-placeholder ${className}`} role="img" aria-label={alt}>
+    <span
+      ref={setElement}
+      className={`artwork-placeholder ${className}`}
+      role="img"
+      aria-label={alt}
+    >
       <Film aria-hidden="true" />
       <span>{query.isLoading ? "جارٍ تحميل الصورة" : "لا توجد صورة"}</span>
     </span>

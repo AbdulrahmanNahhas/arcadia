@@ -64,6 +64,10 @@ struct Browse {
     year_from: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     year_to: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    include_private: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    planet: Option<String>,
 }
 fn parse<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, Error> {
     serde_json::from_value(value).map_err(|_| Error::new("bad_request", "Invalid command fields"))

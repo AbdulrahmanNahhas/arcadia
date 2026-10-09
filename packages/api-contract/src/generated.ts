@@ -192,6 +192,7 @@ export const WorkSummarySchema = z.strictObject({
   poster: ArtworkSchema.nullable(),
   installmentCount: z.number().int(),
   episodeCount: z.number().int(),
+  isPrivate: z.boolean(),
 });
 export type WorkSummary = z.infer<typeof WorkSummarySchema>;
 
@@ -336,6 +337,7 @@ export const WorkDetailSchema = z.strictObject({
   planets: z.array(PlanetSchema),
   awards: z.array(AwardRecognitionSchema),
   sortTitle: z.string(),
+  isPrivate: z.boolean(),
 });
 export type WorkDetail = z.infer<typeof WorkDetailSchema>;
 
@@ -347,6 +349,16 @@ export const WorkPageSchema = z.strictObject({
 });
 export type WorkPage = z.infer<typeof WorkPageSchema>;
 
+export const CatalogPlanetSchema = z.strictObject({
+  id: z.string().uuid(),
+  slug: z.string(),
+  nameAr: z.string(),
+  nameEn: z.string().nullable(),
+  icon: z.string(),
+  count: z.number().int(),
+});
+export type CatalogPlanet = z.infer<typeof CatalogPlanetSchema>;
+
 export const CatalogFiltersSchema = z.strictObject({
   genres: z.array(VocabularySchema),
   formats: z.array(z.string()),
@@ -354,6 +366,7 @@ export const CatalogFiltersSchema = z.strictObject({
   statuses: z.array(z.string()),
   yearMin: z.number().int().nullable(),
   yearMax: z.number().int().nullable(),
+  planets: z.array(CatalogPlanetSchema),
 });
 export type CatalogFilters = z.infer<typeof CatalogFiltersSchema>;
 
@@ -400,13 +413,15 @@ export class ApiClient {
       page?: number;
       pageSize?: number;
       q?: string;
-      sort?: "title" | "year-desc" | "year-asc" | "updated-desc";
+      sort?: "title" | "year-desc" | "year-asc" | "updated-desc" | "added-desc";
       format?: "animated" | "live-action";
       audience?: "general" | "teen" | "young-adult" | "adult";
       genre?: string;
       status?: "announced" | "airing" | "completed" | "unknown";
       yearFrom?: number;
       yearTo?: number;
+      includePrivate?: boolean;
+      planet?: string;
     } = {},
     signal?: AbortSignal,
   ): Promise<WorkPage> {

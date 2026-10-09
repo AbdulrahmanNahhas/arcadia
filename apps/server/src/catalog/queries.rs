@@ -7,10 +7,12 @@ and ($4::text is null or exists(select 1 from title_genres tg join genres g on g
 and ($5::text is null or exists(select 1 from installments i where i.title_id=t.id and i.status::text=$5))
 and ($6::integer is null or t.release_year>=$6)
 and ($7::integer is null or t.release_year<=$7)
+and ($10::boolean or not t.is_private)
+and ($11::text is null or exists(select 1 from title_planets tp join planets p on p.id=tp.planet_id where tp.title_id=t.id and p.slug=$11 and p.is_active))
 "#;
 
 pub(super) const SUMMARY: &str = r#"jsonb_build_object(
-'id',t.id,'canonicalTitle',t.canonical_title,'titleAr',t.title_ar,'summary',t.summary,
+'isPrivate',t.is_private,'id',t.id,'canonicalTitle',t.canonical_title,'titleAr',t.title_ar,'summary',t.summary,
 'releaseYear',t.release_year,'format',t.format,'audience',t.audience,'age',t.age,
 'installmentCount',(select count(*) from installments i where i.title_id=t.id),
 'episodeCount',(select count(*) from episodes e join installments i on i.id=e.installment_id where i.title_id=t.id),

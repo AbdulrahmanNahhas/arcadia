@@ -324,7 +324,7 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["title", "year-desc", "year-asc", "updated-desc"],
+              "enum": ["title", "year-desc", "year-asc", "updated-desc", "added-desc"],
               "default": "title"
             }
           },
@@ -382,6 +382,22 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 9999
+            }
+          },
+          {
+            "name": "includePrivate",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Owner opt-in; defaults false."
+          },
+          {
+            "name": "planet",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
             }
           }
         ],
@@ -1126,7 +1142,8 @@
           "age",
           "poster",
           "installmentCount",
-          "episodeCount"
+          "episodeCount",
+          "isPrivate"
         ],
         "properties": {
           "id": {
@@ -1171,6 +1188,9 @@
           },
           "episodeCount": {
             "type": "integer"
+          },
+          "isPrivate": {
+            "type": "boolean"
           }
         }
       },
@@ -1342,7 +1362,8 @@
           "countries",
           "planets",
           "awards",
-          "sortTitle"
+          "sortTitle",
+          "isPrivate"
         ],
         "properties": {
           "id": {
@@ -1507,6 +1528,9 @@
           },
           "sortTitle": {
             "type": "string"
+          },
+          "isPrivate": {
+            "type": "boolean"
           }
         }
       },
@@ -1535,7 +1559,7 @@
       "CatalogFilters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["genres", "formats", "audiences", "statuses", "yearMin", "yearMax"],
+        "required": ["genres", "formats", "audiences", "statuses", "yearMin", "yearMax", "planets"],
         "properties": {
           "genres": {
             "type": "array",
@@ -1568,6 +1592,12 @@
           "yearMax": {
             "type": "integer",
             "nullable": true
+          },
+          "planets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogPlanet"
+            }
           }
         }
       },
@@ -1944,6 +1974,32 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "CatalogPlanet": {
+        "type": "object",
+        "required": ["id", "slug", "nameAr", "nameEn", "icon", "count"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "icon": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
           }
         }
       }
