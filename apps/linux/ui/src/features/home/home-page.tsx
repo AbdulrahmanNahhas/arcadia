@@ -59,18 +59,20 @@ export function HomePage() {
     filters.data?.planets.find((p) => p.count > 0);
   const upcomingLink = `#/browse?view=installments&filters=${encodeURIComponent(JSON.stringify({ ...emptyFilters(), facets: [{ key: "releaseStatuses", include: ["announced"], exclude: [] }] }))}`;
   return (
-    <div className="stremio-home">
+    <div className="min-w-0">
       <Hero />
-      <div className="home-content">
+      <div className="mx-auto max-w-[1700px] px-8.5 pt-7 pb-12.5 max-[800px]:px-5.5 max-[520px]:px-4 max-[520px]:pt-6 max-[520px]:pb-10">
         <Shelf
           title="آخر تحديثات المكتبة"
           query={{ sort: "updated-desc" }}
           href="#/browse?sort=updated-desc"
         />
-        <section className="home-section">
-          <div className="home-planet-heading">
-            <h2>من عوالمنا</h2>
-            <div className="home-planet-choice">
+        <section className="mb-9 [&>section]:mb-0">
+          <div className="mb-5 flex flex-wrap items-center gap-5">
+            <h2 className="text-[21px] leading-[1.6] font-semibold max-[520px]:text-lg">
+              من عوالمنا
+            </h2>
+            <div className="w-55 max-[520px]:w-50">
               <Choice
                 label="اختر العالم"
                 value={selected?.slug ?? ""}
@@ -92,11 +94,13 @@ export function HomePage() {
             />
           )}
         </section>
-        <section className="home-section" aria-label="أحدث تعليقات العائلة">
-          <header className="home-section-heading">
-            <h2>أحدث تعليقات العائلة</h2>
+        <section className="mb-9" aria-label="أحدث تعليقات العائلة">
+          <header className="mb-5 flex items-center justify-between gap-4.5">
+            <h2 className="text-[21px] leading-[1.6] font-semibold max-[520px]:text-lg">
+              أحدث تعليقات العائلة
+            </h2>
           </header>
-          <div className="home-comments">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] gap-4">
             {feed.data?.comments.map((item) => (
               <Comment key={`${item.kind}-${item.id}`} item={item} />
             ))}
@@ -107,10 +111,17 @@ export function HomePage() {
             </p>
           )}
         </section>
-        <section className="home-section" aria-label="الإصدارات القادمة">
-          <header className="home-section-heading">
-            <h2>الإصدارات القادمة</h2>
-            <a href={upcomingLink}>كل القادم</a>
+        <section className="mb-9" aria-label="الإصدارات القادمة">
+          <header className="mb-5 flex items-center justify-between gap-4.5">
+            <h2 className="text-[21px] leading-[1.6] font-semibold max-[520px]:text-lg">
+              الإصدارات القادمة
+            </h2>
+            <a
+              className="inline-flex items-center gap-2 text-xs whitespace-nowrap text-muted-foreground"
+              href={upcomingLink}
+            >
+              كل القادم
+            </a>
           </header>
           {feed.error && <p role="alert">{feed.error.message}</p>}
           <FittedRow
@@ -121,10 +132,17 @@ export function HomePage() {
             <p className="text-sm text-muted-foreground">لا توجد إصدارات قادمة معلنة حاليًا.</p>
           )}
         </section>
-        <section className="home-section" aria-label="التوصيات">
-          <header className="home-section-heading">
-            <h2>قد يعجبك أيضًا</h2>
-            <a href="#/recommendations">عرض الكل</a>
+        <section className="mb-9" aria-label="التوصيات">
+          <header className="mb-5 flex items-center justify-between gap-4.5">
+            <h2 className="text-[21px] leading-[1.6] font-semibold max-[520px]:text-lg">
+              قد يعجبك أيضًا
+            </h2>
+            <a
+              className="inline-flex items-center gap-2 text-xs whitespace-nowrap text-muted-foreground"
+              href="#/recommendations"
+            >
+              عرض الكل
+            </a>
           </header>
           <FittedRow
             items={recommendations.data?.items ?? []}

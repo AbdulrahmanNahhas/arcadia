@@ -33,9 +33,7 @@ export function DiscoveryPage({
   const matchingEntities = entities.filter((item) =>
     item.label.toLocaleLowerCase().includes(normalizedQuery),
   );
-  const matchingPlanets = (filters.data?.planets ?? []).filter((planet) =>
-    planet.nameAr.toLocaleLowerCase().includes(normalizedQuery),
-  );
+  const planets = filters.data?.planets ?? [];
   if (id) {
     const label =
       type === "planets"
@@ -55,25 +53,30 @@ export function DiscoveryPage({
     <section className="mx-auto max-w-[1600px] px-[clamp(20px,4vw,64px)] py-6 max-[750px]:py-4">
       <header className="mb-6 flex items-end justify-between gap-8 max-[750px]:mb-5 max-[750px]:flex-col max-[750px]:items-stretch max-[750px]:gap-4">
         <div className="min-w-0">
-          <p className="mb-1 text-xs font-medium text-muted-foreground">دليل المكتبة</p>
           <h1 className="text-[clamp(26px,2.7vw,38px)] leading-tight font-bold tracking-tight">
             {title}
           </h1>
         </div>
 
-        <label className="relative block w-full max-w-sm shrink-0 max-[750px]:max-w-none">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-s-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            aria-label={`ابحث في ${title}`}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="ابحث بالاسم…"
-            className="ps-10"
-          />
-        </label>
+        {type === "planets" ? (
+          <p className="rounded-full border border-border px-4 py-2 text-sm text-muted-foreground">
+            {filters.data ? new Intl.NumberFormat("ar").format(planets.length) : "…"} عوالم للاستكشاف
+          </p>
+        ) : (
+          <label className="relative block w-full max-w-sm shrink-0 max-[750px]:max-w-none">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-s-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              aria-label={`ابحث في ${title}`}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="ابحث بالاسم…"
+              className="ps-10"
+            />
+          </label>
+        )}
       </header>
       {filters.error && <Failure error={filters.error} />}
       {facets.error && <Failure error={facets.error} />}
@@ -83,10 +86,10 @@ export function DiscoveryPage({
             <p className="py-8 text-sm text-muted-foreground" role="status">
               جارٍ تحميل الكواكب…
             </p>
-          ) : matchingPlanets.length > 0 ? (
-            <PlanetCards planets={matchingPlanets} />
+          ) : planets.length > 0 ? (
+            <PlanetCards planets={planets} />
           ) : (
-            <NoResults title={normalizedQuery ? "لا توجد كواكب بهذا الاسم" : "لا توجد كواكب بعد"} />
+            <NoResults title="لا توجد كواكب بعد" />
           )}
         </>
       ) : (
@@ -99,7 +102,7 @@ export function DiscoveryPage({
             <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,235px),1fr))] gap-3.5">
               {matchingEntities.map((item) => (
                 <a
-                  className="group flex min-h-24 items-center gap-4 rounded-xl border border-border bg-card px-4 py-3.5 transition-colors hover:border-foreground/25 hover:bg-secondary/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="group flex min-h-24 items-center gap-4 rounded-xl border border-border bg-card px-4 py-3.5 transition-colors hover:border-foreground/25 hover:bg-secondary/50 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   key={item.value}
                   href={`#/${type}/${item.value}`}
                 >
@@ -116,7 +119,7 @@ export function DiscoveryPage({
                   </span>
                   <ArrowUpLeft
                     aria-hidden="true"
-                    className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
+                    className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground motion-reduce:transition-none"
                   />
                 </a>
               ))}

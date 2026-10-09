@@ -63,7 +63,7 @@ export function Hero({
   const logo = detail.data?.artwork.find((image) => image.role === "logo");
   return (
     <section
-      className="relative isolate -mx-(--hero-gutter) mb-9 h-[clamp(550px,80vh,820px)] min-h-137.5 overflow-hidden bg-card [--hero-gutter:38px] min-[1700px]:[--hero-gutter:52px] max-[1100px]:[--hero-gutter:25px] max-[800px]:[--hero-gutter:20px] max-[640px]:-mx-[15px] max-[640px]:h-auto max-[640px]:min-h-[500px]"
+      className="relative isolate -mx-(--hero-gutter) mb-9 h-[clamp(550px,80vh,820px)] min-h-137.5 overflow-hidden bg-card [--hero-gutter:38px] min-[1700px]:[--hero-gutter:52px] max-[1100px]:[--hero-gutter:25px] max-[800px]:[--hero-gutter:20px] max-[640px]:-mx-3.75 max-[640px]:h-auto max-[640px]:min-h-125"
       aria-label="أحدث الأعمال"
       aria-roledescription="عرض أعمال متغيّر"
       onMouseEnter={() => setPaused(true)}
@@ -80,20 +80,20 @@ export function Hero({
         priority
       />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(0deg,var(--background),transparent_75%),linear-gradient(270deg,var(--background),transparent_80%)] max-[640px]:bg-[linear-gradient(0deg,var(--background),transparent)]" />
-      <div className="relative flex h-full w-[min(620px,72%)] flex-col items-start justify-end gap-5 px-[var(--hero-gutter)] pt-32 pb-[88px] max-[800px]:w-[85%] max-[640px]:min-h-[500px] max-[640px]:w-full max-[640px]:gap-3.5">
+      <div className="relative flex h-full w-[min(620px,72%)] flex-col items-start justify-end gap-5 px-(--hero-gutter) pt-32 pb-22 max-[800px]:w-[85%] max-[640px]:min-h-125 max-[640px]:w-full max-[640px]:gap-3.5">
         <p className="text-xs text-foreground/90">من مكتبتنا</p>
         {logo ? (
-          <h1 className="w-full text-[clamp(32px,4.5vw,64px)] leading-[1.35] font-semibold [text-wrap:balance]">
+          <h1 className="w-full text-[clamp(32px,4.5vw,64px)] leading-[1.35] font-semibold text-balance">
             <Artwork
               id={logo.id}
               alt={work.titleAr || work.canonicalTitle}
-              className="h-[clamp(100px,12vw,180px)] w-full object-contain object-right-bottom max-[640px]:h-[100px]"
+              className="h-[clamp(100px,12vw,180px)] w-full object-contain object-bottom-right max-[640px]:h-25"
               priority
             />
           </h1>
         ) : (
           <h1
-            className="text-[clamp(32px,4.5vw,64px)] leading-[1.35] font-semibold [text-wrap:balance]"
+            className="text-[clamp(32px,4.5vw,64px)] leading-[1.35] font-semibold text-balance"
             dir="auto"
           >
             {work.titleAr || work.canonicalTitle}
@@ -104,29 +104,29 @@ export function Hero({
           aria-label="معلومات العمل"
         >
           {work.releaseYear && (
-            <li className="rounded-full border border-white/20 bg-background/80 px-3 py-1">
+            <li className="rounded-full border border-foreground/20 bg-background/80 px-3 py-1">
               {work.releaseYear}
             </li>
           )}
           {work.age && (
             <li
-              className="rounded-full border border-white/20 bg-background/80 px-3 py-1"
+              className="rounded-full border border-foreground/20 bg-background/80 px-3 py-1"
               dir="auto"
             >
               {work.age === "all" ? "للجميع" : work.age}
             </li>
           )}
-          <li className="rounded-full border border-white/20 bg-background/80 px-3 py-1">
+          <li className="rounded-full border border-foreground/20 bg-background/80 px-3 py-1">
             {work.format === "animated" ? "رسوم متحركة" : "تمثيل حي"}
           </li>
           {work.episodeCount > 0 && (
-            <li className="rounded-full border border-white/20 bg-background/80 px-3 py-1">
+            <li className="rounded-full border border-foreground/20 bg-background/80 px-3 py-1">
               {work.episodeCount} حلقة
             </li>
           )}
           {detail.data?.genres.slice(0, 3).map((genre) => (
             <li
-              className="rounded-full border border-white/20 bg-background/80 px-3 py-1"
+              className="rounded-full border border-foreground/20 bg-background/80 px-3 py-1"
               key={genre.id}
             >
               {genre.labelAr || genre.labelEn}
@@ -141,13 +141,13 @@ export function Hero({
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-3">
           <button
-            className="inline-flex items-center justify-center gap-2.5 rounded-full bg-foreground px-6 py-3 font-semibold text-background transition-opacity hover:opacity-90 max-[640px]:px-4 max-[640px]:py-2.5"
+            className="inline-flex items-center justify-center gap-2.5 rounded-full bg-foreground px-6 py-3 font-semibold text-background transition-opacity hover:opacity-90 motion-reduce:transition-none max-[640px]:px-4 max-[640px]:py-2.5"
             onClick={() => onSelect(work.id)}
           >
             <Info size={21} aria-hidden="true" /> عرض التفاصيل
           </button>
           <button
-            className="inline-flex items-center justify-center gap-2.5 rounded-full border border-white/25 bg-background/80 px-6 py-3 font-semibold text-foreground disabled:opacity-65 max-[640px]:px-4 max-[640px]:py-2.5"
+            className="inline-flex items-center justify-center gap-2.5 rounded-full border border-foreground/25 bg-background/80 px-6 py-3 font-semibold text-foreground disabled:opacity-65 max-[640px]:px-4 max-[640px]:py-2.5"
             disabled
             title="المشغّل في خطوة لاحقة"
           >
@@ -156,9 +156,9 @@ export function Hero({
         </div>
       </div>
       {items.length > 1 && (
-        <div className="absolute inset-inline-[var(--hero-gutter)] bottom-6 flex items-center justify-start gap-1 max-[640px]:bottom-4">
+        <div className="absolute inset-s-(--hero-gutter) inset-e-(--hero-gutter) bottom-6 flex items-center justify-start gap-1 max-[640px]:bottom-4">
           <button
-            className="grid size-[34px] shrink-0 place-items-center rounded-full bg-background/50"
+            className="grid size-8.5 shrink-0 place-items-center rounded-full bg-background/50"
             aria-label="العمل السابق"
             onClick={() => setIndex((index + items.length - 1) % items.length)}
           >
@@ -178,20 +178,20 @@ export function Hero({
                 onClick={() => setIndex(position)}
               >
                 <span
-                  className={`block h-1.5 rounded-full ${position === index % items.length ? "w-[18px] bg-foreground" : "w-1.5 bg-foreground/45"}`}
+                  className={`block h-1.5 rounded-full ${position === index % items.length ? "w-4.5 bg-foreground" : "w-1.5 bg-foreground/45"}`}
                 />
               </button>
             ))}
           </div>
           <button
-            className="grid size-[34px] shrink-0 place-items-center rounded-full bg-background/50"
+            className="grid size-8.5 shrink-0 place-items-center rounded-full bg-background/50"
             aria-label="العمل التالي"
             onClick={() => setIndex((index + 1) % items.length)}
           >
             <ChevronLeft />
           </button>
           <button
-            className="ms-2.5 grid size-[34px] shrink-0 place-items-center rounded-full bg-background/50"
+            className="ms-2.5 grid size-8.5 shrink-0 place-items-center rounded-full bg-background/50"
             aria-label={rotationStopped ? "تشغيل التبديل التلقائي" : "إيقاف التبديل التلقائي"}
             aria-pressed={rotationStopped}
             onClick={() => setRotationStopped(!rotationStopped)}

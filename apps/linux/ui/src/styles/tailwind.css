@@ -48,9 +48,6 @@
 }
 
 :root {
-  color-scheme: dark;
-  font-family: "Noto Sans Arabic Variable", "Plex Arabic", system-ui, sans-serif;
-  font-synthesis: none;
   --background: #11111d;
   --rail: #0d0e18;
   --panel: #191a2c;
@@ -66,46 +63,4 @@
   --warning: #e7c369;
   --foreground: var(--text);
   --secondary: var(--surface);
-}
-
-@layer base {
-  html,
-  body,
-  #root {
-    width: 100%;
-    min-width: 0;
-    min-height: 100%;
-    margin: 0;
-  }
-
-  body {
-    color: var(--text);
-    background: var(--background);
-  }
-
-  button,
-  a,
-  input,
-  select {
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  button {
-    font: inherit;
-    cursor: pointer;
-  }
-
-  button:disabled {
-    cursor: default;
-  }
-
-  :focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 4px;
-  }
-
-  ::selection {
-    color: var(--rail);
-    background: var(--accent);
-  }
 }

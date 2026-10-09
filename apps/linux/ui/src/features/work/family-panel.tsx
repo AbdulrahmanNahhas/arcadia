@@ -15,7 +15,11 @@ export function RiskRows({ classification }: { classification: Classification })
           ["الموضوعات العقدية", classification.theologyRisk],
         ].map(([label, value]): [string, ReactNode] => [
           label,
-          <span key={label} className="risk-pill" data-level={value}>
+          <span
+            key={label}
+            className="inline-block rounded-full bg-secondary px-3 py-0.75 text-[11px] data-[level=high]:text-destructive data-[level=medium]:text-(--warning)"
+            data-level={value}
+          >
             {riskLabels.get(value) || value}
           </span>,
         ]),
@@ -25,15 +29,17 @@ export function RiskRows({ classification }: { classification: Classification })
 }
 export function FamilyPanel({ work }: { work: WorkDetail }) {
   return (
-    <div className="work-two-columns">
+    <div className="grid grid-cols-2 gap-7.5 [@media(max-width:750px)]:grid-cols-1">
       <div>
         <Section title="دليل العائلة">
           <RiskRows classification={work} />
         </Section>
         <Section title="تصنيف كل جزء">
           {work.installments.map((unit) => (
-            <details key={unit.id}>
-              <summary>{unit.title}</summary>
+            <details className="my-3 rounded-[14px] border border-border p-3.75" key={unit.id}>
+              <summary className="cursor-pointer text-[13px] leading-[1.8] [[open]>&]:mb-4.5">
+                {unit.title}
+              </summary>
               <RiskRows classification={unit.classification} />
               <FieldList
                 rows={Object.entries(unit.classificationOverrides).map(([key, value]) => [
@@ -47,13 +53,19 @@ export function FamilyPanel({ work }: { work: WorkDetail }) {
       </div>
       <div>
         <Section title="تنبيه المحتوى">
-          <p className="long-copy">{work.contentWarnings || "لم تُسجّل تنبيهات محتوى لهذا العمل."}</p>
+          <p className="text-sm leading-[2.1] whitespace-pre-line wrap-anywhere">
+            {work.contentWarnings || "لم تُسجّل تنبيهات محتوى لهذا العمل."}
+          </p>
         </Section>
         <Section title="ملاحظات التحليل">
-          <p className="long-copy">{work.analysisNotes || "لم تُضف ملاحظات تحليل بعد."}</p>
+          <p className="text-sm leading-[2.1] whitespace-pre-line wrap-anywhere">
+            {work.analysisNotes || "لم تُضف ملاحظات تحليل بعد."}
+          </p>
         </Section>
         <Section title="ملاحظات المحرر">
-          <p className="long-copy">{work.curatorNotes || "لا توجد ملاحظات إضافية."}</p>
+          <p className="text-sm leading-[2.1] whitespace-pre-line wrap-anywhere">
+            {work.curatorNotes || "لا توجد ملاحظات إضافية."}
+          </p>
         </Section>
       </div>
     </div>

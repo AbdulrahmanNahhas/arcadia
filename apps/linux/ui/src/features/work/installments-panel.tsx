@@ -15,18 +15,23 @@ export function InstallmentsPanel({ work, initial }: { work: WorkDetail; initial
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState(false);
   const item = work.installments.find((unit) => unit.id === selected) ?? work.installments[0];
-  if (!item) return <p className="empty-copy">لا توجد أجزاء مسجّلة لهذا العمل.</p>;
+  if (!item)
+    return (
+      <p className="text-[13px] leading-[1.9] text-muted-foreground">
+        لا توجد أجزاء مسجّلة لهذا العمل.
+      </p>
+    );
   const episodes = item.episodes
     .filter((e) => `${e.number} ${e.title ?? ""} ${e.summary}`.includes(search))
     .toSorted((a, b) => (sort ? b.position - a.position : a.position - b.position));
   const rating = installmentRating(item.scores ?? {});
   return (
     <>
-      <div className="installment-picker">
+      <div className="mb-6.25 grid auto-cols-36.25 grid-flow-col gap-4.5 overflow-x-auto pt-3 pb-5.5">
         {work.installments.map((unit) => (
           <Button
             variant="ghost"
-            className={`flex h-auto w-full flex-col items-stretch gap-2 rounded-2xl p-2 text-start font-normal ${unit.id === item.id ? "bg-secondary" : "bg-transparent"}`}
+            className="flex h-auto w-full flex-col items-stretch gap-2.25 rounded-2xl bg-transparent p-2 text-start font-normal aria-pressed:bg-secondary"
             key={unit.id}
             aria-pressed={unit.id === item.id}
             onClick={() => {
@@ -34,9 +39,13 @@ export function InstallmentsPanel({ work, initial }: { work: WorkDetail; initial
               setSearch("");
             }}
           >
-            <Artwork id={pickArtwork(unit.artwork, "poster")?.id ?? work.poster?.id} alt="" />
-            <span>{unit.title}</span>
-            <small>
+            <Artwork
+              id={pickArtwork(unit.artwork, "poster")?.id ?? work.poster?.id}
+              alt=""
+              className="aspect-2/3 w-full rounded-2xl object-cover [img&]:in-aria-pressed:outline-2 [img&]:in-aria-pressed:outline-offset-4 [img&]:in-aria-pressed:outline-foreground"
+            />
+            <span className="text-xs font-semibold">{unit.title}</span>
+            <small className="text-[10px] text-muted-foreground">
               {unit.kind === "season"
                 ? `${unit.episodes.length} حلقة`
                 : unit.runtimeMinutes
@@ -47,16 +56,18 @@ export function InstallmentsPanel({ work, initial }: { work: WorkDetail; initial
         ))}
       </div>
       <Section title={item.title}>
-        <div className="installment-meta">
+        <div className="mb-4.5 flex flex-wrap items-center gap-3.75 text-[13px]">
           <ScoreBadge score={{ rating, scored: rating === null ? 0 : 1, total: 1 }} />
           <span>
             {statusLabels.get(item.status)} · {dateLabel(item.releaseDate)} ·{" "}
             {item.kind === "season" ? "موسم" : item.kind === "movie" ? "فيلم" : "إصدار خاص"}
           </span>
         </div>
-        <p className="long-copy">{item.summary}</p>
-        <details>
-          <summary>بيانات الجزء وتصنيفه</summary>
+        <p className="text-sm leading-[2.1] whitespace-pre-line wrap-anywhere">{item.summary}</p>
+        <details className="my-3 rounded-[14px] border border-border p-3.75">
+          <summary className="cursor-pointer text-[13px] leading-[1.8] [[open]>&]:mb-4.5">
+            بيانات الجزء وتصنيفه
+          </summary>
           <FieldList
             rows={[
               ["الترتيب", item.position],
@@ -83,8 +94,9 @@ export function InstallmentsPanel({ work, initial }: { work: WorkDetail; initial
       </Section>
       {item.kind === "season" && (
         <Section title="الحلقات">
-          <div className="episode-controls">
+          <div className="mb-4.5 flex flex-wrap items-center gap-3.75 text-[13px]">
             <Input
+              className="min-w-50 flex-1"
               aria-label="ابحث في الحلقات"
               placeholder="رقم الحلقة، اسمها أو ملخصها…"
               value={search}
@@ -95,9 +107,12 @@ export function InstallmentsPanel({ work, initial }: { work: WorkDetail; initial
             </Button>
             <span>{episodes.length} حلقة</span>
           </div>
-          <div className="episode-grid">
+          <div className="grid grid-cols-2 gap-6 [@media(max-width:1100px)]:grid-cols-1">
             {episodes.map((episode) => (
-              <article className="episode-card" key={episode.id}>
+              <article
+                className="flex gap-4 rounded-[20px] border border-border bg-card p-4.5 [@media(max-width:750px)]:flex-col"
+                key={episode.id}
+              >
                 <Artwork
                   id={
                     pickArtwork(episode.artwork, "still")?.id ??
@@ -105,25 +120,29 @@ export function InstallmentsPanel({ work, initial }: { work: WorkDetail; initial
                     pickArtwork(item.artwork, "banner")?.id
                   }
                   alt=""
-                  className="episode-art"
+                  className="h-23.75 w-36.25 shrink-0 rounded-xl object-cover max-[750px]:h-40 max-[750px]:w-full"
                 />
-                <div>
-                  <h3>
+                <div className="min-w-0">
+                  <h3 className="mb-2.5 text-[15px] leading-[1.8] font-semibold">
                     {episode.number} · {episode.title || "حلقة بلا عنوان"}
                   </h3>
-                  <p className="long-copy">{episode.summary}</p>
-                  <p className="muted-copy">
+                  <p className="text-xs leading-[2.1] whitespace-pre-line wrap-anywhere">
+                    {episode.summary}
+                  </p>
+                  <p className="text-[13px] leading-[1.9] text-muted-foreground">
                     {dateLabel(episode.releaseDate)} ·{" "}
                     {episode.runtimeMinutes
                       ? `${episode.runtimeMinutes} دقيقة`
                       : "المدة غير معروفة"}{" "}
                     · {statusLabels.get(episode.releaseState)}
                   </p>
-                  <Button variant="outline" disabled>
+                  <Button className="mt-3" variant="outline" disabled>
                     المشغّل في مرحلة لاحقة
                   </Button>
-                  <details>
-                    <summary>كل بيانات الحلقة</summary>
+                  <details className="my-3 rounded-[14px] border border-border p-3.75">
+                    <summary className="cursor-pointer text-[13px] leading-[1.8] [[open]>&]:mb-4.5">
+                      كل بيانات الحلقة
+                    </summary>
                     <FieldList
                       rows={[
                         ["رقم الحلقة", episode.number],
@@ -142,7 +161,9 @@ export function InstallmentsPanel({ work, initial }: { work: WorkDetail; initial
               </article>
             ))}
           </div>
-          {episodes.length === 0 && <p className="empty-copy">لا توجد حلقات مطابقة.</p>}
+          {episodes.length === 0 && (
+            <p className="text-[13px] leading-[1.9] text-muted-foreground">لا توجد حلقات مطابقة.</p>
+          )}
         </Section>
       )}
     </>

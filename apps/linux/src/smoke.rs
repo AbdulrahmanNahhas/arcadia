@@ -68,12 +68,13 @@ pub fn install(
         let script=match step.get(){
             0=>"JSON.stringify({ready:!!document.querySelector('#email') && typeof window.__nahhasioReply === 'function'})".into(),
             1=>format!("(()=>{{const input={credentials}; for(const name of ['email','password']){{const element=document.getElementById(name);Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(element,input[name]);element.dispatchEvent(new Event('input',{{bubbles:true}}));}} return 'filled';}})()"),
-            2=>"(()=>{document.querySelector('.login-form').requestSubmit();return 'submitted';})()".into(),
-            3=>"JSON.stringify({posters:document.querySelectorAll('.home-fitted-row article a').length,images:Array.from(document.querySelectorAll('.home-fitted-row article img')).filter(img=>img.complete&&img.naturalWidth>0).length,errors:document.querySelectorAll('[role=alert]').length,heroReady:Array.from(document.querySelectorAll('.home-hero-backdrop,.home-hero-logo')).every(image=>image.tagName==='IMG'?image.complete&&image.naturalWidth>0:!image.textContent.includes('جارٍ تحميل الصورة'))})".into(),
-            4=>"(()=>{document.querySelector('.poster-card').click();return 'open';})()".into(),
-            5=>"JSON.stringify({workReady:!!document.querySelector('.work-page h1')&&Array.from(document.querySelectorAll('.work-page-banner,.work-page-poster')).every(image=>image.tagName==='IMG'?image.complete&&image.naturalWidth>0:!image.textContent.includes('جارٍ تحميل الصورة')),errors:document.querySelectorAll('[role=alert]').length})".into(),
-            6=>"(()=>{document.querySelector('.work-page button').click();return 'back';})()".into(),
-            7=>"(()=>{document.querySelector('button[aria-label=\"تسجيل الخروج\"]').click();return 'logout';})()".into(),
+            2=>"(()=>{document.querySelector('form').requestSubmit();return 'submitted';})()".into(),
+            3=>"JSON.stringify({posters:document.querySelectorAll('.home-fitted-row article a').length,images:Array.from(document.querySelectorAll('.home-fitted-row article img')).filter(img=>img.complete&&img.naturalWidth>0).length,errors:document.querySelectorAll('[role=alert]').length,heroReady:Array.from(document.querySelectorAll('section[aria-label=\"أحدث الأعمال\"] img')).every(image=>image.tagName==='IMG'?image.complete&&image.naturalWidth>0:!image.textContent.includes('جارٍ تحميل الصورة'))})".into(),
+            4=>"(()=>{document.querySelector('.home-fitted-row article a').click();return 'open';})()".into(),
+            5=>"JSON.stringify({workReady:!!document.querySelector('article[aria-label=\"صفحة العمل\"] h1')&&Array.from(document.querySelectorAll('article[aria-label=\"صفحة العمل\"] header img')).every(image=>image.tagName==='IMG'?image.complete&&image.naturalWidth>0:!image.textContent.includes('جارٍ تحميل الصورة')),errors:document.querySelectorAll('[role=alert]').length})".into(),
+            6=>"(()=>{document.querySelector('article[aria-label=\"صفحة العمل\"] button').click();return 'back';})()".into(),
+            7=>"(()=>{document.querySelector('button[aria-label=\"الملف والحساب\"]').click();return 'account';})()".into(),
+            8=>"(()=>{document.querySelector('button[aria-label=\"تسجيل الخروج\"]').click();return 'logout';})()".into(),
             _=>"JSON.stringify({signedOut:!!document.querySelector('#email')})".into(),
         };
         view.evaluate_javascript(
@@ -142,6 +143,7 @@ pub fn install(
                     }
                     6 => step.set(7),
                     7 => step.set(8),
+                    8 => step.set(9),
                     _ => {
                         if serde_json::from_str::<serde_json::Value>(&text)
                             .ok()

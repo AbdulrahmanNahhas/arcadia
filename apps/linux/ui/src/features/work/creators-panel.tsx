@@ -7,22 +7,29 @@ export function CreatorsPanel({ work }: { work: WorkDetail }) {
   return (
     <>
       <Section title="الأشخاص والاستوديوهات">
-        <div className="creator-grid">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-6 [@media(max-width:750px)]:grid-cols-1">
           {work.contributions.map((credit, index) => (
-            <article key={`${credit.id}-${credit.roleId}-${index}`}>
+            <article
+              className="flex gap-5 rounded-[20px] border border-border bg-card p-5.5"
+              key={`${credit.id}-${credit.roleId}-${index.toString()}`}
+            >
               <Artwork
                 id={pickArtwork(credit.artwork, "portrait")?.id ?? credit.artwork[0]?.id}
                 alt=""
-                className="creator-art"
+                className="h-32.5 w-22.5 shrink-0 rounded-[13px] object-cover"
               />
-              <div>
+              <div className="min-w-0">
                 <a href={`#/${credit.kind === "organization" ? "studios" : "people"}/${credit.id}`}>
-                  <h3 dir="auto">{credit.name}</h3>
+                  <h3 className="text-[17px] font-semibold" dir="auto">
+                    {credit.name}
+                  </h3>
                 </a>
                 <p>
                   {credit.roleLabelAr || credit.roleLabelEn} {credit.isPrimary ? "· دور رئيسي" : ""}
                 </p>
-                <p className="long-copy">{credit.description}</p>
+                <p className="text-sm leading-[2.1] whitespace-pre-line wrap-anywhere">
+                  {credit.description}
+                </p>
                 <FieldList
                   rows={[
                     ["الاسم الأصلي للدور", credit.roleLabelEn],
@@ -32,10 +39,12 @@ export function CreatorsPanel({ work }: { work: WorkDetail }) {
                   ]}
                 />
                 {credit.aliases.length > 0 && (
-                  <details>
-                    <summary>أسماء أخرى</summary>
-                    {credit.aliases.map((alias, n) => (
-                      <p key={n} dir="auto">
+                  <details className="my-3 rounded-[14px] border border-border p-3.75">
+                    <summary className="cursor-pointer text-[13px] leading-[1.8] [[open]>&]:mb-4.5">
+                      أسماء أخرى
+                    </summary>
+                    {credit.aliases.map((alias) => (
+                      <p key={`${alias.language}-${alias.alias}`} dir="auto">
                         {alias.alias} · {alias.language}
                       </p>
                     ))}
@@ -46,7 +55,9 @@ export function CreatorsPanel({ work }: { work: WorkDetail }) {
           ))}
         </div>
         {work.contributions.length === 0 && (
-          <p className="empty-copy">لم تُربط أسماء صنّاع لهذا العمل بعد.</p>
+          <p className="text-[13px] leading-[1.9] text-muted-foreground">
+            لم تُربط أسماء صنّاع لهذا العمل بعد.
+          </p>
         )}
       </Section>
     </>

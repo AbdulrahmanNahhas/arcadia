@@ -11,11 +11,16 @@ import { FieldList, Section } from "./field-list";
 import { dateLabel } from "./format";
 export function References({ items }: { items: ExternalReference[] }) {
   return (
-    <div className="reference-list">
+    <div>
       {items.map((item) => (
-        <p key={item.id}>
+        <p className="text-xs leading-[2.2] wrap-anywhere" key={item.id}>
           <b>{item.provider}</b> · {item.externalId}
-          {item.url && <span dir="ltr"> · {item.url}</span>}
+          {item.url && (
+            <span className="block text-muted-foreground" dir="ltr">
+              {" "}
+              · {item.url}
+            </span>
+          )}
         </p>
       ))}
     </div>
@@ -25,8 +30,8 @@ export function MediaFiles({ files }: { files: MediaFile[] }) {
   return (
     <div>
       {files.map((file) => (
-        <details key={file.id}>
-          <summary>
+        <details className="my-3 rounded-[14px] border border-border p-3.75" key={file.id}>
+          <summary className="cursor-pointer text-[13px] leading-[1.8] [[open]>&]:mb-4.5">
             {file.jellyfinLinked ? "فيديو مرتبط بـ Jellyfin" : "فيديو مسجّل"} ·{" "}
             {file.durationSeconds
               ? `${Math.round(file.durationSeconds / 60)} دقيقة`
@@ -60,20 +65,22 @@ export function MediaFiles({ files }: { files: MediaFile[] }) {
 }
 export function ArtworkGallery({ images }: { images: ArtworkAssignment[] }) {
   return (
-    <div className="artwork-gallery">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5.5">
       {images.map((image, index) => (
         // oxlint-disable-next-line react/no-array-index-key
         <figure key={`${image.id}-${image.role}-${index}`}>
           <Artwork
             id={image.id}
             alt={image.originalFilename || image.role}
-            className="gallery-image"
+            className="h-47.5 w-full rounded-[15px] bg-card object-contain"
           />
-          <figcaption>
+          <figcaption className="my-3 text-xs">
             {image.role} {image.isPrimary ? "· رئيسية" : ""}
           </figcaption>
-          <details>
-            <summary>معلومات الصورة</summary>
+          <details className="my-3 rounded-[14px] border border-border p-3.75">
+            <summary className="cursor-pointer text-[13px] leading-[1.8] [[open]>&]:mb-4.5">
+              معلومات الصورة
+            </summary>
             <FieldList
               rows={[
                 ["اسم الملف", image.originalFilename],
@@ -126,10 +133,14 @@ export function DataPanel({ work }: { work: WorkDetail }) {
             ]}
           />
         ))}
-        {work.aliases.length === 0 && <p className="empty-copy">لا توجد أسماء بديلة مسجّلة.</p>}
+        {work.aliases.length === 0 && (
+          <p className="text-[13px] leading-[1.9] text-muted-foreground">
+            لا توجد أسماء بديلة مسجّلة.
+          </p>
+        )}
       </Section>
       <Section title="تصنيفات الكتالوج">
-        <div className="taxonomy-ledger">
+        <div className="grid grid-cols-2 gap-6.25 [@media(max-width:750px)]:grid-cols-1">
           {[
             { label: "الأنواع الفنية", items: work.genres },
             { label: "الطابع", items: work.tones },
@@ -137,10 +148,12 @@ export function DataPanel({ work }: { work: WorkDetail }) {
             { label: "البلدان", items: work.countries },
           ].map((group) => (
             <section key={group.label}>
-              <h3>{group.label}</h3>
+              <h3 className="text-[17px] font-semibold">{group.label}</h3>
               {group.items.map((item) => (
-                <details key={item.id}>
-                  <summary>{item.labelAr || item.labelEn}</summary>
+                <details className="my-3 rounded-[14px] border border-border p-3.75" key={item.id}>
+                  <summary className="cursor-pointer text-[13px] leading-[1.8] [[open]>&]:mb-4.5">
+                    {item.labelAr || item.labelEn}
+                  </summary>
                   <FieldList
                     rows={[
                       ["الاسم الأصلي", item.labelEn],
@@ -158,8 +171,8 @@ export function DataPanel({ work }: { work: WorkDetail }) {
       </Section>
       <Section title="الكواكب">
         {work.planets.map((planet) => (
-          <details key={planet.id}>
-            <summary>
+          <details className="my-3 rounded-[14px] border border-border p-3.75" key={planet.id}>
+            <summary className="cursor-pointer text-[13px] leading-[1.8] [[open]>&]:mb-4.5">
               {planet.icon} {planet.nameAr}
             </summary>
             <p>{planet.description}</p>
@@ -178,8 +191,8 @@ export function DataPanel({ work }: { work: WorkDetail }) {
       </Section>
       <Section title="الجوائز والتكريمات">
         {work.awards.map((award) => (
-          <article className="award-record" key={award.id}>
-            <h3>
+          <article className="rounded-[20px] border border-border bg-card p-5.5" key={award.id}>
+            <h3 className="text-[17px] font-semibold">
               {award.organizationName} · {award.category}
             </h3>
             <FieldList
@@ -213,7 +226,11 @@ export function DataPanel({ work }: { work: WorkDetail }) {
             />
           </article>
         ))}
-        {work.awards.length === 0 && <p className="empty-copy">لم تُسجّل جوائز لهذا العمل.</p>}
+        {work.awards.length === 0 && (
+          <p className="text-[13px] leading-[1.9] text-muted-foreground">
+            لم تُسجّل جوائز لهذا العمل.
+          </p>
+        )}
       </Section>
       <Section title="المعرّفات والمراجع الخارجية">
         <FieldList rows={Object.entries(work.externalIds).map(([key, value]) => [key, value])} />

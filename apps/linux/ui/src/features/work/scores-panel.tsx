@@ -10,13 +10,13 @@ export function ScoresPanel({ work }: { work: WorkDetail }) {
     <>
       <Section title="بصمة التقييم">
         <ScoreBadge score={work.score} />
-        <p className="long-copy">
+        <p className="text-sm leading-[2.1] whitespace-pre-line wrap-anywhere">
           تقييم العمل هو متوسط الأجزاء التي اكتملت معاييرها الستة. تُحسب الأوزان قبل التقريب إلى منزلة
           عشرية. الأجزاء ناقصة التقييم لا تُعامل كصفر.
         </p>
-        <div className="criteria-weights">
+        <div className="mt-6.25 flex flex-wrap gap-2.5">
           {criteria.map((c) => (
-            <span key={c.key}>
+            <span className="rounded-full bg-secondary px-3.25 py-1.25 text-[11px]" key={c.key}>
               {c.label} · {c.weight}%
             </span>
           ))}
@@ -31,16 +31,24 @@ export function ScoresPanel({ work }: { work: WorkDetail }) {
               total: 1,
             }}
           />
-          <div className="criterion-grid">
+          <div className="my-6.25 grid grid-cols-3 gap-5 [@media(max-width:750px)]:grid-cols-2">
             {criteria.map((c) => (
-              <div key={c.key}>
+              <div className="grid grid-cols-[1fr_auto] gap-3.75 text-[13px]" key={c.key}>
                 <span>{c.label}</span>
                 <strong>{unit.scores?.[c.key] ?? "غير مقيّم"}</strong>
-                <meter min={0} max={10} value={unit.scores?.[c.key] ?? 0} aria-label={c.label} />
+                <meter
+                  className="col-span-full h-2 w-full accent-(--gold)"
+                  min={0}
+                  max={10}
+                  value={unit.scores?.[c.key] ?? 0}
+                  aria-label={c.label}
+                />
               </div>
             ))}
           </div>
-          <p className="muted-copy">آخر تحديث للتقييم: {dateLabel(unit.scores?.updatedAt)}</p>
+          <p className="text-[13px] leading-[1.9] text-muted-foreground">
+            آخر تحديث للتقييم: {dateLabel(unit.scores?.updatedAt)}
+          </p>
         </Section>
       ))}
     </>

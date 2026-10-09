@@ -1,5 +1,6 @@
 import type { CatalogEntry } from "@nahhasio/api-contract";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { cn } from "cn";
 import { LayoutGrid, List, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -94,17 +95,22 @@ export function BrowsePage({
   }
 
   return (
-    <section className="mx-auto max-w-[1600px] px-[clamp(20px,4vw,64px)] pt-[135px] pb-[70px] max-[750px]:pt-40" aria-label={title}>
+    <section
+      className="mx-auto max-w-[1600px] px-[clamp(20px,4vw,64px)] pt-33.75 pb-17.5 max-[750px]:pt-40"
+      aria-label={title}
+    >
       <header className="mb-8 flex items-center justify-between gap-6 max-[750px]:flex-col max-[750px]:items-start max-[750px]:gap-3.5">
         <div>
-          <p className="mb-1.5 text-[13px] leading-relaxed text-muted-foreground">كل الحكايات، من مكان واحد</p>
-          <h1 className="text-[clamp(28px,3vw,42px)] leading-relaxed font-bold">{title}</h1>
+          <p className="mb-1.25 text-[13px] leading-[1.8] text-muted-foreground">
+            كل الحكايات، من مكان واحد
+          </p>
+          <h1 className="text-[clamp(28px,3vw,42px)] leading-[1.7] font-bold">{title}</h1>
         </div>
-        <p>
+        <p className="text-[13px] leading-[1.8] text-muted-foreground">
           {result.data?.pages[0].total ?? "…"} {view === "works" ? "عمل" : "موسم وإصدار"}
         </p>
       </header>
-      <div className="mb-[22px] flex flex-wrap items-center gap-3">
+      <div className="mb-5.5 flex flex-wrap items-center gap-3">
         <InputGroup className="min-w-0 flex-1">
           <InputGroupInput
             aria-label="البحث في المكتبة"
@@ -129,7 +135,7 @@ export function BrowsePage({
           المرشحات {filterCount(filters) > 0 && `(${filterCount(filters)})`}
         </Button>
       </div>
-      <div className="mb-[22px] flex flex-wrap items-center gap-3">
+      <div className="mb-5.5 flex flex-wrap items-center gap-3">
         <Choice
           label="الترتيب"
           value={sort}
@@ -232,42 +238,75 @@ export function BrowsePage({
       {items.length === 0 && !result.isLoading && !result.error && <NoResults />}
       {Array.from(groups, ([key, entries]) => (
         <section key={key}>
-          {key !== "all" && <h2 className="border-b border-border py-5 text-[23px] font-semibold">{key}</h2>}
+          {key !== "all" && (
+            <h2 className="border-b border-border py-5 text-[23px] font-semibold">{key}</h2>
+          )}
           {layout === "table" ? (
-            <div className="my-[26px] overflow-x-auto rounded-2xl border border-border">
+            <div className="my-6.5 overflow-x-auto rounded-2xl border border-border">
               <table className="w-full text-start text-[13px]">
                 <thead>
                   <tr>
-                    <th className="border-b border-border px-4 py-3.5 text-start font-normal text-muted-foreground">العمل</th>
-                    <th className="border-b border-border px-4 py-3.5 text-start font-normal text-muted-foreground">الإصدار</th>
-                    <th className="border-b border-border px-4 py-3.5 text-start font-normal text-muted-foreground">التقييم</th>
-                    <th className="border-b border-border px-4 py-3.5 text-start font-normal text-muted-foreground">الجمهور</th>
-                    <th className="border-b border-border px-4 py-3.5 text-start font-normal text-muted-foreground">المشاهدة</th>
+                    <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
+                      العمل
+                    </th>
+                    <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
+                      الإصدار
+                    </th>
+                    <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
+                      التقييم
+                    </th>
+                    <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
+                      الجمهور
+                    </th>
+                    <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
+                      المشاهدة
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {entries.map((item) => (
                     <tr key={item.installment?.id ?? item.work.id}>
-                      <td className="border-b border-border px-4 py-3.5 text-start">
-                        <a className="font-semibold" href={workLink(item.work.id, item.installment?.id)}>
+                      <td className="border-b border-border px-4.5 py-3.75 text-start">
+                        <a
+                          className="font-semibold"
+                          href={workLink(item.work.id, item.installment?.id)}
+                        >
                           {item.work.titleAr || item.work.canonicalTitle}
                         </a>
                       </td>
-                      <td className="border-b border-border px-4 py-3.5 text-start">{item.installment?.title ?? item.work.releaseYear}</td>
-                      <td className="border-b border-border px-4 py-3.5 text-start">
+                      <td className="border-b border-border px-4.5 py-3.75 text-start">
+                        {item.installment?.title ?? item.work.releaseYear}
+                      </td>
+                      <td className="border-b border-border px-4.5 py-3.75 text-start">
                         <ScoreBadge score={item.installment?.score ?? item.work.score} />
                       </td>
-                      <td className="border-b border-border px-4 py-3.5 text-start">
+                      <td className="border-b border-border px-4.5 py-3.75 text-start">
                         {optionLabel(item.classification.audience, item.classification.audience)}
                       </td>
-                      <td className="border-b border-border px-4 py-3.5 text-start">{optionLabel(item.watchState, item.watchState)}</td>
+                      <td className="border-b border-border px-4.5 py-3.75 text-start">
+                        {optionLabel(item.watchState, item.watchState)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className={`my-7 grid gap-x-[22px] gap-y-[30px] max-[750px]:grid-cols-2 max-[750px]:gap-x-3.5 max-[750px]:gap-y-6 ${size === "compact" ? "grid-cols-[repeat(auto-fill,minmax(140px,1fr))]" : size === "comfortable" ? "grid-cols-[repeat(auto-fill,minmax(240px,1fr))] max-[750px]:grid-cols-2" : "grid-cols-[repeat(auto-fill,minmax(185px,1fr))]"} ${layout === "banner" || layout === "logo" ? "grid-cols-[repeat(auto-fill,minmax(280px,1fr))] max-[750px]:grid-cols-1" : ""}`}>
+            <div
+              className={cn(
+                "my-7 grid gap-x-5.5 gap-y-7.5 max-[750px]:gap-x-3.5 max-[750px]:gap-y-6",
+                layout === "banner" || layout === "logo"
+                  ? "grid-cols-[repeat(auto-fill,minmax(280px,1fr))] max-[750px]:grid-cols-1"
+                  : cn(
+                      "max-[750px]:grid-cols-2",
+                      size === "compact"
+                        ? "grid-cols-[repeat(auto-fill,minmax(140px,1fr))]"
+                        : size === "comfortable"
+                          ? "grid-cols-[repeat(auto-fill,minmax(240px,1fr))]"
+                          : "grid-cols-[repeat(auto-fill,minmax(185px,1fr))]",
+                    ),
+              )}
+            >
               {entries.map((item) => (
                 <MediaCard
                   key={item.installment?.id ?? item.work.id}

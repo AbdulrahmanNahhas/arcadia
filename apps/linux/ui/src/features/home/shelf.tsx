@@ -22,14 +22,17 @@ export function Shelf({
     queryFn: ({ signal }) => gateway.works({ ...query, pageSize: 12 }, signal),
   });
   return (
-    <section className="home-section">
-      <header className="home-section-heading">
+    <section className="mb-9">
+      <header className="mb-5 flex items-center justify-between gap-4.5">
         <div>
-          <h2>{title}</h2>
-          {description && <p>{description}</p>}
+          <h2 className="text-[21px] leading-[1.6] font-semibold max-[520px]:text-lg">{title}</h2>
+          {description && <p className="mt-1.25 text-xs text-muted-foreground">{description}</p>}
         </div>
         {href && (
-          <a href={href}>
+          <a
+            className="inline-flex items-center gap-2 text-xs whitespace-nowrap text-muted-foreground"
+            href={href}
+          >
             عرض الكل <ArrowLeft size={16} />
           </a>
         )}

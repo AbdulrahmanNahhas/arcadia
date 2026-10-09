@@ -166,7 +166,7 @@ fn build_window(
         settings.set_allow_universal_access_from_file_urls(false);
         settings.set_enable_html5_database(false);
         settings.set_enable_html5_local_storage(false);
-        settings.set_enable_write_console_messages_to_stdout(false);
+        settings.set_enable_write_console_messages_to_stdout(config.dev);
         settings.set_enable_media_stream(false);
     }
     let policy_config = config.clone();

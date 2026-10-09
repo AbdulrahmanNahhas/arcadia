@@ -2210,7 +2210,16 @@
       },
       "CatalogPlanet": {
         "type": "object",
-        "required": ["id", "slug", "nameAr", "nameEn", "icon", "count"],
+        "required": [
+          "id",
+          "slug",
+          "nameAr",
+          "nameEn",
+          "icon",
+          "primaryColor",
+          "secondaryColor",
+          "count"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -2227,6 +2236,12 @@
             "nullable": true
           },
           "icon": {
+            "type": "string"
+          },
+          "primaryColor": {
+            "type": "string"
+          },
+          "secondaryColor": {
             "type": "string"
           },
           "count": {

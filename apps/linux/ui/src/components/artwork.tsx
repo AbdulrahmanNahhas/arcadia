@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { cn } from "cn";
 import { Film } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -50,7 +51,10 @@ export function Artwork({
   ) : (
     <span
       ref={setElement}
-      className={`flex! flex-col! items-center! justify-center! gap-2.5! bg-secondary! text-center! text-xs! text-muted-foreground! ${className}`}
+      className={cn(
+        className,
+        "flex flex-col items-center justify-center gap-2.5 bg-secondary text-center text-xs text-muted-foreground",
+      )}
       role="img"
       aria-label={alt}
     >

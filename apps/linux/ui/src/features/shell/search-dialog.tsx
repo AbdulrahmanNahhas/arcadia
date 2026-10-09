@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Dialog,
@@ -18,6 +18,7 @@ export function SearchDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const input = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
   const [q, setQ] = useState("");
   useEffect(() => {
@@ -45,7 +46,7 @@ export function SearchDialog({
       ) ?? [];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent initialFocus={input}>
         <DialogHeader>
           <DialogTitle>البحث الشامل</DialogTitle>
           <DialogDescription>
@@ -53,25 +54,31 @@ export function SearchDialog({
           </DialogDescription>
         </DialogHeader>
         <Input
-          autoFocus
+          ref={input}
           aria-label="البحث الشامل"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="اكتب ما تبحث عنه…"
         />
-        <div className="search-results">
+        <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto">
           {works.isLoading && <p role="status">جارٍ البحث…</p>}
           {works.error && <p role="alert">{works.error.message}</p>}
           {works.data?.items.map((work) => (
-            <a key={work.id} href={workLink(work.id)} onClick={() => onOpenChange(false)}>
+            <a
+              className="grid gap-1.25 rounded-xl p-3.25 hover:bg-secondary"
+              key={work.id}
+              href={workLink(work.id)}
+              onClick={() => onOpenChange(false)}
+            >
               <strong>{work.titleAr || work.canonicalTitle}</strong>
-              <small>
+              <small className="text-[11px] text-muted-foreground">
                 {work.canonicalTitle} · {work.releaseYear}
               </small>
             </a>
           ))}
           {related.map((item) => (
             <a
+              className="grid gap-1.25 rounded-xl p-3.25 hover:bg-secondary"
               key={`${item.group.key}-${item.value}`}
               href={
                 item.group.key === "planets"
@@ -81,7 +88,7 @@ export function SearchDialog({
               onClick={() => onOpenChange(false)}
             >
               <strong>{item.label}</strong>
-              <small>
+              <small className="text-[11px] text-muted-foreground">
                 {item.group.label} · {item.count} عمل
               </small>
             </a>
@@ -89,7 +96,11 @@ export function SearchDialog({
           {q && works.data?.items.length === 0 && related.length === 0 && (
             <p>لا توجد نتائج مطابقة.</p>
           )}
-          <a href={`#/browse?q=${encodeURIComponent(text)}`} onClick={() => onOpenChange(false)}>
+          <a
+            className="grid gap-1.25 rounded-xl p-3.25 hover:bg-secondary"
+            href={`#/browse?q=${encodeURIComponent(text)}`}
+            onClick={() => onOpenChange(false)}
+          >
             عرض نتائج المكتبة كاملة
           </a>
         </div>

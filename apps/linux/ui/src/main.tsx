@@ -7,8 +7,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./app/app";
 
 import "./styles/tailwind.css";
-import "./styles/viewer.css";
-import "./styles/home-shell.css";
+
 const client = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: 60000, refetchOnWindowFocus: false } },
 });

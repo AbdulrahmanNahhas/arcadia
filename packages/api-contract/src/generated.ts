@@ -368,6 +368,8 @@ export const CatalogPlanetSchema = z.strictObject({
   nameAr: z.string(),
   nameEn: z.string().nullable(),
   icon: z.string(),
+  primaryColor: z.string(),
+  secondaryColor: z.string(),
   count: z.number().int(),
 });
 export type CatalogPlanet = z.infer<typeof CatalogPlanetSchema>;

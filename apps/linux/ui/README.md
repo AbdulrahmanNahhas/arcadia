@@ -30,10 +30,17 @@ Tailwind CSS 4 is integrated through the Vite plugin. Official shadcn Base UI co
 `src/styles/tailwind.css` maps their semantic colors to the viewing palette. Media cards remain
 app-specific. RTL comes from Base UI's DirectionProvider. CSPProvider disables injected style
 blocks; the packaged CSP remains unchanged. Browser journeys now run the production bundle,
-including dropdown positioning, selection, Escape/focus return and narrow topbar layout.
+including dropdown positioning, selection, Escape/focus return and responsive sidebar layout.
 
-Home's topbar overlays the banner with a background-to-transparent fade. Browse keeps a compact
-solid bar. Legacy CSS resets exclude official controls without increasing their specificity.
+All viewing-interface layout and appearance use Tailwind utilities in the components. The old
+`viewer.css` and `home-shell.css` stylesheets are removed. `src/styles/tailwind.css` contains only
+Tailwind imports, font registrations and shared theme tokens; do not add page selectors or
+`@apply` component styles. Runtime catalog colors may be bound as CSS custom-property values,
+with Tailwind utilities owning their presentation.
+
+The sidebar owns navigation, search (Ctrl+K, including Arabic keyboard layouts) and the account
+control pinned at the bottom. There is no top navbar; page content uses the full available height.
+Future page redesigns are separate review checkpoints.
 
 ## Boundary
 
