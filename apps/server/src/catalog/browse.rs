@@ -192,7 +192,7 @@ jsonb_build_object('work',({work}),'installment',case when i.id is null then nul
 'id',i.id,'workId',t.id,'workTitle',t.canonical_title,'workTitleAr',t.title_ar,'title',i.title,'kind',i.kind,'releaseDate',i.release_date,'runtimeMinutes',i.runtime_minutes,
 'episodeCount',(select count(*) from episodes where installment_id=i.id),'poster',coalesce((select {art} from media_asset_assignments m join media_assets a on a.id=m.asset_id where m.installment_id=i.id and m.role='poster' order by m.is_primary desc,m.id limit 1),({work})->'poster'),'score',score_value) end,
 'classification',jsonb_build_object('audience',coalesce(i.audience_override,t.audience),'age',coalesce(i.age_override,t.age),'sexualityRisk',coalesce(i.sexuality_risk_override,t.sexuality_risk),'behavioralRisk',coalesce(i.behavioral_risk_override,t.behavioral_risk),'theologyRisk',coalesce(i.theology_risk_override,t.theology_risk)),
-'status',case when i.id is null then 'title' else i.status::text end,'watchState',watch_state,'criteria',jsonb_build_object({criteria})) entry,
+'status',case when i.id is null then coalesce((select case when bool_or(x.status='airing') then 'airing' when bool_or(x.status='announced') then 'announced' when bool_and(x.status='completed') then 'completed' else 'unknown' end from installments x where x.title_id=t.id),'unknown') else i.status::text end,'watchState',watch_state,'criteria',jsonb_build_object({criteria})) entry,
 jsonb_build_object({facts}) facts,rating,jsonb_build_object({criteria}) criteria
 from titles t left join installments i on i.title_id=t.id and $2='installments'
 left join installment_scores s on s.installment_id=i.id

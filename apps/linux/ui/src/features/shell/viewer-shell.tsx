@@ -59,6 +59,28 @@ export function ViewerShell({ user }: { user: User }) {
     return () => window.removeEventListener("keydown", shortcut);
   }, [account]);
   useEffect(() => {
+    let enterPath: string | undefined;
+    const press = (event: KeyboardEvent) => {
+      if (event.key === "Enter" && !event.repeat && !event.isComposing)
+        enterPath = window.location.hash.split("?")[0];
+    };
+    const release = (event: KeyboardEvent) => {
+      if (event.key !== "Enter") return;
+      // A new page may focus a button before keyup; don't activate it with the previous page's Enter.
+      if (enterPath !== undefined && enterPath !== window.location.hash.split("?")[0]) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      enterPath = undefined;
+    };
+    window.addEventListener("keydown", press, true);
+    window.addEventListener("keyup", release, true);
+    return () => {
+      window.removeEventListener("keydown", press, true);
+      window.removeEventListener("keyup", release, true);
+    };
+  }, []);
+  useEffect(() => {
     if (main.current) {
       scrollPositions.set(previous.current, main.current.scrollTop);
       main.current.scrollTop = scrollPositions.get(route.key) ?? 0;

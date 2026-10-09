@@ -1,7 +1,7 @@
 import type { CatalogEntry } from "@nahhasio/api-contract";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
-import { LayoutGrid, List, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useCardNavigation, useLoadMoreNavigation } from "../../components/card-navigation";
@@ -14,6 +14,7 @@ import { ToggleGroup, ToggleGroupItem } from "../../components/ui/toggle-group";
 import { gateway } from "../../lib/bridge";
 import type { CatalogQuery } from "../../lib/bridge";
 import { replaceParams, workLink } from "../shell/navigation";
+import { DisplaySettings, displayDefaults } from "./display-settings";
 import { filterCount, parseFilters, optionLabel } from "./filter-model";
 import { FilterSheet } from "./filter-sheet";
 export function BrowsePage({
@@ -43,8 +44,8 @@ export function BrowsePage({
   const sort = params.get("sort") || "year-desc";
   const q = params.get("q") || "";
   const [sheet, setSheet] = useState(false);
-  const [layout, setLayout] = useState<"poster" | "banner" | "logo" | "table">("poster");
-  const [size, setSize] = useState("normal");
+  const [display, setDisplay] = useState(displayDefaults);
+  const { layout, size } = display;
   const [group, setGroup] = useState("none");
   const update = (values: Array<[string, string]>) => {
     const next = new URLSearchParams(params);
@@ -112,7 +113,7 @@ export function BrowsePage({
         </p>
       </header>
       <div className="mb-5.5 flex flex-wrap items-center gap-3">
-        <InputGroup className="min-w-0 flex-1">
+        <InputGroup className="min-w-0 flex-1 max-[750px]:basis-full">
           <InputGroupInput
             aria-label="البحث في المكتبة"
             value={q}
@@ -161,34 +162,7 @@ export function BrowsePage({
             { value: "audience", label: "الجمهور" },
           ]}
         />
-        <ToggleGroup
-          aria-label="طريقة العرض"
-          value={[layout]}
-          onValueChange={(v) => {
-            const next = v[0];
-            if (next === "poster" || next === "banner" || next === "logo" || next === "table")
-              setLayout(next);
-          }}
-        >
-          <ToggleGroupItem value="poster" aria-label="ملصقات">
-            <LayoutGrid />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="banner">لافتات</ToggleGroupItem>
-          <ToggleGroupItem value="logo">شعارات</ToggleGroupItem>
-          <ToggleGroupItem value="table" aria-label="جدول">
-            <List />
-          </ToggleGroupItem>
-        </ToggleGroup>
-        <Choice
-          label="حجم البطاقات"
-          value={size}
-          onChange={setSize}
-          options={[
-            { value: "compact", label: "صغيرة" },
-            { value: "normal", label: "متوسطة" },
-            { value: "comfortable", label: "كبيرة" },
-          ]}
-        />
+        <DisplaySettings value={display} onChange={setDisplay} />
       </div>
       {filterCount(filters) > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
@@ -280,7 +254,12 @@ export function BrowsePage({
                         {item.installment?.title ?? item.work.releaseYear}
                       </td>
                       <td className="border-b border-border px-4.5 py-3.75 text-start">
-                        <ScoreBadge score={item.installment?.score ?? item.work.score} />
+                        {item.status === "announced" &&
+                        (item.installment?.score ?? item.work.score).rating === null ? (
+                          "—"
+                        ) : (
+                          <ScoreBadge score={item.installment?.score ?? item.work.score} />
+                        )}
                       </td>
                       <td className="border-b border-border px-4.5 py-3.75 text-start">
                         {optionLabel(item.classification.audience, item.classification.audience)}
@@ -298,7 +277,14 @@ export function BrowsePage({
               className={cn(
                 "my-7 grid gap-x-5.5 gap-y-7.5 max-[750px]:gap-x-3.5 max-[750px]:gap-y-6",
                 layout === "banner" || layout === "logo"
-                  ? "grid-cols-[repeat(auto-fill,minmax(280px,1fr))] max-[750px]:grid-cols-1"
+                  ? cn(
+                      "max-[750px]:grid-cols-1",
+                      size === "compact"
+                        ? "grid-cols-[repeat(auto-fill,minmax(220px,1fr))]"
+                        : size === "comfortable"
+                          ? "grid-cols-[repeat(auto-fill,minmax(360px,1fr))]"
+                          : "grid-cols-[repeat(auto-fill,minmax(280px,1fr))]",
+                    )
                   : cn(
                       "max-[750px]:grid-cols-2",
                       size === "compact"
@@ -314,6 +300,10 @@ export function BrowsePage({
                   key={item.installment?.id ?? item.work.id}
                   entry={item}
                   layout={layout}
+                  minimal={display.minimal}
+                  borderless={display.borderless}
+                  showScore={display.showScore}
+                  showStatus={display.showStatus}
                 />
               ))}
             </div>

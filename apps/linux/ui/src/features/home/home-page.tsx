@@ -3,15 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { MessageCircle, CalendarDays } from "lucide-react";
 import { useState } from "react";
 
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
 import { useCardNavigation } from "../../components/card-navigation";
 import { MediaCard } from "../../components/media-card";
 import { Avatar, AvatarFallback } from "../../components/ui/avatar";
@@ -25,9 +16,10 @@ import {
 } from "../../components/ui/empty";
 import { gateway } from "../../lib/bridge";
 import { emptyFilters } from "../catalog/filter-model";
-import { entityLink, workLink } from "../shell/navigation";
+import { workLink } from "../shell/navigation";
 import { FittedRow } from "./fitted-row";
 import { Hero } from "./hero";
+import { PlanetShelves } from "./planet-shelves";
 import { Shelf } from "./shelf";
 function Comment({ item }: { item: FamilyActivity }) {
   const navigation = useCardNavigation();
@@ -72,10 +64,6 @@ export function HomePage() {
     queryFn: ({ signal }) => gateway.home(signal),
   });
 
-  const [planet, setPlanet] = useState("");
-  const selected =
-    filters.data?.planets.find((p) => p.slug === planet) ??
-    filters.data?.planets.find((p) => p.count > 0);
   const upcomingLink = `#/browse?view=installments&filters=${encodeURIComponent(JSON.stringify({ ...emptyFilters(), facets: [{ key: "releaseStatuses", include: ["announced"], exclude: [] }] }))}`;
 
   return (
@@ -84,51 +72,15 @@ export function HomePage() {
       <div className="mx-auto max-w-[1700px] px-8.5 pt-7 pb-12.5 max-[800px]:px-5.5 max-[520px]:px-4 max-[520px]:pt-6 max-[520px]:pb-10">
         <Shelf
           title="آخر تحديثات المكتبة"
-          query={{ sort: "updated-desc" }}
+          catalogQuery={{
+            view: "works",
+            privacy: "public",
+            sort: "updated-desc",
+            filters: JSON.stringify(emptyFilters()),
+          }}
           href="#/browse?sort=updated-desc"
         />
-        <section className="mb-9 [&>section]:mb-0">
-          <div className="mb-5 flex flex-wrap items-center gap-3">
-            <h2 className="text-[21px] leading-[1.6] font-semibold max-[520px]:text-lg">
-              من عوالمنا:
-            </h2>
-            <div className="w-55 max-[520px]:w-50">
-              <Select
-                items={filters.data?.planets.map((p) => ({
-                  value: p.slug,
-                  label: `${p.icon} ${p.nameAr}`,
-                }))}
-                value={selected?.slug ?? ""}
-                onValueChange={(next) => {
-                  if (next !== null) setPlanet(next);
-                }}
-              >
-                <SelectTrigger
-                  aria-label="اختر العالم"
-                  className="w-full bg-transparent! text-lg! border-0! p-0! pb-2! border-b! border-foreground rounded-none!"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false} align="start">
-                  <SelectGroup>
-                    {filters.data?.planets.map((p) => (
-                      <SelectItem key={p.slug} value={p.slug}>
-                        {p.icon} {p.nameAr}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          {selected && (
-            <Shelf
-              className="relative -top-10"
-              query={{ planet: selected.slug, sort: "updated-desc" }}
-              href={entityLink("planets", selected.slug)}
-            />
-          )}
-        </section>
+        <PlanetShelves planets={filters.data?.planets ?? []} />
         <section className="mb-9" aria-label="أحدث تعليقات العائلة">
           <header className="mb-5 flex items-center justify-between gap-4.5">
             <h2 className="text-[21px] leading-[1.6] font-semibold max-[520px]:text-lg">

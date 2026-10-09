@@ -270,7 +270,7 @@ test.beforeEach(async ({ page }) => {
                         theologyRisk: "medium",
                       },
                       status: "completed",
-                      watchState: "unwatched",
+                      watchState: item.id === fixtureWork.id ? "watched" : "unwatched",
                       criteria: {
                         story: 7,
                         characters: 7,
@@ -573,6 +573,10 @@ for (const width of [480, 1440]) {
 test("home logic: scores, planet reset, spoilers and installment destination", async ({ page }) => {
   await login(page);
   await expect(latestRow(page).getByText("7.1", { exact: true }).first()).toBeVisible();
+  await expect(latestRow(page).locator("article").first()).toHaveAttribute("data-watched", "true");
+  await expect(latestRow(page).locator("article").nth(1)).toHaveAttribute("data-watched", "false");
+  await expect(page.getByRole("heading", { name: "أفلام في", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "مسلسلات في", exact: true })).toBeVisible();
   await expect(page.getByText("حرق أحداث محفوظ", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "إظهار تعليق يحتوي على حرق" }).click();
   await expect(page.getByText("حرق أحداث محفوظ", { exact: true })).toBeVisible();
@@ -958,9 +962,11 @@ for (const width of [480, 1440]) {
     await expect(cards.nth(1)).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/#\/titles\/00000000-0000-4000-8000-000000000002/);
+    await expect(page.getByRole("article", { name: "صفحة العمل" })).toBeVisible();
     const browseLink = page.getByRole("link", { name: "تصفّح المكتبة", exact: true });
     await browseLink.focus();
     await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/#\/browse$/);
     const browseCards = page.locator("#main-content article a");
     await expect(page.locator("#main-content")).toBeFocused();
     await page.keyboard.press("Tab");
@@ -1018,5 +1024,43 @@ for (const width of [480, 1440]) {
     ).toBeGreaterThanOrEqual(0);
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/#\/titles\//);
+  });
+}
+
+for (const width of [480, 1440]) {
+  test(`card display settings ${width}: layouts, size, minimal and reset`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await login(page);
+    await page.getByRole("combobox", { name: "اختر عالم أفلام" }).click();
+    await expect(page.getByRole("option", { name: /الخيال/ })).toBeVisible();
+    await page.keyboard.press("Escape");
+    const upcoming = page.getByRole("region", { name: "الإصدارات القادمة" });
+    await expect(upcoming.getByText("غير مقيّم")).toHaveCount(0);
+    await expect(upcoming.getByText("12 حلقة")).toBeVisible();
+    await expect(latestRow(page).getByText("مكتمل").first()).toBeVisible();
+    await browse(page);
+    const cards = page.locator("#main-content article");
+    await page.getByRole("button", { name: "بطاقات كبيرة", exact: true }).click();
+    await expect(page.getByRole("button", { name: "بطاقات كبيرة", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await page.getByRole("button", { name: "لافتات", exact: true }).click();
+    await expect(cards.first()).toHaveAttribute("data-layout", "banner");
+    await page.getByRole("button", { name: "شعارات", exact: true }).click();
+    await expect(cards.first()).toHaveAttribute("data-layout", "logo");
+    await page.getByRole("button", { name: "إعدادات العرض", exact: true }).click();
+    await page.getByRole("checkbox", { name: "شعارات بلا إطار أو خلفية" }).check();
+    await page.getByRole("checkbox", { name: "الصور فقط، بلا تفاصيل" }).check();
+    await expect(cards.getByRole("heading")).toHaveCount(0);
+    await expect(cards.getByRole("link")).toHaveCount(2);
+    await page.getByRole("button", { name: "استعادة العرض الافتراضي" }).click();
+    await expect(cards.first()).toHaveAttribute("data-layout", "poster");
+    await expect(cards.getByRole("heading")).toHaveCount(2);
+    await page.keyboard.press("Escape");
+    await cards.first().getByRole("link").focus();
+    await page.screenshot({ path: `test-results/card-refinement-${width}.png` });
+    await page.getByRole("button", { name: "جدول", exact: true }).click();
+    await expect(page.getByRole("table")).toBeVisible();
   });
 }

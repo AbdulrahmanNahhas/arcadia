@@ -15,7 +15,7 @@ export function FittedRow<T>({ items, render }: { items: T[]; render: (item: T) 
   return (
     <div
       ref={row}
-      className="home-fitted-row grid grid-cols-[repeat(auto-fit,minmax(min(130px,100%),1fr))] gap-4.5 overflow-visible py-1 max-[520px]:gap-3.5"
+      className="home-fitted-row grid grid-cols-[repeat(auto-fill,minmax(min(145px,100%),1fr))] gap-4.5 overflow-visible py-1 max-[520px]:gap-3.5"
     >
       {items.slice(0, columns).map(render)}
     </div>
