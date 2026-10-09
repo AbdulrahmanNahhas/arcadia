@@ -2,21 +2,30 @@ import type { CatalogEntry } from "@nahhasio/api-contract";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
 import { SlidersHorizontal } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useCardNavigation, useLoadMoreNavigation } from "../../components/card-navigation";
-import { Choice } from "../../components/choice";
 import { MediaCard, ScoreBadge } from "../../components/media-card";
 import { Failure, NoResults } from "../../components/status";
 import { Button } from "../../components/ui/button";
 import { InputGroup, InputGroupInput } from "../../components/ui/input-group";
 import { ToggleGroup, ToggleGroupItem } from "../../components/ui/toggle-group";
 import { gateway } from "../../lib/bridge";
-import type { CatalogQuery } from "../../lib/bridge";
 import { replaceParams, workLink } from "../shell/navigation";
+import { AppliedFilters } from "./applied-filters";
+import {
+  groupLabel,
+  parseGroup,
+  parseSort,
+  refinementCount,
+  refinementQuery,
+  withPreset,
+} from "./browse-refinements";
+import type { BrowseRefinements } from "./browse-refinements";
 import { DisplaySettings, displayDefaults } from "./display-settings";
-import { filterCount, parseFilters, optionLabel } from "./filter-model";
-import { FilterSheet } from "./filter-sheet";
+import { FilterDialog } from "./filter-dialog";
+import { parseFilters, optionLabel } from "./filter-model";
+import { OrganizationControls } from "./organization-controls";
 export function BrowsePage({
   params,
   path = "/browse",
@@ -31,9 +40,7 @@ export function BrowsePage({
   const navigation = useCardNavigation();
 
   const loadMore = useLoadMoreNavigation();
-  const filters = parseFilters(params.get("filters"));
-  if (preset && !filters.facets.some((s) => s.key === preset.key))
-    filters.facets.push({ key: preset.key, include: [preset.value], exclude: [] });
+  const filters = withPreset(parseFilters(params.get("filters")), preset);
   const view = params.get("view") === "installments" ? "installments" : "works";
   const privacy =
     params.get("privacy") === "all"
@@ -41,12 +48,21 @@ export function BrowsePage({
       : params.get("privacy") === "private"
         ? "private"
         : "public";
-  const sort = params.get("sort") || "year-desc";
+  const sort = parseSort(params.get("sort"));
   const q = params.get("q") || "";
-  const [sheet, setSheet] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterTrigger = useRef<HTMLButtonElement>(null);
   const [display, setDisplay] = useState(displayDefaults);
   const { layout, size } = display;
-  const [group, setGroup] = useState("none");
+  const group = parseGroup(params.get("group"));
+  const refinements: BrowseRefinements = {
+    filters,
+    privacy,
+    sort,
+    group,
+    from: params.get("from") ?? "",
+    to: params.get("to") ?? "",
+  };
   const update = (values: Array<[string, string]>) => {
     const next = new URLSearchParams(params);
     for (const [key, value] of values) {
@@ -55,20 +71,21 @@ export function BrowsePage({
     }
     replaceParams(path, next);
   };
+  const apply = (value: BrowseRefinements) =>
+    update([
+      ["filters", JSON.stringify(withPreset(value.filters, preset))],
+      ["privacy", value.privacy === "public" ? "" : value.privacy],
+      ["from", value.from],
+      ["to", value.to],
+      ["sort", value.sort === "year-desc" ? "" : value.sort],
+      ["group", value.group === "none" ? "" : value.group],
+    ]);
   const [debounced, setDebounced] = useState(q);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(q), 250);
     return () => clearTimeout(timer);
   }, [q]);
-  const query: CatalogQuery = {
-    view,
-    privacy,
-    q: debounced || undefined,
-    sort,
-    filters: JSON.stringify(filters),
-    yearFrom: params.get("from") ? Number(params.get("from")) : undefined,
-    yearTo: params.get("to") ? Number(params.get("to")) : undefined,
-  };
+  const query = refinementQuery(refinements, view, debounced);
   const result = useInfiniteQuery({
     queryKey: ["catalog", "browse", query],
     initialPageParam: 1,
@@ -84,16 +101,7 @@ export function BrowsePage({
   const items = result.data?.pages.flatMap((page) => page.items) ?? [];
   const groups = new Map<string, CatalogEntry[]>();
   for (const item of items) {
-    const key =
-      group === "year"
-        ? String(item.installment?.releaseDate?.slice(0, 4) ?? item.work.releaseYear ?? "غير معروف")
-        : group === "format"
-          ? item.work.format === "animated"
-            ? "رسوم متحركة"
-            : "تمثيل حي"
-          : group === "audience"
-            ? optionLabel(item.classification.audience, item.classification.audience)
-            : "all";
+    const key = groupLabel(group, item);
     const entries = groups.get(key) ?? [];
     entries.push(item);
     groups.set(key, entries);
@@ -132,81 +140,27 @@ export function BrowsePage({
           <ToggleGroupItem value="works">العناوين</ToggleGroupItem>
           <ToggleGroupItem value="installments">المواسم والإصدارات</ToggleGroupItem>
         </ToggleGroup>
-        <Button variant="outline" onClick={() => setSheet(true)}>
+        <Button ref={filterTrigger} variant="outline" onClick={() => setFiltersOpen(true)}>
           <SlidersHorizontal data-icon="inline-start" />
-          المرشحات {filterCount(filters) > 0 && `(${filterCount(filters)})`}
+          المرشحات{" "}
+          {refinementCount(refinements, preset) > 0 && `(${refinementCount(refinements, preset)})`}
         </Button>
       </div>
       <div className="mb-5.5 flex flex-wrap items-center gap-3">
-        <Choice
-          label="الترتيب"
-          value={sort}
-          onChange={(v) => update([["sort", v]])}
-          options={[
-            { value: "year-desc", label: "الأحدث إصدارًا" },
-            { value: "year-asc", label: "الأقدم إصدارًا" },
-            { value: "score-desc", label: "الأعلى تقييمًا" },
-            { value: "title", label: "الاسم" },
-            { value: "updated-desc", label: "آخر تحديث" },
-            { value: "added-desc", label: "آخر إضافة" },
-          ]}
-        />
-        <Choice
-          label="التجميع"
-          value={group}
-          onChange={setGroup}
-          options={[
-            { value: "none", label: "بلا تجميع" },
-            { value: "year", label: "سنة الإصدار" },
-            { value: "format", label: "الصيغة" },
-            { value: "audience", label: "الجمهور" },
-          ]}
+        <OrganizationControls
+          sort={sort}
+          group={group}
+          onSort={(next) => apply({ ...refinements, sort: next })}
+          onGroup={(next) => apply({ ...refinements, group: next })}
         />
         <DisplaySettings value={display} onChange={setDisplay} />
       </div>
-      {filterCount(filters) > 0 && (
-        <div className="mb-6 flex flex-wrap gap-2">
-          {filters.facets.flatMap((selection) =>
-            [
-              ...selection.include.map((value) => ({ value, exclude: false })),
-              ...selection.exclude.map((value) => ({ value, exclude: true })),
-            ].map(({ value, exclude }) => (
-              <Button
-                key={`${selection.key}-${value}`}
-                variant={exclude ? "destructive" : "secondary"}
-                size="sm"
-                onClick={() =>
-                  update([
-                    [
-                      "filters",
-                      JSON.stringify({
-                        ...filters,
-                        facets: filters.facets.map((s) =>
-                          s.key === selection.key
-                            ? {
-                                ...s,
-                                include: s.include.filter((v) => v !== value),
-                                exclude: s.exclude.filter((v) => v !== value),
-                              }
-                            : s,
-                        ),
-                      }),
-                    ],
-                  ])
-                }
-              >
-                {exclude ? "− " : ""}
-                {optionLabel(
-                  value,
-                  options.data?.groups
-                    .find((g) => g.key === selection.key)
-                    ?.options.find((o) => o.value === value)?.label ?? value,
-                )}{" "}
-                ×
-              </Button>
-            )),
-          )}
-        </div>
+      <AppliedFilters value={refinements} options={options.data} locked={preset} onChange={apply} />
+      {group !== "none" && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          التجميع يشمل {items.length} نتيجة محمّلة من {result.data?.pages[0].total ?? "…"}. حمّل
+          المزيد لإكمال المجموعات.
+        </p>
       )}
       {result.error && <Failure error={result.error} retry={() => void result.refetch()} />}
       {result.isLoading && <p role="status">جارٍ تحميل الكتالوج…</p>}
@@ -214,7 +168,9 @@ export function BrowsePage({
       {Array.from(groups, ([key, entries]) => (
         <section key={key}>
           {key !== "all" && (
-            <h2 className="border-b border-border py-5 text-[23px] font-semibold">{key}</h2>
+            <h2 className="border-b border-border py-5 text-[23px] font-semibold">
+              {key} <span className="text-sm text-muted-foreground">({entries.length})</span>
+            </h2>
           )}
           {layout === "table" ? (
             <div className="my-6.5 overflow-x-auto rounded-2xl border border-border">
@@ -328,24 +284,20 @@ export function BrowsePage({
           {result.isFetchingNextPage ? "جارٍ التحميل…" : "تحميل المزيد"}
         </Button>
       )}
-      <FilterSheet
-        open={sheet}
-        onOpenChange={setSheet}
-        filters={filters}
-        onChange={(v) => update([["filters", JSON.stringify(v)]])}
-        options={options.data}
-        total={result.data?.pages[0].total}
-        privacy={privacy}
-        onPrivacy={(v) => update([["privacy", v]])}
-        yearFrom={params.get("from") ?? ""}
-        yearTo={params.get("to") ?? ""}
-        onYears={(a, b) =>
-          update([
-            ["from", a],
-            ["to", b],
-          ])
-        }
-      />
+      {filtersOpen && (
+        <FilterDialog
+          value={refinements}
+          view={view}
+          q={q}
+          locked={preset}
+          returnFocus={filterTrigger}
+          onClose={() => setFiltersOpen(false)}
+          onApply={(value) => {
+            apply(value);
+            setFiltersOpen(false);
+          }}
+        />
+      )}
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import { BrowseFiltersSchema } from "@nahhasio/api-contract";
-import type { BrowseFilters, FacetSelection } from "@nahhasio/api-contract";
+import type { BrowseFilters } from "@nahhasio/api-contract";
 
 export const criteria = [
   { key: "story", label: "القصة والحبكة", weight: 25 },
@@ -31,21 +31,6 @@ export function parseFilters(value: string | null): BrowseFilters {
   } catch {
     return emptyFilters();
   }
-}
-
-export function cycle(filters: BrowseFilters, key: string, value: string): BrowseFilters {
-  const old = filters.facets.find((s) => s.key === key) ?? { key, include: [], exclude: [] };
-  const next: FacetSelection = old.include.includes(value)
-    ? { ...old, include: old.include.filter((v) => v !== value), exclude: [...old.exclude, value] }
-    : old.exclude.includes(value)
-      ? { ...old, exclude: old.exclude.filter((v) => v !== value) }
-      : { ...old, include: [...old.include, value] };
-  return {
-    ...filters,
-    facets: [...filters.facets.filter((s) => s.key !== key), next].filter(
-      (s) => s.include.length || s.exclude.length,
-    ),
-  };
 }
 
 export function filterCount(filters: BrowseFilters) {

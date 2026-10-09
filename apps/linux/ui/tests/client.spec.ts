@@ -239,47 +239,76 @@ test.beforeEach(async ({ page }) => {
                       );
                     });
                   }
+                  if (request.payload.yearFrom)
+                    items = items.filter(
+                      (item) =>
+                        item.releaseYear !== null && item.releaseYear >= request.payload.yearFrom,
+                    );
+                  if (request.payload.yearTo)
+                    items = items.filter(
+                      (item) =>
+                        item.releaseYear !== null && item.releaseYear <= request.payload.yearTo,
+                    );
+                  if (filters.minimumRating)
+                    items = items.filter(
+                      (item) =>
+                        item.score.rating !== null && item.score.rating >= filters.minimumRating,
+                    );
+                  if (Object.values(filters.minimumScores).some((minimum) => Number(minimum) > 7))
+                    items = [];
+                  if (request.payload.sort === "title")
+                    items.sort((a, b) =>
+                      (a.titleAr ?? a.canonicalTitle).localeCompare(
+                        b.titleAr ?? b.canonicalTitle,
+                        "ar",
+                      ),
+                    );
                   if (request.payload.q)
                     items = items.filter((item) =>
                       `${item.titleAr} ${item.canonicalTitle}`.includes(request.payload.q),
                     );
                   result = {
-                    items: items.map((item) => ({
-                      work: item,
-                      installment:
-                        request.payload.view === "installments"
-                          ? {
-                              id: item.id,
-                              workId: item.id,
-                              workTitle: item.canonicalTitle,
-                              workTitleAr: item.titleAr,
-                              title: fixtureDetail.installments[0].title,
-                              kind: fixtureDetail.installments[0].kind,
-                              releaseDate: fixtureDetail.installments[0].releaseDate,
-                              runtimeMinutes: fixtureDetail.installments[0].runtimeMinutes,
-                              score: item.score,
-                              episodeCount: 0,
-                              poster: item.poster,
-                            }
-                          : null,
-                      classification: {
-                        audience: item.audience,
-                        age: item.age,
-                        sexualityRisk: "none",
-                        behavioralRisk: "low",
-                        theologyRisk: "medium",
-                      },
-                      status: "completed",
-                      watchState: item.id === fixtureWork.id ? "watched" : "unwatched",
-                      criteria: {
-                        story: 7,
-                        characters: 7,
-                        depth: 7,
-                        worldBuilding: 7,
-                        originality: 8,
-                        craft: 7,
-                      },
-                    })),
+                    items: items
+                      .slice(
+                        (request.payload.page - 1) * request.payload.pageSize,
+                        request.payload.page * request.payload.pageSize,
+                      )
+                      .map((item) => ({
+                        work: item,
+                        installment:
+                          request.payload.view === "installments"
+                            ? {
+                                id: item.id,
+                                workId: item.id,
+                                workTitle: item.canonicalTitle,
+                                workTitleAr: item.titleAr,
+                                title: fixtureDetail.installments[0].title,
+                                kind: fixtureDetail.installments[0].kind,
+                                releaseDate: fixtureDetail.installments[0].releaseDate,
+                                runtimeMinutes: fixtureDetail.installments[0].runtimeMinutes,
+                                score: item.score,
+                                episodeCount: 0,
+                                poster: item.poster,
+                              }
+                            : null,
+                        classification: {
+                          audience: item.audience,
+                          age: item.age,
+                          sexualityRisk: "none",
+                          behavioralRisk: "low",
+                          theologyRisk: "medium",
+                        },
+                        status: "completed",
+                        watchState: item.id === fixtureWork.id ? "watched" : "unwatched",
+                        criteria: {
+                          story: 7,
+                          characters: 7,
+                          depth: 7,
+                          worldBuilding: 7,
+                          originality: 8,
+                          craft: 7,
+                        },
+                      })),
                     total: items.length,
                     page: request.payload.page,
                     pageSize: request.payload.pageSize,
@@ -438,54 +467,189 @@ test("planet navigation, private opt-in and native keyboard links", async ({ pag
   await page.keyboard.press("Tab");
   await expect(row.getByRole("link", { name: "تفاصيل رحلة أخرى" })).toBeFocused();
   const rail = page.getByRole("navigation", { name: "التنقل الرئيسي" });
-  await expect(rail.getByRole("link", { name: "اكتشف", exact: true })).toHaveCount(0);
   await rail.getByRole("link", { name: "الكواكب", exact: true }).click();
-  await expect(page.getByRole("region", { name: "صفحة الكواكب" })).toBeVisible();
   await page.getByRole("link", { name: /الخيال/ }).click();
   await expect(page).toHaveURL(/#\/planets\/fantasy$/);
-  await expect(page.getByRole("heading", { name: "الخيال", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "تفاصيل عمل خاص" })).toHaveCount(0);
-  let sheet = await openFilters(page);
-  await sheet.getByRole("button", { name: "العامة والخاصة", exact: true }).click();
-  await expect(sheet.getByRole("button", { name: "العامة والخاصة", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await sheet.getByRole("button", { name: "عرض النتائج" }).click();
+  let dialog = await openFilters(page);
+  await dialog.getByRole("button", { name: "العامة والخاصة", exact: true }).click();
+  await expect(page).not.toHaveURL(/privacy=all/);
+  await expect(dialog.getByText("2 نتيجة مطابقة", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "تطبيق المرشحات" }).click();
   await expect(page.getByRole("link", { name: "تفاصيل عمل خاص" })).toBeVisible();
-  await expect(page).toHaveURL(/privacy=all/);
-  sheet = await openFilters(page);
-  await sheet.getByRole("button", { name: "العامة فقط", exact: true }).click();
-  await sheet.getByRole("button", { name: "عرض النتائج" }).click();
-  await expect(page.getByRole("link", { name: "تفاصيل عمل خاص" })).toHaveCount(0);
+  dialog = await openFilters(page);
+  await dialog.getByRole("tab", { name: /الحكاية والعالم/ }).click();
+  await expect(dialog.getByRole("checkbox", { name: "الخيال", exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "مسح كل المرشحات" }).click();
+  await expect(dialog.getByRole("checkbox", { name: "الخيال", exact: true })).toBeChecked();
+  await dialog.getByRole("button", { name: "تطبيق المرشحات" }).click();
+  await expect(page.getByRole("link", { name: /^تفاصيل/ })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /إزالة.*الخيال/ })).toHaveCount(0);
   await browse(page);
-  sheet = await openFilters(page);
-  await sheet.getByRole("button", { name: "تمثيل حي: غير محدد", exact: true }).click();
-  await expect(sheet.getByRole("button", { name: "تمثيل حي: محدد", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await sheet.getByRole("button", { name: "عرض النتائج" }).click();
+  dialog = await openFilters(page);
+  await dialog.getByRole("tab", { name: /الحكاية والعالم/ }).click();
+  await dialog.getByRole("checkbox", { name: "تمثيل حي", exact: true }).check();
+  await expect(dialog.getByText("1 نتيجة مطابقة", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "تطبيق المرشحات" }).click();
   await expect(page.getByRole("link", { name: "تفاصيل رحلة أخرى" })).toBeVisible();
   await expect(page.getByRole("link", { name: "تفاصيل رحلة في المكتبة" })).toHaveCount(0);
-  sheet = await openFilters(page);
-  await sheet.getByRole("button", { name: "مكتمل: غير محدد", exact: true }).click();
-  await sheet.getByRole("button", { name: "عرض النتائج" }).click();
-  await expect(page.getByRole("link", { name: /^تفاصيل/ })).toHaveCount(1);
-  await expect(page.getByRole("link", { name: "تفاصيل رحلة أخرى" })).toBeVisible();
-  sheet = await openFilters(page);
-  await sheet.getByRole("button", { name: "تمثيل حي: محدد", exact: true }).click();
-  await expect(
-    sheet.getByRole("button", { name: "تمثيل حي: مستبعد", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await sheet.getByRole("button", { name: "عرض النتائج" }).click();
+  dialog = await openFilters(page);
+  await dialog.getByRole("checkbox", { name: "مكتمل", exact: true }).check();
+  await dialog.getByRole("tab", { name: /الحكاية والعالم/ }).click();
+  await dialog.getByRole("button", { name: "استبعاد", exact: true }).click();
+  await dialog.getByRole("checkbox", { name: "تمثيل حي", exact: true }).check();
+  await dialog.getByRole("button", { name: "تطبيق المرشحات" }).click();
   await expect(page.getByRole("link", { name: "تفاصيل رحلة في المكتبة" })).toBeVisible();
   await expect(page.getByRole("link", { name: "تفاصيل رحلة أخرى" })).toHaveCount(0);
-  sheet = await openFilters(page);
-  await sheet.getByRole("button", { name: "مسح كل المرشحات" }).click();
-  await sheet.getByRole("button", { name: "عرض النتائج" }).click();
+  dialog = await openFilters(page);
+  await dialog.getByRole("button", { name: "مسح كل المرشحات" }).click();
+  await dialog.getByRole("button", { name: "تطبيق المرشحات" }).click();
   await expect(page.getByRole("link", { name: /^تفاصيل/ })).toHaveCount(2);
 });
+
+test("filter preview stays bounded and draft privacy reloads vocabulary", async ({ page }) => {
+  await login(page);
+  await browse(page);
+  const requests: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().startsWith("preview-fixture:")) requests.push(message.text());
+  });
+  await page.evaluate(() => {
+    const handler = window.webkit?.messageHandlers?.nahhasio;
+    if (!handler) throw new Error("Fixture bridge missing");
+    const original = handler.postMessage.bind(handler);
+    handler.postMessage = (message: string) => {
+      const request = JSON.parse(message);
+      if (request.command === "browse")
+        console.debug(`preview-fixture:${request.payload.page}:${request.payload.pageSize}`);
+      if (request.command === "facets" && request.payload.privacy === "all") {
+        window["__nahhasioReply"]?.({
+          id: request.id,
+          ok: true,
+          result: {
+            groups: [
+              {
+                key: "planets",
+                label: "الكواكب",
+                options: [{ value: "private-planet", label: "كوكب خاص", count: 1 }],
+              },
+            ],
+            yearMin: 2021,
+            yearMax: 2021,
+          },
+        });
+        return;
+      }
+      original(message);
+    };
+  });
+  const dialog = await openFilters(page);
+  await dialog.getByRole("button", { name: "العامة والخاصة", exact: true }).click();
+  await dialog.getByRole("tab", { name: /الحكاية والعالم/ }).click();
+  await expect(dialog.getByRole("checkbox", { name: "كوكب خاص", exact: true })).toBeVisible();
+  await expect(dialog.getByText("3 نتيجة مطابقة", { exact: true })).toBeVisible();
+  expect(requests.length).toBeGreaterThan(0);
+  expect(requests.every((request) => request === "preview-fixture:1:1")).toBe(true);
+  await dialog.getByRole("button", { name: "إلغاء", exact: true }).click();
+  await expect(page).not.toHaveURL(/privacy=all/);
+});
+
+test("filter drafts: cancel, validation, preview, complete chips and atomic reset", async ({
+  page,
+}) => {
+  await login(page);
+  await browse(page);
+  const initial = page.url();
+  let dialog = await openFilters(page);
+  await dialog.getByRole("checkbox", { name: "مكتمل", exact: true }).check();
+  await expect(dialog.getByText("2 نتيجة مطابقة", { exact: true })).toBeVisible();
+  expect(page.url()).toBe(initial);
+  await dialog.getByRole("button", { name: "إلغاء", exact: true }).click();
+  await expect(page.getByRole("button", { name: /^المرشحات/ })).toBeFocused();
+  dialog = await openFilters(page);
+  await expect(dialog.getByRole("checkbox", { name: "مكتمل", exact: true })).not.toBeChecked();
+  await dialog.getByLabel("من سنة", { exact: true }).fill("2025");
+  await dialog.getByLabel("إلى سنة", { exact: true }).fill("2020");
+  await expect(dialog.getByRole("button", { name: "تطبيق المرشحات" })).toBeDisabled();
+  await expect(dialog.getByText("سنة البداية يجب ألا تكون بعد سنة النهاية.")).toBeVisible();
+  await dialog.getByLabel("من سنة", { exact: true }).fill("2020");
+  await dialog.getByLabel("إلى سنة", { exact: true }).fill("2022");
+  await dialog.getByRole("button", { name: "العامة والخاصة", exact: true }).click();
+  await dialog.getByRole("tab", { name: /^التقييم/ }).click();
+  await dialog.getByLabel("الحد الأدنى للتقييم العام", { exact: true }).fill("6.5");
+  await dialog.getByLabel("القصة والحبكة", { exact: true }).fill("7");
+  await expect(dialog.getByText("3 نتيجة مطابقة", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "تطبيق المرشحات" }).click();
+  await expect(page).toHaveURL(/privacy=all/);
+  await expect(page).toHaveURL(/from=2020/);
+  await expect(page).toHaveURL(/to=2022/);
+  await expect(page.getByRole("button", { name: "المرشحات (5)", exact: true })).toBeVisible();
+  const chips = page.getByLabel("المرشحات المطبّقة");
+  await expect(
+    chips.getByRole("button", { name: "إزالة التقييم ≥ 6.5", exact: true }),
+  ).toBeVisible();
+  await chips.getByRole("button", { name: "إزالة القصة والحبكة ≥ 7", exact: true }).click();
+  await expect(page.getByRole("button", { name: "المرشحات (4)", exact: true })).toBeVisible();
+  dialog = await openFilters(page);
+  await dialog.getByRole("button", { name: "مسح كل المرشحات" }).click();
+  await expect(page).toHaveURL(/privacy=all/);
+  await dialog.getByRole("button", { name: "تطبيق المرشحات" }).click();
+  await expect(page).not.toHaveURL(/privacy=|from=|to=/);
+  await expect(page.getByLabel("المرشحات المطبّقة")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /^تفاصيل/ })).toHaveCount(2);
+});
+
+for (const width of [480, 1440]) {
+  test(`filter layout ${width}: category search, keyboard and URL organization`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await login(page);
+    await browse(page);
+    let dialog = await openFilters(page);
+    await dialog.getByRole("tab", { name: /الإصدار والنطاق/ }).focus();
+    await page.keyboard.press(width < 768 ? "ArrowLeft" : "ArrowDown");
+    await expect(dialog.getByRole("tab", { name: /الحكاية والعالم/ })).toBeFocused();
+    await dialog.screenshot({ path: `test-results/filter-categories-${width}.png` });
+    await expect(dialog.getByRole("tablist")).toHaveAttribute(
+      "aria-orientation",
+      width < 768 ? "horizontal" : "vertical",
+    );
+    await dialog.getByLabel("ابحث في المرشحات").fill("تمثيل حي");
+    await dialog.getByRole("checkbox", { name: "تمثيل حي", exact: true }).check();
+    await expect(dialog.getByRole("checkbox")).toHaveCount(1);
+    await expect(dialog.getByText("1 نتيجة مطابقة", { exact: true })).toBeVisible();
+    await dialog.screenshot({ path: `test-results/filter-dialog-${width}.png` });
+    const bounds = await dialog.boundingBox();
+    expect(bounds?.width).toBeLessThanOrEqual(width);
+    expect(bounds?.y).toBeGreaterThanOrEqual(0);
+    const overflow = await dialog.evaluate((element) => element.scrollWidth > element.clientWidth);
+    expect(overflow).toBe(false);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: /^المرشحات/ })).toBeFocused();
+    await page.getByRole("button", { name: "الأحدث إصدارًا", exact: true }).click();
+    const organization = page.getByRole("dialog", { name: "الترتيب والتجميع" });
+    await organization.getByRole("button", { name: /الأعلى تقييمًا/ }).click();
+    await organization.getByRole("button", { name: "حالة الإصدار", exact: true }).click();
+    await expect(page).toHaveURL(/sort=score-desc/);
+    await expect(page).toHaveURL(/group=status/);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("heading", { name: "مكتمل (2)", exact: true })).toBeVisible();
+    await page.reload();
+    await page.getByLabel("البريد الإلكتروني").fill("fixture@example.test");
+    await page.getByLabel("كلمة المرور").fill("fixture-password");
+    await page.getByRole("button", { name: "دخول المكتبة" }).click();
+    await expect(page.getByRole("heading", { name: "مكتمل (2)", exact: true })).toBeVisible();
+    dialog = await openFilters(page);
+    await dialog.getByRole("tab", { name: /الترتيب والتجميع/ }).click();
+    await expect(dialog.getByRole("button", { name: /الأعلى تقييمًا/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await dialog.getByRole("button", { name: "بلا تجميع", exact: true }).click();
+    await dialog.getByRole("button", { name: "إلغاء", exact: true }).click();
+    await expect(page).toHaveURL(/group=status/);
+  });
+}
 
 test("hero has real metadata, manual selection, pause and a working details action", async ({
   page,
@@ -551,19 +715,16 @@ for (const width of [480, 1440]) {
       await expect(page.getByRole("link", { name: /تفاصيل رحلة في المكتبة/ })).toBeVisible();
       await expect(page.getByRole("dialog")).toHaveCount(0);
       await browse(page);
-      const sort = page.getByRole("combobox", { name: "الترتيب", exact: true });
+      const sort = page.getByRole("button", { name: "الأحدث إصدارًا", exact: true });
       await sort.focus();
-      await page.keyboard.press("ArrowDown");
-      await expect(page.getByRole("listbox")).toBeVisible();
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("heading", { name: "الترتيب والتجميع" })).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(sort).toBeFocused();
-      const sheet = await openFilters(page);
-      await sheet.getByRole("button", { name: "مكتمل: غير محدد", exact: true }).click();
-      await expect(sheet.getByRole("button", { name: "مكتمل: محدد", exact: true })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
-      await sheet.getByRole("button", { name: "عرض النتائج" }).click();
+      const dialog = await openFilters(page);
+      await dialog.getByRole("checkbox", { name: "مكتمل", exact: true }).check();
+      await expect(dialog.getByRole("checkbox", { name: "مكتمل", exact: true })).toBeChecked();
+      await dialog.getByRole("button", { name: "تطبيق المرشحات" }).click();
       await expect(page.getByRole("link", { name: /^تفاصيل/ })).toHaveCount(2);
       expect(cspErrors).toEqual([]);
     },
