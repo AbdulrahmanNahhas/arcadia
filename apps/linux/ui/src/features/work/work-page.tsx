@@ -8,8 +8,7 @@ import { Failure } from "../../components/status";
 import { Button } from "../../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { gateway } from "../../lib/bridge";
-import { Recommendations } from "../discovery/recommendations-page";
-import { workLink, navigate } from "../shell/navigation";
+import { entityLink, workLink, navigate } from "../shell/navigation";
 import { CreatorsPanel } from "./creators-panel";
 import { DataPanel } from "./data-panel";
 import { FamilyPanel } from "./family-panel";
@@ -66,7 +65,7 @@ export function WorkPage({ id, installmentId }: { id: string; installmentId?: st
                   <a
                     className="rounded-full border border-border bg-card px-3 py-1.5 text-[11px]"
                     key={planet.id}
-                    href={`#/planets/${planet.slug}`}
+                    href={entityLink("planets", planet.slug)}
                   >
                     {planet.icon} {planet.nameAr}
                   </a>
@@ -226,7 +225,6 @@ export function WorkPage({ id, installmentId }: { id: string; installmentId?: st
                     </Section>
                   </aside>
                 </div>
-                <Recommendations workId={work.id} />
               </TabsContent>
               <TabsContent value="installments">
                 <InstallmentsPanel work={work} initial={installmentId} />

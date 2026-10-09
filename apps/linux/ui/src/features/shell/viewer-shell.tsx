@@ -1,16 +1,6 @@
 import type { User } from "@nahhasio/api-contract";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Compass,
-  Home,
-  Orbit,
-  Search,
-  LogOut,
-  Sparkles,
-  Users,
-  Building2,
-  Library,
-} from "lucide-react";
+import { Compass, Home, Search, LogOut, Library, Orbit, Users, Building2 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
 import { Avatar, AvatarFallback } from "../../components/ui/avatar";
@@ -24,9 +14,10 @@ import {
 } from "../../components/ui/dialog";
 import { gateway } from "../../lib/bridge";
 import { BrowsePage } from "../catalog/browse-page";
-import { DiscoveryPage } from "../discovery/discovery-page";
-import { RecommendationsPage } from "../discovery/recommendations-page";
 import { HomePage } from "../home/home-page";
+import { PeoplePage } from "../people/people-page";
+import { PlanetsPage } from "../planets/planets-page";
+import { StudiosPage } from "../studios/studios-page";
 import { WorkPage } from "../work/work-page";
 import { useViewerRoute } from "./navigation";
 import { SearchDialog } from "./search-dialog";
@@ -109,12 +100,6 @@ export function ViewerShell({ user }: { user: User }) {
               active: parts[0] === "browse",
             },
             { href: "#/planets", label: "الكواكب", icon: Orbit, active: parts[0] === "planets" },
-            {
-              href: "#/recommendations",
-              label: "اكتشف",
-              icon: Sparkles,
-              active: parts[0] === "recommendations",
-            },
             { href: "#/people", label: "الصنّاع", icon: Users, active: parts[0] === "people" },
             {
               href: "#/studios",
@@ -165,16 +150,18 @@ export function ViewerShell({ user }: { user: User }) {
             <HomePage />
           ) : parts[0] === "browse" ? (
             <BrowsePage params={route.params} />
+          ) : parts[0] === "planets" ? (
+            <PlanetsPage key={parts[1] ?? "planets"} id={parts[1]} params={route.params} />
+          ) : parts[0] === "people" ? (
+            <PeoplePage key={parts[1] ?? "people"} id={parts[1]} params={route.params} />
+          ) : parts[0] === "studios" ? (
+            <StudiosPage key={parts[1] ?? "studios"} id={parts[1]} params={route.params} />
           ) : parts[0] === "titles" && parts[1] ? (
             <WorkPage
               key={parts[1]}
               id={parts[1]}
               installmentId={route.params.get("installment") ?? undefined}
             />
-          ) : parts[0] === "recommendations" ? (
-            <RecommendationsPage />
-          ) : ["planets", "people", "studios"].includes(parts[0]) ? (
-            <DiscoveryPage type={parts[0]} id={parts[1]} params={route.params} />
           ) : (
             <BrowsePage params={route.params} />
           )}

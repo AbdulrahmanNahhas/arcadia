@@ -95,10 +95,7 @@ export function BrowsePage({
   }
 
   return (
-    <section
-      className="mx-auto max-w-[1600px] px-[clamp(20px,4vw,64px)] pt-33.75 pb-17.5 max-[750px]:pt-40"
-      aria-label={title}
-    >
+    <section className="mx-auto max-w-[1600px] px-[clamp(20px,4vw,64px)] py-10" aria-label={title}>
       <header className="mb-8 flex items-center justify-between gap-6 max-[750px]:flex-col max-[750px]:items-start max-[750px]:gap-3.5">
         <div>
           <p className="mb-1.25 text-[13px] leading-[1.8] text-muted-foreground">

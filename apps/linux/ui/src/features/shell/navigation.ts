@@ -1,4 +1,8 @@
 import { useSyncExternalStore } from "react";
+
+export function entityLink(key: "planets" | "contributors" | "studios", value: string) {
+  return `#/${key === "contributors" ? "people" : key}/${encodeURIComponent(value)}`;
+}
 export type ViewerRoute = { path: string; params: URLSearchParams; key: string };
 function subscribe(listener: () => void) {
   window.addEventListener("hashchange", listener);

@@ -1,6 +1,7 @@
 import type { WorkDetail } from "@nahhasio/api-contract";
 
 import { Artwork } from "../../components/artwork";
+import { entityLink } from "../shell/navigation";
 import { Section, FieldList } from "./field-list";
 import { pickArtwork } from "./format";
 export function CreatorsPanel({ work }: { work: WorkDetail }) {
@@ -19,7 +20,12 @@ export function CreatorsPanel({ work }: { work: WorkDetail }) {
                 className="h-32.5 w-22.5 shrink-0 rounded-[13px] object-cover"
               />
               <div className="min-w-0">
-                <a href={`#/${credit.kind === "organization" ? "studios" : "people"}/${credit.id}`}>
+                <a
+                  href={entityLink(
+                    credit.kind === "organization" ? "studios" : "contributors",
+                    credit.id,
+                  )}
+                >
                   <h3 className="text-[17px] font-semibold" dir="auto">
                     {credit.name}
                   </h3>

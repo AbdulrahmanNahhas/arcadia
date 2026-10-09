@@ -10,7 +10,7 @@ import {
 } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { gateway } from "../../lib/bridge";
-import { workLink } from "./navigation";
+import { entityLink, workLink } from "./navigation";
 export function SearchDialog({
   open,
   onOpenChange,
@@ -80,11 +80,14 @@ export function SearchDialog({
             <a
               className="grid gap-1.25 rounded-xl p-3.25 hover:bg-secondary"
               key={`${item.group.key}-${item.value}`}
-              href={
+              href={entityLink(
                 item.group.key === "planets"
-                  ? `#/planets/${encodeURIComponent(item.value)}`
-                  : `#/${item.group.key === "studios" ? "studios" : "people"}/${encodeURIComponent(item.value)}`
-              }
+                  ? "planets"
+                  : item.group.key === "studios"
+                    ? "studios"
+                    : "contributors",
+                item.value,
+              )}
               onClick={() => onOpenChange(false)}
             >
               <strong>{item.label}</strong>

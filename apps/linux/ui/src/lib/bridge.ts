@@ -2,7 +2,6 @@ import {
   CatalogFiltersSchema,
   CatalogPageSchema,
   FacetCatalogSchema,
-  RecommendationPageSchema,
   HomeFeedSchema,
   SessionSchema,
   WorkDetailSchema,
@@ -94,8 +93,7 @@ export const gateway = {
     CatalogPageSchema.parse(await call("browse", query, signal)),
   facets: async (query: CatalogQuery, signal?: AbortSignal) =>
     FacetCatalogSchema.parse(await call("facets", query, signal)),
-  recommendations: async (workId?: string, signal?: AbortSignal) =>
-    RecommendationPageSchema.parse(await call("recommendations", workId ? { workId } : {}, signal)),
+
   home: async (signal?: AbortSignal) => HomeFeedSchema.parse(await call("home", {}, signal)),
   filters: async (signal?: AbortSignal) =>
     CatalogFiltersSchema.parse(await call("filters", {}, signal)),

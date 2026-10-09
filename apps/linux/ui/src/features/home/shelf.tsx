@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { cn } from "cn";
 import { ArrowLeft } from "lucide-react";
 
 import { MediaCard } from "../../components/media-card";
@@ -11,18 +12,20 @@ export function Shelf({
   description,
   query,
   href,
+  className,
 }: {
-  title: string;
+  title?: string;
   description?: string;
   query: LibraryQuery;
   href?: string;
+  className?: string;
 }) {
   const result = useQuery({
     queryKey: ["home", "shelf", query],
     queryFn: ({ signal }) => gateway.works({ ...query, pageSize: 12 }, signal),
   });
   return (
-    <section className="mb-9">
+    <section className={cn("mb-9", className)}>
       <header className="mb-5 flex items-center justify-between gap-4.5">
         <div>
           <h2 className="text-[21px] leading-[1.6] font-semibold max-[520px]:text-lg">{title}</h2>

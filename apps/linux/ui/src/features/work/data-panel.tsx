@@ -7,6 +7,7 @@ import type {
 } from "@nahhasio/api-contract";
 
 import { Artwork } from "../../components/artwork";
+import { entityLink } from "../shell/navigation";
 import { FieldList, Section } from "./field-list";
 import { dateLabel } from "./format";
 export function References({ items }: { items: ExternalReference[] }) {
@@ -185,7 +186,7 @@ export function DataPanel({ work }: { work: WorkDetail }) {
                 ["المعرّف", planet.id],
               ]}
             />
-            <a href={`#/planets/${planet.slug}`}>استكشف الكوكب</a>
+            <a href={entityLink("planets", planet.slug)}>أعمال هذا الكوكب</a>
           </details>
         ))}
       </Section>

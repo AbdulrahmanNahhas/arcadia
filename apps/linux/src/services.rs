@@ -91,12 +91,7 @@ struct CatalogQuery {
     #[serde(skip_serializing_if = "Option::is_none")]
     year_to: Option<u32>,
 }
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct RecommendationQuery {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    work_id: Option<String>,
-}
+
 fn parse<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, Error> {
     serde_json::from_value(value).map_err(|_| Error::new("bad_request", "Invalid command fields"))
 }
@@ -314,20 +309,7 @@ impl Services {
                     .map_err(network)?;
                 self.json(response).await
             }
-            "recommendations" => {
-                let input: RecommendationQuery = parse(request.payload)?;
-                if input.work_id.as_ref().is_some_and(|id| !valid_id(id)) {
-                    return Err(Error::new("bad_request", "Invalid catalog identifier"));
-                }
-                let response = self
-                    .authorized(Method::GET, "api/v1/catalog/recommendations")
-                    .await?
-                    .query(&input)
-                    .send()
-                    .await
-                    .map_err(network)?;
-                self.json(response).await
-            }
+
             "filters" | "home" => {
                 let response = self
                     .authorized(

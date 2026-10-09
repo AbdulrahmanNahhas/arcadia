@@ -2,13 +2,21 @@ import type { FamilyActivity } from "@nahhasio/api-contract";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { Choice } from "../../components/choice";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 import { MediaCard } from "../../components/media-card";
 import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
 import { gateway } from "../../lib/bridge";
 import { emptyFilters } from "../catalog/filter-model";
-import { workLink } from "../shell/navigation";
+import { entityLink, workLink } from "../shell/navigation";
 import { FittedRow } from "./fitted-row";
 import { Hero } from "./hero";
 import { Shelf } from "./shelf";
@@ -49,15 +57,13 @@ export function HomePage() {
     queryKey: ["catalog", "home"],
     queryFn: ({ signal }) => gateway.home(signal),
   });
-  const recommendations = useQuery({
-    queryKey: ["recommendations", undefined],
-    queryFn: ({ signal }) => gateway.recommendations(undefined, signal),
-  });
+
   const [planet, setPlanet] = useState("");
   const selected =
     filters.data?.planets.find((p) => p.slug === planet) ??
     filters.data?.planets.find((p) => p.count > 0);
   const upcomingLink = `#/browse?view=installments&filters=${encodeURIComponent(JSON.stringify({ ...emptyFilters(), facets: [{ key: "releaseStatuses", include: ["announced"], exclude: [] }] }))}`;
+
   return (
     <div className="min-w-0">
       <Hero />
@@ -68,29 +74,44 @@ export function HomePage() {
           href="#/browse?sort=updated-desc"
         />
         <section className="mb-9 [&>section]:mb-0">
-          <div className="mb-5 flex flex-wrap items-center gap-5">
+          <div className="mb-5 flex flex-wrap items-center gap-3">
             <h2 className="text-[21px] leading-[1.6] font-semibold max-[520px]:text-lg">
-              من عوالمنا
+              من عوالمنا:
             </h2>
             <div className="w-55 max-[520px]:w-50">
-              <Choice
-                label="اختر العالم"
+              <Select
+                items={filters.data?.planets.map((p) => ({
+                  value: p.slug,
+                  label: `${p.icon} ${p.nameAr}`,
+                }))}
                 value={selected?.slug ?? ""}
-                options={
-                  filters.data?.planets.map((p) => ({
-                    value: p.slug,
-                    label: `${p.icon} ${p.nameAr}`,
-                  })) ?? []
-                }
-                onChange={setPlanet}
-              />
+                onValueChange={(next) => {
+                  if (next !== null) setPlanet(next);
+                }}
+              >
+                <SelectTrigger
+                  aria-label="اختر العالم"
+                  className="w-full bg-transparent! text-lg! border-0! p-0! pb-2! border-b! border-foreground rounded-none!"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false} align="start">
+                  <SelectGroup>
+                    {filters.data?.planets.map((p) => (
+                      <SelectItem key={p.slug} value={p.slug}>
+                        {p.icon} {p.nameAr}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           {selected && (
             <Shelf
-              title={`${selected.icon} ${selected.nameAr}`}
+              className="relative -top-10"
               query={{ planet: selected.slug, sort: "updated-desc" }}
-              href={`#/planets/${selected.slug}`}
+              href={entityLink("planets", selected.slug)}
             />
           )}
         </section>
@@ -131,23 +152,6 @@ export function HomePage() {
           {feed.data?.upcoming.length === 0 && (
             <p className="text-sm text-muted-foreground">لا توجد إصدارات قادمة معلنة حاليًا.</p>
           )}
-        </section>
-        <section className="mb-9" aria-label="التوصيات">
-          <header className="mb-5 flex items-center justify-between gap-4.5">
-            <h2 className="text-[21px] leading-[1.6] font-semibold max-[520px]:text-lg">
-              قد يعجبك أيضًا
-            </h2>
-            <a
-              className="inline-flex items-center gap-2 text-xs whitespace-nowrap text-muted-foreground"
-              href="#/recommendations"
-            >
-              عرض الكل
-            </a>
-          </header>
-          <FittedRow
-            items={recommendations.data?.items ?? []}
-            render={(work) => <MediaCard key={work.id} work={work} />}
-          />
         </section>
       </div>
     </div>

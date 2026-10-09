@@ -195,12 +195,7 @@ test.beforeEach(async ({ page }) => {
                     yearMax: 2021,
                   };
                   break;
-                case "recommendations":
-                  result = {
-                    items: request.payload.workId === fixtureWork.id ? [] : [fixtureWork],
-                    basis: "editorial",
-                  };
-                  break;
+
                 case "browse": {
                   const filters = JSON.parse(request.payload.filters);
                   let items = [
@@ -423,11 +418,10 @@ test("planet navigation, private opt-in and native keyboard links", async ({ pag
   await row.getByRole("link", { name: "تفاصيل رحلة في المكتبة" }).focus();
   await page.keyboard.press("Tab");
   await expect(row.getByRole("link", { name: "تفاصيل رحلة أخرى" })).toBeFocused();
-  await page
-    .getByRole("navigation", { name: "التنقل الرئيسي" })
-    .getByRole("link", { name: "الكواكب", exact: true })
-    .click();
-  await expect(page.getByRole("heading", { name: "الكواكب", exact: true })).toBeVisible();
+  const rail = page.getByRole("navigation", { name: "التنقل الرئيسي" });
+  await expect(rail.getByRole("link", { name: "اكتشف", exact: true })).toHaveCount(0);
+  await rail.getByRole("link", { name: "الكواكب", exact: true }).click();
+  await expect(page.getByRole("region", { name: "صفحة الكواكب" })).toBeVisible();
   await page.getByRole("link", { name: /الخيال/ }).click();
   await expect(page).toHaveURL(/#\/planets\/fantasy$/);
   await expect(page.getByRole("heading", { name: "الخيال", exact: true })).toBeVisible();
@@ -613,18 +607,13 @@ for (const width of [480, 1440]) {
           id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
           titleAr: `${seed.titleAr} ${index + 1}`,
         }));
-        if (request.command === "works" || request.command === "recommendations") {
-          const result:
-            | { items: WorkSummary[]; basis: string }
-            | { items: WorkSummary[]; total: number; page: number; pageSize: number } =
-            request.command === "recommendations"
-              ? { items, basis: "editorial" }
-              : {
-                  items: items.slice(0, request.payload.pageSize ?? 12),
-                  total: 12,
-                  page: 1,
-                  pageSize: request.payload.pageSize ?? 12,
-                };
+        if (request.command === "works") {
+          const result = {
+            items: items.slice(0, request.payload.pageSize ?? 12),
+            total: 12,
+            page: 1,
+            pageSize: request.payload.pageSize ?? 12,
+          };
           queueMicrotask(() => window["__nahhasioReply"]?.({ id: request.id, ok: true, result }));
         } else original(message);
       };
@@ -687,10 +676,89 @@ for (const width of [360, 640, 1024, 1440]) {
       await page.screenshot({ path: test.info().outputPath("sidebar-review.png") });
     await page.setViewportSize({ width, height: 400 });
     await expect(profile).toBeInViewport();
-    const studios = rail.getByRole("link", { name: "الاستوديوهات" });
-    await studios.focus();
-    await expect(studios).toBeInViewport();
+    const libraryLink = rail.getByRole("link", { name: "تصفّح المكتبة" });
+    await libraryLink.focus();
+    await expect(libraryLink).toBeInViewport();
     await expect(profile).toBeInViewport();
+  });
+}
+
+for (const width of [480, 1440]) {
+  test(`separate entity pages ${width}: planets, people and studios`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(() => {
+      const handler = window.webkit?.messageHandlers?.nahhasio;
+      if (!handler) throw new Error("Fixture bridge missing");
+      const original = handler.postMessage.bind(handler);
+      handler.postMessage = (message: string) => {
+        const request = JSON.parse(message);
+        if (request.command === "facets") {
+          const result = {
+            groups: [
+              {
+                key: "contributors",
+                label: "الصنّاع",
+                options: [{ value: "person-1", label: "صانع تجريبي", count: 2 }],
+              },
+              {
+                key: "studios",
+                label: "الاستوديوهات",
+                options: [{ value: "studio-1", label: "استوديو تجريبي", count: 2 }],
+              },
+            ],
+            yearMin: 2021,
+            yearMax: 2021,
+          };
+          queueMicrotask(() => window["__nahhasioReply"]?.({ id: request.id, ok: true, result }));
+        } else original(message);
+      };
+    });
+    await login(page);
+    const rail = page.getByRole("navigation", { name: "التنقل الرئيسي" });
+    await expect(rail.getByRole("link", { name: "اكتشف", exact: true })).toHaveCount(0);
+    for (const item of [
+      {
+        label: "الكواكب",
+        page: "صفحة الكواكب",
+        name: "الخيال",
+        route: "planets/fantasy",
+        search: "ابحث في الكواكب",
+        back: "العودة إلى الكواكب",
+      },
+      {
+        label: "الصنّاع",
+        page: "صفحة الصنّاع",
+        name: "صانع تجريبي",
+        route: "people/person-1",
+        search: "ابحث في الصنّاع",
+        back: "العودة إلى الصنّاع",
+      },
+      {
+        label: "الاستوديوهات",
+        page: "صفحة الاستوديوهات",
+        name: "استوديو تجريبي",
+        route: "studios/studio-1",
+        search: "ابحث في الاستوديوهات",
+        back: "العودة إلى الاستوديوهات",
+      },
+    ]) {
+      await rail.getByRole("link", { name: item.label, exact: true }).click();
+      await expect(page.getByRole("region", { name: item.page })).toBeVisible();
+      await expect(rail.getByRole("link", { name: item.label, exact: true })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      const input = page.getByRole("textbox", { name: item.search });
+      await input.fill("missing");
+      await expect(page.getByRole("link", { name: new RegExp(item.name) })).toHaveCount(0);
+      await input.fill("");
+      await page.getByRole("link", { name: new RegExp(item.name) }).click();
+      await expect(page).toHaveURL(new RegExp(`#/${item.route}`));
+      await expect(page.getByRole("heading", { name: item.name, exact: true })).toBeVisible();
+      await page.getByRole("link", { name: item.back, exact: true }).click();
+      await expect(page.getByRole("region", { name: item.page })).toBeVisible();
+      expect(await page.evaluate(() => document.body.scrollWidth)).toBeLessThanOrEqual(width);
+    }
   });
 }
 
