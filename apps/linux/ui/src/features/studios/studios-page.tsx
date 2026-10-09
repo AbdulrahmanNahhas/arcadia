@@ -1,12 +1,14 @@
 import { ArrowUpLeft, Building2 } from "lucide-react";
 import { useState } from "react";
 
+import { useCardNavigation } from "../../components/card-navigation";
 import { Failure, NoResults } from "../../components/status";
 import { Input } from "../../components/ui/input";
 import { BrowsePage } from "../catalog/browse-page";
 import { useEntityDirectory } from "../catalog/use-entity-directory";
 
 export function StudiosPage({ id, params }: { id?: string; params: URLSearchParams }) {
+  const navigation = useCardNavigation();
   const result = useEntityDirectory("studios");
   const [search, setSearch] = useState("");
   const selected = result.entities.find((studio) => studio.value === id);
@@ -56,6 +58,7 @@ export function StudiosPage({ id, params }: { id?: string; params: URLSearchPara
         <div className="grid gap-3">
           {matches.map((studio) => (
             <a
+              {...navigation}
               key={studio.value}
               href={`#/studios/${encodeURIComponent(studio.value)}`}
               className="flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-5 hover:bg-secondary focus-visible:outline-2 focus-visible:outline-ring"

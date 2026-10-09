@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { useCardNavigation } from "../../components/card-navigation";
 import { MediaCard } from "../../components/media-card";
 import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
@@ -29,6 +30,7 @@ import { FittedRow } from "./fitted-row";
 import { Hero } from "./hero";
 import { Shelf } from "./shelf";
 function Comment({ item }: { item: FamilyActivity }) {
+  const navigation = useCardNavigation();
   const [shown, setShown] = useState(false);
   return (
     <article className="flex gap-3.5 rounded-xl border border-border bg-card p-5 text-xs">
@@ -49,7 +51,11 @@ function Comment({ item }: { item: FamilyActivity }) {
             {item.body}
           </p>
         )}
-        <a className="mt-3 block text-muted-foreground" href={workLink(item.work.id)}>
+        <a
+          {...navigation}
+          className="mt-3 block text-muted-foreground"
+          href={workLink(item.work.id)}
+        >
           {item.work.titleAr || item.work.canonicalTitle}
         </a>
       </div>

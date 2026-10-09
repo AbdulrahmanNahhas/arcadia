@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { useCardNavigation } from "../../components/card-navigation";
+
 const planetIconClass = "size-3 stroke-2";
 const planetIcons = new Map<string, ReactNode>([
   ["fantasy", <Sparkles key="fantasy" aria-hidden="true" className={planetIconClass} />],
@@ -41,6 +43,7 @@ const validColor = (value: string, fallback: string) =>
   /^#[\da-f]{6}$/i.test(value) ? value : fallback;
 
 function PlanetCard({ planet }: { planet: CatalogPlanet }) {
+  const navigation = useCardNavigation();
   const primaryColor = validColor(planet.primaryColor, "var(--accent)");
   const secondaryColor = validColor(planet.secondaryColor, "var(--panel)");
 
@@ -50,6 +53,7 @@ function PlanetCard({ planet }: { planet: CatalogPlanet }) {
 
   return (
     <a
+      {...navigation}
       href={`#/planets/${planet.slug}`}
       className="group relative flex min-h-44 min-w-0 flex-col justify-between overflow-hidden rounded-3xl border p-6 transition-[filter,transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transform-none"
       style={{

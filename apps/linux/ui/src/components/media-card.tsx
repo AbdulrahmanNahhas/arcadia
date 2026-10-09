@@ -8,6 +8,7 @@ import { CheckCircle, Star } from "lucide-react";
 
 import { workLink } from "../features/shell/navigation";
 import { Artwork } from "./artwork";
+import { useCardNavigation } from "./card-navigation";
 import { Badge } from "./ui/badge";
 export function ScoreBadge({ score }: { score: ScoreSummary }) {
   return (
@@ -39,6 +40,7 @@ export function MediaCard({
   onSelect?: (id: string, installmentId?: string) => void;
   layout?: "poster" | "banner" | "logo";
 }) {
+  const navigation = useCardNavigation();
   const parent = entry?.work ?? work;
   const unit = entry?.installment ?? installment;
 
@@ -59,6 +61,7 @@ export function MediaCard({
   return (
     <article className="group/media min-w-0 snap-start" data-layout={layout}>
       <a
+        {...navigation}
         className="flex flex-col gap-2 rounded-2xl text-foreground outline-offset-4 focus-visible:outline-2 focus-visible:outline-foreground"
         href={workLink(workId, unit?.id)}
         aria-label={`تفاصيل ${title}`}
@@ -71,7 +74,7 @@ export function MediaCard({
             : undefined
         }
       >
-        <span className="relative block aspect-2/3 overflow-hidden rounded-[20px] border border-border bg-card transition-[transform,border-color] duration-200 group-hover/media:-translate-y-1 group-hover/media:border-foreground/60 grgroup-has-focus-visible/media:outline-2roupgroup-has-focus-visible/media:outline-offset-3p-hagroup-has-focus-visible/media:outline-foregroundata-[layout=banner]/media:aspect-video group-data-[layout=logo]/media:aspect-video motion-reduce:transition-none">
+        <span className="relative block aspect-2/3 overflow-hidden rounded-[20px] border border-border bg-card transition-[transform,border-color] duration-200 group-hover/media:-translate-y-1 group-hover/media:border-foreground/60 group-has-focus-visible/media:-translate-y-1 group-has-focus-visible/media:border-primary group-data-[layout=banner]/media:aspect-video group-data-[layout=logo]/media:aspect-video motion-reduce:transition-none">
           <Artwork
             id={image?.id}
             alt=""

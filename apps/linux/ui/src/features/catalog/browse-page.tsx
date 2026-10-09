@@ -4,6 +4,7 @@ import { cn } from "cn";
 import { LayoutGrid, List, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useCardNavigation, useLoadMoreNavigation } from "../../components/card-navigation";
 import { Choice } from "../../components/choice";
 import { MediaCard, ScoreBadge } from "../../components/media-card";
 import { Failure, NoResults } from "../../components/status";
@@ -26,6 +27,9 @@ export function BrowsePage({
   title?: string;
   preset?: { key: string; value: string };
 }) {
+  const navigation = useCardNavigation();
+
+  const loadMore = useLoadMoreNavigation();
   const filters = parseFilters(params.get("filters"));
   if (preset && !filters.facets.some((s) => s.key === preset.key))
     filters.facets.push({ key: preset.key, include: [preset.value], exclude: [] });
@@ -265,6 +269,7 @@ export function BrowsePage({
                     <tr key={item.installment?.id ?? item.work.id}>
                       <td className="border-b border-border px-4.5 py-3.75 text-start">
                         <a
+                          {...navigation}
                           className="font-semibold"
                           href={workLink(item.work.id, item.installment?.id)}
                         >
@@ -317,10 +322,18 @@ export function BrowsePage({
       ))}
       {result.hasNextPage && (
         <Button
+          {...navigation}
           className="mx-auto mt-8 flex"
           variant="outline"
-          disabled={result.isFetchingNextPage}
-          onClick={() => void result.fetchNextPage()}
+          aria-disabled={result.isFetchingNextPage}
+          onClick={(event) => {
+            if (result.isFetchingNextPage) return;
+            if (loadMore)
+              void loadMore(event.currentTarget, async () => {
+                await result.fetchNextPage();
+              });
+            else void result.fetchNextPage();
+          }}
         >
           {result.isFetchingNextPage ? "جارٍ التحميل…" : "تحميل المزيد"}
         </Button>

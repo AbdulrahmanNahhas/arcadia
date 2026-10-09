@@ -1,12 +1,14 @@
 import { ArrowUpLeft, Users } from "lucide-react";
 import { useState } from "react";
 
+import { useCardNavigation } from "../../components/card-navigation";
 import { Failure, NoResults } from "../../components/status";
 import { Input } from "../../components/ui/input";
 import { BrowsePage } from "../catalog/browse-page";
 import { useEntityDirectory } from "../catalog/use-entity-directory";
 
 export function PeoplePage({ id, params }: { id?: string; params: URLSearchParams }) {
+  const navigation = useCardNavigation();
   const result = useEntityDirectory("contributors");
   const [search, setSearch] = useState("");
   const selected = result.entities.find((person) => person.value === id);
@@ -54,6 +56,7 @@ export function PeoplePage({ id, params }: { id?: string; params: URLSearchParam
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {matches.map((person) => (
             <a
+              {...navigation}
               key={person.value}
               href={`#/people/${encodeURIComponent(person.value)}`}
               className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 hover:bg-secondary focus-visible:outline-2 focus-visible:outline-ring"

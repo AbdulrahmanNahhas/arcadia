@@ -3,11 +3,13 @@ import { Info, Play, Pause } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Artwork } from "../../components/artwork";
+import { useCardNavigation } from "../../components/card-navigation";
 import { ScoreBadge } from "../../components/media-card";
 import { Button } from "../../components/ui/button";
 import { gateway } from "../../lib/bridge";
-import { workLink } from "../shell/navigation";
+import { navigate, workLink } from "../shell/navigation";
 export function Hero() {
+  const navigation = useCardNavigation();
   const result = useQuery({
     queryKey: ["home", "hero"],
     queryFn: ({ signal }) => gateway.works({ sort: "added-desc", pageSize: 10 }, signal),
@@ -43,7 +45,31 @@ export function Hero() {
     );
   return (
     <section
-      className="relative isolate flex min-h-140 items-end overflow-hidden bg-card sm:min-h-160 lg:min-h-[clamp(560px,76svh,820px)]"
+      {...navigation}
+      tabIndex={0}
+      data-navigation-align="start"
+      aria-keyshortcuts="ArrowLeft ArrowRight Enter"
+      onKeyDown={(event) => {
+        if (
+          event.target !== event.currentTarget ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey ||
+          event.nativeEvent.isComposing
+        )
+          return;
+        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+          event.preventDefault();
+          setIndex(
+            (value) => (value + (event.key === "ArrowLeft" ? 1 : -1) + items.length) % items.length,
+          );
+        } else if (event.key === "Enter") {
+          event.preventDefault();
+          navigate(workLink(work.id).slice(1));
+        } else navigation?.onKeyDown(event);
+      }}
+      className="relative isolate flex min-h-140 items-end overflow-hidden bg-card focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-primary sm:min-h-160 lg:min-h-[clamp(560px,76svh,820px)]"
       aria-label="أحدث الأعمال"
       onMouseEnter={() => setPause(true)}
       onMouseLeave={() => setPause(false)}
@@ -66,7 +92,7 @@ export function Hero() {
             <Artwork
               id={work.logo.id}
               alt={work.titleAr || work.canonicalTitle}
-              className="block h-32 w-full max-w-128 object-contain object-right-bottom sm:h-40 lg:h-48"
+              className="block h-32 w-full max-w-lg object-contain object-bottom-right sm:h-40 lg:h-48"
               priority
             />
           </h1>

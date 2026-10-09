@@ -541,6 +541,9 @@ for (const width of [480, 1440]) {
       expect(searchBox?.height).toBeGreaterThanOrEqual(36);
       await search.click();
       const input = page.getByRole("searchbox", { name: "ابحث في المكتبة" });
+      await expect(page.locator("#main-content")).toBeFocused();
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Enter");
       await expect(input).toBeFocused();
       await input.fill("missing");
       await expect(page.getByText("لا توجد نتائج مطابقة", { exact: true })).toBeVisible();
@@ -787,8 +790,20 @@ test("sidebar search: full page, Ctrl+K, Arabic layout and history", async ({ pa
   await search.click();
   const input = page.getByRole("searchbox", { name: "ابحث في المكتبة" });
   await expect(page).toHaveURL(/#\/search$/);
+  await expect(page.locator("#main-content")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "الانتقال إلى البحث", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
   await expect(input).toBeFocused();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "الكل", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const privateSearch = page.getByRole("checkbox", { name: "تضمين الأعمال الخاصة" });
+  await expect(privateSearch).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(privateSearch).toBeChecked();
+  await page.keyboard.press("Space");
   await input.fill("رحلة");
   const result = page.getByRole("link", { name: /تفاصيل رحلة في المكتبة/ });
   await expect(result).toBeVisible();
@@ -857,5 +872,151 @@ for (const width of [480, 1440]) {
     await page.screenshot({ path: `test-results/search-${width}.png` });
     await page.getByRole("link", { name: /الخيال/ }).click();
     await expect(page).toHaveURL(/#\/planets\/fantasy/);
+  });
+}
+
+for (const width of [480, 1440]) {
+  test(`card arrows ${width}: RTL, rows, shelves and native controls`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await login(page);
+    const latest = latestRow(page).getByRole("link");
+    await latest.first().focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(latest.nth(1)).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await expect(latest.first()).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    const planet = page.locator("#main-content .home-fitted-row").nth(1).getByRole("link").first();
+    await expect(planet).toBeFocused();
+    await page.keyboard.press("ArrowUp");
+    await expect(latest.first()).toBeFocused();
+
+    await page.evaluate((seed) => {
+      const handler = window.webkit!.messageHandlers!.nahhasio!;
+      const original = handler.postMessage.bind(handler);
+      handler.postMessage = (message: string) => {
+        const request = JSON.parse(message);
+        if (request.command !== "browse") return original(message);
+        const items = Array.from({ length: 8 }, (_, index) => ({
+          work: {
+            ...seed,
+            id: `00000000-0000-4000-8000-${String(index + (request.payload.page === 2 ? 9 : 1)).padStart(12, "0")}`,
+            titleAr: `رحلة ${index + (request.payload.page === 2 ? 9 : 1)}`,
+          },
+          installment: null,
+          classification: {
+            audience: seed.audience,
+            age: seed.age,
+            sexualityRisk: "none",
+            behavioralRisk: "low",
+            theologyRisk: "medium",
+          },
+          status: "completed",
+          watchState: "unwatched",
+          criteria: {
+            story: 7,
+            characters: 7,
+            depth: 7,
+            worldBuilding: 7,
+            originality: 8,
+            craft: 7,
+          },
+        }));
+        queueMicrotask(() =>
+          window["__nahhasioReply"]?.({
+            id: request.id,
+            ok: true,
+            result: {
+              items,
+              total: request.payload.pageSize === 24 ? 8 : 16,
+              page: request.payload.page,
+              pageSize: request.payload.pageSize === 24 ? 24 : 8,
+            },
+          }),
+        );
+      };
+    }, work);
+    await page.getByRole("button", { name: "البحث", exact: true }).click();
+    const input = page.getByRole("searchbox", { name: "ابحث في المكتبة" });
+    await input.fill("رحلة");
+    await page.keyboard.press("ArrowLeft");
+    await expect(input).toBeFocused();
+    const cards = page.getByRole("region", { name: "الأعمال المطابقة" }).getByRole("link");
+    await expect(cards).toHaveCount(8);
+    await cards.first().focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(cards.nth(1)).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await expect(cards.first()).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await expect(cards.first()).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(cards.nth(width === 480 ? 2 : 6)).toBeFocused();
+    await page.keyboard.press("ArrowUp");
+    await expect(cards.first()).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(cards.nth(1)).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/#\/titles\/00000000-0000-4000-8000-000000000002/);
+    const browseLink = page.getByRole("link", { name: "تصفّح المكتبة", exact: true });
+    await browseLink.focus();
+    await page.keyboard.press("Enter");
+    const browseCards = page.locator("#main-content article a");
+    await expect(page.locator("#main-content")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("button", { name: "الانتقال إلى المحتوى", exact: true }),
+    ).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(browseCards.first()).toBeFocused();
+    await browseLink.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(browseCards.first()).toBeFocused();
+    await browseCards.last().focus();
+    await page.keyboard.press("ArrowDown");
+    const more = page.getByRole("button", { name: "تحميل المزيد", exact: true });
+    await expect(more).toBeFocused();
+    const padding = await more.evaluate((element) => {
+      const main = document.getElementById("main-content")!;
+      return main.getBoundingClientRect().bottom - element.getBoundingClientRect().bottom;
+    });
+    expect(padding).toBeGreaterThanOrEqual(8);
+    await page.keyboard.press("Enter");
+    await expect(browseCards).toHaveCount(16);
+
+    await expect(browseCards.nth(8)).toBeFocused();
+    const homeLink = page.getByRole("link", { name: "الرئيسية", exact: true });
+    await homeLink.focus();
+    await page.keyboard.press("Enter");
+    const hero = page.getByRole("region", { name: "أحدث الأعمال" });
+    await expect(page.locator("#main-content")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("button", { name: "الانتقال إلى العرض الرئيسي", exact: true }),
+    ).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(hero).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
+    await expect(hero).toBeFocused();
+    await expect(hero.getByRole("button", { name: /^اعرض/ }).nth(1)).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await page.keyboard.press("ArrowRight");
+    await expect(hero.getByRole("button", { name: /^اعرض/ }).first()).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await page.keyboard.press("ArrowDown");
+    expect(
+      await latestRow(page).evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+    await page.keyboard.press("ArrowUp");
+    await expect(hero).toBeFocused();
+    expect(
+      await hero.evaluate((element) => element.getBoundingClientRect().top),
+    ).toBeGreaterThanOrEqual(0);
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/#\/titles\//);
   });
 }

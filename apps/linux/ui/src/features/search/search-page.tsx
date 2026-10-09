@@ -3,6 +3,11 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { ArrowUpLeft, Building2, LoaderCircle, Orbit, Search, Users, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  useCardNavigation,
+  useContentEntry,
+  useLoadMoreNavigation,
+} from "../../components/card-navigation";
 import { MediaCard } from "../../components/media-card";
 import { Failure, NoResults } from "../../components/status";
 import { Button } from "../../components/ui/button";
@@ -34,6 +39,7 @@ function matchingEntities(data: FacetCatalog | undefined, q: string, type: Searc
     );
 }
 function EntityMatches({ items }: { items: ReturnType<typeof matchingEntities> }) {
+  const navigation = useCardNavigation();
   const [limit, setLimit] = useState(12);
   return (
     <section className="mb-10" aria-label="الأسماء والعوالم المطابقة">
@@ -44,6 +50,7 @@ function EntityMatches({ items }: { items: ReturnType<typeof matchingEntities> }
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {items.slice(0, limit).map((item) => (
           <a
+            {...navigation}
             key={`${item.group.key}-${item.value}`}
             href={entityLink(item.group.key, item.value)}
             className="group flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-secondary motion-reduce:transition-none"
@@ -64,7 +71,12 @@ function EntityMatches({ items }: { items: ReturnType<typeof matchingEntities> }
         ))}
       </div>
       {limit < items.length && (
-        <Button variant="outline" className="mt-5" onClick={() => setLimit((value) => value + 12)}>
+        <Button
+          {...navigation}
+          variant="outline"
+          className="mt-5"
+          onClick={() => setLimit((value) => value + 12)}
+        >
           المزيد من الأسماء والعوالم
         </Button>
       )}
@@ -72,6 +84,9 @@ function EntityMatches({ items }: { items: ReturnType<typeof matchingEntities> }
   );
 }
 export function SearchPage({ params }: { params: URLSearchParams }) {
+  const navigation = useCardNavigation();
+  const loadMore = useLoadMoreNavigation();
+  const focusResults = useContentEntry();
   const input = useRef<HTMLInputElement>(null);
   const text = (params.get("q") ?? "").slice(0, 200);
   const type = parseSearchType(params.get("type"));
@@ -87,7 +102,6 @@ export function SearchPage({ params }: { params: URLSearchParams }) {
     const focus = () => {
       input.current?.focus({ preventScroll: true });
     };
-    focus();
     window.addEventListener("nahhasio:focus-search", focus);
     return () => window.removeEventListener("nahhasio:focus-search", focus);
   }, []);
@@ -214,6 +228,15 @@ export function SearchPage({ params }: { params: URLSearchParams }) {
           </label>
         </div>
       </div>
+      {text.trim() && (
+        <button
+          type="button"
+          onClick={focusResults}
+          className="sr-only focus:not-sr-only focus:mb-5 focus:rounded-lg focus:bg-primary focus:px-5 focus:py-3 focus:text-primary-foreground"
+        >
+          الانتقال إلى النتائج
+        </button>
+      )}
       {!text.trim() ? (
         <div className="mx-auto flex max-w-150 flex-col items-center gap-4 py-12 text-center sm:py-20">
           <span className="grid size-20 place-items-center rounded-full bg-secondary/50 text-muted-foreground">
@@ -281,10 +304,18 @@ export function SearchPage({ params }: { params: URLSearchParams }) {
               {works.hasNextPage && (
                 <div className="mt-9 flex justify-center">
                   <Button
+                    {...navigation}
                     variant="outline"
                     size="lg"
-                    disabled={works.isFetchingNextPage}
-                    onClick={() => void works.fetchNextPage()}
+                    aria-disabled={works.isFetchingNextPage}
+                    onClick={(event) => {
+                      if (works.isFetchingNextPage) return;
+                      if (loadMore)
+                        void loadMore(event.currentTarget, async () => {
+                          await works.fetchNextPage();
+                        });
+                      else void works.fetchNextPage();
+                    }}
                   >
                     {works.isFetchingNextPage ? "جارٍ تحميل المزيد…" : "المزيد من النتائج"}
                   </Button>

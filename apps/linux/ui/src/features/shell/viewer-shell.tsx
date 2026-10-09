@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Compass, Home, Search, LogOut, Library, Orbit, Users, Building2 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
+import { CardNavigationProvider } from "../../components/card-navigation";
 import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
 import {
@@ -30,6 +31,7 @@ export function ViewerShell({ user }: { user: User }) {
   const [account, setAccount] = useState(false);
   const main = useRef<HTMLElement>(null);
   const previous = useRef(route.key);
+  const shortcutSearchEntry = useRef(false);
   const client = useQueryClient();
   const logout = useMutation({
     mutationFn: gateway.logout,
@@ -47,7 +49,10 @@ export function ViewerShell({ user }: { user: User }) {
         (event.code === "KeyK" || event.key.toLowerCase() === "k")
       ) {
         event.preventDefault();
-        if (!event.repeat && !account) openSearch();
+        if (!event.repeat && !account) {
+          shortcutSearchEntry.current = true;
+          openSearch();
+        }
       }
     };
     window.addEventListener("keydown", shortcut);
@@ -60,6 +65,13 @@ export function ViewerShell({ user }: { user: User }) {
     }
     previous.current = route.key;
   }, [route.key]);
+  useEffect(() => {
+    main.current?.focus({ preventScroll: true });
+    if (shortcutSearchEntry.current && route.path === "/search") {
+      window.dispatchEvent(new Event("nahhasio:focus-search"));
+    }
+    shortcutSearchEntry.current = false;
+  }, [route.path]);
   const parts = route.path.split("/").filter(Boolean);
   const home = parts[0] === "home" || !parts[0];
   return (
@@ -67,6 +79,14 @@ export function ViewerShell({ user }: { user: User }) {
       <nav
         className="flex w-24 shrink-0 flex-col items-center gap-4 border-e border-border bg-primary-foreground px-2 pt-5 pb-4 max-[800px]:w-20 max-[800px]:px-1.5 max-[520px]:w-18 max-[520px]:gap-3 max-[520px]:px-1 max-[520px]:pt-4 max-[520px]:pb-3"
         aria-label="التنقل الرئيسي"
+        onKeyDown={(event) => {
+          if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            window.dispatchEvent(new Event("nahhasio:focus-content"));
+          }
+        }}
       >
         <a
           href="#/home"
@@ -146,33 +166,53 @@ export function ViewerShell({ user }: { user: User }) {
         </div>
       </nav>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <main
-          ref={main}
-          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-color:var(--line)_transparent] scrollbar-thin motion-reduce:scroll-auto"
-          id="main-content"
-        >
-          {home ? (
-            <HomePage />
-          ) : parts[0] === "search" ? (
-            <SearchPage params={route.params} />
-          ) : parts[0] === "browse" ? (
-            <BrowsePage params={route.params} />
-          ) : parts[0] === "planets" ? (
-            <PlanetsPage key={parts[1] ?? "planets"} id={parts[1]} params={route.params} />
-          ) : parts[0] === "people" ? (
-            <PeoplePage key={parts[1] ?? "people"} id={parts[1]} params={route.params} />
-          ) : parts[0] === "studios" ? (
-            <StudiosPage key={parts[1] ?? "studios"} id={parts[1]} params={route.params} />
-          ) : parts[0] === "titles" && parts[1] ? (
-            <WorkPage
-              key={parts[1]}
-              id={parts[1]}
-              installmentId={route.params.get("installment") ?? undefined}
-            />
-          ) : (
-            <BrowsePage params={route.params} />
-          )}
-        </main>
+        <CardNavigationProvider key={route.path}>
+          <main
+            ref={main}
+            tabIndex={-1}
+            className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-p-4 [scrollbar-color:var(--line)_transparent] scrollbar-thin motion-reduce:scroll-auto **:data-card-navigation:scroll-m-2"
+            id="main-content"
+          >
+            <button
+              type="button"
+              className="sr-only focus:not-sr-only focus:absolute focus:inset-s-4 focus:top-4 focus:z-20 focus:rounded-lg focus:bg-primary focus:px-5 focus:py-3 focus:text-primary-foreground"
+              onClick={() =>
+                window.dispatchEvent(
+                  new Event(
+                    parts[0] === "search" ? "nahhasio:focus-search" : "nahhasio:focus-content",
+                  ),
+                )
+              }
+            >
+              {home
+                ? "الانتقال إلى العرض الرئيسي"
+                : parts[0] === "search"
+                  ? "الانتقال إلى البحث"
+                  : "الانتقال إلى المحتوى"}
+            </button>
+            {home ? (
+              <HomePage />
+            ) : parts[0] === "search" ? (
+              <SearchPage params={route.params} />
+            ) : parts[0] === "browse" ? (
+              <BrowsePage params={route.params} />
+            ) : parts[0] === "planets" ? (
+              <PlanetsPage key={parts[1] ?? "planets"} id={parts[1]} params={route.params} />
+            ) : parts[0] === "people" ? (
+              <PeoplePage key={parts[1] ?? "people"} id={parts[1]} params={route.params} />
+            ) : parts[0] === "studios" ? (
+              <StudiosPage key={parts[1] ?? "studios"} id={parts[1]} params={route.params} />
+            ) : parts[0] === "titles" && parts[1] ? (
+              <WorkPage
+                key={parts[1]}
+                id={parts[1]}
+                installmentId={route.params.get("installment") ?? undefined}
+              />
+            ) : (
+              <BrowsePage params={route.params} />
+            )}
+          </main>
+        </CardNavigationProvider>
       </div>
 
       <Dialog open={account} onOpenChange={setAccount}>
