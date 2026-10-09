@@ -222,13 +222,17 @@ test.beforeEach(async ({ page }) => {
                       const value =
                         facet.key === "formats"
                           ? item.format
-                          : facet.key === "planets"
-                            ? item.id === fixtureWork.id || item.isPrivate
-                              ? "fantasy"
-                              : ""
-                            : facet.key === "releaseStatuses"
-                              ? "completed"
-                              : "";
+                          : facet.key === "kinds"
+                            ? item.id === fixtureWork.id
+                              ? "animated-movie"
+                              : "live-action-series"
+                            : facet.key === "planets"
+                              ? item.id === fixtureWork.id || item.isPrivate
+                                ? "fantasy"
+                                : ""
+                              : facet.key === "releaseStatuses"
+                                ? "completed"
+                                : "";
                       return (
                         (!facet.include.length || facet.include.includes(value)) &&
                         !facet.exclude.includes(value)
@@ -242,7 +246,22 @@ test.beforeEach(async ({ page }) => {
                   result = {
                     items: items.map((item) => ({
                       work: item,
-                      installment: null,
+                      installment:
+                        request.payload.view === "installments"
+                          ? {
+                              id: item.id,
+                              workId: item.id,
+                              workTitle: item.canonicalTitle,
+                              workTitleAr: item.titleAr,
+                              title: fixtureDetail.installments[0].title,
+                              kind: fixtureDetail.installments[0].kind,
+                              releaseDate: fixtureDetail.installments[0].releaseDate,
+                              runtimeMinutes: fixtureDetail.installments[0].runtimeMinutes,
+                              score: item.score,
+                              episodeCount: 0,
+                              poster: item.poster,
+                            }
+                          : null,
                       classification: {
                         audience: item.audience,
                         age: item.age,
@@ -395,7 +414,7 @@ for (const width of [480, 640, 1024, 1440])
   test("responsive " + width + ": library and work page fit window", async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await login(page);
-    await expect(page.getByRole("button", { name: "ابحث في الأرشيف" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "البحث" })).toBeVisible();
     await browse(page);
     await page.getByRole("link", { name: "تفاصيل رحلة في المكتبة" }).click();
     await expect(page.getByRole("tab", { name: "العائلة", exact: true })).toBeVisible();
@@ -486,12 +505,12 @@ test("hero has real metadata, manual selection, pause and a working details acti
     "aria-pressed",
     "true",
   );
-  await page.getByRole("button", { name: "ابحث في الأرشيف" }).focus();
+  await page.getByRole("button", { name: "البحث" }).focus();
   await page.mouse.move(0, 0);
   await page.clock.fastForward(18000);
   await expect(hero.getByRole("heading", { name: "رحلة أخرى" })).toBeVisible();
   await hero.getByRole("button", { name: "تشغيل التبديل التلقائي" }).click();
-  await page.getByRole("button", { name: "ابحث في الأرشيف" }).focus();
+  await page.getByRole("button", { name: "البحث" }).focus();
   await page.mouse.move(0, 0);
   await page.clock.fastForward(9001);
   await expect(hero.getByRole("heading", { name: "رحلة في المكتبة" })).toBeVisible();
@@ -508,7 +527,7 @@ test("hero has real metadata, manual selection, pause and a working details acti
 
 for (const width of [480, 1440]) {
   test(
-    "sidebar controls " + width + ": search dialog and keyboard dropdown under packaged CSP",
+    "sidebar controls " + width + ": search page and keyboard dropdown under packaged CSP",
     async ({ page }) => {
       const cspErrors: string[] = [];
       page.on("console", (message) => {
@@ -517,20 +536,17 @@ for (const width of [480, 1440]) {
       });
       await page.setViewportSize({ width, height: 900 });
       await login(page);
-      const search = page.getByRole("button", { name: "ابحث في الأرشيف" });
+      const search = page.getByRole("button", { name: "البحث" });
       const searchBox = await search.boundingBox();
       expect(searchBox?.height).toBeGreaterThanOrEqual(36);
       await search.click();
-      const input = page.getByRole("textbox", { name: "البحث الشامل" });
+      const input = page.getByRole("searchbox", { name: "ابحث في المكتبة" });
       await expect(input).toBeFocused();
       await input.fill("missing");
-      await expect(page.getByRole("dialog").getByText("لا توجد نتائج مطابقة.")).toBeVisible();
+      await expect(page.getByText("لا توجد نتائج مطابقة", { exact: true })).toBeVisible();
       await input.fill("رحلة");
-      await expect(
-        page.getByRole("dialog").getByRole("link", { name: /رحلة في المكتبة/ }),
-      ).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(search).toBeFocused();
+      await expect(page.getByRole("link", { name: /تفاصيل رحلة في المكتبة/ })).toBeVisible();
+      await expect(page.getByRole("dialog")).toHaveCount(0);
       await browse(page);
       const sort = page.getByRole("combobox", { name: "الترتيب", exact: true });
       await sort.focus();
@@ -623,7 +639,7 @@ for (const width of [480, 1440]) {
     await expect(rail.getByRole("link", { name: "الرئيسية", exact: true })).toBeVisible();
     await expect(page.locator("#main-content")).toHaveCount(1);
     await expect(page.getByRole("searchbox")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "ابحث في الأرشيف", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "البحث", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "الملف والحساب" })).toBeVisible();
     const row = latestRow(page);
     await expect(row.locator("article").first()).toBeVisible();
@@ -639,10 +655,10 @@ for (const width of [480, 1440]) {
     expect(new Set(metrics.tops).size).toBe(1);
     const hero = await page.getByRole("region", { name: "أحدث الأعمال" }).boundingBox();
     expect(hero?.height).toBeLessThan(570);
-    await page.getByRole("button", { name: "ابحث في الأرشيف", exact: true }).click();
+    await page.getByRole("button", { name: "البحث", exact: true }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("button", { name: "ابحث في الأرشيف", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "البحث", exact: true })).toBeFocused();
   });
 }
 
@@ -655,7 +671,7 @@ for (const width of [360, 640, 1024, 1440]) {
     const rail = page.getByRole("navigation", { name: "التنقل الرئيسي" });
     await expect(page.locator("#main-content")).toHaveCount(1);
     await expect(page.getByRole("searchbox")).toHaveCount(0);
-    await expect(rail.getByRole("button", { name: "ابحث في الأرشيف" })).toBeVisible();
+    await expect(rail.getByRole("button", { name: "البحث" })).toBeVisible();
     await expect(rail.getByRole("link", { name: "الرئيسية", exact: true })).toHaveAttribute(
       "aria-current",
       "page",
@@ -762,29 +778,25 @@ for (const width of [480, 1440]) {
   });
 }
 
-test("sidebar search: Ctrl+K, Arabic layout, result navigation and focus restoration", async ({
-  page,
-}) => {
+test("sidebar search: full page, Ctrl+K, Arabic layout and history", async ({ page }) => {
   await login(page);
   const rail = page.getByRole("navigation", { name: "التنقل الرئيسي" });
-  const search = rail.getByRole("button", { name: "ابحث في الأرشيف" });
-  const browseLink = rail.getByRole("link", { name: "تصفّح المكتبة" });
-  await browseLink.focus();
-  await page.keyboard.press("Control+k");
-  const input = page.getByRole("textbox", { name: "البحث الشامل" });
-  await expect(input).toBeFocused();
-  await page.keyboard.press("Control+k");
-  await expect(page.getByRole("dialog")).toHaveCount(1);
-  await page.keyboard.press("Escape");
-  await expect(browseLink).toBeFocused();
+  const search = rail.getByRole("button", { name: "البحث", exact: true });
+  const home = rail.getByRole("link", { name: "الرئيسية", exact: true });
+  expect(await home.evaluate((element) => element.nextElementSibling?.textContent)).toBe("البحث");
   await search.click();
+  const input = page.getByRole("searchbox", { name: "ابحث في المكتبة" });
+  await expect(page).toHaveURL(/#\/search$/);
   await expect(input).toBeFocused();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await input.fill("رحلة");
-  await expect(
-    page.getByRole("dialog").getByRole("link", { name: /رحلة في المكتبة/ }),
-  ).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(search).toBeFocused();
+  const result = page.getByRole("link", { name: /تفاصيل رحلة في المكتبة/ });
+  await expect(result).toBeVisible();
+  await search.focus();
+  await page.keyboard.press("Control+k");
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue("رحلة");
+  await search.focus();
   await page.evaluate(() =>
     window.dispatchEvent(
       new KeyboardEvent("keydown", {
@@ -797,19 +809,53 @@ test("sidebar search: Ctrl+K, Arabic layout, result navigation and focus restora
     ),
   );
   await expect(input).toBeFocused();
-  await page
-    .getByRole("dialog")
-    .getByRole("link", { name: /رحلة في المكتبة/ })
-    .click();
+  await result.click();
   await expect(page).toHaveURL(/#\/titles\//);
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.keyboard.press("Control+k");
-  await expect(input).toBeFocused();
-  await page.keyboard.press("Escape");
+  await page.goBack();
+  await expect(input).toHaveValue("رحلة");
+  await home.click();
   await rail.getByRole("button", { name: "الملف والحساب" }).click();
   await page.keyboard.press("Control+k");
   await expect(page.getByRole("dialog", { name: "العائلة" })).toBeVisible();
   await expect(input).toHaveCount(0);
-  await page.getByRole("button", { name: "تسجيل الخروج" }).click();
-  await expect(page.getByRole("heading", { name: "ادخل إلى مكتبتك" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Control+k");
+  await expect(input).toBeFocused();
 });
+
+for (const width of [480, 1440]) {
+  test(`search page ${width}: quick types, private opt-in and entity navigation`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await login(page);
+    await page.getByRole("button", { name: "البحث", exact: true }).click();
+    const input = page.getByRole("searchbox", { name: "ابحث في المكتبة" });
+    await input.fill("رحلة");
+    const results = page.getByRole("region", { name: "الأعمال المطابقة" });
+    await expect(results.getByRole("link")).toHaveCount(2);
+    await page.getByRole("button", { name: "الأفلام", exact: true }).click();
+    await expect(results.getByRole("link")).toHaveCount(1);
+    await expect(results.getByRole("link", { name: "تفاصيل رحلة في المكتبة" })).toBeVisible();
+    await page.getByRole("button", { name: "المسلسلات", exact: true }).click();
+    await expect(results.getByRole("link", { name: "تفاصيل رحلة أخرى" })).toBeVisible();
+    await page.getByRole("button", { name: "الأجزاء", exact: true }).click();
+    await expect(results.getByRole("link").first()).toHaveAttribute("href", /installment=/);
+    await page.getByRole("button", { name: "الكل", exact: true }).click();
+    await input.fill("عمل خاص");
+    await expect(page.getByText("لا توجد نتائج مطابقة", { exact: true })).toBeVisible();
+    await page.getByRole("checkbox", { name: "تضمين الأعمال الخاصة" }).check();
+    await expect(results.getByRole("link", { name: "تفاصيل عمل خاص" })).toBeVisible();
+    await input.fill("الخيال");
+    await page.getByRole("button", { name: "الكواكب", exact: true }).click();
+    await expect(page.getByRole("link", { name: /الخيال/ })).toBeVisible();
+    const metrics = await page.evaluate(() => {
+      const main = document.getElementById("main-content")!;
+      return { width: main.clientWidth, scroll: main.scrollWidth };
+    });
+    expect(metrics.scroll).toBeLessThanOrEqual(metrics.width);
+    await page.screenshot({ path: `test-results/search-${width}.png` });
+    await page.getByRole("link", { name: /الخيال/ }).click();
+    await expect(page).toHaveURL(/#\/planets\/fantasy/);
+  });
+}

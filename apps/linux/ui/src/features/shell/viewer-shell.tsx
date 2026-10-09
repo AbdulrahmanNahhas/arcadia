@@ -17,14 +17,16 @@ import { BrowsePage } from "../catalog/browse-page";
 import { HomePage } from "../home/home-page";
 import { PeoplePage } from "../people/people-page";
 import { PlanetsPage } from "../planets/planets-page";
+import { SearchPage } from "../search/search-page";
 import { StudiosPage } from "../studios/studios-page";
 import { WorkPage } from "../work/work-page";
-import { useViewerRoute } from "./navigation";
-import { SearchDialog } from "./search-dialog";
+import { openSearch, useViewerRoute } from "./navigation";
+const navigationItemClass =
+  "relative flex min-h-15 w-full shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg px-0.5 py-2 text-center text-[10px] leading-normal text-muted-foreground hover:bg-card hover:text-foreground aria-[current=page]:bg-secondary aria-[current=page]:text-primary aria-[current=page]:before:absolute aria-[current=page]:before:inset-s-0 aria-[current=page]:before:inset-y-5 aria-[current=page]:before:w-0.75 aria-[current=page]:before:rounded-lg aria-[current=page]:before:bg-primary aria-[current=page]:before:content-[''] focus-visible:-outline-offset-2 max-[520px]:text-[9px]";
 const scrollPositions = new Map<string, number>();
 export function ViewerShell({ user }: { user: User }) {
   const route = useViewerRoute();
-  const [search, setSearch] = useState(false);
+
   const [account, setAccount] = useState(false);
   const main = useRef<HTMLElement>(null);
   const previous = useRef(route.key);
@@ -45,7 +47,7 @@ export function ViewerShell({ user }: { user: User }) {
         (event.code === "KeyK" || event.key.toLowerCase() === "k")
       ) {
         event.preventDefault();
-        if (!event.repeat && !account) setSearch(true);
+        if (!event.repeat && !account) openSearch();
       }
     };
     window.addEventListener("keydown", shortcut);
@@ -75,24 +77,11 @@ export function ViewerShell({ user }: { user: User }) {
           <Library className="size-8" aria-hidden="true" />
           <span>نحّاسيو</span>
         </a>
-        <div className="flex w-full shrink-0 flex-col items-center gap-1.5 text-[11px] text-muted-foreground">
-          <Button
-            variant="secondary"
-            size="icon-lg"
-            onClick={() => setSearch(true)}
-            aria-label="ابحث في الأرشيف"
-            aria-keyshortcuts="Control+k Meta+k"
-            aria-haspopup="dialog"
-            aria-expanded={search}
-            title="البحث (Ctrl+K)"
-          >
-            <Search data-icon="inline-start" />
-          </Button>
-          <span aria-hidden="true">البحث</span>
-        </div>
+
         <div className="flex min-h-0 w-full flex-col items-center gap-2 overflow-y-auto p-1 [scrollbar-color:var(--line)_transparent] scrollbar-thin max-[520px]:gap-1">
           {[
             { href: "#/home", label: "الرئيسية", icon: Home, active: home },
+            { href: "#/search", label: "البحث", icon: Search, active: parts[0] === "search" },
             {
               href: "#/browse",
               label: "تصفّح المكتبة",
@@ -107,19 +96,35 @@ export function ViewerShell({ user }: { user: User }) {
               icon: Building2,
               active: parts[0] === "studios",
             },
-          ].map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="relative flex min-h-15 w-full shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg px-0.5 py-2 text-center text-[10px] leading-normal text-muted-foreground hover:bg-card hover:text-foreground aria-[current=page]:bg-secondary aria-[current=page]:text-primary aria-[current=page]:before:absolute aria-[current=page]:before:inset-s-0 aria-[current=page]:before:inset-y-5 aria-[current=page]:before:w-0.75 aria-[current=page]:before:rounded-lg aria-[current=page]:before:bg-primary aria-[current=page]:before:content-[''] focus-visible:-outline-offset-2 max-[520px]:text-[9px]"
-              aria-current={item.active ? "page" : undefined}
-              aria-label={item.label}
-              title={item.label}
-            >
-              <item.icon className="size-6 stroke-[1.65]" aria-hidden="true" />
-              <span>{item.label}</span>
-            </a>
-          ))}
+          ].map((item) =>
+            item.href === "#/search" ? (
+              <button
+                key={item.href}
+                type="button"
+                onClick={openSearch}
+                className={navigationItemClass}
+                aria-current={item.active ? "page" : undefined}
+                aria-label="البحث"
+                aria-keyshortcuts="Control+k Meta+k"
+                title="البحث (Ctrl+K)"
+              >
+                <Search className="size-6 stroke-[1.65]" aria-hidden="true" />
+                <span>البحث</span>
+              </button>
+            ) : (
+              <a
+                key={item.href}
+                href={item.href}
+                className={navigationItemClass}
+                aria-current={item.active ? "page" : undefined}
+                aria-label={item.label}
+                title={item.label}
+              >
+                <item.icon className="size-6 stroke-[1.65]" aria-hidden="true" />
+                <span>{item.label}</span>
+              </a>
+            ),
+          )}
         </div>
         <div className="mt-auto flex w-full shrink-0 flex-col items-center gap-1.5 border-t border-border pt-4 text-[11px] text-muted-foreground">
           <Button
@@ -148,6 +153,8 @@ export function ViewerShell({ user }: { user: User }) {
         >
           {home ? (
             <HomePage />
+          ) : parts[0] === "search" ? (
+            <SearchPage params={route.params} />
           ) : parts[0] === "browse" ? (
             <BrowsePage params={route.params} />
           ) : parts[0] === "planets" ? (
@@ -167,7 +174,7 @@ export function ViewerShell({ user }: { user: User }) {
           )}
         </main>
       </div>
-      <SearchDialog open={search} onOpenChange={setSearch} />
+
       <Dialog open={account} onOpenChange={setAccount}>
         <DialogContent>
           <DialogHeader>

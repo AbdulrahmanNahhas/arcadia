@@ -22,6 +22,10 @@ export function workLink(id: string, installmentId?: string) {
 export function navigate(path: string) {
   window.location.hash = path;
 }
+export function openSearch() {
+  if (window.location.hash.split("?")[0] !== "#/search") navigate("/search");
+  window.dispatchEvent(new Event("nahhasio:focus-search"));
+}
 export function replaceParams(path: string, params: URLSearchParams) {
   window.history.replaceState(null, "", `#${path}${params.size ? `?${params}` : ""}`);
   window.dispatchEvent(new HashChangeEvent("hashchange"));
