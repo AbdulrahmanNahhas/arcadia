@@ -26,7 +26,7 @@
   env.NAHHASIO_BIND = "127.0.0.1:23103";
 
   packages = with pkgs; [
-    typos pkg-config openssl mpv chromium
+    typos pkg-config openssl mpv chromium noto-fonts-color-emoji
     gtk4 libadwaita webkitgtk_6_0
     gtk4.dev libadwaita.dev webkitgtk_6_0.dev
     gst_all_1.gstreamer gst_all_1.gst-plugins-base

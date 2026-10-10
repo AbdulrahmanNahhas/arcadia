@@ -1,5 +1,6 @@
 import type { User } from "@nahhasio/api-contract";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { cn } from "cn";
 import { Compass, Home, Search, LogOut, Library, Orbit, Users, Building2 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
@@ -30,7 +31,7 @@ export function ViewerShell({ user }: { user: User }) {
 
   const [account, setAccount] = useState(false);
   const main = useRef<HTMLElement>(null);
-  const previous = useRef(route.key);
+  const previous = useRef(route.path);
   const shortcutSearchEntry = useRef(false);
   const client = useQueryClient();
   const logout = useMutation({
@@ -83,10 +84,10 @@ export function ViewerShell({ user }: { user: User }) {
   useEffect(() => {
     if (main.current) {
       scrollPositions.set(previous.current, main.current.scrollTop);
-      main.current.scrollTop = scrollPositions.get(route.key) ?? 0;
+      main.current.scrollTop = scrollPositions.get(route.path) ?? 0;
     }
-    previous.current = route.key;
-  }, [route.key]);
+    previous.current = route.path;
+  }, [route.path]);
   useEffect(() => {
     main.current?.focus({ preventScroll: true });
     if (shortcutSearchEntry.current && route.path === "/search") {
@@ -99,7 +100,10 @@ export function ViewerShell({ user }: { user: User }) {
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
       <nav
-        className="flex w-24 shrink-0 flex-col items-center gap-4 border-e border-border bg-primary-foreground px-2 pt-5 pb-4 max-[800px]:w-20 max-[800px]:px-1.5 max-[520px]:w-18 max-[520px]:gap-3 max-[520px]:px-1 max-[520px]:pt-4 max-[520px]:pb-3"
+        className={cn(
+          "flex w-24 shrink-0 flex-col items-center gap-4 border-e border-border bg-primary-foreground px-2 pt-5 pb-4 max-[800px]:w-20 max-[800px]:px-1.5 max-[520px]:w-18 max-[520px]:gap-3 max-[520px]:px-1 max-[520px]:pt-4 max-[520px]:pb-3",
+          parts[0] === "titles" && "rounded-3xl border w-22 my-2 mr-1",
+        )}
         aria-label="التنقل الرئيسي"
         onKeyDown={(event) => {
           if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -168,7 +172,7 @@ export function ViewerShell({ user }: { user: User }) {
             ),
           )}
         </div>
-        <div className="mt-auto flex w-full shrink-0 flex-col items-center gap-1.5 border-t border-border pt-4 text-[11px] text-muted-foreground">
+        <div className="mt-auto flex w-full shrink-0 flex-col items-center gap-1.5 mb-2 text-lg text-muted-foreground">
           <Button
             variant="ghost"
             size="icon-lg"
@@ -178,13 +182,12 @@ export function ViewerShell({ user }: { user: User }) {
             title={user.name}
             onClick={() => setAccount(true)}
           >
-            <Avatar>
-              <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+            <Avatar className={"size-14 rounded-lg!"}>
+              <AvatarFallback className={" text-lg rounded-lg border-0!"}>
+                {user.name.charAt(0)}
+              </AvatarFallback>
             </Avatar>
           </Button>
-          <span className="max-w-full truncate" title={user.name}>
-            {user.name}
-          </span>
         </div>
       </nav>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">

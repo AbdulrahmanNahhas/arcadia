@@ -16,6 +16,120 @@
     }
   ],
   "paths": {
+    "/api/v1/works/{id}/state": {
+      "get": {
+        "operationId": "getWorkState",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account-scoped watched/favorite state; release completion is independent",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WorkViewerState" } }
+            }
+          },
+          "401": { "description": "Owner session required" },
+          "404": { "description": "Work not found" }
+        }
+      }
+    },
+    "/api/v1/works/{id}/favorite": {
+      "put": {
+        "operationId": "setFavorite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/FavoriteRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Committed viewer state; other personal fields are preserved",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WorkViewerState" } }
+            }
+          },
+          "400": { "description": "Invalid request" },
+          "401": { "description": "Owner session required" },
+          "404": { "description": "Work not found" }
+        }
+      }
+    },
+    "/api/v1/works/{id}/watched": {
+      "patch": {
+        "operationId": "setWatched",
+        "description": "Manual override. Null installmentId targets the whole work; null episodeId targets all units of the installment. Bulk includes future units. Episode requires its season installment. Progress/duration/subtitle offset and existing state UUIDs are preserved.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/WatchedRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Committed viewer state including future manual choices",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WorkViewerState" } }
+            }
+          },
+          "400": { "description": "Invalid target or request" },
+          "401": { "description": "Owner session required" },
+          "404": { "description": "Work or target not found in its parent" }
+        }
+      }
+    },
+    "/api/v1/works/{id}/activity": {
+      "get": {
+        "operationId": "getWorkActivity",
+        "description": "Published work comments/reviews by active discoverable authors, newest first with stable kind/UUID ties. Spoiler bodies are plain text and require UI reveal. Owner may read a private work. Fixed 20 entries per page.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100000, "default": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounded discussion page",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WorkActivityPage" } }
+            }
+          },
+          "400": { "description": "Invalid page" },
+          "401": { "description": "Owner session required" },
+          "404": { "description": "Work not found" }
+        }
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "login",
@@ -839,6 +953,145 @@
       }
     },
     "schemas": {
+      "FavoriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["isFavorite"],
+        "properties": { "isFavorite": { "type": "boolean" } }
+      },
+      "WatchedRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["installmentId", "episodeId", "isPlayed"],
+        "properties": {
+          "installmentId": { "type": "string", "format": "uuid", "nullable": true },
+          "episodeId": { "type": "string", "format": "uuid", "nullable": true },
+          "isPlayed": { "type": "boolean" }
+        }
+      },
+      "WatchSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "catalogUnits",
+          "releasedUnits",
+          "watchedReleasedUnits",
+          "isFullyWatched",
+          "watchState"
+        ],
+        "properties": {
+          "catalogUnits": { "type": "integer", "minimum": 0 },
+          "releasedUnits": { "type": "integer", "minimum": 0 },
+          "watchedReleasedUnits": { "type": "integer", "minimum": 0 },
+          "isFullyWatched": { "type": "boolean" },
+          "watchState": { "type": "string", "enum": ["unwatched", "in-progress", "watched"] }
+        }
+      },
+      "ViewerUnitState": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stateId",
+          "installmentId",
+          "episodeId",
+          "isReleased",
+          "positionSeconds",
+          "durationSeconds",
+          "isPlayed",
+          "playedManually",
+          "playedAt",
+          "subtitleOffsetMs",
+          "updatedAt"
+        ],
+        "properties": {
+          "stateId": { "type": "string", "format": "uuid", "nullable": true },
+          "installmentId": { "type": "string", "format": "uuid" },
+          "episodeId": { "type": "string", "format": "uuid", "nullable": true },
+          "isReleased": { "type": "boolean" },
+          "positionSeconds": { "type": "integer", "minimum": 0 },
+          "durationSeconds": { "type": "integer", "minimum": 0, "nullable": true },
+          "isPlayed": { "type": "boolean" },
+          "playedManually": { "type": "boolean" },
+          "playedAt": { "type": "string", "nullable": true },
+          "subtitleOffsetMs": { "type": "integer", "nullable": true },
+          "updatedAt": { "type": "string", "nullable": true }
+        }
+      },
+      "InstallmentViewerState": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["installmentId", "summary"],
+        "properties": {
+          "installmentId": { "type": "string", "format": "uuid" },
+          "summary": { "$ref": "#/components/schemas/WatchSummary" }
+        }
+      },
+      "WorkViewerState": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["workId", "isFavorite", "units", "summary", "installments"],
+        "properties": {
+          "workId": { "type": "string", "format": "uuid" },
+          "isFavorite": { "type": "boolean" },
+          "units": { "type": "array", "items": { "$ref": "#/components/schemas/ViewerUnitState" } },
+          "summary": { "$ref": "#/components/schemas/WatchSummary" },
+          "installments": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/InstallmentViewerState" }
+          }
+        }
+      },
+      "ActivityAuthor": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "displayName", "avatarKey"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "displayName": { "type": "string" },
+          "avatarKey": { "type": "string" }
+        }
+      },
+      "WorkActivityItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "body",
+          "containsSpoilers",
+          "rating",
+          "parentId",
+          "author",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "kind": { "type": "string", "enum": ["comment", "review"] },
+          "body": { "type": "string" },
+          "containsSpoilers": { "type": "boolean" },
+          "rating": { "type": "integer", "minimum": 1, "maximum": 5, "nullable": true },
+          "parentId": { "type": "string", "format": "uuid", "nullable": true },
+          "author": { "$ref": "#/components/schemas/ActivityAuthor" },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        }
+      },
+      "WorkActivityPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["workId", "items", "total", "page", "pageSize"],
+        "properties": {
+          "workId": { "type": "string", "format": "uuid" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WorkActivityItem" }
+          },
+          "total": { "type": "integer", "minimum": 0 },
+          "page": { "type": "integer", "minimum": 1 },
+          "pageSize": { "type": "integer", "minimum": 1 }
+        }
+      },
       "Error": {
         "type": "object",
         "additionalProperties": false,

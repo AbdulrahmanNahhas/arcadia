@@ -1,5 +1,5 @@
 //! Paginated catalog discovery. Facet names and SQL fragments are server-owned; values are bound.
-use super::{ApiError, ApiResult, queries};
+use super::{ApiError, ApiResult, queries, tracking};
 use crate::auth::User;
 use axum::http::StatusCode;
 use axum::{
@@ -198,14 +198,16 @@ from titles t left join installments i on i.title_id=t.id and $2='installments'
 left join installment_scores s on s.installment_id=i.id
 cross join lateral (select case when i.id is null then ({work})->'score' else jsonb_build_object('rating',floor(({score})*10+0.5)/10,'scored',case when ({score}) is null then 0 else 1 end,'total',1) end score_value) scores
 cross join lateral (select (score_value->>'rating')::double precision rating) ratings
-cross join lateral (select count(*) total,count(*) filter(where exists(select 1 from account_playback_states ps join accounts a on a.id=ps.account_id where a.auth_user_id=$1 and a.status='active' and ps.installment_id=units.installment_id and ps.episode_id is not distinct from units.episode_id and ps.is_played)) played from (
-select x.id installment_id,e.id episode_id from installments x join episodes e on e.installment_id=x.id where x.title_id=t.id and (i.id is null or x.id=i.id) and (e.release_date<=current_date or (e.release_date is null and x.status='completed'))
-union all select x.id,null::uuid from installments x where x.title_id=t.id and x.kind in('movie','special') and (i.id is null or x.id=i.id) and (x.release_date<=current_date or (x.release_date is null and x.status='completed'))
-) units) tracking
-cross join lateral (select case when tracking.total>0 and tracking.played=tracking.total then 'watched' when exists(select 1 from account_playback_states ps join accounts a on a.id=ps.account_id join installments x on x.id=ps.installment_id where a.auth_user_id=$1 and a.status='active' and x.title_id=t.id and (i.id is null or ps.installment_id=i.id) and (ps.position_seconds>0 or ps.is_played)) then 'in-progress' else 'unwatched' end watch_state) watch
+cross join lateral (select {counts} from ({units}) units
+left join account_playback_states ps on ps.account_id=(select a.id from accounts a where a.auth_user_id=$1 and a.status='active')
+and ps.installment_id=units.installment_id and ps.episode_id is not distinct from units.episode_id) tracking
+cross join lateral (select {watch_state} watch_state) watch
 where ($2='works' or i.id is not null) and ($3='all' or t.is_private=($3='private'))"#,
         art = queries::ARTWORK,
-        score = queries::SCORE_VALUE
+        score = queries::SCORE_VALUE,
+        units = tracking::units("t.id", "i.id"),
+        counts = tracking::COUNTS,
+        watch_state = tracking::WATCH_STATE
     )
 }
 fn condition() -> String {

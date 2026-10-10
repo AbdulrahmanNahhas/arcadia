@@ -5,6 +5,7 @@ type CardNavigation = {
   ref: RefCallback<HTMLElement>;
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
   focusFirst: () => void;
+  focusPanel: () => void;
   loadMore: (trigger: HTMLElement, load: () => Promise<void>) => Promise<void>;
 };
 function focusTarget(element: HTMLElement) {
@@ -23,18 +24,33 @@ export function CardNavigationProvider({ children }: { children: ReactNode }) {
   const pendingLoad = useRef<(() => void) | undefined>(undefined);
   const enterHeld = useRef(false);
   const afterEnter = useRef<(() => void) | undefined>(undefined);
-  const focusFirst = useCallback(() => {
-    const first = [...cards.current]
-      .filter(
+  const available = useCallback(
+    () =>
+      [...cards.current].filter(
         (element) =>
           element.isConnected &&
           !element.matches(":disabled, [aria-disabled=true]") &&
           element.getClientRects().length > 0,
-      )
-      .toSorted((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0];
+      ),
+    [],
+  );
+  const focusFirst = useCallback(() => {
+    const first = available().toSorted(
+      (a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top,
+    )[0];
     pendingEntry.current = !first;
     if (first) focusTarget(first);
-  }, []);
+  }, [available]);
+  const focusPanel = useCallback(() => {
+    const first = available()
+      .filter((element) => element.closest('[role="tabpanel"]:not([hidden])'))
+      .toSorted((a, b) => {
+        const left = a.getBoundingClientRect();
+        const right = b.getBoundingClientRect();
+        return left.top - right.top || right.right - left.right;
+      })[0];
+    if (first) focusTarget(first);
+  }, [available]);
   useEffect(() => {
     const shortcut = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Enter") enterHeld.current = true;
@@ -81,6 +97,8 @@ export function CardNavigationProvider({ children }: { children: ReactNode }) {
 
     // Only explicitly registered cards participate; inputs, dialogs and native controls stay native.
     const origin = event.currentTarget.getBoundingClientRect();
+    const panel = event.currentTarget.closest('[role="tabpanel"]');
+    const header = panel ? null : event.currentTarget.closest("header");
     const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
     const forward = event.key === "ArrowRight" || event.key === "ArrowDown";
     const centerX = origin.left + origin.width / 2;
@@ -89,7 +107,8 @@ export function CardNavigationProvider({ children }: { children: ReactNode }) {
         (card) =>
           card !== event.currentTarget &&
           card.isConnected &&
-          !card.matches(":disabled, [aria-disabled=true]"),
+          !card.matches(":disabled, [aria-disabled=true]") &&
+          (panel ? card.closest('[role="tabpanel"]') === panel : card.closest("header") === header),
       )
       .map((card) => ({ card, rect: card.getBoundingClientRect() }))
       .filter(({ rect }) => rect.width > 0 && rect.height > 0)
@@ -144,8 +163,8 @@ export function CardNavigationProvider({ children }: { children: ReactNode }) {
     requestAnimationFrame(() => pendingLoad.current?.());
   }, []);
   const value = useMemo(
-    () => ({ ref: register, onKeyDown, focusFirst, loadMore }),
-    [register, onKeyDown, focusFirst, loadMore],
+    () => ({ ref: register, onKeyDown, focusFirst, focusPanel, loadMore }),
+    [register, onKeyDown, focusFirst, focusPanel, loadMore],
   );
   return <CardNavigationContext value={value}>{children}</CardNavigationContext>;
 }
@@ -163,4 +182,8 @@ export function useLoadMoreNavigation() {
 
 export function useContentEntry() {
   return useContext(CardNavigationContext)?.focusFirst;
+}
+
+export function usePanelEntry() {
+  return useContext(CardNavigationContext)?.focusPanel;
 }

@@ -6,8 +6,16 @@ import {
   SessionSchema,
   WorkDetailSchema,
   WorkPageSchema,
+  WorkViewerStateSchema,
+  WorkActivityPageSchema,
+  FavoriteRequestSchema,
+  WatchedRequestSchema,
 } from "@nahhasio/api-contract";
-import type { ApiClient, LoginRequest } from "@nahhasio/api-contract";
+import type { ApiClient, LoginRequest, WatchedRequest } from "@nahhasio/api-contract";
+export type WatchedSelection = Pick<WatchedRequest, "isPlayed"> & {
+  installmentId?: string | null;
+  episodeId?: string | null;
+};
 import { z } from "zod";
 export type CatalogQuery = NonNullable<Parameters<ApiClient["browseCatalog"]>[0]>;
 export type LibraryQuery = NonNullable<Parameters<ApiClient["listWorks"]>[0]>;
@@ -99,6 +107,26 @@ export const gateway = {
     CatalogFiltersSchema.parse(await call("filters", {}, signal)),
   work: async (id: string, signal?: AbortSignal) =>
     WorkDetailSchema.parse(await call("work", { id }, signal)),
+  workState: async (id: string, signal?: AbortSignal) =>
+    WorkViewerStateSchema.parse(await call("workState", { id }, signal)),
+  setFavorite: async (workId: string, isFavorite: boolean) => {
+    const input = FavoriteRequestSchema.parse({ isFavorite });
+    return WorkViewerStateSchema.parse(await call("setFavorite", { workId, ...input }));
+  },
+  setWatched: async (workId: string, selection: WatchedSelection) => {
+    const input = WatchedRequestSchema.parse({
+      installmentId: selection.installmentId ?? null,
+      episodeId: selection.episodeId ?? null,
+      isPlayed: selection.isPlayed,
+    });
+    if (input.episodeId !== null && input.installmentId === null)
+      throw new Error("اختر الجزء الذي تنتمي إليه الحلقة.");
+    return WorkViewerStateSchema.parse(await call("setWatched", { workId, ...input }));
+  },
+  workActivity: async (id: string, page = 1, signal?: AbortSignal) => {
+    z.number().int().min(1).max(100000).parse(page);
+    return WorkActivityPageSchema.parse(await call("workActivity", { id, page }, signal));
+  },
   artwork: async (id: string, signal?: AbortSignal) =>
     z
       .object({ dataUrl: z.string().regex(/^data:image\/(?:png|jpeg|webp|avif|gif);base64,/) })

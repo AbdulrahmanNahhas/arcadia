@@ -10,6 +10,8 @@ use sqlx::PgPool;
 
 use super::{ApiError, ApiResult, validate_id};
 
+const MAX_ARTWORK_BYTES: i64 = 10 * 1024 * 1024;
+
 // Paths come from registered assets, never from a client-supplied filesystem path.
 // Canonical containment also rejects symlinks leading outside the configured media root.
 async fn registered_path(path: &str) -> ApiResult<PathBuf> {
@@ -57,7 +59,7 @@ pub(super) async fn serve(
     .await?
     .ok_or(ApiError(StatusCode::NOT_FOUND, "Artwork not found"))?;
     if !["image/jpeg", "image/png", "image/webp", "image/gif"].contains(&mime.as_str())
-        || !(1..=20_000_000).contains(&size)
+        || !(1..=MAX_ARTWORK_BYTES as i32).contains(&size)
     {
         return Err(ApiError(StatusCode::NOT_FOUND, "Artwork unavailable"));
     }
@@ -65,7 +67,7 @@ pub(super) async fn serve(
     let metadata = tokio::fs::metadata(&file)
         .await
         .map_err(|_| ApiError(StatusCode::NOT_FOUND, "Artwork unavailable"))?;
-    if !metadata.is_file() || metadata.len() > 20_000_000 {
+    if !metadata.is_file() || metadata.len() > MAX_ARTWORK_BYTES as u64 {
         return Err(ApiError(StatusCode::NOT_FOUND, "Artwork unavailable"));
     }
     let bytes = tokio::fs::read(file)

@@ -115,7 +115,7 @@ export function MediaCard({
             borderless && layout === "logo"
               ? "border-transparent bg-transparent"
               : "border-border bg-card",
-            status === "completed"
+            watched === true
               ? "group-focus-visible/card:ring-success"
               : "group-focus-visible/card:ring-foreground",
           )}
@@ -143,7 +143,7 @@ export function MediaCard({
             </span>
           )}
           {!minimal && parent?.isPrivate && (
-            <span className="absolute inset-e-2.5 top-2.5">
+            <span className="absolute inset-e-2.5 top-1">
               <Badge variant="secondary">خاص</Badge>
             </span>
           )}

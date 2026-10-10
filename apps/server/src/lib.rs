@@ -132,9 +132,30 @@ mod tests {
 
     #[tokio::test]
     async fn catalog_requires_authentication() {
-        for path in ["/api/v1/works", "/api/v1/catalog/home"] {
+        for path in [
+            "/api/v1/works",
+            "/api/v1/catalog/home",
+            "/api/v1/works/00112233-4455-6677-8899-aabbccddeeff/state",
+            "/api/v1/works/00112233-4455-6677-8899-aabbccddeeff/activity",
+        ] {
             let response = router(unavailable_database())
                 .oneshot(Request::get(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
+        for (method, suffix) in [("PUT", "favorite"), ("PATCH", "watched")] {
+            let response = router(unavailable_database())
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(format!(
+                            "/api/v1/works/00112233-4455-6677-8899-aabbccddeeff/{suffix}"
+                        ))
+                        .header("content-type", "application/json")
+                        .body(Body::from("{}"))
+                        .unwrap(),
+                )
                 .await
                 .unwrap();
             assert_eq!(response.status(), StatusCode::UNAUTHORIZED);

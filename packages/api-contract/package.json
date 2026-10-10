@@ -9,6 +9,7 @@
   },
   "scripts": {
     "generate": "python scripts/generate.py",
+    "test": "node --test tests/viewer-state.test.mts tests/viewer-bridge.test.mts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
   },

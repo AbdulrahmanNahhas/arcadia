@@ -1,4 +1,4 @@
-import type { ArtworkAssignment } from "@nahhasio/api-contract";
+import type { ArtworkAssignment, Classification } from "@nahhasio/api-contract";
 export function dateLabel(date: string | null | undefined) {
   if (!date) return "غير معروف";
   const value = new Date(date.length === 10 ? `${date}T00:00:00Z` : date);
@@ -21,6 +21,36 @@ export const audienceLabels = new Map([
   ["young-adult", "شباب بالغون"],
   ["adult", "بالغون"],
 ]);
+export const classificationLabels = new Map<keyof Classification, string>([
+  ["audience", "الجمهور"],
+  ["age", "الفئة العمرية"],
+  ["sexualityRisk", "المحتوى الجنسي"],
+  ["behavioralRisk", "العنف والسلوك"],
+  ["theologyRisk", "الموضوعات العقدية"],
+]);
+export const artworkRoleLabels = new Map([
+  ["poster", "ملصق"],
+  ["banner", "خلفية"],
+  ["logo", "شعار"],
+  ["profile", "صورة شخصية"],
+]);
+export const externalIdLabels = new Map([
+  ["tmdbId", "TMDB"],
+  ["imdbId", "IMDb"],
+  ["anilistId", "AniList"],
+  ["malId", "MyAnimeList"],
+]);
+export function safeExternalUrl(value: string | null | undefined) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return (url.protocol === "https:" || url.protocol === "http:") && !url.username && !url.password
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+}
 export const statusLabels = new Map([
   ["announced", "قادم"],
   ["airing", "يعرض الآن"],
