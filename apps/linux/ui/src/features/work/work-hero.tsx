@@ -6,6 +6,7 @@ import { useCardNavigation } from "../../components/card-navigation";
 import { ScoreBadge } from "../../components/media-card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
+import { requestWatch } from "../player/watch-request";
 import { entityLink } from "../shell/navigation";
 import { audienceLabels, statusLabels } from "./format";
 import type { WorkTracking } from "./use-work-tracking";
@@ -122,8 +123,13 @@ export function WorkHero({
             <Button
               className="h-12 px-6 text-base"
               size="lg"
-              disabled
-              title="التشغيل يُربط في مرحلة المشغّل التالية"
+              {...navigation}
+              onClick={() =>
+                requestWatch({
+                  workId: work.id,
+                  title: work.titleAr || work.canonicalTitle,
+                })
+              }
             >
               <Play data-icon="inline-start" />
               تشغيل

@@ -1,5 +1,5 @@
 [workspace]
-members = ["apps/server", "apps/linux"]
+members = ["apps/server", "apps/linux", "apps/linux/native-playback-proof", "crates/media-transfer"]
 resolver = "3"
 
 [workspace.package]

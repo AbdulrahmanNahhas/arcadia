@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'"
+  />
+  <title>Native video overlay diagnostic</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      background: transparent;
+      color: white;
+      font: 18px sans-serif;
+    }
+    .label {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.65);
+    }
+    nav {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.65);
+    }
+    button {
+      font: inherit;
+      padding: 8px;
+    }
+  </style>
+  <div class="label">Transparent WebKit controls over native libmpv</div>
+  <nav aria-label="Diagnostic playback controls">
+    <button data-command="back">−5s</button>
+    <button data-command="pause">Play / Pause</button>
+    <button data-command="forward">+5s</button>
+    <button data-command="fullscreen">Fullscreen</button>
+  </nav>
+  <script>
+    document.querySelectorAll("button").forEach((button) => {
+      button.addEventListener("click", () => {
+        window.webkit.messageHandlers.proof.postMessage(button.dataset.command);
+      });
+    });
+  </script>
+</html>

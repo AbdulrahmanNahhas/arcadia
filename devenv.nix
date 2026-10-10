@@ -26,10 +26,26 @@
   env.NAHHASIO_BIND = "127.0.0.1:23103";
 
   packages = with pkgs; [
-    typos pkg-config openssl mpv chromium noto-fonts-color-emoji
-    gtk4 libadwaita webkitgtk_6_0
-    gtk4.dev libadwaita.dev webkitgtk_6_0.dev
-    gst_all_1.gstreamer gst_all_1.gst-plugins-base
+    typos
+    pkg-config
+    openssl
+    mpv
+    ffmpeg
+    chromium
+    noto-fonts-color-emoji
+    gtk4
+    libadwaita
+    webkitgtk_6_0
+    gtk4.dev
+    libadwaita.dev
+    webkitgtk_6_0.dev
+    gst_all_1.gstreamer
+    gst_all_1.gst-plugins-base
+    libtorrent-rasterbar
+    libtorrent-rasterbar.dev
+    boost.dev
+    cmake
+    stdenv.cc
   ];
   env.GST_PLUGIN_SYSTEM_PATH_1_0 = "${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0";
   env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "${pkgs.chromium}/bin/chromium";
@@ -42,14 +58,20 @@
   '';
   processes.server.after = [ "devenv:processes:postgres" ];
   processes.server.ready = {
-    http.get = { port = 23103; path = "/api/health/ready"; };
+    http.get = {
+      port = 23103;
+      path = "/api/health/ready";
+    };
     period = 1;
     timeout = 120;
   };
   processes.web.exec = "pnpm --filter @nahhasio/web dev";
   processes.web.after = [ "devenv:processes:server" ];
   processes.web.ready = {
-    http.get = { port = 23100; path = "/login"; };
+    http.get = {
+      port = 23100;
+      path = "/login";
+    };
     period = 1;
     timeout = 120;
   };
@@ -59,7 +81,10 @@
   '';
   processes.client = {
     exec = "nahhasio-client";
-    after = [ "devenv:processes:server" "devenv:processes:web" ];
+    after = [
+      "devenv:processes:server"
+      "devenv:processes:web"
+    ];
   };
 
   # Optional local reference API for migration comparisons; no old desktop runtime.

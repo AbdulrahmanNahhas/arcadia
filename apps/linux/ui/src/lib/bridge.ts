@@ -49,7 +49,12 @@ window["__nahhasioReply"] = (input) => {
 export function nativeAvailable() {
   return Boolean(window.webkit?.messageHandlers?.nahhasio);
 }
-async function call(command: string, payload: z.input<typeof z.json>, signal?: AbortSignal) {
+export async function nativeCall(
+  command: string,
+  payload: z.input<typeof z.json>,
+  signal?: AbortSignal,
+  timeoutMs = 25000,
+) {
   const handler = window.webkit?.messageHandlers?.nahhasio;
   if (!handler) throw new Error("افتح نهّاسيو من تطبيق Linux للاتصال بمكتبتك.");
   if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
@@ -59,12 +64,14 @@ async function call(command: string, payload: z.input<typeof z.json>, signal?: A
     const abort = () => {
       pending.delete(id);
       clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
       reject(new DOMException("Cancelled", "AbortError"));
     };
     timer = setTimeout(() => {
       pending.delete(id);
+      signal?.removeEventListener("abort", abort);
       reject(new Error("انتهت مهلة الاتصال. تحقق من تشغيل الخادم ثم أعد المحاولة."));
-    }, 25000);
+    }, timeoutMs);
     const finish = (reply: Reply) => {
       clearTimeout(timer);
       signal?.removeEventListener("abort", abort);
@@ -78,6 +85,7 @@ async function call(command: string, payload: z.input<typeof z.json>, signal?: A
     } catch {
       clearTimeout(timer);
       pending.delete(id);
+      signal?.removeEventListener("abort", abort);
       reject(new Error("تعذر الاتصال بالتطبيق."));
     }
   });
@@ -88,6 +96,7 @@ async function call(command: string, payload: z.input<typeof z.json>, signal?: A
   }
   return response.result;
 }
+const call = nativeCall;
 export const gateway = {
   session: async (signal?: AbortSignal) =>
     SessionSchema.nullable().parse(await call("session", {}, signal)),

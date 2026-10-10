@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "../../components/ui/dialog";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "../../components/ui/popover";
+import { requestWatch } from "../player/watch-request";
 import { replaceParams, useViewerRoute, workLink } from "../shell/navigation";
 import { ArtworkGallery, MediaFiles, References } from "./data-panel";
 import { RiskRows } from "./family-panel";
@@ -154,7 +155,16 @@ export function InstallmentsPanel({
           )}
           <div className="flex flex-wrap gap-3">
             {item.kind !== "season" && (
-              <Button disabled>
+              <Button
+                {...navigation}
+                onClick={() =>
+                  requestWatch({
+                    workId: work.id,
+                    installmentId: item.id,
+                    title: `${work.titleAr || work.canonicalTitle} · ${item.title}`,
+                  })
+                }
+              >
                 <Play data-icon="inline-start" />
                 تشغيل الإصدار
               </Button>
@@ -336,10 +346,17 @@ function EpisodeCard({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
+            {...navigation}
             variant="secondary"
-            disabled
             aria-label={`تشغيل الحلقة ${number}`}
-            title="التشغيل يُربط في مرحلة المشغّل التالية"
+            onClick={() =>
+              requestWatch({
+                workId: work.id,
+                installmentId: installment.id,
+                episodeId: episode.id,
+                title: `${work.titleAr || work.canonicalTitle} · الحلقة ${number}`,
+              })
+            }
           >
             <Play data-icon="inline-start" />
             مشاهدة

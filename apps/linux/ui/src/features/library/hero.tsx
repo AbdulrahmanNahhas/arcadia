@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { Artwork } from "../../components/artwork";
 import { gateway } from "../../lib/bridge";
+import { requestWatch } from "../player/watch-request";
 
 export function Hero({
   onSelect,
@@ -148,10 +149,11 @@ export function Hero({
           </button>
           <button
             className="inline-flex items-center justify-center gap-2.5 rounded-full border border-foreground/25 bg-background/80 px-6 py-3 font-semibold text-foreground disabled:opacity-65 max-[640px]:px-4 max-[640px]:py-2.5"
-            disabled
-            title="المشغّل في خطوة لاحقة"
+            onClick={() =>
+              requestWatch({ workId: work.id, title: work.titleAr || work.canonicalTitle })
+            }
           >
-            <Play size={19} aria-hidden="true" /> المشاهدة قريبًا
+            <Play size={19} aria-hidden="true" /> المشاهدة
           </button>
         </div>
       </div>

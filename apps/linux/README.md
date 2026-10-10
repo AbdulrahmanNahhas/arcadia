@@ -9,8 +9,10 @@ The server and administration dashboard remain separate.
 Real owner login, native in-memory session, catalog shelves, discovery search/filter/sort with
 bounded paging, registered artwork and selected-work overview/family/data preview. Native tokens
 never cross into JavaScript. The UI checks generated OpenAPI schemas at its transport boundary.
-No startup migration or seed. Playback, torrents, Jellyfin resolution, saved packs, downloads and
-progress synchronization are subsequent milestones, with pending controls visibly disabled.
+No startup catalog migration or seed. Native local/torrent playback and Torrentio Watch actions
+are now connected; see [the runnable player checkpoint](../../docs/linux-player-checkpoint.md)
+for commands, security boundaries, actual checks and unfinished download/resume features.
+Jellyfin is outside the client-media work.
 
 ## Organization
 

@@ -1,0 +1,431 @@
+//! GTK-owned playback sessions and native file dialogs, separate from catalog services.
+use crate::{
+    bridge::Error,
+    media::ResolvedTarget,
+    media_gateway::Gateway,
+    player_protocol::{Command, Snapshot, SourceKind, Track, TrackKind},
+};
+use adw::prelude::*;
+use gtk::{gio, glib};
+use native_player::NativePlayer;
+use serde_json::Value;
+use std::{
+    cell::{Cell, RefCell},
+    path::Path,
+    rc::Rc,
+};
+
+struct Session {
+    id: String,
+    title: String,
+    player: Option<NativePlayer>,
+    gateway: Option<Gateway>,
+    target: Option<ResolvedTarget>,
+    pending: bool,
+    error: Option<String>,
+    initial_fullscreen: bool,
+}
+
+pub struct Player {
+    window: glib::WeakRef<adw::ApplicationWindow>,
+    overlay: glib::WeakRef<gtk::Overlay>,
+    session: RefCell<Option<Session>>,
+    generation: Cell<u64>,
+    dialog: Cell<bool>,
+}
+
+impl Player {
+    pub fn new(window: &adw::ApplicationWindow, overlay: &gtk::Overlay) -> Rc<Self> {
+        Rc::new(Self {
+            window: window.downgrade(),
+            overlay: overlay.downgrade(),
+            session: RefCell::new(None),
+            generation: Cell::new(0),
+            dialog: Cell::new(false),
+        })
+    }
+
+    pub fn open_local(&self, path: &Path) -> Result<(), Error> {
+        let player = NativePlayer::local(path).map_err(playback_error)?;
+        let overlay = self.overlay.upgrade().ok_or_else(interrupted)?;
+        let window = self.window.upgrade().ok_or_else(interrupted)?;
+        let initial_fullscreen = self.session.borrow().as_ref().map_or_else(
+            || window.is_fullscreen(),
+            |session| session.initial_fullscreen,
+        );
+        let generation = self
+            .generation
+            .get()
+            .checked_add(1)
+            .ok_or_else(interrupted)?;
+        self.generation.set(generation);
+        self.cancel_stream();
+        overlay.set_child(Some(player.area()));
+        *self.session.borrow_mut() = Some(Session {
+            id: format!("media-{generation}"),
+            title: path.file_name().map_or_else(
+                || "Local video".into(),
+                |name| name.to_string_lossy().into_owned(),
+            ),
+            player: Some(player),
+            gateway: None,
+            target: None,
+            pending: false,
+            error: None,
+            initial_fullscreen,
+        });
+        Ok(())
+    }
+
+    pub fn snapshot(&self) -> Snapshot {
+        let fullscreen = self
+            .window
+            .upgrade()
+            .is_some_and(|window| window.is_fullscreen());
+        let session = self.session.borrow();
+        let Some(session) = session.as_ref() else {
+            return Snapshot {
+                fullscreen,
+                ..Snapshot::default()
+            };
+        };
+        let Some(player) = session.player.as_ref() else {
+            return Snapshot {
+                active: true,
+                session_id: Some(session.id.clone()),
+                title: session.title.clone(),
+                work_id: session.target.as_ref().map(|target| target.work_id.clone()),
+                installment_id: session
+                    .target
+                    .as_ref()
+                    .map(|target| target.installment_id.clone()),
+                episode_id: session
+                    .target
+                    .as_ref()
+                    .and_then(|target| target.episode_id.clone()),
+                buffering: session.pending,
+                error: session.error.clone(),
+                fullscreen,
+                ..Snapshot::default()
+            };
+        };
+        let state = player.snapshot();
+        Snapshot {
+            active: true,
+            session_id: Some(session.id.clone()),
+            work_id: session.target.as_ref().map(|target| target.work_id.clone()),
+            installment_id: session
+                .target
+                .as_ref()
+                .map(|target| target.installment_id.clone()),
+            episode_id: session
+                .target
+                .as_ref()
+                .and_then(|target| target.episode_id.clone()),
+            title: session.title.clone(),
+            source_kind: Some(if session.gateway.is_some() {
+                SourceKind::Torrent
+            } else {
+                SourceKind::Local
+            }),
+            paused: state.paused,
+            position: state.position,
+            duration: state.duration,
+            seekable: state.seekable,
+            volume: state.volume,
+            muted: state.muted,
+            speed: state.speed,
+            buffering: state.buffering || session.pending,
+            ended: state.ended,
+            fullscreen,
+            audio_delay: state.audio_delay,
+            subtitle_delay: state.subtitle_delay,
+            subtitle_size: state.subtitle_size,
+            subtitle_position: state.subtitle_position,
+            tracks: state
+                .tracks
+                .into_iter()
+                .map(|track| Track {
+                    id: track.id,
+                    kind: match track.kind {
+                        native_player::TrackKind::Audio => TrackKind::Audio,
+                        native_player::TrackKind::Subtitle => TrackKind::Subtitle,
+                    },
+                    title: track.title,
+                    language: track.language,
+                    codec: track.codec,
+                    selected: track.selected,
+                    external: track.external,
+                })
+                .collect(),
+            hwdec: state.hwdec,
+            video_codec: state.video_codec,
+            error: session.error.clone().or(state.error),
+        }
+    }
+
+    pub fn render_count(&self) -> u64 {
+        self.session
+            .borrow()
+            .as_ref()
+            .and_then(|session| session.player.as_ref())
+            .map_or(0, NativePlayer::render_count)
+    }
+
+    pub async fn execute(self: &Rc<Self>, command: Command) -> Result<Value, Error> {
+        if let Some(id) = command.session_id() {
+            self.require_session(id)?;
+        }
+        match command {
+            Command::Status {} => {}
+            Command::Preview { title } => {
+                let window = self.window.upgrade().ok_or_else(interrupted)?;
+                let initial_fullscreen = self.session.borrow().as_ref().map_or_else(
+                    || window.is_fullscreen(),
+                    |session| session.initial_fullscreen,
+                );
+                let generation = self
+                    .generation
+                    .get()
+                    .checked_add(1)
+                    .ok_or_else(interrupted)?;
+                self.generation.set(generation);
+                self.cancel_stream();
+                if let Some(overlay) = self.overlay.upgrade() {
+                    overlay.set_child(gtk::Widget::NONE);
+                }
+                *self.session.borrow_mut() = Some(Session {
+                    id: format!("media-{generation}"),
+                    title,
+                    player: None,
+                    gateway: None,
+                    target: None,
+                    pending: false,
+                    error: None,
+                    initial_fullscreen,
+                });
+            }
+            Command::PickVideo {} => {
+                let generation = self.generation.get();
+                if let Some(file) = self.pick_file(false).await? {
+                    if generation != self.generation.get() {
+                        return Err(stale());
+                    }
+                    self.open_local(&file)?;
+                }
+            }
+            Command::PickSubtitle { session_id } => {
+                if let Some(file) = self.pick_file(true).await? {
+                    self.require_session(&session_id)?;
+                    self.with_player(|player| player.add_subtitle(&file))?;
+                }
+            }
+            Command::Close { .. } => self.close(),
+            Command::Pause { paused, .. } => self.with_player(|player| {
+                if !paused && player.snapshot().ended {
+                    player.seek(0.0, false)?;
+                }
+                player.pause(paused)
+            })?,
+            Command::Seek {
+                seconds, relative, ..
+            } => {
+                self.with_player(|player| player.seek(seconds, relative))?;
+            }
+            Command::Volume { volume, .. } => self.with_player(|player| player.volume(volume))?,
+            Command::Mute { muted, .. } => self.with_player(|player| player.mute(muted))?,
+            Command::Speed { speed, .. } => self.with_player(|player| player.speed(speed))?,
+            Command::Track { kind, track_id, .. } => {
+                self.with_player(|player| player.track(native_kind(kind), track_id))?;
+            }
+            Command::Delay { kind, seconds, .. } => {
+                self.with_player(|player| player.delay(native_kind(kind), seconds))?;
+            }
+            Command::SubtitleStyle { size, position, .. } => {
+                self.with_player(|player| player.subtitle_style(size, position))?;
+            }
+            Command::Fullscreen { enabled } => {
+                let window = self.window.upgrade().ok_or_else(interrupted)?;
+                if enabled {
+                    window.fullscreen();
+                } else {
+                    window.unfullscreen();
+                }
+            }
+        }
+        serde_json::to_value(self.snapshot()).map_err(|_| interrupted())
+    }
+
+    pub fn close(&self) {
+        self.generation.set(self.generation.get().saturating_add(1));
+        self.cancel_stream();
+        if let Some(overlay) = self.overlay.upgrade() {
+            overlay.set_child(gtk::Widget::NONE);
+        }
+        if let Some(session) = self.session.borrow_mut().take()
+            && !session.initial_fullscreen
+            && let Some(window) = self.window.upgrade()
+        {
+            window.unfullscreen();
+        }
+    }
+
+    pub fn require_session(&self, id: &str) -> Result<(), Error> {
+        if self
+            .session
+            .borrow()
+            .as_ref()
+            .is_some_and(|session| session.id == id)
+        {
+            Ok(())
+        } else {
+            Err(stale())
+        }
+    }
+
+    fn cancel_stream(&self) {
+        if let Some(session) = self.session.borrow_mut().as_mut() {
+            drop(session.gateway.take());
+        }
+    }
+    pub fn loading(&self, id: &str, pending: bool, error: Option<String>) -> Result<(), Error> {
+        self.require_session(id)?;
+        if let Some(session) = self.session.borrow_mut().as_mut() {
+            session.pending = pending;
+            session.error = error;
+        }
+        Ok(())
+    }
+    pub fn set_target(&self, id: &str, target: ResolvedTarget) -> Result<(), Error> {
+        self.require_session(id)?;
+        if let Some(session) = self.session.borrow_mut().as_mut() {
+            if session.player.is_none() {
+                session.title = target.title.clone();
+            }
+            session.target = Some(target);
+        }
+        Ok(())
+    }
+    pub fn play_torrent(
+        &self,
+        id: &str,
+        target: ResolvedTarget,
+        gateway: Gateway,
+    ) -> Result<(), Error> {
+        self.require_session(id)?;
+        let player = NativePlayer::loopback(gateway.endpoint()).map_err(playback_error)?;
+        self.cancel_stream();
+        let overlay = self.overlay.upgrade().ok_or_else(interrupted)?;
+        overlay.set_child(Some(player.area()));
+        if let Some(session) = self.session.borrow_mut().as_mut() {
+            session.player = Some(player);
+            session.gateway = Some(gateway);
+            session.title = target.title.clone();
+            session.target = Some(target);
+            session.pending = false;
+            session.error = None;
+        }
+        Ok(())
+    }
+    pub fn download_target(&self, id: &str) -> Result<(media_transfer::TorrentId, u32), Error> {
+        self.require_session(id)?;
+        let session = self.session.borrow();
+        let gateway = session
+            .as_ref()
+            .and_then(|session| session.gateway.as_ref())
+            .ok_or_else(|| Error::new("no_torrent", "لا يوجد تورنت جارٍ لهذا الفيديو."))?;
+        Ok((gateway.id.clone(), gateway.file.index))
+    }
+
+    fn with_player(
+        &self,
+        action: impl FnOnce(&NativePlayer) -> Result<(), String>,
+    ) -> Result<(), Error> {
+        let session = self.session.borrow();
+        let player = session
+            .as_ref()
+            .ok_or_else(stale)?
+            .player
+            .as_ref()
+            .ok_or_else(|| {
+                Error::new(
+                    "no_source",
+                    "Choose a video source before starting playback",
+                )
+            })?;
+        action(player).map_err(playback_error)
+    }
+
+    async fn pick_file(&self, subtitle: bool) -> Result<Option<std::path::PathBuf>, Error> {
+        if self.dialog.replace(true) {
+            return Err(Error::new("busy", "A media file dialog is already open"));
+        }
+        let window = match self.window.upgrade() {
+            Some(window) => window,
+            None => {
+                self.dialog.set(false);
+                return Err(interrupted());
+            }
+        };
+        let filter = gtk::FileFilter::new();
+        filter.set_name(Some(if subtitle { "Subtitles" } else { "Videos" }));
+        for extension in if subtitle {
+            &["srt", "ass", "ssa", "vtt"][..]
+        } else {
+            &[
+                "mkv", "mp4", "m4v", "webm", "avi", "mov", "ts", "m2ts", "ogv", "mpeg", "mpg",
+            ][..]
+        } {
+            filter.add_suffix(extension);
+        }
+        let filters = gio::ListStore::new::<gtk::FileFilter>();
+        filters.append(&filter);
+        let dialog = gtk::FileDialog::builder()
+            .title(if subtitle {
+                "اختر ملف ترجمة"
+            } else {
+                "افتح فيديو"
+            })
+            .modal(true)
+            .filters(&filters)
+            .default_filter(&filter)
+            .build();
+        let result = dialog.open_future(Some(&window)).await;
+        self.dialog.set(false);
+        match result {
+            Ok(file) => file
+                .path()
+                .map(Some)
+                .ok_or_else(|| Error::new("bad_request", "Choose a local media file")),
+            Err(error)
+                if error.matches(gtk::DialogError::Dismissed)
+                    || error.matches(gtk::DialogError::Cancelled) =>
+            {
+                Ok(None)
+            }
+            Err(_) => Err(Error::new(
+                "media_dialog",
+                "Could not open the media file dialog",
+            )),
+        }
+    }
+}
+
+fn native_kind(kind: TrackKind) -> native_player::TrackKind {
+    match kind {
+        TrackKind::Audio => native_player::TrackKind::Audio,
+        TrackKind::Subtitle => native_player::TrackKind::Subtitle,
+    }
+}
+fn playback_error(message: String) -> Error {
+    Error::new("playback", &message)
+}
+fn stale() -> Error {
+    Error::new(
+        "stale_session",
+        "This playback session has ended or changed",
+    )
+}
+fn interrupted() -> Error {
+    Error::new("playback", "The player window is unavailable")
+}

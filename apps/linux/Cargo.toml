@@ -5,7 +5,21 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+native-diagnostics = ["media-transfer/test-fixtures", "dep:tempfile"]
+
 [dependencies]
+native_player = { package = "nahhasio-native-playback-proof", path = "native-playback-proof" }
+sha2.workspace = true
+hex.workspace = true
+regex = "1"
+media-transfer = { path = "../../crates/media-transfer" }
+axum.workspace = true
+getrandom.workspace = true
+subtle.workspace = true
+tokio-stream = "0.1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+tempfile = { version = "3", optional = true }
 gtk = { package = "gtk4", version = "0.10", features = ["v4_12"] }
 adw = { package = "libadwaita", version = "0.8", features = ["v1_4"] }
 webkit6 = "0.5"

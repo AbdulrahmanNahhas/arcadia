@@ -7,6 +7,7 @@ import { useCardNavigation } from "../../components/card-navigation";
 import { ScoreBadge } from "../../components/media-card";
 import { Button } from "../../components/ui/button";
 import { gateway } from "../../lib/bridge";
+import { requestWatch } from "../player/watch-request";
 import { navigate, workLink } from "../shell/navigation";
 export function Hero() {
   const navigation = useCardNavigation();
@@ -121,9 +122,18 @@ export function Hero() {
             <Info data-icon="inline-start" />
             عرض التفاصيل
           </Button>
-          <Button size="lg" variant="outline" disabled>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() =>
+              requestWatch({
+                workId: work.id,
+                title: work.titleAr || work.canonicalTitle,
+              })
+            }
+          >
             <Play data-icon="inline-start" />
-            المشاهدة قريبًا
+            المشاهدة
           </Button>
         </div>
       </div>

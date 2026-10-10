@@ -4,4 +4,5 @@ set -euo pipefail
 task_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$task_root"
 pnpm --filter @nahhasio/linux-ui build
-exec cargo run --locked -p nahhasio-linux
+cargo build --locked -p nahhasio-linux
+exec bash "$task_root/bin/nahhasio-native-runtime" "$task_root/target/debug/nahhasio-linux" "$@"

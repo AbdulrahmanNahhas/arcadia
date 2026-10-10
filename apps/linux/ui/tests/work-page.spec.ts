@@ -695,7 +695,7 @@ test("released dates and completed film are not watched state or playable availa
     episodeCard(page, 8).getByRole("button", { name: "تحديد الحلقة 8 كمُشاهَد" }),
   ).toBeEnabled();
   await expect(episodeCard(page, 8).getByText("قادم", { exact: true })).toBeVisible();
-  await expect(episodeCard(page, 1).getByRole("button", { name: "تشغيل الحلقة 1" })).toBeDisabled();
+  await expect(episodeCard(page, 1).getByRole("button", { name: "تشغيل الحلقة 1" })).toBeEnabled();
   await page.getByRole("button", { name: "الموسم الأول", exact: true }).click();
   await page.getByRole("button", { name: /^فيلم المكتبة/ }).click();
   await expect(page.getByRole("tabpanel").getByText("مكتمل", { exact: true })).toBeVisible();
@@ -703,7 +703,7 @@ test("released dates and completed film are not watched state or playable availa
     "aria-pressed",
     "false",
   );
-  await expect(page.getByRole("button", { name: "تشغيل الإصدار" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "تشغيل الإصدار" })).toBeEnabled();
   expect(await requests(page, "setWatched")).toEqual([]);
 });
 
@@ -940,7 +940,7 @@ test("whole episode cards are keyboard links with image focus, scoped actions an
   const destination = `#/titles/${workId}?installment=${seasonId}&episode=${id(102)}`;
   await expect(link).toHaveAttribute("href", destination);
   await expect(link.locator("button, a, input")).toHaveCount(0);
-  await expect(card.getByRole("button", { name: "تشغيل الحلقة 2" })).toBeDisabled();
+  await expect(card.getByRole("button", { name: "تشغيل الحلقة 2" })).toBeEnabled();
   await expect(card.getByRole("button", { name: "تنزيل الحلقة 2" })).toBeDisabled();
   const image = link.locator(":scope > span").first();
   const idleShadow = await image.evaluate((element) => getComputedStyle(element).boxShadow);

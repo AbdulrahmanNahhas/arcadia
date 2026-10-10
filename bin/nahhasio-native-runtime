@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Process-local NixOS graphics ABI compatibility. Never changes system configuration.
+set -euo pipefail
+if (( $# == 0 )); then
+  echo "Usage: nahhasio-native-runtime NATIVE_EXECUTABLE [ARGS...]" >&2
+  exit 1
+fi
+
+# Delta can supply an unrelated ALSA library through LD_LIBRARY_PATH. Let the
+# Nix-built executable's RPATH resolve its own closure instead.
+unset LD_LIBRARY_PATH
+
+# WebKit's default DMA-BUF composition currently makes controls disappear on
+# Shadow. This fallback affects the UI process, not libmpv video decoding.
+# Set NAHHASIO_WEBKIT_DMABUF=1 to explicitly test accelerated composition.
+if [[ "${NAHHASIO_WEBKIT_DMABUF:-0}" != 1 ]]; then
+  export WEBKIT_DISABLE_DMABUF_RENDERER=1
+fi
+
+# A newer NixOS GPU driver can require newer libc than the pinned devenv.
+# Use the host's ELF loader for this process; ordinary Linux keeps its own.
+host=/run/current-system/sw/bin/env
+if [[ -x "$host" ]] && command -v readelf >/dev/null; then
+  loader="$(readelf -l "$host" | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')"
+  if [[ -n "$loader" && -x "$loader" ]]; then
+    exec "$loader" --library-path "$(dirname "$loader")" "$@"
+  fi
+fi
+exec "$@"
