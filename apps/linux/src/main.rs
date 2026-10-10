@@ -1,8 +1,19 @@
 //! Native shell bootstrap. Client Rust exercises begin after this baseline is reviewed.
 mod assets;
 mod bridge;
+mod media;
+mod media_bridge;
+mod media_gateway;
+mod media_range;
+mod media_storage;
+mod player;
+mod player_protocol;
+mod player_smoke;
 mod services;
 mod smoke;
+#[cfg(feature = "native-diagnostics")]
+mod torrent_smoke;
+mod torrentio;
 
 use adw::prelude::*;
 use bridge::{Error, Request, reply};
@@ -16,9 +27,11 @@ struct Config {
     ui: String,
     dev: bool,
     asset_root: Option<PathBuf>,
+    playback_file: Option<PathBuf>,
 }
 impl Config {
     fn load() -> Result<Self, String> {
+        let playback_file = std::env::var_os("NAHHASIO_PLAY_FILE").map(PathBuf::from);
         if let Ok(ui) = std::env::var("NAHHASIO_UI_URL") {
             if ui != "http://127.0.0.1:23110/" && ui != "http://127.0.0.1:23110" {
                 return Err("The desktop development UI must be http://127.0.0.1:23110/".into());
@@ -27,6 +40,7 @@ impl Config {
                 ui: "http://127.0.0.1:23110/".into(),
                 dev: true,
                 asset_root: None,
+                playback_file,
             });
         }
         let file = std::env::var_os("NAHHASIO_UI_DIR")
@@ -46,6 +60,7 @@ impl Config {
             ui: assets::ENTRY.into(),
             dev: false,
             asset_root: Some(root),
+            playback_file,
         })
     }
     fn permits(&self, uri: &str) -> bool {
@@ -54,6 +69,9 @@ impl Config {
     }
 }
 fn main() -> glib::ExitCode {
+    // libmpv requires C numeric parsing. Establish this before GTK and workers;
+    // never mutate process-global locale from an active player.
+    gtk::disable_setlocale();
     let services = match Services::new(
         &std::env::var("NAHHASIO_SERVER_URL").unwrap_or_else(|_| "http://127.0.0.1:23103/".into()),
     ) {
@@ -97,7 +115,9 @@ fn main() -> glib::ExitCode {
             return glib::ExitCode::FAILURE;
         }
     };
-    let smoke_mode = smoke.is_some();
+    let player_smoke =
+        std::env::args().any(|arg| arg == "--player-smoke" || arg == "--torrent-smoke");
+    let smoke_mode = smoke.is_some() || player_smoke;
     let application = adw::Application::builder()
         .application_id("io.nahhasio.Linux")
         .flags(if smoke_mode {
@@ -160,6 +180,7 @@ fn build_window(
         .user_content_manager(&manager)
         .network_session(&network)
         .build();
+    view.set_background_color(&gtk::gdk::RGBA::new(0.0, 0.0, 0.0, 0.0));
     if let Some(settings) = webkit6::prelude::WebViewExt::settings(&view) {
         settings.set_enable_developer_extras(config.dev);
         settings.set_enable_smooth_scrolling(true);
@@ -197,6 +218,11 @@ fn build_window(
     let bridge_config = config.clone();
     let services = services.clone();
     let runtime = runtime.clone();
+    let diagnostic_runtime = runtime.clone();
+    let media = media::Media::new(services.clone()).ok();
+    let player_handle =
+        std::rc::Rc::new(std::cell::RefCell::new(None::<std::rc::Rc<player::Player>>));
+    let bridge_player = player_handle.clone();
     manager.connect_script_message_received(Some("nahhasio"), move |_, value| {
         let Some(view) = weak_view.upgrade() else {
             return;
@@ -216,6 +242,73 @@ fn build_window(
             Err(_) => return,
         };
         let id = request.id.clone();
+        if request.command.starts_with("media.") {
+            let player = bridge_player.borrow().clone();
+            let media = media.clone();
+            let runtime = runtime.clone();
+            let command = media::Command::parse(&request);
+            let permit = services.permits.clone().try_acquire_owned();
+            let weak = view.downgrade();
+            glib::MainContext::default().spawn_local(async move {
+                let result = match (player, media, command, permit) {
+                    (Some(player), Some(media), Ok(command), Ok(permit)) => {
+                        let _permit = permit;
+                        media_bridge::execute(player, media, runtime, command).await
+                    }
+                    (_, _, Err(error), _) => Err(error),
+                    (_, _, _, Err(_)) => Err(Error::new("busy", "Media requests are busy")),
+                    _ => Err(Error::new("transfer", "Media storage is unavailable")),
+                };
+                if let Some(view) = weak.upgrade() {
+                    send_reply(&view, reply(&id, result));
+                }
+            });
+            return;
+        }
+        if request.command == "torrentio.search" {
+            let input = serde_json::from_value::<torrentio::Search>(request.payload)
+                .map_err(|_| Error::new("bad_request", "Invalid Torrentio search"));
+            let permit = services.permits.clone().try_acquire_owned();
+            let weak = view.downgrade();
+            let task = runtime.spawn(async move {
+                let _permit = permit.map_err(|_| Error::new("busy", "Source requests are busy"))?;
+                let candidates = torrentio::search(input?).await?;
+                Ok(serde_json::Value::Array(
+                    candidates
+                        .iter()
+                        .map(torrentio::Candidate::public_value)
+                        .collect::<Result<Vec<_>, _>>()?,
+                ))
+            });
+            glib::MainContext::default().spawn_local(async move {
+                let result = task.await.unwrap_or_else(|_| {
+                    Err(Error::new(
+                        "source_unavailable",
+                        "Source request was interrupted",
+                    ))
+                });
+                if let Some(view) = weak.upgrade() {
+                    send_reply(&view, reply(&id, result));
+                }
+            });
+            return;
+        }
+        if request.command.starts_with("player.") {
+            let player = bridge_player.borrow().clone();
+            let command = player_protocol::Command::parse(&request);
+            let weak = view.downgrade();
+            glib::MainContext::default().spawn_local(async move {
+                let result = match (player, command) {
+                    (Some(player), Ok(command)) => player.execute(command).await,
+                    (_, Err(error)) => Err(error),
+                    _ => Err(Error::new("playback", "Player is not ready")),
+                };
+                if let Some(view) = weak.upgrade() {
+                    send_reply(&view, reply(&id, result));
+                }
+            });
+            return;
+        }
         let permit = match services.permits.clone().try_acquire_owned() {
             Ok(permit) => permit,
             Err(_) => {
@@ -252,7 +345,12 @@ fn build_window(
         .build();
     let content = gtk::Box::new(gtk::Orientation::Vertical, 0);
     content.append(&header);
-    content.append(&view);
+    let overlay = gtk::Overlay::new();
+    overlay.set_hexpand(true);
+    overlay.set_vexpand(true);
+    overlay.add_overlay(&view);
+    overlay.set_measure_overlay(&view, true);
+    content.append(&overlay);
     view.set_vexpand(true);
     view.set_hexpand(true);
     let width = if smoke.is_some() {
@@ -272,6 +370,35 @@ fn build_window(
         .content(&content)
         .build();
     window.set_size_request(520, 480);
+    let player = player::Player::new(&window, &overlay);
+    *player_handle.borrow_mut() = Some(player.clone());
+    if !std::env::args().any(|arg| arg == "--torrent-smoke")
+        && let Some(path) = &config.playback_file
+        && let Err(error) = player.open_local(path)
+    {
+        eprintln!("media: {}", error.message);
+    }
+    let open = gtk::Button::from_icon_name("document-open-symbolic");
+    open.set_tooltip_text(Some("فتح فيديو (Ctrl+O)"));
+    open.connect_clicked({
+        let player = player.clone();
+        move |_| {
+            let player = player.clone();
+            glib::MainContext::default().spawn_local(async move {
+                if let Err(error) = player.execute(player_protocol::Command::PickVideo {}).await {
+                    eprintln!("media: {}", error.message);
+                }
+            });
+        }
+    });
+    header.pack_start(&open);
+    window.connect_close_request({
+        let player = player.clone();
+        move |_| {
+            player.close();
+            glib::Propagation::Proceed
+        }
+    });
     let fullscreen_header = header.clone();
     window.connect_fullscreened_notify(move |window| {
         fullscreen_header.set_visible(!window.is_fullscreen());
@@ -279,7 +406,18 @@ fn build_window(
     let keys = gtk::EventControllerKey::new();
     keys.set_propagation_phase(gtk::PropagationPhase::Capture);
     let weak_window = window.downgrade();
-    keys.connect_key_pressed(move |_, key, _, _| {
+    keys.connect_key_pressed(move |_, key, _, modifiers| {
+        if (key == gtk::gdk::Key::o || key == gtk::gdk::Key::O)
+            && modifiers.contains(gtk::gdk::ModifierType::CONTROL_MASK)
+        {
+            let player = player.clone();
+            glib::MainContext::default().spawn_local(async move {
+                if let Err(error) = player.execute(player_protocol::Command::PickVideo {}).await {
+                    eprintln!("media: {}", error.message);
+                }
+            });
+            return glib::Propagation::Stop;
+        }
         if key == gtk::gdk::Key::F11 {
             if let Some(window) = weak_window.upgrade() {
                 if window.is_fullscreen() {
@@ -295,6 +433,21 @@ fn build_window(
     window.add_controller(keys);
     view.load_uri(&config.ui);
     window.present();
+    if std::env::args().any(|arg| arg == "--player-smoke" || arg == "--torrent-smoke") {
+        if config.playback_file.is_none() {
+            eprintln!("player-smoke: NAHHASIO_PLAY_FILE must name a generated local fixture");
+            app.quit();
+        } else if let Some(player) = player_handle.borrow().clone() {
+            player_smoke::install(
+                app,
+                &window,
+                &view,
+                player,
+                passed.clone(),
+                diagnostic_runtime.clone(),
+            );
+        }
+    }
     if let Some(input) = smoke {
         smoke::install(app, &view, input, passed);
     }
@@ -343,6 +496,7 @@ mod tests {
             ui: "http://127.0.0.1:23110/".into(),
             dev: true,
             asset_root: None,
+            playback_file: None,
         };
         assert!(config.permits("http://127.0.0.1:23110/#library"));
         assert!(!config.permits("http://localhost:23110/"));

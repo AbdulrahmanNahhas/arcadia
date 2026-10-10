@@ -3,6 +3,8 @@ mod browse;
 mod home;
 mod queries;
 mod recommendations;
+mod tracking;
+mod viewer_state;
 
 use axum::{
     Json, Router,
@@ -30,6 +32,7 @@ pub fn routes(pool: PgPool) -> Router {
         .route("/api/v1/catalog/filters", get(filters))
         .route("/api/v1/catalog/home", get(home::feed))
         .route("/api/v1/artwork/{id}", get(artwork::serve))
+        .merge(viewer_state::routes())
         .with_state(pool)
 }
 

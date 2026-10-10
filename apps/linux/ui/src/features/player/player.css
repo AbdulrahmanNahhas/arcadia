@@ -1,0 +1,228 @@
+.player-host {
+  position: fixed;
+  inset: 0;
+  color: var(--text);
+  background: transparent;
+  outline: none;
+  font-family: var(--font-sans);
+}
+.player-picker {
+  position: absolute;
+  inset-block: 7rem 8rem;
+  inset-inline: 1.5rem;
+  max-width: 44rem;
+  margin-inline: auto;
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.player-top,
+.player-bottom {
+  position: absolute;
+  inset-inline: 0;
+  padding: 1.5rem 2rem;
+  transition: opacity 180ms ease;
+}
+.player-top {
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(to bottom, var(--rail), transparent);
+}
+.player-title {
+  min-width: 0;
+}
+.player-title h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.player-title p,
+.player-note {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.player-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, var(--rail), transparent);
+  padding-top: 3rem;
+}
+.player-host[data-controls-hidden="true"] {
+  cursor: none;
+}
+.player-host[data-controls-hidden="true"] .player-top,
+.player-host[data-controls-hidden="true"] .player-bottom {
+  opacity: 0;
+  pointer-events: none;
+}
+.player-controls,
+.player-transport,
+.player-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.player-controls {
+  justify-content: space-between;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.player-transport {
+  flex-wrap: wrap;
+}
+.player-tools {
+  flex-wrap: wrap;
+}
+.player-volume {
+  width: 6rem;
+}
+.player-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.player-timeline {
+  margin-block-end: 0.75rem;
+}
+.player-slider {
+  width: 100%;
+}
+.player-slider-control {
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+  width: 100%;
+  touch-action: none;
+  user-select: none;
+}
+.player-slider-track {
+  position: relative;
+  height: 0.25rem;
+  width: 100%;
+  border-radius: 1rem;
+  background: var(--line);
+}
+.player-slider-indicator {
+  position: absolute;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+.player-slider-thumb {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  background: var(--text);
+  border: 2px solid var(--accent);
+}
+.player-slider-thumb:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.player-slider[data-disabled] {
+  opacity: 0.45;
+}
+.player-panel {
+  max-height: min(70vh, 36rem);
+  overflow-y: auto;
+  max-width: calc(100vw - 2rem);
+}
+.player-track-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.player-track {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.5rem;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.player-track input {
+  accent-color: var(--accent);
+}
+.player-track svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+.player-episodes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.player-diagnostics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+.player-diagnostics dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.player-diagnostics dt {
+  color: var(--muted);
+}
+.player-source-title {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.player-message {
+  position: absolute;
+  top: 6rem;
+  inset-inline: 2rem;
+  max-width: 32rem;
+  margin-inline: auto;
+}
+.player-buffering {
+  position: absolute;
+  top: 45%;
+  inset-inline: 0;
+  text-align: center;
+}
+.player-ended {
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem;
+}
+@media (max-width: 640px) {
+  .player-top,
+  .player-bottom {
+    padding-inline: 1rem;
+  }
+  .player-volume {
+    width: 4rem;
+  }
+  .player-tools {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .player-controls {
+    gap: 0.25rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-top,
+  .player-bottom {
+    transition: none;
+  }
+  .player-panel {
+    animation: none;
+    transition: none;
+  }
+}

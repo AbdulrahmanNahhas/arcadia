@@ -89,6 +89,29 @@ test.beforeEach(async ({ page }) => {
         expiresAt: "2099-10-09T00:00:00Z",
       };
       let signedIn = false;
+      let favorite = false;
+      const viewerState = (id: string) => ({
+        workId: id,
+        isFavorite: favorite,
+        units: [],
+        summary: {
+          catalogUnits: 0,
+          releasedUnits: 0,
+          watchedReleasedUnits: 0,
+          isFullyWatched: false,
+          watchState: "unwatched",
+        },
+        installments: fixtureDetail.installments.map((item) => ({
+          installmentId: item.id,
+          summary: {
+            catalogUnits: 0,
+            releasedUnits: 0,
+            watchedReleasedUnits: 0,
+            isFullyWatched: false,
+            watchState: "unwatched",
+          },
+        })),
+      });
       window.webkit = {
         messageHandlers: {
           nahhasio: {
@@ -351,6 +374,25 @@ test.beforeEach(async ({ page }) => {
                           (request.payload.includePrivate ? 1 : 0),
                   };
                   break;
+                case "workState":
+                  result = viewerState(request.payload.id);
+                  break;
+                case "setFavorite":
+                  favorite = request.payload.isFavorite;
+                  result = viewerState(request.payload.workId);
+                  break;
+                case "setWatched":
+                  result = viewerState(request.payload.workId);
+                  break;
+                case "workActivity":
+                  result = {
+                    workId: request.payload.id,
+                    items: [],
+                    total: 0,
+                    page: request.payload.page ?? 1,
+                    pageSize: 20,
+                  };
+                  break;
                 case "work":
                   result = {
                     ...fixtureDetail,
@@ -421,19 +463,23 @@ test("real bridge states: reject login, browse details, family guide, search and
   await expect(
     article.getByRole("heading", { name: "رحلة في المكتبة", exact: true, level: 1 }),
   ).toBeVisible();
-  await article.getByRole("tab", { name: "العائلة", exact: true }).click();
+  await expect(article.getByRole("tab", { name: "العائلة", exact: true })).toHaveCount(0);
+  await expect(article.getByRole("tab", { name: "الملف", exact: true })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   await expect(page.getByRole("tabpanel").getByText("تنبيه تحريري محفوظ")).toBeVisible();
-  const familyGuide = page
-    .getByRole("tabpanel")
-    .locator("section")
-    .filter({ has: page.getByRole("heading", { name: "دليل العائلة", exact: true }) });
-  await expect(familyGuide.getByText("متوسط", { exact: true })).toBeVisible();
-  await expect(article.getByRole("button", { name: "المشغّل قريبًا" })).toBeDisabled();
+  const theology = article.locator('[data-slot="card"]').filter({
+    has: page.getByText("الموضوعات العقدية", { exact: true }),
+  });
+  await expect(theology.getByRole("heading", { name: /عقد|عقيد|عقائد/ })).toBeVisible();
+  await expect(theology.getByText("متوسط", { exact: true })).toBeVisible();
+  await expect(article.getByRole("button", { name: "تشغيل", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "العودة إلى المكتبة" }).click();
   await expect(page.getByRole("region", { name: "أحدث الأعمال" })).toBeVisible();
   await browse(page);
   await page.getByRole("textbox", { name: "البحث في المكتبة" }).fill("missing");
-  await expect(page.getByRole("heading", { name: "لا توجد أعمال مطابقة" })).toBeVisible();
+  await expect(page.getByText("لا توجد أعمال مطابقة", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/q=missing/);
   await page.getByRole("button", { name: "الملف والحساب" }).click();
   await page.getByRole("button", { name: "تسجيل الخروج" }).click();
@@ -446,7 +492,8 @@ for (const width of [480, 640, 1024, 1440])
     await expect(page.getByRole("button", { name: "البحث" })).toBeVisible();
     await browse(page);
     await page.getByRole("link", { name: "تفاصيل رحلة في المكتبة" }).click();
-    await expect(page.getByRole("tab", { name: "العائلة", exact: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "العائلة", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "الملف", exact: true })).toBeVisible();
     const metrics = await page.evaluate(() => ({
       body: document.body.scrollWidth,
       width: window.innerWidth,
@@ -755,9 +802,15 @@ test("home logic: scores, planet reset, spoilers and installment destination", a
   await expect(
     page.getByRole("tabpanel").getByRole("heading", { name: "الموسم القادم", exact: true }),
   ).toBeVisible();
+  const seasonSelector = page
+    .getByRole("tabpanel")
+    .getByRole("button", { name: "الموسم القادم", exact: true });
+  await seasonSelector.click();
   await expect(
-    page.getByRole("tabpanel").getByRole("button", { name: /الموسم القادم/ }),
+    page.getByRole("button", { name: "الموسم القادم 0 حلقة", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Escape");
+  await expect(seasonSelector).toBeFocused();
   await page.getByRole("button", { name: "العودة إلى المكتبة" }).click();
   await expect(upcoming.getByRole("link", { name: "تفاصيل الموسم القادم" })).toBeVisible();
   await page

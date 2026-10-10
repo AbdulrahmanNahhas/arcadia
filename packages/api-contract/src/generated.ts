@@ -1,6 +1,86 @@
 // Generated from openapi.json. Do not edit.
 import { z } from "zod";
 
+export const FavoriteRequestSchema = z.strictObject({
+  isFavorite: z.boolean(),
+});
+export type FavoriteRequest = z.infer<typeof FavoriteRequestSchema>;
+
+export const WatchedRequestSchema = z.strictObject({
+  installmentId: z.string().uuid().nullable(),
+  episodeId: z.string().uuid().nullable(),
+  isPlayed: z.boolean(),
+});
+export type WatchedRequest = z.infer<typeof WatchedRequestSchema>;
+
+export const WatchSummarySchema = z.strictObject({
+  catalogUnits: z.number().int().min(0),
+  releasedUnits: z.number().int().min(0),
+  watchedReleasedUnits: z.number().int().min(0),
+  isFullyWatched: z.boolean(),
+  watchState: z.enum(["unwatched", "in-progress", "watched"]),
+});
+export type WatchSummary = z.infer<typeof WatchSummarySchema>;
+
+export const ViewerUnitStateSchema = z.strictObject({
+  stateId: z.string().uuid().nullable(),
+  installmentId: z.string().uuid(),
+  episodeId: z.string().uuid().nullable(),
+  isReleased: z.boolean(),
+  positionSeconds: z.number().int().min(0),
+  durationSeconds: z.number().int().min(0).nullable(),
+  isPlayed: z.boolean(),
+  playedManually: z.boolean(),
+  playedAt: z.string().nullable(),
+  subtitleOffsetMs: z.number().int().nullable(),
+  updatedAt: z.string().nullable(),
+});
+export type ViewerUnitState = z.infer<typeof ViewerUnitStateSchema>;
+
+export const InstallmentViewerStateSchema = z.strictObject({
+  installmentId: z.string().uuid(),
+  summary: WatchSummarySchema,
+});
+export type InstallmentViewerState = z.infer<typeof InstallmentViewerStateSchema>;
+
+export const WorkViewerStateSchema = z.strictObject({
+  workId: z.string().uuid(),
+  isFavorite: z.boolean(),
+  units: z.array(ViewerUnitStateSchema),
+  summary: WatchSummarySchema,
+  installments: z.array(InstallmentViewerStateSchema),
+});
+export type WorkViewerState = z.infer<typeof WorkViewerStateSchema>;
+
+export const ActivityAuthorSchema = z.strictObject({
+  id: z.string().uuid(),
+  displayName: z.string(),
+  avatarKey: z.string(),
+});
+export type ActivityAuthor = z.infer<typeof ActivityAuthorSchema>;
+
+export const WorkActivityItemSchema = z.strictObject({
+  id: z.string().uuid(),
+  kind: z.enum(["comment", "review"]),
+  body: z.string(),
+  containsSpoilers: z.boolean(),
+  rating: z.number().int().min(1).max(5).nullable(),
+  parentId: z.string().uuid().nullable(),
+  author: ActivityAuthorSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type WorkActivityItem = z.infer<typeof WorkActivityItemSchema>;
+
+export const WorkActivityPageSchema = z.strictObject({
+  workId: z.string().uuid(),
+  items: z.array(WorkActivityItemSchema),
+  total: z.number().int().min(0),
+  page: z.number().int().min(1),
+  pageSize: z.number().int().min(1),
+});
+export type WorkActivityPage = z.infer<typeof WorkActivityPageSchema>;
+
 export const ErrorSchema = z.strictObject({
   message: z.string(),
 });
@@ -505,7 +585,7 @@ export class ApiClient {
   private async request(
     path: string,
     method: string,
-    body?: LoginRequest,
+    body?: FavoriteRequest | LoginRequest | WatchedRequest,
     signal?: AbortSignal,
   ): Promise<Response> {
     const headers = new Headers();
@@ -520,6 +600,57 @@ export class ApiClient {
     });
     if (!response.ok) throw new globalThis.Error(`API request failed (${response.status})`);
     return response;
+  }
+  async getWorkState(id: string, signal?: AbortSignal): Promise<WorkViewerState> {
+    const response = await this.request(
+      `/api/v1/works/${encodeURIComponent(id)}/state`,
+      "GET",
+      undefined,
+      signal,
+    );
+    return WorkViewerStateSchema.parse(await response.json());
+  }
+  async setFavorite(
+    id: string,
+    body: FavoriteRequest,
+    signal?: AbortSignal,
+  ): Promise<WorkViewerState> {
+    const response = await this.request(
+      `/api/v1/works/${encodeURIComponent(id)}/favorite`,
+      "PUT",
+      body,
+      signal,
+    );
+    return WorkViewerStateSchema.parse(await response.json());
+  }
+  async setWatched(
+    id: string,
+    body: WatchedRequest,
+    signal?: AbortSignal,
+  ): Promise<WorkViewerState> {
+    const response = await this.request(
+      `/api/v1/works/${encodeURIComponent(id)}/watched`,
+      "PATCH",
+      body,
+      signal,
+    );
+    return WorkViewerStateSchema.parse(await response.json());
+  }
+  async getWorkActivity(
+    id: string,
+    query: { page?: number } = {},
+    signal?: AbortSignal,
+  ): Promise<WorkActivityPage> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value !== undefined) params.set(key, String(value));
+    const response = await this.request(
+      `/api/v1/works/${encodeURIComponent(id)}/activity` + (params.size ? `?${params}` : ""),
+      "GET",
+      undefined,
+      signal,
+    );
+    return WorkActivityPageSchema.parse(await response.json());
   }
   async login(body: LoginRequest, signal?: AbortSignal): Promise<LoginResponse> {
     const response = await this.request("/api/v1/auth/login", "POST", body, signal);

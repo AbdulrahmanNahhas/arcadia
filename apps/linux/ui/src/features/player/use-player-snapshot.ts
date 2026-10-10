@@ -1,0 +1,90 @@
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+
+import { nativeAvailable } from "@/lib/bridge";
+
+import { callPlayer, type PlayerRequest, type PlayerSnapshot } from "./bridge";
+
+export const playerSnapshotKey = ["native", "player", "snapshot"] as const;
+
+// Ordering metadata only. The authoritative snapshot lives exclusively in Query.
+const coordinators = new WeakMap<QueryClient, { revision: number; closed: Set<string> }>();
+function coordinator(client: QueryClient) {
+  let value = coordinators.get(client);
+  if (!value) {
+    value = { revision: 0, closed: new Set() };
+    coordinators.set(client, value);
+  }
+  return value;
+}
+
+export function usePlayerSnapshot() {
+  const client = useQueryClient();
+  const order = coordinator(client);
+  const query = useQuery({
+    queryKey: playerSnapshotKey,
+    enabled: nativeAvailable(),
+    queryFn: async ({ signal }) => {
+      const revision = order.revision;
+      const next = await callPlayer({ command: "player.status", payload: {} }, signal);
+      const current = client.getQueryData<PlayerSnapshot>(playerSnapshotKey);
+      if (revision !== order.revision || (next.sessionId && order.closed.has(next.sessionId))) {
+        if (current) return current;
+        throw new Error("وصل تحديث قديم للمشغّل.");
+      }
+      if (current?.sessionId && current.sessionId !== next.sessionId) {
+        order.closed.add(current.sessionId);
+      }
+      return next;
+    },
+    refetchInterval: (value) => (value.state.data?.active ? 250 : 1000),
+    refetchIntervalInBackground: false,
+    staleTime: 0,
+    retry: false,
+    networkMode: "always",
+  });
+  const mutation = useMutation({
+    mutationKey: ["native", "player", "command"],
+    scope: { id: "native-player" },
+    networkMode: "always",
+    mutationFn: async (request: PlayerRequest) => {
+      // Commands and polling cannot race to replace one another's snapshots.
+      order.revision += 1;
+      await client.cancelQueries({ queryKey: playerSnapshotKey, exact: true });
+      try {
+        if ("sessionId" in request.payload) {
+          const current = client.getQueryData<PlayerSnapshot>(playerSnapshotKey);
+          if (
+            current?.sessionId !== request.payload.sessionId ||
+            order.closed.has(request.payload.sessionId)
+          ) {
+            throw new Error("انتهت جلسة هذا الفيديو.");
+          }
+        }
+        const next = await callPlayer(request);
+        if (request.command === "player.close") order.closed.add(request.payload.sessionId);
+        if (next.sessionId && order.closed.has(next.sessionId))
+          throw new Error("وصل تحديث لجلسة مغلقة.");
+        const current = client.getQueryData<PlayerSnapshot>(playerSnapshotKey);
+        if (current?.sessionId && current.sessionId !== next.sessionId) {
+          order.closed.add(current.sessionId);
+        }
+        client.setQueryData(playerSnapshotKey, next);
+        return next;
+      } finally {
+        order.revision += 1;
+        await client.cancelQueries({ queryKey: playerSnapshotKey, exact: true });
+        await client.invalidateQueries({ queryKey: playerSnapshotKey, exact: true });
+      }
+    },
+    retry: false,
+  });
+  return {
+    snapshot: query.data,
+    error: mutation.error ?? query.error,
+    pending: mutation.isPending,
+    command: mutation.mutate,
+    commandAsync: mutation.mutateAsync,
+  };
+}
+
+export type PlayerController = ReturnType<typeof usePlayerSnapshot>;

@@ -22,6 +22,7 @@
 /* Map controls to the viewing client's palette; catalog art remains the visual focus. */
 @theme inline {
   --font-sans: "Noto Sans Arabic Variable", "Plex Arabic", system-ui, sans-serif;
+  --font-emoji: "Noto Color Emoji", emoji, sans-serif;
   --font-heading: var(--font-sans);
   --color-background: var(--background);
   --color-foreground: var(--text);

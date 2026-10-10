@@ -72,7 +72,7 @@ function PlanetCard({ planet }: { planet: CatalogPlanet }) {
       />
       <div className="relative z-10 flex items-start justify-between gap-4">
         <span className="relative grid size-14 place-items-center rounded-2xl border border-current/25 bg-background/45 shadow-xs transition-colors group-hover:border-current/50">
-          <span aria-hidden="true" className="font-[emoji] text-3xl leading-none">
+          <span aria-hidden="true" className="font-emoji text-3xl leading-none">
             {planet.icon || "🪐"}
           </span>
           <span className="absolute -bottom-1 -inset-e-1 grid size-5 place-items-center rounded-full border border-current/30 bg-background text-current shadow-sm">

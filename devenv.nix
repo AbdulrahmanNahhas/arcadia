@@ -26,10 +26,12 @@
   env.NAHHASIO_BIND = "127.0.0.1:23103";
 
   packages = with pkgs; [
-    typos pkg-config openssl mpv chromium
+    typos pkg-config openssl mpv ffmpeg chromium noto-fonts-color-emoji
     gtk4 libadwaita webkitgtk_6_0
     gtk4.dev libadwaita.dev webkitgtk_6_0.dev
     gst_all_1.gstreamer gst_all_1.gst-plugins-base
+    libtorrent-rasterbar libtorrent-rasterbar.dev boost.dev
+    cmake stdenv.cc
   ];
   env.GST_PLUGIN_SYSTEM_PATH_1_0 = "${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0";
   env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "${pkgs.chromium}/bin/chromium";

@@ -65,7 +65,7 @@ export function PlanetShelves({ planets }: { planets: CatalogPlanet[] }) {
                     className="group/planet inline-flex max-w-full items-center gap-2.5 rounded-lg py-1 text-xl font-semibold outline-offset-4 hover:text-primary focus-visible:outline-2 focus-visible:outline-ring sm:gap-3 sm:text-3xl"
                   >
                     <span
-                      className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary font-[emoji] text-2xl sm:size-12"
+                      className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary font-emoji text-2xl sm:size-12"
                       aria-hidden="true"
                     >
                       {selected.icon || "🪐"}
@@ -86,7 +86,7 @@ export function PlanetShelves({ planets }: { planets: CatalogPlanet[] }) {
                         <SelectItem key={item.id} value={item.slug}>
                           <span className="flex min-h-12 items-center gap-3">
                             <span
-                              className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary font-[emoji] text-2xl"
+                              className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary font-emoji text-2xl"
                               aria-hidden="true"
                             >
                               {item.icon || "🪐"}

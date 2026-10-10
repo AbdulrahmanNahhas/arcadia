@@ -23,6 +23,14 @@ are historical evidence, not the next implementation target.
 - `devenv up` starts PostgreSQL → API → dashboard plus the GTK desktop. Backend-only startup
   remains available; Kotlin is no longer an active process or profile.
 
+### Client-media follow-up
+
+Aqua approved the isolated native player rendering proof and requested client-local playback,
+torrents and device downloads. [The client-media plan](./linux-media-plan.md) records this
+checkpoint, storage ownership and the player UI brief. It supersedes the Jellyfin/home-server
+playback/download requirements below for this work: do not implement those server integrations
+as part of the client-media checkpoint. The concurrent design pass remains separate.
+
 ## Product scope to preserve
 
 The server owns the curated catalog, identity, authorization, artwork, editorial records and

@@ -29,6 +29,51 @@ date. `hasMediaFile` only means a mapping exists in the catalog; it does not ver
 file, grant access to its filesystem path or promise playback. Torrent/Jellyfin playback,
 provider synchronization and progress/download mutations are later contract additions.
 
+## Viewer state and work discussion
+
+All four endpoints require the existing owner Bearer session. Personal writes resolve the
+active linked account on the server; no client account ID or dashboard admin token is accepted.
+
+- `GET /api/v1/works/{id}/state` returns `WorkViewerState`: `workId`, `isFavorite`, canonical
+  `units`, a work `summary`, and `installments` with their own summaries.
+- `PUT /api/v1/works/{id}/favorite` accepts `{ isFavorite }`. It preserves personal rating,
+  notes and the existing saved-offline flag.
+- `PATCH /api/v1/works/{id}/watched` accepts `{ installmentId, episodeId, isPlayed }`.
+  Nullable installment/episode IDs select the whole work or installment. An episode requires
+  its season's installment ID. Explicit bulk selection includes **all catalog units, including
+  future units**, preserving legacy manual semantics. A movie/special is one null-episode unit;
+  a season contains episode units, never a synthetic season playback row.
+- Both writes return the committed `WorkViewerState`, preserve existing playback row UUIDs,
+  position/duration/subtitle offset, and use a transactional manual override. Manual true and
+  false remain distinguishable from automatic watched state through `playedManually`.
+- `GET /api/v1/works/{id}/activity?page=1` returns `WorkActivityPage` with `workId`, `items`,
+  `total`, `page`, and fixed `pageSize: 20`. Published comments/reviews from active discoverable
+  authors only; stable newest-first ordering. Owners may read discussion on private works.
+  Bodies are plain text; `containsSpoilers` must require explicit UI reveal. Comment `parentId`
+  may refer to an entry outside the current page. Reviews may have an empty body and a real rating.
+
+Unit state includes nullable `stateId`, `episodeId`, `durationSeconds`, `playedAt`,
+`subtitleOffsetMs`, `updatedAt`, plus `installmentId`, `isReleased`, `positionSeconds`,
+`isPlayed`, `playedManually`. An unrecorded canonical unit has zero position, false watched/manual
+flags and null row metadata. These defaults are response data, not inserted playback records.
+
+Summaries expose `catalogUnits`, `releasedUnits`, `watchedReleasedUnits`, `isFullyWatched`, and
+`watchState` (`unwatched`, `in-progress`, `watched`). Empty works/seasons are not fully watched.
+Only released units contribute to full completion. Browse and state share the same rule:
+an explicit unit release date must have passed; absent dates fall back to installment release
+status `completed`. Episodes count only under seasons. A future manual watched choice is still
+returned and may produce `in-progress`; it never inflates released-unit completion counts.
+Release completion, watched completion, saved metadata and video availability are independent.
+
+Native gateway methods: `workState(id, signal?)`, `setFavorite(workId, isFavorite)`,
+`setWatched(workId, { installmentId?, episodeId?, isPlayed })`, and
+`workActivity(id, page = 1, signal?)`. Use returned state to replace the account-scoped work-state
+query, then invalidate browse/facets/recommendations affected by watched/favorite changes.
+Clear personal-state queries on logout/account changes. Do not claim downloaded bytes from saved flags.
+
+`pnpm --filter @nahhasio/api-contract test` runs SQL-free generated-schema/transport tests.
+No database mutation test is part of this package's default test command.
+
 `apps/server/tests/client-smoke.mjs` exercises authorized API boundaries against an
 isolated restored server on port 23104. Use only its dedicated fixture session;
 `NAHHASIO_TEST_REVOKE=1` also revokes that session at the end. SQL query verification runs read-only.

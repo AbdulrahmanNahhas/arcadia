@@ -41,6 +41,41 @@ struct LoginResponse {
 struct Resource {
     id: String,
 }
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct FavoriteCommand {
+    work_id: String,
+    is_favorite: bool,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct WatchedCommand {
+    work_id: String,
+    installment_id: Option<String>,
+    episode_id: Option<String>,
+    is_played: bool,
+}
+impl WatchedCommand {
+    fn validate(&self) -> Result<(), Error> {
+        if !valid_id(&self.work_id)
+            || self
+                .installment_id
+                .as_deref()
+                .is_some_and(|id| !valid_id(id))
+            || self.episode_id.as_deref().is_some_and(|id| !valid_id(id))
+            || (self.episode_id.is_some() && self.installment_id.is_none())
+        {
+            return Err(Error::new("bad_request", "Invalid watched target"));
+        }
+        Ok(())
+    }
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ActivityCommand {
+    id: String,
+    page: u32,
+}
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Browse {
@@ -147,9 +182,16 @@ impl Services {
         }
         if !response.status().is_success() {
             return Err(Error::new(
-                "server",
                 match response.status().as_u16() {
-                    401 => "Invalid credentials",
+                    400 | 422 => "bad_request",
+                    403 => "forbidden",
+                    404 => "not_found",
+                    _ => "server",
+                },
+                match response.status().as_u16() {
+                    400 | 422 => "The request or watched target is invalid.",
+                    403 => "Your account cannot perform this operation.",
+                    404 => "The work or selected target is no longer available.",
                     429 => "Too many attempts. Try again shortly.",
                     _ => "The server could not complete this request.",
                 },
@@ -269,6 +311,58 @@ impl Services {
                 }
                 self.json(response).await
             }
+            "workState" => {
+                let input: Resource = parse(request.payload)?;
+                if !valid_id(&input.id) {
+                    return Err(Error::new("bad_request", "Invalid work identifier"));
+                }
+                let response = self
+                    .authorized(Method::GET, &format!("api/v1/works/{}/state", input.id))
+                    .await?
+                    .send()
+                    .await
+                    .map_err(network)?;
+                self.json(response).await
+            }
+            "setFavorite" => {
+                let input: FavoriteCommand = parse(request.payload)?;
+                if !valid_id(&input.work_id) {
+                    return Err(Error::new("bad_request", "Invalid work identifier"));
+                }
+                let response = self
+                    .authorized(
+                        Method::PUT,
+                        &format!("api/v1/works/{}/favorite", input.work_id),
+                    )
+                    .await?
+                    .json(&json!({"isFavorite":input.is_favorite}))
+                    .send()
+                    .await
+                    .map_err(network)?;
+                self.json(response).await
+            }
+            "setWatched" => {
+                let input: WatchedCommand = parse(request.payload)?;
+                input.validate()?;
+                let response = self.authorized(Method::PATCH, &format!("api/v1/works/{}/watched",input.work_id)).await?
+                    .json(&json!({"installmentId":input.installment_id,"episodeId":input.episode_id,"isPlayed":input.is_played}))
+                    .send().await.map_err(network)?;
+                self.json(response).await
+            }
+            "workActivity" => {
+                let input: ActivityCommand = parse(request.payload)?;
+                if !valid_id(&input.id) || !(1..=100_000).contains(&input.page) {
+                    return Err(Error::new("bad_request", "Invalid discussion query"));
+                }
+                let response = self
+                    .authorized(Method::GET, &format!("api/v1/works/{}/activity", input.id))
+                    .await?
+                    .query(&[("page", input.page)])
+                    .send()
+                    .await
+                    .map_err(network)?;
+                self.json(response).await
+            }
             "works" => {
                 let input: Browse = parse(request.payload)?;
                 if input.page_size.is_some_and(|n| n > 100 || n == 0)
@@ -371,7 +465,7 @@ impl Services {
                 ) {
                     return Err(Error::new("response", "Unsupported artwork format"));
                 }
-                let bytes = self.body(response, 8 * 1024 * 1024).await?;
+                let bytes = self.body(response, 10 * 1024 * 1024).await?;
                 Ok(json!({"dataUrl":format!("data:{mime};base64,{}",STANDARD.encode(bytes))}))
             }
             "appInfo" => Ok(
@@ -404,6 +498,186 @@ mod tests {
         assert!(Services::new("https://user:secret@example.org").is_err());
         assert!(Services::new("https://example.org/path").is_err());
     }
+    #[tokio::test]
+    async fn viewer_commands_validate_targets_before_network_and_require_session() {
+        const ID: &str = "00112233-4455-4677-8899-aabbccddeeff";
+        let service = Services::new("http://127.0.0.1:1").unwrap();
+        for (command, payload, code) in [
+            ("workState", json!({"id":ID}), "unauthorized"),
+            (
+                "setFavorite",
+                json!({"workId":ID,"isFavorite":false}),
+                "unauthorized",
+            ),
+            (
+                "setWatched",
+                json!({"workId":ID,"isPlayed":true}),
+                "unauthorized",
+            ),
+            ("workActivity", json!({"id":ID,"page":1}), "unauthorized"),
+            (
+                "setWatched",
+                json!({"workId":ID,"episodeId":ID,"isPlayed":true}),
+                "bad_request",
+            ),
+            (
+                "setWatched",
+                json!({"workId":ID,"installmentId":"../secret","isPlayed":true}),
+                "bad_request",
+            ),
+            (
+                "setWatched",
+                json!({"workId":ID,"accountId":ID,"isPlayed":true}),
+                "bad_request",
+            ),
+            (
+                "setFavorite",
+                json!({"workId":ID,"isFavorite":false,"notes":"overwrite"}),
+                "bad_request",
+            ),
+            ("workActivity", json!({"id":ID,"page":0}), "bad_request"),
+            (
+                "workActivity",
+                json!({"id":ID,"page":100_001}),
+                "bad_request",
+            ),
+        ] {
+            let error = service
+                .execute(Request {
+                    id: "test".into(),
+                    command: command.into(),
+                    payload,
+                })
+                .await
+                .unwrap_err();
+            assert_eq!(error.code, code);
+        }
+    }
+
+    #[tokio::test]
+    async fn viewer_transport_uses_allowlisted_routes_and_keeps_bearer_native() {
+        use std::io::{Read, Write};
+        const ID: &str = "00112233-4455-4677-8899-aabbccddeeff";
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let state = json!({"workId":ID,"isFavorite":true,"units":[],"installments":[],"summary":{"catalogUnits":0,"releasedUnits":0,"watchedReleasedUnits":0,"isFullyWatched":false,"watchState":"unwatched"}});
+        let fixture_state = state.clone();
+        let server = std::thread::spawn(move || {
+            for (index, (method, suffix, expected_body)) in [
+                ("GET", "state", None),
+                ("PUT", "favorite", Some(json!({"isFavorite":true}))),
+                (
+                    "PATCH",
+                    "watched",
+                    Some(json!({"installmentId":null,"episodeId":null,"isPlayed":true})),
+                ),
+                (
+                    "PATCH",
+                    "watched",
+                    Some(json!({"installmentId":ID,"episodeId":ID,"isPlayed":false})),
+                ),
+                ("GET", "activity?page=2", None),
+                ("GET", "state", None),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let mut incoming = Vec::new();
+                let (end, length) = loop {
+                    let mut chunk = [0; 1024];
+                    let count = stream.read(&mut chunk).unwrap();
+                    assert!(count > 0 && incoming.len() + count <= 4096);
+                    incoming.extend_from_slice(&chunk[..count]);
+                    if let Some(end) = incoming.windows(4).position(|bytes| bytes == b"\r\n\r\n") {
+                        let headers = String::from_utf8_lossy(&incoming[..end]);
+                        let length = headers
+                            .lines()
+                            .find_map(|line| {
+                                line.to_ascii_lowercase()
+                                    .strip_prefix("content-length:")
+                                    .and_then(|s| s.trim().parse::<usize>().ok())
+                            })
+                            .unwrap_or(0);
+                        if incoming.len() >= end + 4 + length {
+                            break (end, length);
+                        }
+                    }
+                };
+                let headers = String::from_utf8_lossy(&incoming[..end]);
+                assert!(
+                    headers.starts_with(&format!("{method} /api/v1/works/{ID}/{suffix} HTTP/1.1"))
+                );
+                assert!(
+                    headers
+                        .to_ascii_lowercase()
+                        .contains("authorization: bearer fixture-only-token")
+                );
+                if let Some(expected) = expected_body {
+                    assert_eq!(
+                        serde_json::from_slice::<Value>(&incoming[end + 4..end + 4 + length])
+                            .unwrap(),
+                        expected
+                    );
+                } else {
+                    assert_eq!(length, 0);
+                }
+                let status = if index == 5 {
+                    "404 Not Found"
+                } else {
+                    "200 OK"
+                };
+                let response = if index == 4 {
+                    json!({"workId":ID,"items":[],"total":0,"page":2,"pageSize":20})
+                } else {
+                    fixture_state.clone()
+                }
+                .to_string();
+                write!(stream,"HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{response}",response.len()).unwrap();
+            }
+        });
+        let service = Services::new(&format!("http://{address}/")).unwrap();
+        *service.token.lock().await = Some("fixture-only-token".into());
+        for (command, payload) in [
+            ("workState", json!({"id":ID})),
+            ("setFavorite", json!({"workId":ID,"isFavorite":true})),
+            ("setWatched", json!({"workId":ID,"isPlayed":true})),
+            (
+                "setWatched",
+                json!({"workId":ID,"installmentId":ID,"episodeId":ID,"isPlayed":false}),
+            ),
+            ("workActivity", json!({"id":ID,"page":2})),
+        ] {
+            let response = service
+                .execute(Request {
+                    id: "test".into(),
+                    command: command.into(),
+                    payload,
+                })
+                .await
+                .unwrap();
+            assert_eq!(response["workId"], ID);
+            assert!(response.get("token").is_none());
+            if command != "workActivity" {
+                assert_eq!(response, state);
+            }
+        }
+        let error = service
+            .execute(Request {
+                id: "test".into(),
+                command: "workState".into(),
+                payload: json!({"id":ID}),
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, "not_found");
+        assert!(service.token.lock().await.is_some());
+        server.join().unwrap();
+    }
+
     #[tokio::test]
     async fn login_keeps_credentials_native_and_expired_session_clears_them() {
         use std::io::{Read, Write};
