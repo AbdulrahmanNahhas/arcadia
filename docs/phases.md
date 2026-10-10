@@ -1,17 +1,19 @@
 # Nahhasio rewrite phases
 
-Updated 2026-10-08. Work happens on `codex/nahhasio-server-first`.
+Updated 2026-10-10. Work happens on `codex/nahhasio-server-first`.
 Complete one phase, report changes and verification, then stop for Aqua's review.
 Do not start the next phase until Aqua asks to continue.
 
-## Current Linux transition — 2026-10-08
+## Current Linux checkpoint — 2026-10-10
 
 [The Linux client plan](./linux-client-plan.md) supersedes the Kotlin/Compose direction below.
 Aqua chose Rust GTK4/libadwaita/WebKitGTK/libmpv with a separate React/Vite/TypeScript UI.
-The approved current step is devenv repair plus planning/instructions; retirement and the first
-minimal GTK login/library shell follow review. Today the agent writes the needed bootstrap Rust;
-after it works, Aqua practices through commented exercises and guided review. Stop for confirmation
-after every step or visible change. Older Kotlin milestones below are historical checkpoints.
+Kotlin retirement and the GTK login/library baseline are complete. Aqua approved the work-page
+design, committed as `c80e1a8`; see [the checkpoint report](./linux-work-page-checkpoint-2026-10-10.md)
+and [desktop testing guide](./linux-client-testing.md). Playback/torrents/downloads require a
+separately authorized step. Aqua owns client Rust exercises after the bootstrap; agents supply
+interfaces and reviews rather than unattended solutions. Stop for confirmation after every
+step or visible change. Older milestone approvals below are historical, not standing permission.
 
 ## Decisions
 

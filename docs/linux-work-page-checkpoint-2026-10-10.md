@@ -1,7 +1,9 @@
 # Linux work-page review checkpoint
 
-2026-10-10. Implementation is ready for Aqua's design review, uncommitted. Playback,
-torrents and downloads are outside this checkpoint; their buttons remain disabled.
+2026-10-10. Aqua approved the design and requested its commit: `c80e1a8`
+(`feat(linux): redesign work details and viewer tracking`). Playback, torrents and downloads
+are outside this checkpoint; their buttons remain disabled. Future verification follows
+[the desktop testing guide](./linux-client-testing.md).
 
 ## Reviewed scope
 
@@ -79,5 +81,6 @@ Native captures use the final `index-BFyBsfUi.js` bundle. Aqua's subsequent shar
 focus/private-badge adjustments were preserved, browser-tested and rebuilt as
 `index-CiI6ziYT.js`; those two small adjustments were not recaptured in GTK.
 
-No commits, migrations, live catalog mutation tests, player, torrent or download implementation
-were performed. Stop here for Aqua's review.
+Implementation was handed off without a commit, then committed only after Aqua's explicit
+approval. No migrations, live catalog mutation tests, player, torrent or download implementation
+were performed. This checkpoint is complete; do not start the next step without authorization.

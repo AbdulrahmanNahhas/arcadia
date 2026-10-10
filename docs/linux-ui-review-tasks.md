@@ -1,9 +1,19 @@
 # Linux client design checkpoints
 
-Updated 2026-10-09. This is Aqua's current UI request, alongside
+Updated 2026-10-10. This is Aqua's current UI request, alongside
 [the Linux client plan](./linux-client-plan.md). Complete one checkpoint, show the result and
 actual verification, then stop for Aqua's design and behavior review. Do not implement the
 whole checklist without those reviews. Keep commits focused and the working app runnable.
+
+## Latest review checkpoint
+
+Aqua approved the work-page design on 2026-10-10, committed as `c80e1a8`.
+[The checkpoint report](./linux-work-page-checkpoint-2026-10-10.md) records the final five-tab
+layout, intentionally removed sections, real viewer tracking, actual checks and remaining limits.
+It supersedes the older minimal-work-page descriptions below; unchecked historical inventory
+items do not authorize restoring rejected UI. Follow [desktop testing](./linux-client-testing.md)
+for future changes. Native GPU smoothness and physical input remain unverified. Playback,
+torrents and downloads require a separate authorization; stop after this checkpoint.
 
 ## Confirmed direction
 

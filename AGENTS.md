@@ -25,11 +25,11 @@ Permission already given for the current step covers its necessary implementatio
 Do not create commits without Aqua's explicit confirmation for that checkpoint. Include the actual
 command in command-approval requests so Aqua can see what will run.
 
-Current approved milestone: Aqua confirmed the plan and authorized one continuous pass through
-Kotlin retirement and the minimal runnable GTK client (real login and main library page), with
-clean committed checkpoints before and after. Those steps may proceed within this approval;
-stop at the resulting milestone or if Aqua rejects a visible direction. Playback/download
-expansion and the learning phase need later review. Preserve unrelated work.
+Current checkpoint: Aqua approved the Linux work-page design on 2026-10-10, committed as
+`c80e1a8`. See `docs/linux-work-page-checkpoint-2026-10-10.md` for verification and limits.
+The GTK login/library baseline and Kotlin retirement are complete. Playback/torrents/downloads
+follow a separately authorized step; do not start them from the older bootstrap approval.
+Preserve unrelated work.
 
 ## Rust learning ownership
 
@@ -80,6 +80,18 @@ Run relevant tests and the build before handoff; run Playwright for visible/rout
 Database mutation tests require a disposable migrated/restored database. Default test commands
 can include integration suites: never point them at the live family catalog.
 Keep commits focused and conventional. Include actual checks and material limitations in reports.
+
+## Desktop client verification
+
+Follow `docs/linux-client-testing.md` for commands, native smoke isolation and reporting.
+Browser Playwright checks are not GTK/WebKit verification. For visible desktop changes, test
+both the fixture-backed browser UI and the freshly built packaged native client; inspect
+screenshots and verify RTL arrows, Tab/Enter/Escape, focus restoration and narrow layouts.
+Keep private captures/fixtures ignored, never use the live catalog for mutation tests, and
+never relax CSP/origin/auth guards to make a test pass. Record the tested bundle/binary and
+actual viewport. Synthetic events and software-rendered smoke do not prove physical input,
+GPU smoothness or playback. Fully quit/relaunch GTK after bridge changes; single-instance
+activation can silently keep the old executable alive.
 
 ## Website rules
 
@@ -152,5 +164,5 @@ sidebar context. Cover existing editorial/admin workflows, TMDB, Fanart, images,
 inspection, JSON/bulk editing, maintenance, revisions, users/devices, and server operations.
 UI routes may be prepared before their services; pending actions must stay visibly disabled.
 Do not claim full database control from UI layouts. Connect authorization and transactional
-mutations before enabling them. The approved next client checkpoint is only a runnable GTK shell,
-real login and main library page; torrent/Jellyfin playback and downloads follow separate reviews.
+mutations before enabling them. The Linux work-page checkpoint is approved; torrent/Jellyfin
+playback and downloads follow separate authorization and review.
