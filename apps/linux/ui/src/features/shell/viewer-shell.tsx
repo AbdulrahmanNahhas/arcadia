@@ -1,7 +1,17 @@
 import type { User } from "@nahhasio/api-contract";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
-import { Compass, Home, Search, LogOut, Library, Orbit, Users, Building2 } from "lucide-react";
+import {
+  Compass,
+  Home,
+  Search,
+  LogOut,
+  Library,
+  Orbit,
+  Users,
+  Building2,
+  CalendarDays,
+} from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
 import { CardNavigationProvider } from "../../components/card-navigation";
@@ -20,6 +30,7 @@ import { HomePage } from "../home/home-page";
 import { PeoplePage } from "../people/people-page";
 import { PlanetsPage } from "../planets/planets-page";
 import { CacheControl } from "../player/cache-control";
+import { ReleasesPage } from "../releases/releases-page";
 import { SearchPage } from "../search/search-page";
 import { StudiosPage } from "../studios/studios-page";
 import { WorkPage } from "../work/work-page";
@@ -135,6 +146,12 @@ export function ViewerShell({ user }: { user: User }) {
               icon: Compass,
               active: parts[0] === "browse",
             },
+            {
+              href: "#/releases",
+              label: "الإصدارات",
+              icon: CalendarDays,
+              active: parts[0] === "releases",
+            },
             { href: "#/planets", label: "الكواكب", icon: Orbit, active: parts[0] === "planets" },
             { href: "#/people", label: "الصنّاع", icon: Users, active: parts[0] === "people" },
             {
@@ -222,6 +239,8 @@ export function ViewerShell({ user }: { user: User }) {
               <SearchPage params={route.params} />
             ) : parts[0] === "browse" ? (
               <BrowsePage params={route.params} />
+            ) : parts[0] === "releases" ? (
+              <ReleasesPage params={route.params} />
             ) : parts[0] === "planets" ? (
               <PlanetsPage key={parts[1] ?? "planets"} id={parts[1]} params={route.params} />
             ) : parts[0] === "people" ? (

@@ -68,3 +68,443 @@
   --foreground: var(--text);
   --secondary: var(--surface);
 }
+
+/* Release dates form the page's structure; artwork stays secondary to the schedule. */
+.releases-page {
+  max-width: 1600px;
+  margin-inline: auto;
+  padding: 48px 40px 32px;
+}
+
+.release-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.release-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.release-header h1 {
+  font-family: "Plex Arabic", var(--font-sans);
+  font-size: 42px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
+.release-intro {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.release-year {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.release-year-number {
+  font-size: 72px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -4px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.release-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-block: 18px;
+  border-block: 1px solid var(--line);
+  margin-bottom: 24px;
+}
+
+.release-views {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.release-views a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.release-views a:hover,
+.release-views a[aria-current="page"] {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.release-views a[aria-current="page"] {
+  color: var(--accent);
+}
+
+.release-months {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 28px;
+}
+
+.release-months button {
+  padding: 12px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  border-radius: 10px;
+  border-bottom: 2px solid transparent;
+}
+
+.release-months button:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+
+.release-months button[aria-pressed="true"] {
+  background: var(--panel);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.release-calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.release-calendar {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+}
+
+.release-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.release-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 10px;
+  min-height: 84px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--background);
+  text-align: start;
+}
+
+.release-day:hover {
+  background: var(--surface);
+}
+
+.release-day[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.release-day[aria-current="date"] .release-day-number {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+.release-day-number {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.release-day-count {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.release-day-dot {
+  position: absolute;
+  inset-inline-end: 10px;
+  top: 17px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.release-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  transition: border-color 120ms;
+}
+
+.release-row:hover {
+  border-color: var(--muted);
+}
+
+.release-poster {
+  width: 44px;
+  height: 64px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.release-poster > span {
+  display: none;
+}
+
+.release-date-group {
+  position: relative;
+  padding-inline-start: 20px;
+  border-inline-start: 1px solid var(--line);
+}
+
+.release-date-label {
+  position: relative;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-block: 2px;
+}
+
+.release-date-label::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -24px;
+  top: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.release-timeline {
+  max-width: 900px;
+  margin-inline: auto;
+  padding-top: 12px;
+}
+
+.release-season-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.release-season-tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--muted);
+  text-align: start;
+}
+
+.release-season-tabs button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.release-season-tabs small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.release-season-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.release-season-month {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-block: 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.release-season-month span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.release-upcoming-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 32px;
+  padding-top: 12px;
+  align-items: start;
+}
+
+.release-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.release-section-heading svg {
+  color: var(--accent);
+}
+
+.release-undated {
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+}
+
+.release-footer {
+  padding-top: 28px;
+  margin-top: 28px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+@media (max-width: 1200px) {
+  .release-calendar-layout,
+  .release-upcoming-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .release-season-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .release-calendar {
+    max-width: 850px;
+  }
+
+  .release-months {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .releases-page {
+    padding: 28px 16px;
+  }
+
+  .release-header {
+    align-items: start;
+    flex-direction: column;
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+
+  .release-header h1 {
+    font-size: 32px;
+  }
+
+  .release-intro {
+    font-size: 12px;
+  }
+
+  .release-year-number {
+    font-size: 46px;
+    letter-spacing: -2px;
+  }
+
+  .release-toolbar {
+    gap: 14px;
+  }
+
+  .release-views {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .release-views a {
+    padding: 10px 6px;
+    font-size: 11px;
+    gap: 5px;
+  }
+
+  .release-calendar {
+    padding: 14px 8px;
+  }
+
+  .release-day {
+    min-height: 64px;
+    padding: 9px 5px;
+    gap: 8px;
+    border-radius: 8px;
+  }
+
+  .release-day-dot {
+    inset-inline-end: 5px;
+    top: 9px;
+    width: 3px;
+    height: 3px;
+  }
+
+  .release-day-word {
+    display: none;
+  }
+
+  .release-season-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .release-season-tabs button {
+    padding: 14px;
+  }
+
+  .release-undated {
+    padding: 16px;
+  }
+
+  .release-row {
+    gap: 10px;
+    padding: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .release-row {
+    transition: none;
+  }
+}

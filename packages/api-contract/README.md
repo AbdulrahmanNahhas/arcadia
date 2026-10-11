@@ -29,6 +29,39 @@ date. `hasMediaFile` only means a mapping exists in the catalog; it does not ver
 file, grant access to its filesystem path or promise playback. Torrent/Jellyfin playback,
 provider synchronization and progress/download mutations are later contract additions.
 
+## Public releases
+
+`GET /api/v1/releases` requires the existing owner Bearer session and always excludes private
+works. The generated exports are `ReleaseEntrySchema` / `ReleaseEntry` and
+`ReleasesPageSchema` / `ReleasesPage`. `ApiClient.getReleases(query = {}, signal?)` accepts
+optional `year`, `month`, `day`, `kind` (`all`, `installments`, `episodes`), `scope` (`year`, `upcoming`,
+`undated`), `page` and `pageSize`. The native command is `releases` with the same query payload;
+UI code must parse its reply with `ReleasesPageSchema`.
+
+Defaults are the database's current year, `kind=all`, `scope=year`, `page=1`, `pageSize=24`.
+Year is 1–9999, month 1–12, day 1–31, page 1–100000 and page size 1–100. Year/month are accepted
+only in `year` scope. Day additionally requires a supplied month; omitted scope defaults to `year`.
+Nonexistent calendar dates (such as February 31) match no entries. `upcoming` includes dated entries from `current_date` onward across years;
+`undated` includes announced installments and undated episodes whose parent is announced or airing.
+Dates come only from the selected row's recorded `release_date`, never a title year or parent date.
+
+The page returns `items`, `total`, `page`, `pageSize`, ascending distinct actual public release
+`years` (independent of filters), `days`, and the database calendar date `asOf`.
+`days` is an ascending array of `{ date: "YYYY-MM-DD", count: integer }` for populated dates in
+the filtered scope **before pagination**, respecting kind, year, month and selected day. Undated
+results have `days: []`. A calendar overview requests a month without day and `pageSize=1` for exact
+daily counts without downloading all episodes; selecting a day adds `day` for its paginated feed
+(and its single-date count). Counts do not depend on the requested page or page size.
+Entries sort by ascending
+date (null last), work sort title, installment/episode positions, kind and UUID. Both entry types
+carry their parent work/installment IDs and titles. Episode numbers remain decimal strings;
+episode `status` is the parent's recorded status and episode `episodeCount` is null. Installment
+`episodeCount` counts recorded episodes. Missing metadata stays null. Posters prefer installment
+then work artwork and use the same registered, authenticated artwork representation. The native
+adapter reconstructs poster URLs from validated UUIDs and excludes filesystem/extra artwork fields.
+No passed date or release status promises playback availability. This endpoint writes nothing and
+performs no provider lookups.
+
 ## Viewer state and work discussion
 
 All four endpoints require the existing owner Bearer session. Personal writes resolve the

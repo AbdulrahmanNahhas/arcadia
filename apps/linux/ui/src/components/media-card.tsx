@@ -5,15 +5,13 @@ import type {
   WorkSummary,
 } from "@nahhasio/api-contract";
 import { cn } from "cn";
-import { CalendarDays, CheckCircle, Download, Film, Star, Tv } from "lucide-react";
+import { CalendarDays, CheckCircle, Film, Star, Tv } from "lucide-react";
 
 import { optionLabel } from "../features/catalog/filter-model";
-import { requestDownload } from "../features/player/watch-request";
 import { workLink } from "../features/shell/navigation";
 import { Artwork } from "./artwork";
 import { useCardNavigation } from "./card-navigation";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
 
 export function ScoreBadge({ score }: { score: ScoreSummary }) {
   return (
@@ -205,19 +203,6 @@ export function MediaCard({
           </div>
         )}
       </a>
-      {!minimal && (
-        <Button
-          {...navigation}
-          variant="ghost"
-          size="sm"
-          disabled={status === "announced"}
-          aria-label={`تنزيل ${title}`}
-          onClick={() => requestDownload({ workId, installmentId: unit?.id, title })}
-        >
-          <Download data-icon="inline-start" />
-          تنزيل
-        </Button>
-      )}
     </article>
   );
 }

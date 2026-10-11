@@ -170,6 +170,77 @@ test.beforeEach(async ({ page }) => {
                     ],
                   };
                   break;
+                case "releases": {
+                  const query = request.payload;
+                  const base = {
+                    workId: fixtureWork.id,
+                    workTitle: fixtureWork.canonicalTitle,
+                    workTitleAr: fixtureWork.titleAr,
+                    installmentId: fixtureDetail.installments[0].id,
+                    installmentTitle: "الموسم القادم",
+                    installmentKind: "season",
+                    episodeNumber: null,
+                    runtimeMinutes: 24,
+                    status: "announced",
+                    episodeCount: 12,
+                    poster: null,
+                  };
+                  let entries = [
+                    {
+                      ...base,
+                      id: fixtureDetail.installments[0].id,
+                      kind: "installment",
+                      title: "الموسم القادم",
+                      releaseDate: "2027-01-02",
+                    },
+                    {
+                      ...base,
+                      id: "00000000-0000-4000-8000-000000000008",
+                      kind: "episode",
+                      title: "بداية جديدة",
+                      episodeNumber: "1",
+                      episodeCount: null,
+                      releaseDate: "2027-01-02",
+                    },
+                    {
+                      ...base,
+                      id: "00000000-0000-4000-8000-000000000009",
+                      kind: "installment",
+                      title: "جزء بلا موعد",
+                      releaseDate: null,
+                    },
+                  ];
+                  if (query.kind === "episodes")
+                    entries = entries.filter((item) => item.kind === "episode");
+                  if (query.kind === "installments")
+                    entries = entries.filter((item) => item.kind === "installment");
+                  if (query.scope === "undated")
+                    entries = entries.filter((item) => item.releaseDate === null);
+                  else if (query.scope === "upcoming")
+                    entries = entries.filter((item) => item.releaseDate !== null);
+                  else
+                    entries = entries.filter(
+                      (item) =>
+                        item.releaseDate !== null &&
+                        Number(item.releaseDate.slice(0, 4)) === (query.year ?? 2026) &&
+                        (!query.month || Number(item.releaseDate.slice(5, 7)) === query.month) &&
+                        (!query.day || Number(item.releaseDate.slice(8)) === query.day),
+                    );
+                  const counts = new Map<string, number>();
+                  for (const item of entries)
+                    if (item.releaseDate)
+                      counts.set(item.releaseDate, (counts.get(item.releaseDate) ?? 0) + 1);
+                  result = {
+                    items: entries.slice(0, query.pageSize ?? 24),
+                    total: entries.length,
+                    page: query.page ?? 1,
+                    pageSize: query.pageSize ?? 24,
+                    years: [2027],
+                    asOf: "2026-10-11",
+                    days: [...counts].map(([date, count]) => ({ date, count })),
+                  };
+                  break;
+                }
                 case "filters":
                   result = {
                     planets: [
@@ -426,6 +497,50 @@ async function login(page: Page) {
   await page.getByLabel("كلمة المرور").fill("fixture-password");
   await page.getByRole("button", { name: "دخول المكتبة" }).click();
   await expect(page.getByRole("region", { name: "أحدث الأعمال" })).toBeVisible();
+}
+test("releases calendar, timeline, seasons and upcoming use bounded real-shaped data", async ({
+  page,
+}) => {
+  await login(page);
+  await page
+    .getByRole("navigation", { name: "التنقل الرئيسي" })
+    .getByRole("link", { name: "الإصدارات", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { name: "الإصدارات", exact: true })).toBeVisible();
+  await page.goto("/#/releases?year=2027&month=1");
+  const second = page.locator('.release-day[data-day="2"]');
+  await expect(second).toHaveAccessibleName(/2 إصدار/);
+  await second.focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.locator('.release-day[data-day="3"]')).toBeFocused();
+  await second.click();
+  await expect(page.locator(".release-row")).toHaveCount(2);
+  await expect(page.getByRole("link", { name: /بداية جديدة/ })).toHaveAttribute(
+    "href",
+    /episode=00000000-0000-4000-8000-000000000008/,
+  );
+  await page.getByRole("link", { name: "الخط الزمني", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "على امتداد 2027" })).toBeVisible();
+  await expect(page.locator(".release-row")).toHaveCount(2);
+  await page.getByRole("link", { name: "الفصول", exact: true }).click();
+  await page.getByRole("button", { name: /الشتاء/ }).click();
+  await expect(page.locator(".release-season-grid .release-row")).toHaveCount(2);
+  await page.getByRole("link", { name: "القادم", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "في الأفق" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "جزء بلا موعد", exact: true })).toBeVisible();
+});
+for (const width of [480, 1440]) {
+  test(`releases responsive ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await login(page);
+    await page.goto("/#/releases?year=2027&month=1");
+    await expect(page.locator('.release-day[data-day="2"]')).toHaveAccessibleName(/2 إصدار/);
+    await expect(page.locator(".release-row")).toHaveCount(2);
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      .toBe(true);
+    await page.screenshot({ path: `../../../data/previews/releases-${width}.png`, fullPage: true });
+  });
 }
 async function browse(page: Page) {
   await page

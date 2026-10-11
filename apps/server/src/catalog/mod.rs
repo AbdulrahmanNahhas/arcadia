@@ -3,6 +3,7 @@ mod browse;
 mod home;
 mod queries;
 mod recommendations;
+mod releases;
 mod tracking;
 mod viewer_state;
 
@@ -22,6 +23,7 @@ use sqlx::{AssertSqlSafe, PgPool, types::Json as SqlJson};
 pub fn routes(pool: PgPool) -> Router {
     Router::new()
         .route("/api/v1/works", get(works))
+        .route("/api/v1/releases", get(releases::releases))
         .route("/api/v1/catalog/browse", get(browse::browse))
         .route("/api/v1/catalog/facets", get(browse::options))
         .route(

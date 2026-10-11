@@ -74,6 +74,8 @@ def validator(schema):
             if "enum" in schema
             else "z.string()"
         )
+        if schema.get("format") == "date":
+            result = "z.iso.date()"
         if "minLength" in schema:
             result += f".min({schema['minLength']})"
         if "maxLength" in schema:

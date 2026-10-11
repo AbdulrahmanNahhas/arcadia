@@ -127,6 +127,41 @@ export const ArtworkSchema = z.strictObject({
 });
 export type Artwork = z.infer<typeof ArtworkSchema>;
 
+export const ReleaseEntrySchema = z.strictObject({
+  id: z.string().uuid(),
+  workId: z.string().uuid(),
+  workTitle: z.string(),
+  workTitleAr: z.string().nullable(),
+  installmentId: z.string().uuid(),
+  installmentTitle: z.string().nullable(),
+  installmentKind: z.string(),
+  episodeNumber: z.string().nullable(),
+  title: z.string().nullable(),
+  kind: z.enum(["installment", "episode"]),
+  releaseDate: z.iso.date().nullable(),
+  status: z.string(),
+  runtimeMinutes: z.number().int().nullable(),
+  episodeCount: z.number().int().min(0).nullable(),
+  poster: ArtworkSchema.nullable(),
+});
+export type ReleaseEntry = z.infer<typeof ReleaseEntrySchema>;
+
+export const ReleasesPageSchema = z.strictObject({
+  items: z.array(ReleaseEntrySchema),
+  total: z.number().int().min(0),
+  page: z.number().int().min(1).max(100000),
+  pageSize: z.number().int().min(1).max(100),
+  years: z.array(z.number().int().min(1).max(9999)),
+  days: z.array(
+    z.strictObject({
+      date: z.iso.date(),
+      count: z.number().int().min(1),
+    }),
+  ),
+  asOf: z.iso.date(),
+});
+export type ReleasesPage = z.infer<typeof ReleasesPageSchema>;
+
 export const ArtworkAssignmentSchema = z.strictObject({
   id: z.string().uuid(),
   url: z.string(),
@@ -207,7 +242,7 @@ export const EpisodeSchema = z.strictObject({
   position: z.number().int(),
   title: z.string().nullable(),
   summary: z.string(),
-  releaseDate: z.string().nullable(),
+  releaseDate: z.iso.date().nullable(),
   runtimeMinutes: z.number().int().nullable(),
   releaseState: z.enum(["unknown", "upcoming", "released"]),
   hasMediaFile: z.boolean(),
@@ -242,7 +277,7 @@ export const InstallmentSchema = z.strictObject({
   position: z.number().int(),
   title: z.string(),
   summary: z.string(),
-  releaseDate: z.string().nullable(),
+  releaseDate: z.iso.date().nullable(),
   runtimeMinutes: z.number().int().nullable(),
   status: z.enum(["announced", "airing", "completed", "unknown"]),
   externalIds: ExternalIdsSchema,
@@ -367,7 +402,7 @@ export const AwardCeremonySchema = z.strictObject({
   year: z.number().int(),
   edition: z.number().int().nullable(),
   label: z.string(),
-  heldOn: z.string().nullable(),
+  heldOn: z.iso.date().nullable(),
   sourceUrl: z.string().nullable(),
 });
 export type AwardCeremony = z.infer<typeof AwardCeremonySchema>;
@@ -600,6 +635,29 @@ export class ApiClient {
     });
     if (!response.ok) throw new globalThis.Error(`API request failed (${response.status})`);
     return response;
+  }
+  async getReleases(
+    query: {
+      year?: number;
+      month?: number;
+      day?: number;
+      kind?: "all" | "installments" | "episodes";
+      scope?: "year" | "upcoming" | "undated";
+      page?: number;
+      pageSize?: number;
+    } = {},
+    signal?: AbortSignal,
+  ): Promise<ReleasesPage> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value !== undefined) params.set(key, String(value));
+    const response = await this.request(
+      "/api/v1/releases" + (params.size ? `?${params}` : ""),
+      "GET",
+      undefined,
+      signal,
+    );
+    return ReleasesPageSchema.parse(await response.json());
   }
   async getWorkState(id: string, signal?: AbortSignal): Promise<WorkViewerState> {
     const response = await this.request(

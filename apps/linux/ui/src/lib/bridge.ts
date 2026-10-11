@@ -3,6 +3,7 @@ import {
   CatalogPageSchema,
   FacetCatalogSchema,
   HomeFeedSchema,
+  ReleasesPageSchema,
   SessionSchema,
   WorkDetailSchema,
   WorkPageSchema,
@@ -18,6 +19,7 @@ export type WatchedSelection = Pick<WatchedRequest, "isPlayed"> & {
 };
 import { z } from "zod";
 export type CatalogQuery = NonNullable<Parameters<ApiClient["browseCatalog"]>[0]>;
+export type ReleasesQuery = NonNullable<Parameters<ApiClient["getReleases"]>[0]>;
 export type LibraryQuery = NonNullable<Parameters<ApiClient["listWorks"]>[0]>;
 const ReplySchema = z.discriminatedUnion("ok", [
   z.object({ id: z.string(), ok: z.literal(true), result: z.json().optional() }),
@@ -111,6 +113,8 @@ export const gateway = {
   facets: async (query: CatalogQuery, signal?: AbortSignal) =>
     FacetCatalogSchema.parse(await call("facets", query, signal)),
 
+  releases: async (query: ReleasesQuery, signal?: AbortSignal) =>
+    ReleasesPageSchema.parse(await call("releases", query, signal)),
   home: async (signal?: AbortSignal) => HomeFeedSchema.parse(await call("home", {}, signal)),
   filters: async (signal?: AbortSignal) =>
     CatalogFiltersSchema.parse(await call("filters", {}, signal)),

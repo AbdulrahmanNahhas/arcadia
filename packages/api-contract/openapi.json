@@ -16,6 +16,71 @@
     }
   ],
   "paths": {
+    "/api/v1/releases": {
+      "get": {
+        "operationId": "getReleases",
+        "description": "Read-only public releases using actual installment/episode dates only. Defaults to the database current year. Year/month are valid only in year scope. Optional day (1–31) requires year scope and a supplied month. Days contain exact counts by recorded date from the filtered scope before pagination (including any day filter), ordered by date; undated returns no days. A month overview can use pageSize=1 without fetching all entries. Upcoming is dated-only from current_date across years. Undated includes announced installments and episodes whose parent is announced/airing. Episode status is the parent installment status; episodeCount is null for episodes. Posters prefer installment then work. Stable ascending date (null last), work sort title, installment/episode positions, kind and UUID ordering. Years are ascending distinct actual known public release years, independent of query filters. A passed date does not imply playback availability.",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 9999 }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 12 }
+          },
+          {
+            "name": "day",
+            "in": "query",
+            "description": "Day of month; requires year scope and a supplied month. Nonexistent calendar dates match no entries.",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 31 }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["all", "installments", "episodes"],
+              "default": "all"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["year", "upcoming", "undated"],
+              "default": "year"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100000, "default": 1 }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 24 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounded public releases page and server calendar date",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ReleasesPage" } }
+            }
+          },
+          "400": {
+            "description": "Invalid query, unknown field or incompatible scope/year/month/day"
+          },
+          "401": { "description": "Owner session required" },
+          "503": { "description": "Catalog temporarily unavailable" }
+        }
+      }
+    },
     "/api/v1/works/{id}/state": {
       "get": {
         "operationId": "getWorkState",
@@ -1168,6 +1233,72 @@
             "type": "string",
             "format": "date-time"
           }
+        }
+      },
+      "ReleaseEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "workId",
+          "workTitle",
+          "workTitleAr",
+          "installmentId",
+          "installmentTitle",
+          "installmentKind",
+          "episodeNumber",
+          "title",
+          "kind",
+          "releaseDate",
+          "status",
+          "runtimeMinutes",
+          "episodeCount",
+          "poster"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "workId": { "type": "string", "format": "uuid" },
+          "workTitle": { "type": "string" },
+          "workTitleAr": { "type": "string", "nullable": true },
+          "installmentId": { "type": "string", "format": "uuid" },
+          "installmentTitle": { "type": "string", "nullable": true },
+          "installmentKind": { "type": "string" },
+          "episodeNumber": { "type": "string", "nullable": true },
+          "title": { "type": "string", "nullable": true },
+          "kind": { "type": "string", "enum": ["installment", "episode"] },
+          "releaseDate": { "type": "string", "format": "date", "nullable": true },
+          "status": { "type": "string" },
+          "runtimeMinutes": { "type": "integer", "nullable": true },
+          "episodeCount": { "type": "integer", "minimum": 0, "nullable": true },
+          "poster": { "allOf": [{ "$ref": "#/components/schemas/Artwork" }], "nullable": true }
+        }
+      },
+      "ReleasesPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["items", "total", "page", "pageSize", "years", "days", "asOf"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ReleaseEntry" } },
+          "total": { "type": "integer", "minimum": 0 },
+          "page": { "type": "integer", "minimum": 1, "maximum": 100000 },
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 100 },
+          "years": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 1, "maximum": 9999 }
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["date", "count"],
+              "properties": {
+                "date": { "type": "string", "format": "date" },
+                "count": { "type": "integer", "minimum": 1 }
+              }
+            }
+          },
+          "asOf": { "type": "string", "format": "date" }
         }
       },
       "Artwork": {

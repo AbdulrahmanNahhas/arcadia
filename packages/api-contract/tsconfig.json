@@ -7,7 +7,10 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "lib": ["ES2022", "DOM"]
   },
-  "include": ["src"]
+  "include": ["src", "tests"]
 }

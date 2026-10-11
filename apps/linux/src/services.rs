@@ -127,6 +127,87 @@ struct CatalogQuery {
     year_to: Option<u32>,
 }
 
+#[derive(Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ReleasesQuery {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    year: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    month: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    day: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scope: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page_size: Option<u32>,
+}
+impl ReleasesQuery {
+    fn validate(&self) -> Result<(), Error> {
+        let scope = self.scope.as_deref().unwrap_or("year");
+        if self.year.is_some_and(|n| !(1..=9999).contains(&n))
+            || self.month.is_some_and(|n| !(1..=12).contains(&n))
+            || self.day.is_some_and(|n| !(1..=31).contains(&n))
+            || (self.day.is_some() && (scope != "year" || self.month.is_none()))
+            || self.page.is_some_and(|n| !(1..=100_000).contains(&n))
+            || self.page_size.is_some_and(|n| !(1..=100).contains(&n))
+            || !matches!(
+                self.kind.as_deref().unwrap_or("all"),
+                "all" | "installments" | "episodes"
+            )
+            || !matches!(scope, "year" | "upcoming" | "undated")
+            || (scope != "year" && (self.year.is_some() || self.month.is_some()))
+        {
+            return Err(Error::new("bad_request", "Invalid releases query"));
+        }
+        Ok(())
+    }
+}
+
+fn sanitize_release_posters(value: &mut Value) {
+    if let Some(items) = value.get_mut("items").and_then(Value::as_array_mut) {
+        for item in items {
+            if let Some(poster) = item.get_mut("poster") {
+                let id = poster
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .filter(|id| valid_id(id))
+                    .map(str::to_owned);
+                let mime = poster.get("mimeType").and_then(Value::as_str);
+                if let Some(id) = id
+                    && matches!(
+                        mime,
+                        Some("image/jpeg" | "image/png" | "image/webp" | "image/avif")
+                    )
+                    && let Some(fields) = poster.as_object_mut()
+                {
+                    // Artwork requests resolve registered UUIDs, never server-supplied external URLs or paths.
+                    fields.retain(|key, _| {
+                        matches!(
+                            key.as_str(),
+                            "id" | "url"
+                                | "mimeType"
+                                | "width"
+                                | "height"
+                                | "byteSize"
+                                | "sha256"
+                                | "originalFilename"
+                                | "focalX"
+                                | "focalY"
+                        )
+                    });
+                    fields.insert("url".into(), Value::String(format!("/api/v1/artwork/{id}")));
+                } else {
+                    *poster = Value::Null;
+                }
+            }
+        }
+    }
+}
+
 fn parse<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, Error> {
     serde_json::from_value(value).map_err(|_| Error::new("bad_request", "Invalid command fields"))
 }
@@ -363,6 +444,20 @@ impl Services {
                     .map_err(network)?;
                 self.json(response).await
             }
+            "releases" => {
+                let input: ReleasesQuery = parse(request.payload)?;
+                input.validate()?;
+                let response = self
+                    .authorized(Method::GET, "api/v1/releases")
+                    .await?
+                    .query(&input)
+                    .send()
+                    .await
+                    .map_err(network)?;
+                let mut value = self.json(response).await?;
+                sanitize_release_posters(&mut value);
+                Ok(value)
+            }
             "works" => {
                 let input: Browse = parse(request.payload)?;
                 if input.page_size.is_some_and(|n| n > 100 || n == 0)
@@ -491,6 +586,152 @@ async fn bounded_body(mut response: Response, max: usize) -> Result<Vec<u8>, Err
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn releases_validate_before_network_and_require_session() {
+        let service = Services::new("http://127.0.0.1:1").unwrap();
+        for payload in [
+            json!({"year":0}),
+            json!({"year":10000}),
+            json!({"month":0}),
+            json!({"month":13}),
+            json!({"month":1,"day":0}),
+            json!({"month":1,"day":32}),
+            json!({"month":1,"day":1.5}),
+            json!({"day":1}),
+            json!({"scope":"upcoming","month":1,"day":1}),
+            json!({"scope":"undated","day":1}),
+            json!({"page":0}),
+            json!({"page":100001}),
+            json!({"pageSize":0}),
+            json!({"pageSize":101}),
+            json!({"kind":"private"}),
+            json!({"scope":"available"}),
+            json!({"scope":"upcoming","year":2026}),
+            json!({"scope":"undated","month":1}),
+            json!({"includePrivate":true}),
+            json!({"url":"https://example.org"}),
+            json!({"year":2026.5}),
+        ] {
+            let error = service
+                .execute(Request {
+                    id: "test".into(),
+                    command: "releases".into(),
+                    payload,
+                })
+                .await
+                .unwrap_err();
+            assert_eq!(error.code, "bad_request");
+        }
+        for payload in [
+            json!({}),
+            json!({"scope":"upcoming"}),
+            json!({"scope":"undated","kind":"episodes"}),
+            json!({"year":1,"month":12,"pageSize":100}),
+            json!({"month":1,"day":1,"pageSize":1}),
+            json!({"scope":"year","month":2,"day":31}),
+        ] {
+            let error = service
+                .execute(Request {
+                    id: "test".into(),
+                    command: "releases".into(),
+                    payload,
+                })
+                .await
+                .unwrap_err();
+            assert_eq!(error.code, "unauthorized");
+        }
+    }
+
+    #[tokio::test]
+    async fn releases_transport_is_guarded_get_and_clears_expired_session() {
+        use std::io::{Read, Write};
+        const ID: &str = "00112233-4455-4677-8899-aabbccddeeff";
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            for index in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let mut incoming = Vec::new();
+                loop {
+                    let mut chunk = [0; 1024];
+                    let count = stream.read(&mut chunk).unwrap();
+                    assert!(count > 0 && incoming.len() + count <= 4096);
+                    incoming.extend_from_slice(&chunk[..count]);
+                    if incoming.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
+                        break;
+                    }
+                }
+                let headers = String::from_utf8(incoming).unwrap();
+                let line = headers.lines().next().unwrap();
+                if index == 0 {
+                    assert_eq!(
+                        line,
+                        "GET /api/v1/releases?year=2026&month=10&day=11&kind=episodes&scope=year&page=2&pageSize=100 HTTP/1.1"
+                    );
+                } else {
+                    assert_eq!(line, "GET /api/v1/releases?scope=upcoming HTTP/1.1");
+                }
+                assert!(
+                    headers
+                        .to_ascii_lowercase()
+                        .contains("authorization: bearer fixture-only-token")
+                );
+                assert!(!line.contains("token"));
+                let (status, body) = if index == 0 {
+                    ("200 OK", json!({"items":[{"poster":{"id":ID,"mimeType":"image/png","url":"https://untrusted.example/image","storagePath":"/private"}}],"total":150,"page":2,"pageSize":100,"years":[2026],"days":[{"date":"2026-10-11","count":150}],"asOf":"2026-10-11"}).to_string())
+                } else {
+                    ("401 Unauthorized", "{}".into())
+                };
+                write!(stream,"HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len()).unwrap();
+            }
+        });
+        let service = Services::new(&format!("http://{address}/")).unwrap();
+        *service.token.lock().await = Some("fixture-only-token".into());
+        let result = service.execute(Request {id:"test".into(),command:"releases".into(),payload:json!({"year":2026,"month":10,"day":11,"kind":"episodes","scope":"year","page":2,"pageSize":100})}).await.unwrap();
+        assert_eq!(
+            result["items"][0]["poster"]["url"],
+            format!("/api/v1/artwork/{ID}")
+        );
+        assert!(result["items"][0]["poster"].get("storagePath").is_none());
+        assert!(result.get("token").is_none());
+        assert_eq!(result["days"], json!([{"date":"2026-10-11","count":150}]));
+        let error = service
+            .execute(Request {
+                id: "test".into(),
+                command: "releases".into(),
+                payload: json!({"scope":"upcoming"}),
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, "unauthorized");
+        assert!(service.token.lock().await.is_none());
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn releases_posters_use_only_registered_artwork_routes() {
+        const ID: &str = "00112233-4455-4677-8899-aabbccddeeff";
+        let mut page = json!({"items":[
+            {"poster":{"id":ID,"url":"file:///private/image","mimeType":"image/png","storagePath":"/private/image","width":300}},
+            {"poster":{"id":"../private","url":"https://example.org","mimeType":"image/png"}},
+            {"poster":{"id":ID,"mimeType":"image/svg+xml"}},
+            {"poster":null}
+        ]});
+        sanitize_release_posters(&mut page);
+        assert_eq!(
+            page["items"][0]["poster"]["url"],
+            format!("/api/v1/artwork/{ID}")
+        );
+        assert_eq!(page["items"][0]["poster"]["width"], 300);
+        assert!(page["items"][0]["poster"].get("storagePath").is_none());
+        for index in 1..4 {
+            assert!(page["items"][index]["poster"].is_null());
+        }
+    }
+
     #[test]
     fn server_addresses_reject_plaintext_remote_and_credentials() {
         assert!(Services::new("http://127.0.0.1:23103").is_ok());
