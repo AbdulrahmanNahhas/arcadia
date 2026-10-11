@@ -563,6 +563,7 @@ export const CatalogPageSchema = z.strictObject({
 export type CatalogPage = z.infer<typeof CatalogPageSchema>;
 
 export const FacetOptionSchema = z.strictObject({
+  artworkId: z.string().uuid().nullable().optional(),
   value: z.string(),
   label: z.string(),
   count: z.number().int(),

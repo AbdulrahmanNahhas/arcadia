@@ -11,6 +11,7 @@ import {
   Users,
   Building2,
   CalendarDays,
+  MonitorPlay,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
@@ -33,6 +34,7 @@ import { CacheControl } from "../player/cache-control";
 import { ReleasesPage } from "../releases/releases-page";
 import { SearchPage } from "../search/search-page";
 import { StudiosPage } from "../studios/studios-page";
+import { WatchPage } from "../watch/watch-page";
 import { WorkPage } from "../work/work-page";
 import { openSearch, useViewerRoute } from "./navigation";
 const navigationItemClass =
@@ -152,6 +154,12 @@ export function ViewerShell({ user }: { user: User }) {
               icon: CalendarDays,
               active: parts[0] === "releases",
             },
+            {
+              href: "#/watch",
+              label: "مشاهدة مباشرة",
+              icon: MonitorPlay,
+              active: parts[0] === "watch",
+            },
             { href: "#/planets", label: "الكواكب", icon: Orbit, active: parts[0] === "planets" },
             { href: "#/people", label: "الصنّاع", icon: Users, active: parts[0] === "people" },
             {
@@ -239,6 +247,8 @@ export function ViewerShell({ user }: { user: User }) {
               <SearchPage params={route.params} />
             ) : parts[0] === "browse" ? (
               <BrowsePage params={route.params} />
+            ) : parts[0] === "watch" ? (
+              <WatchPage />
             ) : parts[0] === "releases" ? (
               <ReleasesPage params={route.params} />
             ) : parts[0] === "planets" ? (

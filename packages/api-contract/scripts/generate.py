@@ -58,12 +58,12 @@ def validator(schema):
         result = f"z.array({validator(schema['items'])})"
     elif schema["type"] == "object":
         required = schema.get("required", [])
-        if set(required) != set(schema["properties"]):
-            raise ValueError("Optional field defaults require an explicit design")
+        if not set(required).issubset(schema["properties"]):
+            raise ValueError("Required fields must exist in properties")
         result = (
             "z.strictObject({\n"
             + "\n".join(
-                f"  {field}: {validator(prop)},"
+                f"  {field}: {validator(prop)}{'.optional()' if field not in required else ''},"
                 for field, prop in schema["properties"].items()
             )
             + "\n})"

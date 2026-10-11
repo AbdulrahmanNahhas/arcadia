@@ -492,6 +492,41 @@ test.beforeEach(async ({ page }) => {
   );
   await page.goto("/");
 });
+for (const width of [480, 1440]) {
+  test(`IMDb watch design ${width}: validation, series target and honest pending actions`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await login(page);
+    await page
+      .getByRole("navigation", { name: "التنقل الرئيسي" })
+      .getByRole("link", { name: "مشاهدة مباشرة", exact: true })
+      .click();
+    await expect(page.getByRole("heading", { name: "حكايتك، بمعرّف واحد." })).toBeVisible();
+    const id = page.getByLabel("معرّف IMDb أو رابط العنوان");
+    await id.fill("https://example.test/title/tt1234567");
+    await page.getByRole("button", { name: "معاينة الطلب" }).click();
+    await expect(id).toHaveAttribute("aria-invalid", "true");
+    await expect(id).toBeFocused();
+    await id.fill("https://www.imdb.com/title/tt1234567/?ref_=test");
+    await page.getByRole("button", { name: "مسلسل", exact: true }).click();
+    await page.getByLabel("الموسم", { exact: true }).fill("0");
+    await page.getByLabel("الحلقة", { exact: true }).fill("2");
+    await page.getByRole("button", { name: "معاينة الطلب" }).click();
+    await expect(id).toHaveValue("tt1234567");
+    await expect(page.getByRole("heading", { name: "الموسم 0 · الحلقة 2" })).toBeVisible();
+    for (const name of ["البحث عن المصادر", "تنزيل الفيديو", "اختيار ترجمة"])
+      await expect(page.getByRole("button", { name, exact: true })).toBeDisabled();
+    await page.getByLabel("الحلقة", { exact: true }).fill("3");
+    await expect(page.getByRole("heading", { name: "الموسم 0 · الحلقة 2" })).toHaveCount(0);
+    await page.getByRole("button", { name: "فيلم", exact: true }).click();
+    await expect(page.getByLabel("الموسم", { exact: true })).toHaveCount(0);
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      .toBe(true);
+    await page.screenshot({ path: `../../../data/previews/watch-${width}.png` });
+  });
+}
 async function login(page: Page) {
   await page.getByLabel("البريد الإلكتروني").fill("fixture@example.test");
   await page.getByLabel("كلمة المرور").fill("fixture-password");
@@ -1058,16 +1093,36 @@ for (const width of [480, 1440]) {
               {
                 key: "contributors",
                 label: "الصنّاع",
-                options: [{ value: "person-1", label: "صانع تجريبي", count: 2 }],
+                options: [
+                  {
+                    value: "person-1",
+                    label: "صانع تجريبي",
+                    count: 2,
+                    artworkId: "00000000-0000-4000-8000-000000000031",
+                  },
+                ],
               },
               {
                 key: "studios",
                 label: "الاستوديوهات",
-                options: [{ value: "studio-1", label: "استوديو تجريبي", count: 2 }],
+                options: [
+                  {
+                    value: "studio-1",
+                    label: "استوديو تجريبي",
+                    count: 2,
+                    artworkId: "00000000-0000-4000-8000-000000000032",
+                  },
+                ],
               },
             ],
             yearMin: 2021,
             yearMax: 2021,
+          };
+          queueMicrotask(() => window["__nahhasioReply"]?.({ id: request.id, ok: true, result }));
+        } else if (request.command === "artwork") {
+          const result = {
+            dataUrl:
+              "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
           };
           queueMicrotask(() => window["__nahhasioReply"]?.({ id: request.id, ok: true, result }));
         } else original(message);
@@ -1112,6 +1167,14 @@ for (const width of [480, 1440]) {
       await input.fill("missing");
       await expect(page.getByRole("link", { name: new RegExp(item.name) })).toHaveCount(0);
       await input.fill("");
+      if (item.label !== "الكواكب") {
+        const image = page.locator(".entity-directory-image");
+        await expect(image).toHaveJSProperty("tagName", "IMG");
+        await expect(image).toHaveJSProperty("naturalWidth", 1);
+        await page.screenshot({
+          path: `../../../data/previews/${item.route.split("/")[0]}-${width}.png`,
+        });
+      }
       await page.getByRole("link", { name: new RegExp(item.name) }).click();
       await expect(page).toHaveURL(new RegExp(`#/${item.route}`));
       await expect(page.getByRole("heading", { name: item.name, exact: true })).toBeVisible();

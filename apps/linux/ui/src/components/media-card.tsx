@@ -168,19 +168,25 @@ export function MediaCard({
             )}
         </span>
         {!minimal && (
-          <div className="flex min-w-0 flex-col gap-1.5 px-0.5">
-            {unit && (
-              <span className="truncate text-xs text-muted-foreground" dir="auto">
-                {parent?.titleAr || unit.workTitleAr || unit.workTitle}
-              </span>
-            )}
+          <div className="flex min-w-0 flex-col gap-px px-0.5">
+            {parent?.titleAr !== title &&
+              parent?.titleAr &&
+              !title.startsWith(parent?.titleAr) &&
+              unit && (
+                <Badge
+                  variant="secondary"
+                  className="text-xs p-0! bg-transparent text-muted-foreground m-0!"
+                >
+                  {parent?.titleAr || unit.workTitleAr || unit.workTitle}
+                </Badge>
+              )}
             <h3
               className="line-clamp-2 text-sm leading-relaxed font-semibold transition-colors group-hover/card:text-primary group-focus-visible/card:text-primary sm:text-base motion-reduce:transition-none"
               dir="auto"
             >
               {title}
             </h3>
-            <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs whitespace-nowrap text-muted-foreground">
+            <span className="mt-1.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-xs whitespace-nowrap text-muted-foreground">
               {year && (
                 <>
                   <span className="shrink-0">{year}</span>

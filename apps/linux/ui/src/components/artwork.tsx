@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
 import { Film } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 
 import { gateway } from "../lib/bridge";
 export function Artwork({
@@ -9,11 +10,13 @@ export function Artwork({
   alt,
   className = "",
   priority = false,
+  fallback,
 }: {
   id?: string | null;
   alt: string;
   className?: string;
   priority?: boolean;
+  fallback?: ReactNode;
 }) {
   const [element, setElement] = useState<Element | null>(null);
   const [near, setNear] = useState(false);
@@ -58,8 +61,12 @@ export function Artwork({
       role="img"
       aria-label={alt}
     >
-      <Film className="size-7 opacity-50" aria-hidden="true" />
-      <span>{query.isLoading ? "جارٍ تحميل الصورة" : "لا توجد صورة"}</span>
+      {fallback ?? (
+        <>
+          <Film className="size-7 opacity-50" aria-hidden="true" />
+          <span>{query.isLoading ? "جارٍ تحميل الصورة" : "لا توجد صورة"}</span>
+        </>
+      )}
     </span>
   );
 }

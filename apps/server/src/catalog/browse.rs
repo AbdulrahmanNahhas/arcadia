@@ -251,6 +251,11 @@ pub(super) async fn browse(
         .await?;
     Ok(Json(value.0))
 }
+fn entity_artwork() -> &'static str {
+    // Organization images in the existing catalog may use profile instead of logo.
+    "case when key in ('contributors','studios') then (select m.asset_id from media_asset_assignments m join media_assets a on a.id=m.asset_id where m.entity_id::text=value and m.role in ('profile','logo') and a.mime_type in ('image/png','image/jpeg','image/webp','image/gif') order by case when key='contributors' and m.role='profile' or key='studios' and m.role='logo' then 0 else 1 end,m.is_primary desc,m.id limit 1) else null end"
+}
+
 pub(super) async fn options(
     State(pool): State<PgPool>,
     Extension(user): Extension<User>,
@@ -259,8 +264,9 @@ pub(super) async fn options(
     let (_, _, view, privacy, _, _) = input.validated()?;
     let groups=facets().iter().map(|(key,label,_)|format!("select '{key}' key,'{label}' label,value,count(*)::bigint count from base cross join lateral jsonb_array_elements_text(facts->'{key}') v(value) group by value")).collect::<Vec<_>>().join(" union all ");
     let labels = r#"case when key in('genres','tones','tags','countries') then coalesce((select coalesce(label_ar,label_en) from (select 'genres' vocab,slug,label_ar,label_en from genres union all select 'tones',slug,label_ar,label_en from tones union all select 'tags',slug,label_ar,label_en from tags union all select 'countries',slug,label_ar,label_en from countries) vocabulary where vocab=key and slug=value limit 1),value) when key in('contributors','studios') then coalesce((select name from entities where id::text=value),value) when key='planets' then coalesce((select icon||' '||name_ar from planets where slug=value),value) else value end"#;
+    let artwork = entity_artwork();
     let query = format!(
-        "with base as ({base}), options as ({groups}), labelled as (select *,{labels} display from options), grouped as(select key,label,jsonb_agg(jsonb_build_object('value',value,'label',display,'count',count) order by count desc,value) options from labelled group by key,label) select jsonb_build_object('groups',coalesce((select jsonb_agg(jsonb_build_object('key',key,'label',label,'options',options) order by key) from grouped),'[]'::jsonb),'yearMin',(select min(catalog_year) from base),'yearMax',(select max(catalog_year) from base))",
+        "with base as ({base}), options as ({groups}), labelled as (select *,{labels} display from options), grouped as(select key,label,jsonb_agg(jsonb_build_object('value',value,'label',display,'count',count,'artworkId',({artwork})) order by count desc,value) options from labelled group by key,label) select jsonb_build_object('groups',coalesce((select jsonb_agg(jsonb_build_object('key',key,'label',label,'options',options) order by key) from grouped),'[]'::jsonb),'yearMin',(select min(catalog_year) from base),'yearMax',(select max(catalog_year) from base))",
         base = base()
     );
     let value = sqlx::query_scalar::<_, SqlJson<Value>>(AssertSqlSafe(query))
@@ -274,6 +280,17 @@ pub(super) async fn options(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn entity_images_use_registered_portraits_and_organization_fallbacks() {
+        let sql = entity_artwork();
+        assert!(sql.contains("m.entity_id::text=value"));
+        assert!(sql.contains("key='contributors' and m.role='profile'"));
+        assert!(sql.contains("key='studios' and m.role='logo'"));
+        assert!(sql.contains("m.role in ('profile','logo')"));
+        assert!(sql.contains("m.is_primary desc,m.id limit 1"));
+        assert!(!sql.contains("image/svg+xml"));
+    }
+
     #[test]
     fn bounds_and_facet_names_are_validated() {
         assert!(

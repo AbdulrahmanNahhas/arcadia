@@ -2859,6 +2859,12 @@
         "type": "object",
         "required": ["value", "label", "count"],
         "properties": {
+          "artworkId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Registered entity artwork UUID; omitted by older servers and null when no suitable image is assigned."
+          },
           "value": {
             "type": "string"
           },
