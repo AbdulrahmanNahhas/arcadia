@@ -2,9 +2,19 @@ import { expect, test, type Page } from "@playwright/test";
 
 import type { PlayerRequest, PlayerSnapshot } from "../../src/features/player/bridge";
 
+type TestRequest =
+  | PlayerRequest
+  | { command: "media.search"; payload: { sessionId: string } }
+  | {
+      command: "media.play" | "media.download";
+      payload: { sessionId: string; sourceId: string; fileIndex: number | null };
+    }
+  | { command: "media.keep"; payload: { sessionId: string } }
+  | { command: "artwork"; payload: { id: string } };
+
 declare global {
   interface Window {
-    playerTest: { calls: PlayerRequest[]; update: (changes: Partial<PlayerSnapshot>) => void };
+    playerTest: { calls: TestRequest[]; update: (changes: Partial<PlayerSnapshot>) => void };
   }
 }
 
@@ -52,11 +62,11 @@ const initial: PlayerSnapshot = {
   error: null,
 };
 
-async function mock(page: Page, snapshot = initial) {
+async function mock(page: Page, snapshot = initial, scenario = "") {
   await page.addInitScript((fixture: PlayerSnapshot) => {
     let state = fixture;
     let staleAfterClose: PlayerSnapshot | null = null;
-    const requests: PlayerRequest[] = [];
+    const requests: TestRequest[] = [];
     Object.assign(window, {
       playerTest: {
         calls: requests,
@@ -69,10 +79,120 @@ async function mock(page: Page, snapshot = initial) {
       messageHandlers: {
         nahhasio: {
           postMessage: (message: string) => {
-            // SAFETY: this isolated harness only receives requests parsed by callPlayer's Zod schema.
-            const request = JSON.parse(message) as { id: string } & PlayerRequest;
+            // SAFETY: this isolated fixture bridge receives only the typed player/media/artwork callers.
+            const request = JSON.parse(message) as { id: string } & TestRequest;
             requests.push(request);
             switch (request.command) {
+              case "artwork": {
+                const canvas = document.createElement("canvas");
+                canvas.width = 320;
+                canvas.height = 180;
+                const ctx = canvas.getContext("2d")!;
+                const hue = Number(request.payload.id.slice(-3)) * 27;
+                const gradient = ctx.createLinearGradient(0, 0, 320, 180);
+                gradient.addColorStop(0, `hsl(${hue}, 40%, 18%)`);
+                gradient.addColorStop(1, `hsl(${hue + 70}, 55%, 55%)`);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 320, 180);
+                ctx.fillStyle = "rgba(255,255,255,.3)";
+                ctx.beginPath();
+                ctx.arc(245, 65, 35, 0, Math.PI * 2);
+                ctx.fill();
+                window["__nahhasioReply"]?.({
+                  id: request.id,
+                  ok: true,
+                  result: { dataUrl: canvas.toDataURL("image/png") },
+                });
+                return;
+              }
+              case "media.search":
+                window["__nahhasioReply"]?.({
+                  id: request.id,
+                  ok: true,
+                  result: {
+                    target: {
+                      workId: "00000000-0000-4000-8000-000000000001",
+                      installmentId: "00000000-0000-4000-8000-000000000002",
+                      episodeId: null,
+                      title: fixture.title,
+                    },
+                    candidates: [
+                      {
+                        id: "a".repeat(64),
+                        label: "Torrentio 1080p",
+                        release:
+                          "Synthetic Season 1 📁 Synthetic.S01E05.1080p.AV1.mkv 👤 146 💾 279.86 MB ⚙ NyaaSi Audio: English",
+                        resolution: 1080,
+                        codec: "AV1",
+                        hdr: false,
+                        sizeBytes: 279860000,
+                        seeders: 146,
+                        reportedLanguages: ["en", "ar"],
+                        available: true,
+                      },
+                      {
+                        id: "b".repeat(64),
+                        label: "Torrentio 720p",
+                        release:
+                          "Synthetic alternative 📁 Synthetic.S01E05.720p.mp4 👤 12 💾 150 MB",
+                        resolution: 720,
+                        codec: "H.264",
+                        hdr: false,
+                        sizeBytes: 150000000,
+                        seeders: 12,
+                        reportedLanguages: [],
+                        available: true,
+                      },
+                    ],
+                  },
+                });
+                return;
+              case "media.download":
+                window["__nahhasioReply"]?.({
+                  id: request.id,
+                  ok: true,
+                  result: {
+                    mode: "downloading",
+                    target: {
+                      workId: "00000000-0000-4000-8000-000000000001",
+                      installmentId: "00000000-0000-4000-8000-000000000002",
+                      episodeId: null,
+                      title: fixture.title,
+                    },
+                  },
+                });
+                return;
+              case "media.play":
+                state = {
+                  ...fixture,
+                  active: true,
+                  sessionId: state.sessionId,
+                  sourceKind: "torrent",
+                  buffering: false,
+                };
+                window["__nahhasioReply"]?.({
+                  id: request.id,
+                  ok: true,
+                  result: { mode: "playing", snapshot: state },
+                });
+                return;
+              case "media.keep":
+                window["__nahhasioReply"]?.({ id: request.id, ok: true, result: { ok: true } });
+                return;
+              case "player.preview":
+                state = {
+                  ...fixture,
+                  active: true,
+                  sessionId: "preview-1",
+                  sourceKind: null,
+                  title: request.payload.title,
+                  duration: 0,
+                  position: 0,
+                  seekable: false,
+                  tracks: [],
+                };
+                staleAfterClose = null;
+                break;
               case "player.status":
                 break;
               case "player.pickVideo":
@@ -148,8 +268,9 @@ async function mock(page: Page, snapshot = initial) {
       },
     };
   }, snapshot);
-  await page.goto("/tests/player/");
-  await expect(page.getByRole("heading", { name: initial.title })).toBeVisible();
+  await page.goto(`/tests/player/?scenario=${scenario}`);
+  if (snapshot.active) await expect(page.locator(".player-title h1")).toHaveText(initial.title);
+  else await expect(page.getByRole("button", { name: "Watch test work" })).toBeVisible();
 }
 
 async function update(page: Page, changes: Partial<PlayerSnapshot>) {
@@ -157,7 +278,7 @@ async function update(page: Page, changes: Partial<PlayerSnapshot>) {
     window.playerTest.update(next);
   }, changes);
 }
-async function calls(page: Page, command: PlayerRequest["command"]) {
+async function calls(page: Page, command: TestRequest["command"]) {
   return page.evaluate((name) => {
     return window.playerTest.calls.filter((call) => call.command === name);
   }, command);
@@ -207,7 +328,7 @@ test("preview panels never invent playback progress or tracks", async ({ page })
   expect(await calls(page, "player.mute")).toHaveLength(0);
   await page.getByRole("button", { name: "الترجمة", exact: true }).click();
   await expect(page.getByRole("button", { name: "إضافة ملف ترجمة" })).toBeDisabled();
-  await expect(page.getByText("تظهر الترجمات المرفقة بعد فتح الفيديو.")).toBeVisible();
+  await expect(page.getByText("تظهر المسارات الفعلية بعد فتح الفيديو.")).toBeVisible();
 });
 
 test("honest source, episode, subtitle and codec panels", async ({ page }) => {
@@ -234,6 +355,59 @@ test("honest source, episode, subtitle and codec panels", async ({ page }) => {
   await page.getByRole("button", { name: "إعدادات التشغيل" }).click();
   await expect(page.getByText("h264")).toBeVisible();
   await expect(page.getByText("غير متاح", { exact: true })).toBeVisible();
+});
+
+test("download intent chooses a torrent without starting playback", async ({ page }) => {
+  await mock(
+    page,
+    { ...initial, sourceKind: null, duration: 0, tracks: [], seekable: false },
+    "download",
+  );
+  await expect(page.getByRole("button", { name: "تنزيل هذا المصدر" })).toHaveCount(2);
+  expect(await calls(page, "media.download")).toHaveLength(0);
+  await page.getByRole("button", { name: "تنزيل هذا المصدر" }).first().click();
+  await expect(page.getByText("أُضيف الفيديو إلى التنزيلات", { exact: true })).toBeVisible();
+  await expect.poll(async () => (await calls(page, "media.download")).length).toBe(1);
+  expect(await calls(page, "media.play")).toHaveLength(0);
+});
+
+test("radio values select numeric native audio and subtitle tracks", async ({ page }) => {
+  await mock(page, {
+    ...initial,
+    tracks: [
+      ...initial.tracks,
+      {
+        id: 7,
+        kind: "audio",
+        title: "English dub",
+        language: "en",
+        codec: "aac",
+        selected: false,
+        external: false,
+      },
+    ],
+  });
+  await page.getByRole("button", { name: "الصوت", exact: true }).click();
+  await page.getByRole("button", { name: /الإنجليزية · 1 مسارات/ }).click();
+  const dub = page.getByRole("radio", { name: /English dub/ });
+  await dub.check();
+  await expect(dub).toBeChecked();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "الترجمة", exact: true }).click();
+  await page.getByRole("radio", { name: "إيقاف الترجمة", exact: true }).check();
+  const subtitle = page.getByRole("radio", { name: /ترجمة الملف/ });
+  await subtitle.check();
+  await expect(subtitle).toBeChecked();
+  await expect
+    .poll(() => calls(page, "player.track"))
+    .toEqual([
+      expect.objectContaining({ payload: { sessionId: "test-1", kind: "audio", trackId: 7 } }),
+      expect.objectContaining({
+        payload: { sessionId: "test-1", kind: "subtitle", trackId: null },
+      }),
+      expect.objectContaining({ payload: { sessionId: "test-1", kind: "subtitle", trackId: 2 } }),
+    ]);
+  await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
 test("closed sessions cannot be reopened by late snapshots; fresh picker can open", async ({
@@ -332,6 +506,149 @@ test("request and snapshot schemas reject out-of-range, non-finite and path-bear
     ];
   }, initial);
   expect(results).toEqual([false, false, false, false, false, false, false, false, true]);
+});
+
+test("wide episode shelf shows artwork, exact labels and RTL keyboard navigation", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mock(page, initial, "episodes");
+  await expect(page.locator(".player-title p")).toHaveText("الحلقة 5");
+  await page.getByRole("button", { name: "الحلقات", exact: true }).click();
+  const panel = page.getByRole("dialog", { name: "الحلقات", exact: true });
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole("heading", { name: "الموسم الأول" })).toBeVisible();
+  await expect(panel.locator("img").first()).toBeVisible();
+  await expect(panel).not.toContainText(".00");
+  const bounds = await panel.boundingBox();
+  const footer = await page.locator(".player-bottom").boundingBox();
+  expect(bounds!.width).toBeGreaterThan(1300);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(footer!.y);
+  await expect(panel.getByRole("button", { name: "عنوان الحلقة 5", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(panel.getByRole("button", { name: "عنوان الحلقة 6", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(panel.getByRole("button", { name: "عنوان الحلقة 5", exact: true })).toBeFocused();
+  await page.screenshot({ path: "test-results/player-episodes-1440.png" });
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "الحلقات", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "الحلقات", exact: true })).toBeFocused();
+  await expect(page.getByRole("status", { name: "الحلقة المختارة" })).toHaveText("episode-6");
+});
+
+test("episode panel remains contained at narrow width and blocks upcoming episodes", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 480, height: 720 });
+  await mock(page, initial, "episodes");
+  await page.getByRole("button", { name: "الحلقات", exact: true }).click();
+  const panel = page.getByRole("dialog", { name: "الحلقات", exact: true });
+  const bounds = await panel.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(480);
+  await expect(panel.getByRole("button", { name: "عنوان الحلقة 12", exact: true })).toBeDisabled();
+  await page.screenshot({ path: "test-results/player-episodes-480.png" });
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "الحلقات", exact: true })).toBeFocused();
+});
+
+test("Watch opens the right source drawer and never auto-selects a torrent", async ({ page }) => {
+  await mock(page, { ...initial, active: false, sessionId: null });
+  await page.getByRole("button", { name: "Watch test work" }).click();
+  const drawer = page.getByRole("dialog", { name: "مصدر الفيديو", exact: true });
+  await expect(drawer).toBeVisible();
+  await expect(
+    drawer.getByRole("heading", { name: "Synthetic Season 1", exact: true }),
+  ).toBeVisible();
+  await page.waitForTimeout(700);
+  expect(await calls(page, "media.play")).toHaveLength(0);
+  const bounds = await drawer.boundingBox();
+  const viewport = page.viewportSize()!;
+  // The approved floating Drawer has an 8px inset, rather than the old flush Sheet.
+  expect(bounds!.x + bounds!.width).toBeCloseTo(viewport.width - 8, 0);
+  await expect(drawer.getByText("AV1", { exact: true })).toBeVisible();
+  await drawer.getByRole("searchbox", { name: "البحث في المصادر" }).fill("1080");
+  await expect(drawer.getByText("1 من 2 مصدر")).toBeVisible();
+  await page.screenshot({ path: "test-results/player-sources.png" });
+  await drawer.getByRole("button", { name: "تشغيل هذا المصدر", exact: true }).click();
+  await expect(drawer).toHaveCount(0);
+  expect(await calls(page, "media.play")).toHaveLength(1);
+  await expect(page.getByRole("button", { name: "مصدر الفيديو", exact: true })).toBeFocused();
+});
+
+test("grouped subtitles search and customization use actual tracks and bounded commands", async ({
+  page,
+}) => {
+  await mock(page, {
+    ...initial,
+    tracks: [
+      ...initial.tracks,
+      {
+        id: 3,
+        kind: "subtitle",
+        title: "Forced English",
+        language: "en",
+        codec: "ass",
+        selected: false,
+        external: false,
+      },
+      {
+        id: 4,
+        kind: "subtitle",
+        title: "ترجمة عربية",
+        language: "ar",
+        codec: "srt",
+        selected: false,
+        external: true,
+      },
+    ],
+  });
+  await page.getByRole("button", { name: "الترجمة", exact: true }).click();
+  const panel = page.getByRole("dialog", { name: "الترجمة", exact: true });
+  await expect(panel.getByRole("button", { name: /الإنجليزية · 2 مسارات/ })).toBeVisible();
+  await panel.getByRole("searchbox", { name: "البحث في الترجمات" }).fill("العربية");
+  await expect(panel.getByRole("button", { name: /الإنجليزية · 2 مسارات/ })).toHaveCount(0);
+  await panel.getByRole("button", { name: /العربية · 1 مسارات/ }).click();
+  await panel.getByRole("radio", { name: /ترجمة عربية/ }).check();
+  await expect
+    .poll(() => calls(page, "player.track"))
+    .toEqual([
+      expect.objectContaining({ payload: { sessionId: "test-1", kind: "subtitle", trackId: 4 } }),
+    ]);
+  await page.screenshot({ path: "test-results/player-subtitles.png" });
+  await panel.getByRole("button", { name: "تخصيص الترجمة" }).click();
+  const size = panel.getByRole("slider", { name: "حجم الترجمة" });
+  await size.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(async () => (await calls(page, "player.subtitleStyle")).length).toBe(1);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "الترجمة", exact: true })).toBeFocused();
+});
+
+test("speed presets, compact RTL header and torrent keep-download remain functional", async ({
+  page,
+}) => {
+  await mock(page, { ...initial, sourceKind: "torrent" });
+  await expect(
+    page.locator(".player-top").getByRole("button", { name: "ملء الشاشة", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".player-tools").getByRole("button", { name: "البث إلى جهاز آخر غير متاح" }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "إعدادات التشغيل", exact: true }).click();
+  await page.getByRole("button", { name: "السرعة 1.5×", exact: true }).click();
+  await expect
+    .poll(() => calls(page, "player.speed"))
+    .toEqual([expect.objectContaining({ payload: { sessionId: "test-1", speed: 1.5 } })]);
+  await page.screenshot({ path: "test-results/player-settings.png" });
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "تنزيل الفيديو", exact: true }).click();
+  await page.getByRole("button", { name: "الاحتفاظ بتنزيل الفيديو", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "أُضيف إلى قائمة التنزيل", exact: true }),
+  ).toBeDisabled();
+  expect(await calls(page, "media.keep")).toHaveLength(1);
 });
 
 test("native-closed sessions stay closed even without a UI close command", async ({ page }) => {

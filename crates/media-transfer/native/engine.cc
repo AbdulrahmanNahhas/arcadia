@@ -272,6 +272,19 @@ Status Session::status(rust::Str id) const {
     r.error = s.errc ? s.errc.message() : "";
     return r;
 }
+bool Session::file_complete(rust::Str id, uint32_t file) const {
+  auto h = get(id);
+  auto ti = h.torrent_file();
+  if (!ti || file >= uint32_t(ti->num_files()))
+    throw std::runtime_error("invalid file");
+  auto s = h.status();
+  if (s.errc || s.state == lt::torrent_status::checking_files ||
+      s.state == lt::torrent_status::checking_resume_data)
+    return false;
+  auto index = lt::file_index_t(int(file));
+  return h.file_progress(lt::torrent_handle::piece_granularity).at(file) ==
+         ti->files().file_size(index);
+}
 rust::Vec<uint8_t> Session::piece(rust::Str id, uint32_t file, uint64_t offset) {
     auto h = get(id); auto ti = h.torrent_file();
     if (!ti || file >= uint32_t(ti->num_files())) throw std::runtime_error("invalid file");

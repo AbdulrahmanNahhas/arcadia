@@ -30,12 +30,15 @@ export const CandidateSchema = z.object({
   reportedLanguages: z.array(z.string()),
   available: z.boolean(),
 });
+export type SourceCandidate = z.infer<typeof CandidateSchema>;
+
 export const SourcesSchema = z.object({
   target: TargetSchema,
   candidates: z.array(CandidateSchema).max(200),
 });
 const PlaySchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("playing"), snapshot: PlayerSnapshotSchema }),
+  z.object({ mode: z.literal("downloading"), target: TargetSchema }),
   z.object({
     mode: z.literal("choose_file"),
     files: z.array(FileSchema).max(10000),
@@ -83,10 +86,14 @@ export async function playSource(
   sessionId: string,
   sourceId: string,
   fileIndex?: number,
+  intent: "watch" | "download" = "watch",
 ) {
+  if (client.getQueryData<PlayerSnapshot>(playerSnapshotKey)?.sessionId !== sessionId) {
+    throw new Error("انتهت جلسة هذا الفيديو.");
+  }
   const reply = PlaySchema.parse(
     await nativeCall(
-      "media.play",
+      intent === "download" ? "media.download" : "media.play",
       { sessionId, sourceId, fileIndex: fileIndex ?? null },
       undefined,
       60000,
@@ -95,8 +102,12 @@ export async function playSource(
   const current = client.getQueryData<PlayerSnapshot>(playerSnapshotKey);
   if (current?.sessionId !== sessionId) throw new Error("انتهت جلسة هذا الفيديو.");
   if (reply.mode === "playing") {
+    if (reply.snapshot.sessionId !== sessionId) throw new Error("وصل تحديث قديم للمشغّل.");
     client.removeQueries({ queryKey: choiceKey(sessionId), exact: true });
     client.setQueryData(playerSnapshotKey, reply.snapshot);
+  } else if (reply.mode === "downloading") {
+    client.removeQueries({ queryKey: choiceKey(sessionId), exact: true });
+    await client.invalidateQueries({ queryKey: ["native", "downloads"] });
   } else {
     client.setQueryData<FileChoice>(choiceKey(sessionId), { ...reply, sourceId });
   }
@@ -115,8 +126,8 @@ export async function openWatch(
   });
   if (!snapshot.sessionId) throw new Error("تعذّر فتح جلسة المشغّل.");
   const sessionId = snapshot.sessionId;
-  const sources = await client.fetchQuery(sourceOptions(sessionId, target));
   if (client.getQueryData<PlayerSnapshot>(playerSnapshotKey)?.sessionId !== sessionId) return;
-  const candidate = sources.candidates.find((entry) => entry.available);
-  if (candidate) await playSource(client, sessionId, candidate.id);
+  await client.fetchQuery(sourceOptions(sessionId, target));
+  if (client.getQueryData<PlayerSnapshot>(playerSnapshotKey)?.sessionId !== sessionId) return;
+  // Opening a work only previews it. media.play requires an explicit source/file choice.
 }

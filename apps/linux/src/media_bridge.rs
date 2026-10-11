@@ -17,6 +17,7 @@ pub async fn execute(
         player.require_session(id)?;
     }
     let pause_requested = matches!(&command, Command::Pause { .. });
+    let download_requested = matches!(&command, Command::Download { .. });
     match command {
         Command::Search { session_id, target } => {
             let result = runtime
@@ -35,11 +36,20 @@ pub async fn execute(
             session_id,
             source_id,
             file_index,
+        }
+        | Command::Download {
+            session_id,
+            source_id,
+            file_index,
         } => {
             player.loading(&session_id, true, None)?;
             let expected = session_id.clone();
             let result = runtime
-                .spawn(async move { media.play(&session_id, &source_id, file_index).await })
+                .spawn(async move {
+                    media
+                        .prepare(&session_id, &source_id, file_index, download_requested)
+                        .await
+                })
                 .await
                 .map_err(|_| interrupted())?;
             player.require_session(&expected)?;
@@ -48,6 +58,10 @@ pub async fn execute(
                     player.loading(&expected, false, None)?;
                     player.set_target(&expected, target.clone())?;
                     Ok(json!({"mode":"choose_file","files":files,"target":target}))
+                }
+                Ok(Ready::Downloading { target }) => {
+                    player.loading(&expected, false, None)?;
+                    Ok(json!({"mode":"downloading","target":target}))
                 }
                 Ok(Ready::Playing { gateway, target }) => {
                     player.play_torrent(&expected, target, gateway)?;
@@ -60,9 +74,9 @@ pub async fn execute(
             }
         }
         Command::Keep { session_id } => {
-            let (id, file) = player.download_target(&session_id)?;
+            let (id, file, title) = player.download_target(&session_id)?;
             runtime
-                .spawn(async move { media.keep(id, file).await })
+                .spawn(async move { media.keep(id, file, title).await })
                 .await
                 .map_err(|_| interrupted())??;
             Ok(json!({"ok":true}))

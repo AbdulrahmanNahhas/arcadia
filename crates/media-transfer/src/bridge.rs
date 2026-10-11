@@ -41,6 +41,7 @@ pub(crate) mod ffi {
         fn start(self: Pin<&mut Session>, id: &str) -> Result<()>;
         fn pause(self: Pin<&mut Session>, id: &str) -> Result<()>;
         fn status(self: &Session, id: &str) -> Result<Status>;
+        fn file_complete(self: &Session, id: &str, file: u32) -> Result<bool>;
         fn piece(self: Pin<&mut Session>, id: &str, file: u32, offset: u64) -> Result<Vec<u8>>;
         fn begin_read(
             self: Pin<&mut Session>,

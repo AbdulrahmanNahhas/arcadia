@@ -1,4 +1,8 @@
 import type { ArtworkAssignment, Classification } from "@nahhasio/api-contract";
+export function episodeNumberLabel(value: string) {
+  if (!/^[+-]?\d+\.\d+$/.test(value)) return value;
+  return value.replace(/0+$/, "").replace(/\.$/, "");
+}
 export function dateLabel(date: string | null | undefined) {
   if (!date) return "غير معروف";
   const value = new Date(date.length === 10 ? `${date}T00:00:00Z` : date);

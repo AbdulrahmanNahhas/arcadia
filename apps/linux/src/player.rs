@@ -327,14 +327,23 @@ impl Player {
         }
         Ok(())
     }
-    pub fn download_target(&self, id: &str) -> Result<(media_transfer::TorrentId, u32), Error> {
+    pub fn download_target(
+        &self,
+        id: &str,
+    ) -> Result<(media_transfer::TorrentId, u32, String), Error> {
         self.require_session(id)?;
         let session = self.session.borrow();
         let gateway = session
             .as_ref()
             .and_then(|session| session.gateway.as_ref())
             .ok_or_else(|| Error::new("no_torrent", "لا يوجد تورنت جارٍ لهذا الفيديو."))?;
-        Ok((gateway.id.clone(), gateway.file.index))
+        let title = session
+            .as_ref()
+            .and_then(|session| session.target.as_ref())
+            .ok_or_else(stale)?
+            .work_title
+            .clone();
+        Ok((gateway.id.clone(), gateway.file.index, title))
     }
 
     fn with_player(

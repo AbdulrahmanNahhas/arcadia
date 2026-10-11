@@ -1,10 +1,12 @@
+import { DirectionProvider } from "@base-ui/react/direction-provider";
 import {
   ArrowRight,
   AudioLines,
   Captions,
-  Check,
+  Cast,
   FolderOpen,
   ListVideo,
+  LoaderCircle,
   Maximize,
   Minimize,
   Pause,
@@ -14,29 +16,52 @@ import {
   Settings2,
   Volume2,
   VolumeX,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
+import { FieldGroup } from "@/components/ui/field";
+import { Separator } from "@/components/ui/separator";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-import type { PlayerSnapshot, PlayerTrack } from "./bridge";
+import type { PlayerSnapshot } from "./bridge";
+import { DownloadControl } from "./download-control";
+import { EpisodePanel, type PlayerEpisode } from "./episode-panel";
+import { PlayerControl, PlayerPopover } from "./player-panels";
 import { PlayerSlider } from "./player-slider";
-import type { PlayerController } from "./use-player-snapshot";
+import { SourceControls } from "./source-controls";
+import { PlayerSetting, TrackPanel } from "./track-panel";
 
 import "./player.css";
+import type { PlayerController } from "./use-player-snapshot";
+import type { WatchTarget } from "./watch-request";
 
-export type PlayerEpisode = { id: string; title: string; detail?: string; current?: boolean };
-type Panel = "source" | "audio" | "subtitle" | "settings" | "episodes";
+export type { PlayerEpisode } from "./episode-panel";
+export { trackLabel } from "./track-format";
+
+type Panel = "source" | "audio" | "subtitle" | "settings" | "episodes" | "download";
+
+type PlayerHostProps = {
+  player: PlayerController;
+  episodes?: readonly PlayerEpisode[];
+  installmentTitle?: string;
+  onSelectEpisode?: (episode: PlayerEpisode) => void;
+  sourcePanel?: ReactNode;
+  sourceTarget?: WatchTarget | null;
+};
+const speeds = [0.5, 1, 1.25, 1.5, 1.75, 2, 4];
 
 export function playerTime(seconds: number) {
   const value = Math.floor(Math.max(0, seconds));
@@ -45,75 +70,35 @@ export function playerTime(seconds: number) {
   return `${hours ? `${hours}:` : ""}${hours ? String(minutes).padStart(2, "0") : minutes}:${String(value % 60).padStart(2, "0")}`;
 }
 
-export function trackLabel(track: PlayerTrack) {
-  let language = track.language;
-  if (language) {
-    try {
-      language = new Intl.DisplayNames(["ar"], { type: "language" }).of(language) ?? language;
-    } catch {
-      /* Unknown native language tags remain visible verbatim. */
-    }
-  }
-  return (
-    [language, track.title, track.codec, track.external ? "ملف خارجي" : null]
-      .filter(Boolean)
-      .join(" · ") || `مسار ${track.id}`
-  );
-}
-
-/** The caller owns library/player switching and native transparency. No video element. */
-export function PlayerHost({
-  player,
-  episodes,
-  onSelectEpisode,
-  sourcePanel,
-}: {
-  player: PlayerController;
-  episodes?: readonly PlayerEpisode[];
-  onSelectEpisode?: (episode: PlayerEpisode) => void;
-  sourcePanel?: ReactNode;
-}) {
-  const snapshot = player.snapshot;
+/** No HTML video: the transparent interface sits over the native mpv surface. */
+export function PlayerHost(props: PlayerHostProps) {
+  const snapshot = props.player.snapshot;
   if (!snapshot?.active || !snapshot.sessionId) return null;
-  return (
-    <ActivePlayer
-      key={snapshot.sessionId}
-      player={player}
-      snapshot={snapshot}
-      episodes={episodes}
-      onSelectEpisode={onSelectEpisode}
-      sourcePanel={sourcePanel}
-    />
-  );
+  return <ActivePlayer key={snapshot.sessionId} {...props} snapshot={snapshot} />;
 }
 
 function ActivePlayer({
   player,
   snapshot: s,
   episodes,
+  installmentTitle,
   onSelectEpisode,
   sourcePanel,
-}: {
-  player: PlayerController;
-  snapshot: PlayerSnapshot;
-  episodes?: readonly PlayerEpisode[];
-  onSelectEpisode?: (episode: PlayerEpisode) => void;
-  sourcePanel?: ReactNode;
-}) {
-  const [panel, setPanel] = useState<Panel | null>(null);
+  sourceTarget,
+}: PlayerHostProps & { snapshot: PlayerSnapshot }) {
+  const hasSource = s.sourceKind !== null;
+  const [panel, setPanel] = useState<Panel | null>(
+    !hasSource && (sourcePanel || sourceTarget) ? "source" : null,
+  );
   const [idle, setIdle] = useState(false);
   const [focused, setFocused] = useState(false);
   const root = useRef<HTMLElement>(null);
+  const footer = useRef<HTMLElement>(null);
+  const sourceTrigger = useRef<HTMLButtonElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionId = s.sessionId!;
-  const hasSource = s.sourceKind !== null;
   const keepVisible =
-    s.paused ||
-    s.ended ||
-    Boolean(s.error || player.error) ||
-    Boolean(panel) ||
-    focused ||
-    player.pending;
+    s.paused || s.ended || Boolean(s.error || player.error || panel) || focused || player.pending;
   const seekable = s.seekable && s.duration > 0;
   const seek = (seconds: number, relative: boolean) =>
     player.command({
@@ -125,9 +110,8 @@ function ActivePlayer({
       },
     });
   const pause = () => {
-    if (!hasSource) return;
-    if (s.ended && !seekable) return;
-    if (s.ended && seekable) seek(0, false);
+    if (!hasSource || (s.ended && !seekable)) return;
+    if (s.ended) seek(0, false);
     player.command({
       command: "player.pause",
       payload: { sessionId, paused: s.ended ? false : !s.paused },
@@ -145,19 +129,43 @@ function ActivePlayer({
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setIdle(true), 3000);
   }
+  function changePanel(id: Panel, open: boolean) {
+    setPanel((current) => (open ? id : current === id ? null : current));
+    wake();
+  }
+  const closeSource = () => changePanel("source", false);
+  const sources =
+    sourcePanel ??
+    (sourceTarget ? (
+      <SourceControls target={sourceTarget} player={player} onPlaybackStarted={closeSource} />
+    ) : undefined);
+
   useEffect(() => {
-    root.current?.focus({ preventScroll: true });
+    // An initial source drawer owns focus; local video starts with keyboard transport ready.
+    if (hasSource) root.current?.focus({ preventScroll: true });
     timer.current = setTimeout(() => setIdle(true), 3000);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, []);
-  // Escape is handled on keydown, before a panel can close and accidentally exit playback.
+  }, [hasSource]);
+  // Consume Escape before a popup closes, so one key never also exits the player.
   useEffect(() => {
     function keyboard(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey)
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.isComposing
+      )
         return;
       if (event.key === "Escape") {
+        if (
+          event.target instanceof Element &&
+          event.target.closest('[data-slot="slider"][data-drafting]')
+        )
+          return;
         event.preventDefault();
         if (panel) setPanel(null);
         else if (s.fullscreen) fullscreen();
@@ -168,7 +176,7 @@ function ActivePlayer({
         panel ||
         (event.target instanceof Element &&
           event.target.closest(
-            "button,a,input,select,textarea,[contenteditable=true],[role=slider],[role=menu],[role=dialog],[role=combobox]",
+            "button,a,input,select,textarea,[contenteditable=true],[role=slider],[role=menu],[role=dialog],[role=combobox],[role=radio]",
           ))
       )
         return;
@@ -186,144 +194,14 @@ function ActivePlayer({
     return () => window.removeEventListener("keydown", keyboard, true);
   });
   const hidden = idle && !keepVisible;
-  function panelButton(id: Panel, title: string, icon: ReactNode, children: ReactNode) {
-    return (
-      <Popover
-        open={panel === id}
-        onOpenChange={(open) => {
-          setPanel(open ? id : null);
-          wake();
-        }}
-      >
-        <PopoverTrigger
-          render={<Button variant="ghost" size="icon-lg" aria-label={title} title={title} />}
-        >
-          {icon}
-        </PopoverTrigger>
-        <PopoverContent side="top" align="end" className="player-panel" dir="rtl">
-          <PopoverHeader>
-            <PopoverTitle>{title}</PopoverTitle>
-          </PopoverHeader>
-          {children}
-        </PopoverContent>
-      </Popover>
-    );
-  }
-  const trackPicker = (kind: "audio" | "subtitle") => {
-    const tracks = s.tracks.filter((track) => track.kind === kind);
-    return (
-      <>
-        <fieldset className="player-track-list" disabled={!hasSource}>
-          <legend className="sr-only">{kind === "audio" ? "مسار الصوت" : "مسار الترجمة"}</legend>
-          {kind === "subtitle" && (
-            <label className="player-track">
-              <input
-                type="radio"
-                name={kind}
-                checked={!tracks.some((track) => track.selected)}
-                onChange={() =>
-                  player.command({
-                    command: "player.track",
-                    payload: { sessionId, kind, trackId: null },
-                  })
-                }
-              />
-              إيقاف الترجمة
-            </label>
-          )}
-          {tracks.map((track) => (
-            <label key={track.id} className="player-track">
-              <input
-                type="radio"
-                name={kind}
-                checked={track.selected}
-                onChange={() =>
-                  player.command({
-                    command: "player.track",
-                    payload: { sessionId, kind, trackId: track.id },
-                  })
-                }
-              />
-              <span>{trackLabel(track)}</span>
-              {track.selected && <Check aria-hidden="true" />}
-            </label>
-          ))}
-        </fieldset>
-        {!tracks.length && (
-          <Empty>
-            <EmptyHeader>
-              <EmptyTitle>
-                {kind === "audio" ? "لا توجد مسارات صوت" : "لا توجد ترجمة مرفقة"}
-              </EmptyTitle>
-              <EmptyDescription>
-                {kind === "audio"
-                  ? hasSource
-                    ? "لم يوفّر الملف مسارًا صوتيًا."
-                    : "تُقرأ المسارات بعد اختيار مصدر الفيديو."
-                  : hasSource
-                    ? "يمكنك اختيار ملف ترجمة من جهازك."
-                    : "تظهر الترجمات المرفقة بعد فتح الفيديو."}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
-        {kind === "subtitle" && (
-          <Button
-            variant="outline"
-            disabled={!hasSource || player.pending}
-            onClick={() =>
-              player.command({ command: "player.pickSubtitle", payload: { sessionId } })
-            }
-          >
-            <FolderOpen data-icon="inline-start" />
-            إضافة ملف ترجمة
-          </Button>
-        )}
-        <FieldGroup>
-          <Setting
-            label={kind === "audio" ? "تأخير الصوت (ثانية)" : "تأخير الترجمة (ثانية)"}
-            value={kind === "audio" ? s.audioDelay : s.subtitleDelay}
-            min={-600}
-            max={600}
-            step={0.1}
-            disabled={!hasSource}
-            commit={(seconds) =>
-              player.command({ command: "player.delay", payload: { sessionId, kind, seconds } })
-            }
-          />
-          {kind === "subtitle" && (
-            <>
-              <Setting
-                label="حجم الترجمة"
-                value={s.subtitleSize}
-                min={10}
-                max={120}
-                disabled={!hasSource || player.pending}
-                commit={(size) =>
-                  player.command({
-                    command: "player.subtitleStyle",
-                    payload: { sessionId, size, position: s.subtitlePosition },
-                  })
-                }
-              />
-              <Setting
-                label="موضع الترجمة"
-                value={s.subtitlePosition}
-                max={100}
-                disabled={!hasSource || player.pending}
-                commit={(position) =>
-                  player.command({
-                    command: "player.subtitleStyle",
-                    payload: { sessionId, size: s.subtitleSize, position },
-                  })
-                }
-              />
-            </>
-          )}
-        </FieldGroup>
-      </>
-    );
-  };
+  const currentEpisode = episodes?.find((episode) => episode.current);
+  const subtitle =
+    currentEpisode?.detail ??
+    (s.sourceKind === "local"
+      ? "ملف من جهازك"
+      : hasSource
+        ? "تشغيل الفيديو"
+        : "معاينة المشغّل · لم يبدأ التشغيل");
   return (
     <section
       ref={root}
@@ -343,43 +221,36 @@ function ActivePlayer({
       }}
     >
       <header className="player-top">
-        <Button
-          variant="ghost"
-          size="icon-lg"
-          aria-label="إغلاق المشغّل"
-          title="إغلاق المشغّل"
-          onClick={close}
-        >
-          <ArrowRight data-icon="inline-start" />
-        </Button>
-        <div className="player-title">
-          <h1>{s.title || "فيديو محلي"}</h1>
-          <p>
-            {episodes?.find((episode) => episode.current)?.detail ??
-              (s.sourceKind === "local"
-                ? "ملف من جهازك"
-                : hasSource
-                  ? "تشغيل الفيديو"
-                  : "معاينة المشغّل · لم يبدأ التشغيل")}
-          </p>
+        <div className="player-title-group">
+          <PlayerControl aria-label="إغلاق المشغّل" title="العودة إلى المكتبة" onClick={close}>
+            <ArrowRight data-icon="inline-start" />
+          </PlayerControl>
+          <div className="player-title">
+            <h1>{s.title || "فيديو محلي"}</h1>
+            <p>{subtitle}</p>
+          </div>
         </div>
+        <PlayerControl
+          aria-label={s.fullscreen ? "الخروج من ملء الشاشة" : "ملء الشاشة"}
+          title={s.fullscreen ? "الخروج من ملء الشاشة" : "ملء الشاشة"}
+          onClick={fullscreen}
+        >
+          {s.fullscreen ? (
+            <Minimize data-icon="inline-start" />
+          ) : (
+            <Maximize data-icon="inline-start" />
+          )}
+        </PlayerControl>
       </header>
-      {!hasSource && !sourcePanel && (
+      {!hasSource && !sources && (
         <div className="player-message">
           <Alert>
             <AlertTitle>اختر مصدر الفيديو</AlertTitle>
             <AlertDescription>
-              هذه معاينة واجهة المشغّل. التقدم الحقيقي يبدأ عند فتح فيديو؛ لا تُسجّل هذه المعاينة
-              مشاهدة.
+              افتح ملفًا من جهازك لبدء التشغيل. لا تسجّل المعاينة مشاهدة.
             </AlertDescription>
           </Alert>
         </div>
-      )}
-      {!hasSource && sourcePanel && (
-        <section className="player-picker" aria-label="اختيار مصدر المشاهدة">
-          <h2 className="text-lg font-semibold">مصادر المشاهدة</h2>
-          {sourcePanel}
-        </section>
       )}
       {(s.error || player.error) && (
         <div className="player-message">
@@ -389,12 +260,13 @@ function ActivePlayer({
           </Alert>
         </div>
       )}
-      {s.buffering && !s.error && (
+      {s.buffering && !s.error && panel !== "source" && (
         <div className="player-buffering" role="status">
-          جارٍ تحميل الفيديو…
+          <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+          <span>جارٍ تحميل الفيديو…</span>
         </div>
       )}
-      <footer className="player-bottom">
+      <footer ref={footer} className="player-bottom">
         {s.ended && <p className="player-ended">انتهى الفيديو</p>}
         <div className="player-timeline" dir="ltr">
           <PlayerSlider
@@ -408,18 +280,8 @@ function ActivePlayer({
         </div>
         <div className="player-controls">
           <div className="player-transport" dir="ltr">
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              aria-label="رجوع 10 ثوانٍ"
-              disabled={!seekable}
-              onClick={() => seek(-10, true)}
-            >
-              <RotateCcw data-icon="inline-start" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-lg"
+            <PlayerControl
+              className="player-play"
               aria-label={s.ended ? "إعادة التشغيل" : s.paused ? "تشغيل" : "إيقاف مؤقت"}
               disabled={!hasSource || (s.ended && !seekable)}
               onClick={pause}
@@ -429,19 +291,30 @@ function ActivePlayer({
               ) : (
                 <Pause data-icon="inline-start" />
               )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-lg"
+            </PlayerControl>
+            <PlayerControl
+              aria-label="رجوع 10 ثوانٍ"
+              title="رجوع 10 ثوانٍ"
+              disabled={!seekable}
+              onClick={() => seek(-10, true)}
+            >
+              <RotateCcw data-icon="inline-start" />
+              <span className="player-seek-number" aria-hidden="true">
+                10
+              </span>
+            </PlayerControl>
+            <PlayerControl
               aria-label="تقديم 10 ثوانٍ"
+              title="تقديم 10 ثوانٍ"
               disabled={!seekable}
               onClick={() => seek(10, true)}
             >
               <RotateCw data-icon="inline-start" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-lg"
+              <span className="player-seek-number" aria-hidden="true">
+                10
+              </span>
+            </PlayerControl>
+            <PlayerControl
               aria-label={s.muted ? "إلغاء كتم الصوت" : "كتم الصوت"}
               disabled={!hasSource}
               onClick={mute}
@@ -451,7 +324,7 @@ function ActivePlayer({
               ) : (
                 <Volume2 data-icon="inline-start" />
               )}
-            </Button>
+            </PlayerControl>
             <div className="player-volume">
               <PlayerSlider
                 label="مستوى الصوت"
@@ -468,27 +341,23 @@ function ActivePlayer({
             </span>
           </div>
           <nav className="player-tools" aria-label="خيارات التشغيل">
-            {panelButton(
-              "episodes",
-              "الحلقات",
-              <ListVideo data-icon="inline-start" />,
-              episodes?.length ? (
-                <div className="player-episodes">
-                  {episodes.map((episode) => (
-                    <Button
-                      key={episode.id}
-                      variant={episode.current ? "secondary" : "ghost"}
-                      disabled={!onSelectEpisode || episode.current}
-                      onClick={() => {
-                        onSelectEpisode?.(episode);
-                        setPanel(null);
-                      }}
-                    >
-                      {episode.title}
-                      {episode.detail && <span>{episode.detail}</span>}
-                    </Button>
-                  ))}
-                </div>
+            <PlayerPopover
+              title="الحلقات"
+              icon={<ListVideo data-icon="inline-start" />}
+              open={panel === "episodes"}
+              onOpenChange={(open) => changePanel("episodes", open)}
+              anchor={footer}
+              wide
+            >
+              {episodes?.length ? (
+                <EpisodePanel
+                  episodes={episodes}
+                  installmentTitle={installmentTitle}
+                  onSelectEpisode={(episode) => {
+                    if (!episode.current) onSelectEpisode?.(episode);
+                    setPanel(null);
+                  }}
+                />
               ) : (
                 <Empty>
                   <EmptyHeader>
@@ -498,129 +367,152 @@ function ActivePlayer({
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
-              ),
-            )}
-            {panelButton(
-              "source",
-              "مصدر الفيديو",
-              <FolderOpen data-icon="inline-start" />,
-              <>
-                <p className="player-source-title">{s.title}</p>
-                <p>
-                  {s.sourceKind === "local"
-                    ? "ملف محلي اختير من جهازك."
-                    : "اختر مصدرًا لبدء التشغيل."}
-                </p>
-                <Button
-                  variant="outline"
-                  disabled={player.pending}
-                  onClick={() => player.command({ command: "player.pickVideo", payload: {} })}
-                >
-                  <FolderOpen data-icon="inline-start" />
-                  اختيار فيديو آخر
-                </Button>
-                {hasSource ? (
-                  (sourcePanel ?? (
-                    <p className="player-note">مصادر الشبكة غير متاحة في هذا الإصدار.</p>
-                  ))
-                ) : (
-                  <p className="player-note">اختر من لوحة المصادر الظاهرة فوق الفيديو.</p>
-                )}
-              </>,
-            )}
-            {panelButton(
-              "audio",
-              "الصوت",
-              <AudioLines data-icon="inline-start" />,
-              trackPicker("audio"),
-            )}
-            {panelButton(
-              "subtitle",
-              "الترجمة",
-              <Captions data-icon="inline-start" />,
-              trackPicker("subtitle"),
-            )}
-            {panelButton(
-              "settings",
-              "إعدادات التشغيل",
-              <Settings2 data-icon="inline-start" />,
-              <>
+              )}
+            </PlayerPopover>
+            <Drawer
+              swipeDirection="right"
+              open={panel === "source"}
+              onOpenChange={(open) => changePanel("source", open)}
+            >
+              <DrawerTrigger
+                render={
+                  <PlayerControl
+                    ref={sourceTrigger}
+                    aria-label="مصدر الفيديو"
+                    title="مصدر الفيديو"
+                  />
+                }
+              >
+                <FolderOpen data-icon="inline-start" />
+              </DrawerTrigger>
+              <DrawerContent
+                finalFocus={sourceTrigger}
+                className="player-source-drawer w-full max-w-lg sm:max-w-lg"
+                dir="rtl"
+              >
+                <DrawerHeader>
+                  <div className="flex items-center justify-between gap-3">
+                    <DrawerTitle>مصدر الفيديو</DrawerTitle>
+                    <DrawerClose render={<PlayerControl aria-label="إغلاق مصادر الفيديو" />}>
+                      <X data-icon="inline-start" />
+                    </DrawerClose>
+                  </div>
+                  <DrawerDescription>{s.title}</DrawerDescription>
+                </DrawerHeader>
+                <Separator />
+                <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 pb-6">
+                  <Button
+                    variant="outline"
+                    disabled={player.pending}
+                    onClick={() => {
+                      void player
+                        .commandAsync({ command: "player.pickVideo", payload: {} })
+                        .then((next) => {
+                          if (next.sourceKind === "local") closeSource();
+                          return next;
+                        })
+                        .catch(() => {});
+                    }}
+                  >
+                    <FolderOpen data-icon="inline-start" />
+                    اختيار فيديو من جهازك
+                  </Button>
+                  {sources ?? (
+                    <p className="text-sm text-muted-foreground">
+                      مصادر الشبكة غير متاحة في هذا الإصدار.
+                    </p>
+                  )}
+                </div>
+              </DrawerContent>
+            </Drawer>
+            <DownloadControl
+              snapshot={s}
+              open={panel === "download"}
+              onOpenChange={(open) => changePanel("download", open)}
+            />
+            <PlayerPopover
+              title="الصوت"
+              icon={<AudioLines data-icon="inline-start" />}
+              open={panel === "audio"}
+              onOpenChange={(open) => changePanel("audio", open)}
+            >
+              <TrackPanel kind="audio" snapshot={s} player={player} />
+            </PlayerPopover>
+            <PlayerPopover
+              title="الترجمة"
+              icon={<Captions data-icon="inline-start" />}
+              open={panel === "subtitle"}
+              onOpenChange={(open) => changePanel("subtitle", open)}
+            >
+              <TrackPanel kind="subtitle" snapshot={s} player={player} />
+            </PlayerPopover>
+            <PlayerControl
+              aria-label="البث إلى جهاز آخر غير متاح"
+              title="البث إلى جهاز آخر غير متاح بعد"
+              disabled
+            >
+              <Cast data-icon="inline-start" />
+            </PlayerControl>
+            <PlayerPopover
+              title="إعدادات التشغيل"
+              icon={<Settings2 data-icon="inline-start" />}
+              open={panel === "settings"}
+              onOpenChange={(open) => changePanel("settings", open)}
+            >
+              <div className="flex flex-col gap-5">
                 <FieldGroup>
-                  <Setting
+                  <PlayerSetting
                     label="سرعة التشغيل"
                     value={s.speed}
                     min={0.25}
                     max={4}
                     step={0.25}
-                    disabled={!hasSource}
+                    disabled={!hasSource || player.pending}
                     commit={(speed) =>
                       player.command({ command: "player.speed", payload: { sessionId, speed } })
                     }
                   />
                 </FieldGroup>
-                <dl className="player-diagnostics">
-                  <dt>ترميز الفيديو</dt>
-                  <dd>{s.videoCodec ?? "غير متاح"}</dd>
-                  <dt>فك الترميز العتادي</dt>
-                  <dd>{s.hwdec ?? "غير متاح"}</dd>
+                <DirectionProvider direction="ltr">
+                  <ToggleGroup
+                    aria-label="سرعات التشغيل"
+                    value={[String(s.speed)]}
+                    disabled={!hasSource || player.pending}
+                    onValueChange={(values: string[]) => {
+                      const speed = speeds.find((value) => String(value) === values[0]);
+                      if (speed !== undefined)
+                        player.command({ command: "player.speed", payload: { sessionId, speed } });
+                    }}
+                    className="w-full flex-wrap"
+                    dir="ltr"
+                    spacing={1}
+                  >
+                    {speeds.map((speed) => (
+                      <ToggleGroupItem
+                        key={speed}
+                        value={String(speed)}
+                        aria-label={`السرعة ${speed}×`}
+                      >
+                        {speed}×
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </DirectionProvider>
+                <Separator />
+                <dl className="grid grid-cols-2 gap-3 text-sm">
+                  <dt className="text-muted-foreground">ترميز الفيديو</dt>
+                  <dd className="wrap-anywhere">{s.videoCodec ?? "غير متاح"}</dd>
+                  <dt className="text-muted-foreground">فك الترميز العتادي</dt>
+                  <dd className="wrap-anywhere">{s.hwdec ?? "غير متاح"}</dd>
                 </dl>
-                <p className="player-note">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   البث إلى جهاز آخر والمشاهدة الجماعية والنافذة العائمة غير متاحة.
                 </p>
-              </>,
-            )}
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              aria-label={s.fullscreen ? "الخروج من ملء الشاشة" : "ملء الشاشة"}
-              onClick={fullscreen}
-            >
-              {s.fullscreen ? (
-                <Minimize data-icon="inline-start" />
-              ) : (
-                <Maximize data-icon="inline-start" />
-              )}
-            </Button>
+              </div>
+            </PlayerPopover>
           </nav>
         </div>
       </footer>
     </section>
-  );
-}
-
-function Setting({
-  label,
-  value,
-  min = 0,
-  max,
-  step,
-  disabled = false,
-  commit,
-}: {
-  label: string;
-  value: number;
-  min?: number;
-  max: number;
-  step?: number;
-  disabled?: boolean;
-  commit: (value: number) => void;
-}) {
-  return (
-    <Field data-disabled={disabled}>
-      <FieldLabel>
-        {label} <bdi>{value}</bdi>
-      </FieldLabel>
-      <div dir="ltr">
-        <PlayerSlider
-          label={label}
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          disabled={disabled}
-          commit={commit}
-        />
-      </div>
-    </Field>
   );
 }

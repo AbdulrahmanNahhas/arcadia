@@ -17,22 +17,23 @@ import {
   DialogTrigger,
 } from "../../components/ui/dialog";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "../../components/ui/popover";
-import { requestWatch } from "../player/watch-request";
+import { requestDownload, requestWatch } from "../player/watch-request";
 import { replaceParams, useViewerRoute, workLink } from "../shell/navigation";
 import { ArtworkGallery, MediaFiles, References } from "./data-panel";
 import { RiskRows } from "./family-panel";
 import { Disclosure, FieldList } from "./field-list";
-import { dateLabel, externalIdLabels, pickArtwork, statusLabels } from "./format";
+import {
+  dateLabel,
+  episodeNumberLabel,
+  externalIdLabels,
+  pickArtwork,
+  statusLabels,
+} from "./format";
 import type { WorkTracking } from "./use-work-tracking";
 import { WatchedControl } from "./watched-control";
 
 type Installment = WorkDetail["installments"][number];
 type Episode = Installment["episodes"][number];
-
-function episodeNumberLabel(value: string) {
-  const number = Number(value);
-  return Number.isFinite(number) ? String(number) : value;
-}
 
 export function InstallmentsPanel({
   work,
@@ -363,9 +364,17 @@ function EpisodeCard({
           </Button>
           <Button
             variant="outline"
-            disabled
+            {...navigation}
+            disabled={episode.releaseState === "upcoming" || installment.status === "announced"}
             aria-label={`تنزيل الحلقة ${number}`}
-            title="التنزيل يُربط في مرحلة التنزيلات التالية"
+            onClick={() =>
+              requestDownload({
+                workId: work.id,
+                installmentId: installment.id,
+                episodeId: episode.id,
+                title: `${work.titleAr || work.canonicalTitle} · الحلقة ${number}`,
+              })
+            }
           >
             <Download data-icon="inline-start" />
             تنزيل

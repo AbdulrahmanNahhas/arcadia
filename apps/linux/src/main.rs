@@ -69,6 +69,16 @@ impl Config {
     }
 }
 fn main() -> glib::ExitCode {
+    // WebKit 2.52's Skia software backing store blends transparent updates over
+    // old pixels. Keep the launcher's no-DMA-BUF default, but use the shared-memory
+    // compositor instead. Set this before GTK or workers create any threads.
+    if std::env::var("NAHHASIO_WEBKIT_DMABUF").as_deref() != Ok("1")
+        && (glib::setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "0", true).is_err()
+            || glib::setenv("WEBKIT_DMABUF_RENDERER_FORCE_SHM", "1", true).is_err())
+    {
+        eprintln!("Could not configure the desktop compositor");
+        return glib::ExitCode::FAILURE;
+    }
     // libmpv requires C numeric parsing. Establish this before GTK and workers;
     // never mutate process-global locale from an active player.
     gtk::disable_setlocale();

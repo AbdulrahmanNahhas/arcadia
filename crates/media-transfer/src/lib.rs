@@ -2,6 +2,7 @@
 //! caller's blocking executor, never GTK. All transfers restore paused and recheck.
 #[allow(unsafe_code)]
 mod bridge;
+mod exports;
 use bridge::ffi;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -139,6 +140,7 @@ struct Owner {
     native: cxx::UniquePtr<ffi::Session>,
     db: Connection,
     root: PathBuf,
+    payload_root: PathBuf,
     _lock: std::fs::File,
     leases: BTreeMap<u64, (String, Vec<u32>)>,
     next_lease: u64,
@@ -155,14 +157,35 @@ impl Engine {
         media_root: impl AsRef<Path>,
         policy: NetworkPolicy,
     ) -> Result<Self> {
-        let state_root = state_root.as_ref().to_path_buf();
-        let media_root = media_root.as_ref().to_path_buf();
+        Self::open_roots(state_root.as_ref(), media_root.as_ref(), None, policy)
+    }
+    /// Preserve existing payload locations, but place new jobs in private storage.
+    pub fn open_with_private_payloads(
+        state_root: &Path,
+        legacy_root: &Path,
+        payload_root: &Path,
+    ) -> Result<Self> {
+        Self::open_roots(
+            state_root,
+            legacy_root,
+            Some(payload_root.to_path_buf()),
+            NetworkPolicy::Public,
+        )
+    }
+    fn open_roots(
+        state_root: &Path,
+        media_root: &Path,
+        payload_root: Option<PathBuf>,
+        policy: NetworkPolicy,
+    ) -> Result<Self> {
+        let state_root = state_root.to_path_buf();
+        let media_root = media_root.to_path_buf();
         let (tx, rx) = mpsc::sync_channel::<Work>(32);
         let (ready_tx, ready_rx) = mpsc::sync_channel(1);
         let join = thread::Builder::new()
             .name("media-transfer".into())
             .spawn(move || {
-                let mut owner = match Owner::open(state_root, media_root, policy) {
+                let mut owner = match Owner::open(state_root, media_root, payload_root, policy) {
                     Ok(owner) => {
                         let _ = ready_tx.send(Ok(()));
                         owner
@@ -560,7 +583,12 @@ fn reject_hardlinks(path: &Path) -> Result<()> {
     Ok(())
 }
 impl Owner {
-    fn open(state_root: PathBuf, root: PathBuf, policy: NetworkPolicy) -> Result<Self> {
+    fn open(
+        state_root: PathBuf,
+        root: PathBuf,
+        payload_root: Option<PathBuf>,
+        policy: NetworkPolicy,
+    ) -> Result<Self> {
         for directory in [&state_root, &root] {
             create_private_root(directory)?;
         }
@@ -581,7 +609,7 @@ impl Owner {
         db.busy_timeout(Duration::from_secs(2))?;
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;")?;
         let version: i64 = db.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        if version > 2 {
+        if version > 3 {
             return Err(Error::Invalid("unsupported job store version".into()));
         }
         if version == 0 {
@@ -607,10 +635,24 @@ impl Owner {
                 "media root changed; existing layout must not be moved".into(),
             ));
         }
+        if version < 3 {
+            let tx = db.unchecked_transaction()?;
+            tx.execute(
+                "ALTER TABLE jobs ADD COLUMN payload_root TEXT NOT NULL DEFAULT ''",
+                [],
+            )?;
+            tx.execute("UPDATE jobs SET payload_root=?1", [&stored_root])?;
+            tx.execute_batch("CREATE TABLE exports(id TEXT NOT NULL,file INTEGER NOT NULL,destination TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(id,file)); PRAGMA user_version=3;")?;
+            tx.commit()?;
+        }
+        let payload_root = payload_root.unwrap_or_else(|| root.clone());
+        create_private_root(&payload_root)?;
+        let payload_root = payload_root.canonicalize()?;
         let mut owner = Self {
             native: ffi::session(policy == NetworkPolicy::Public)?,
             db,
             root,
+            payload_root,
             _lock: lock,
             leases: BTreeMap::new(),
             next_lease: 1,
@@ -631,7 +673,7 @@ impl Owner {
             .collect::<std::result::Result<Vec<_>, _>>()?
         };
         for (id, meta, magnet, resume) in entries {
-            let missing = !owner.root.join(&id).exists();
+            let missing = !owner.job_root(&id)?.join(&id).exists();
             if let Err(error) = owner.add(&id, &meta, &magnet, &resume).and_then(|()| {
                 let selected = owner.selection(&id)?;
                 if !selected.is_empty() {
@@ -658,7 +700,7 @@ impl Owner {
         if id != format!("v1-{}", identity.v1) && id != format!("v2-{}", identity.v2) {
             return Err(Error::Invalid("stored identity mismatch".into()));
         }
-        let path = self.root.join(id);
+        let path = self.job_root(id)?.join(id);
         reject_symlinks(&path)?;
         if resume.len() > 32 * 1024 * 1024 {
             return Err(Error::Invalid("resume data limit".into()));
@@ -708,8 +750,8 @@ impl Owner {
             format!("v2-{}", identity.v2)
         };
         self.db.execute(
-            "INSERT INTO jobs VALUES(?1,?2,?3,?4,?5,'[]',x'')",
-            params![id, identity.v1, identity.v2, meta, magnet],
+            "INSERT INTO jobs(id,v1,v2,meta,magnet,selected,resume,payload_root) VALUES(?1,?2,?3,?4,?5,'[]',x'',?6)",
+            params![id, identity.v1, identity.v2, meta, magnet, self.payload_root.to_str().ok_or_else(|| Error::Invalid("root encoding".into()))?],
         )?;
         if let Err(error) = self.add(&id, &meta, &magnet, &[]) {
             self.recovery.insert(id.clone(), TransferState::Failed);
@@ -720,11 +762,12 @@ impl Owner {
     }
     fn files(&self, id: &str) -> Result<Vec<File>> {
         let native = self.native.files(id)?;
+        let root = self.job_root(id)?;
         let mut files = Vec::new();
         for f in native {
             validate_path(&f.path)?;
-            reject_symlinks(&self.root.join(id).join(&f.path))?;
-            reject_hardlinks(&self.root.join(id).join(&f.path))?;
+            reject_symlinks(&root.join(id).join(&f.path))?;
+            reject_hardlinks(&root.join(id).join(&f.path))?;
             if !f.pad {
                 files.push(File {
                     index: f.index,

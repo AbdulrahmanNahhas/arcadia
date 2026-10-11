@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { Login } from "../features/auth/login";
 import { Library } from "../features/library/library";
 import { PlayerHost, usePlayerSnapshot } from "../features/player";
+import type { PlayerEpisode } from "../features/player/episode-panel";
 import { openWatch } from "../features/player/playback";
-import { SourceControls } from "../features/player/source-controls";
 import {
   WatchTargetSchema,
   watchRequestEvent,
   type WatchTarget,
 } from "../features/player/watch-request";
+import { episodeNumberLabel, pickArtwork } from "../features/work/format";
 import { gateway } from "../lib/bridge";
 export function App() {
   const client = useQueryClient();
@@ -68,33 +69,51 @@ export function App() {
       (installment) =>
         installment.id === (player.snapshot?.installmentId ?? watchTarget?.installmentId),
     ) ?? watchWork.data?.installments[0];
-  const episodes =
+  const episodes: PlayerEpisode[] | undefined =
     player.snapshot?.sourceKind === "local"
       ? undefined
-      : selectedInstallment?.episodes.map((episode) => ({
-          id: episode.id,
-          title: episode.title || `الحلقة ${episode.number}`,
-          detail: `الحلقة ${episode.number}`,
-          current: episode.id === (player.snapshot?.episodeId ?? watchTarget?.episodeId),
-        }));
+      : selectedInstallment?.episodes
+          .toSorted((a, b) => a.position - b.position)
+          .map((episode) => {
+            const number = episodeNumberLabel(episode.number);
+            return {
+              id: episode.id,
+              number,
+              title: episode.title || `الحلقة ${number}`,
+              detail: `الحلقة ${number}`,
+              image:
+                pickArtwork(episode.artwork, "still") ??
+                pickArtwork(episode.artwork, "banner") ??
+                pickArtwork(selectedInstallment.artwork, "banner") ??
+                pickArtwork(watchWork.data?.artwork ?? [], "banner"),
+              summary: episode.summary,
+              runtimeMinutes: episode.runtimeMinutes,
+              disabled: episode.releaseState === "upcoming",
+              disabledReason:
+                episode.releaseState === "upcoming" ? "قادم" : "موعد الإصدار غير معروف",
+              current: episode.id === (player.snapshot?.episodeId ?? watchTarget?.episodeId),
+            };
+          });
   if (playing)
     return (
       <PlayerHost
         player={player}
         episodes={episodes}
-        sourcePanel={
-          <SourceControls
-            target={player.snapshot?.sourceKind === "local" ? null : watchTarget}
-            player={player}
-          />
-        }
+        installmentTitle={selectedInstallment?.title}
+        sourceTarget={player.snapshot?.sourceKind === "local" ? null : watchTarget}
         onSelectEpisode={(episode) => {
           if (!watchTarget || !selectedInstallment) return;
+          const selectedEpisode = selectedInstallment.episodes.find(
+            (item) => item.id === episode.id,
+          );
+          if (!selectedEpisode || selectedEpisode.releaseState === "upcoming") return;
+          const number = episodeNumberLabel(selectedEpisode.number);
+          const title = `الحلقة ${number}${selectedEpisode.title ? ` · ${selectedEpisode.title}` : ""}`;
           const target = {
             ...watchTarget,
             installmentId: selectedInstallment.id,
             episodeId: episode.id,
-            title: `${watchWork.data?.titleAr || watchWork.data?.canonicalTitle} · ${episode.title}`,
+            title: `${watchWork.data?.titleAr || watchWork.data?.canonicalTitle} · ${title}`,
           };
           setWatchTarget(target);
           void openWatch(target, { commandAsync: playerCommandAsync }, client).catch(() => {});

@@ -4,7 +4,7 @@ import type { WorkDetail } from "@nahhasio/api-contract";
 import { Badge } from "../../components/ui/badge";
 import { criteria } from "../catalog/filter-model";
 import { Disclosure, FieldList, Section } from "./field-list";
-import { dateLabel } from "./format";
+import { dateLabel, episodeNumberLabel } from "./format";
 import { CriterionTrend, ScoreFingerprint } from "./score-charts";
 import { scoreProfile, scoreValue, weightedValue } from "./score-model";
 
@@ -37,7 +37,9 @@ export function ScoresPanel({ work }: { work: WorkDetail }) {
                   criterion.label,
                   <span key={criterion.key} className="inline-flex items-baseline gap-3">
                     <strong className="tabular-nums">
-                      {criterion.average === null ? "غير مقيّم" : criterion.average.toFixed(2)}
+                      {criterion.average === null
+                        ? "غير مقيّم"
+                        : episodeNumberLabel(criterion.average.toFixed(2))}
                     </strong>
                     <span className="text-xs text-muted-foreground">
                       وزن {scoreWeights[criterion.key] * 100}%

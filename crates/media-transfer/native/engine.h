@@ -32,6 +32,7 @@ public:
     void start(rust::Str);
     void pause(rust::Str);
     Status status(rust::Str) const;
+    bool file_complete(rust::Str, uint32_t) const;
     rust::Vec<uint8_t> piece(rust::Str, uint32_t, uint64_t);
     uint64_t begin_read(rust::Str, uint32_t, uint64_t, uint32_t);
     void end_read(uint64_t);

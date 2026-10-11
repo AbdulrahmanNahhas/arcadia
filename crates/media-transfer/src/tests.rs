@@ -45,6 +45,46 @@ fn store_reopens_and_rejects_future_and_corrupt() {
     );
 }
 
+#[test]
+fn legacy_v2_jobs_keep_their_payload_location() {
+    let state = tempfile::tempdir().unwrap();
+    let videos = tempfile::tempdir().unwrap();
+    let fixture = tempfile::tempdir().unwrap();
+    std::fs::create_dir(fixture.path().join("fixture")).unwrap();
+    std::fs::write(fixture.path().join("fixture/movie.mp4"), [7_u8; 32768]).unwrap();
+    std::fs::write(fixture.path().join("fixture/readme.txt"), [0_u8; 32]).unwrap();
+    let meta = ffi::fixture(fixture.path().to_str().unwrap(), 1).unwrap();
+    let engine =
+        Engine::open_with_network(state.path(), videos.path(), NetworkPolicy::LoopbackOnly)
+            .unwrap();
+    let id = engine.import_torrent(meta).unwrap();
+    drop(engine);
+    let db = Connection::open(state.path().join("jobs.sqlite3")).unwrap();
+    db.execute_batch(
+        "DROP TABLE exports; ALTER TABLE jobs DROP COLUMN payload_root; PRAGMA user_version=2;",
+    )
+    .unwrap();
+    drop(db);
+    let private = state.path().join("payloads");
+    let restored = Engine::open_roots(
+        state.path(),
+        videos.path(),
+        Some(private.clone()),
+        NetworkPolicy::LoopbackOnly,
+    )
+    .unwrap();
+    assert_eq!(restored.jobs().unwrap()[0].id.0, id.0);
+    assert!(restored.jobs().unwrap()[0].recovery_error.is_none());
+    assert!(videos.path().join(&id.0).exists());
+    assert!(!private.join(&id.0).exists());
+    std::fs::write(fixture.path().join("fixture/movie.mp4"), [8_u8; 32768]).unwrap();
+    let new = restored
+        .import_torrent(ffi::fixture(fixture.path().to_str().unwrap(), 1).unwrap())
+        .unwrap();
+    assert!(private.join(&new.0).exists());
+    assert!(!videos.path().join(&new.0).exists());
+}
+
 fn wait_complete(engine: &Engine, id: &TorrentId) {
     let deadline = Instant::now() + Duration::from_secs(20);
     loop {
@@ -88,9 +128,11 @@ fn controlled_loopback_formats_selection_promotion_and_restart() {
         wait_complete(&seed, &id);
         let target_state = tempfile::tempdir().unwrap();
         let target_media = tempfile::tempdir().unwrap();
-        let target = Engine::open_with_network(
+        let private_payloads = target_state.path().join("payloads");
+        let target = Engine::open_roots(
             target_state.path(),
             target_media.path(),
+            Some(private_payloads.clone()),
             NetworkPolicy::LoopbackOnly,
         )
         .unwrap();
@@ -104,6 +146,12 @@ fn controlled_loopback_formats_selection_promotion_and_restart() {
             .into_iter()
             .find(|f| f.path.ends_with(".mp4"))
             .unwrap();
+        assert_eq!(
+            std::fs::read_dir(target_media.path()).unwrap().count(),
+            0,
+            "watching must not create a torrent directory in Videos"
+        );
+        assert!(private_payloads.join(&id.0).exists());
         let lease = target.playback_lease(&id, vec![movie.index]).unwrap();
         assert!(target.status(&id).unwrap().paused);
         target.start(&id).unwrap();
@@ -121,15 +169,34 @@ fn controlled_loopback_formats_selection_promotion_and_restart() {
             )
             .unwrap();
         assert_eq!(actual, data[8193..8193 + 32768]);
-        target.select_download(&id, vec![movie.index]).unwrap();
+        target
+            .keep_export(
+                &id,
+                movie.index,
+                target_media.path(),
+                "Frieren Beyond Journey's End",
+            )
+            .unwrap();
         drop(lease);
         wait_complete(&target, &id);
+        target.export_completed().unwrap();
+        let exported = target_media
+            .path()
+            .join("Frieren Beyond Journey's End/movie.mp4");
+        assert_eq!(std::fs::read(&exported).unwrap(), data);
+        target.export_completed().unwrap();
+        assert!(
+            target
+                .keep_export(&id, movie.index, target_media.path(), "another work")
+                .is_err()
+        );
         target.pause(&id).unwrap();
         target.checkpoint().unwrap();
         drop(target);
-        let restored = Engine::open_with_network(
+        let restored = Engine::open_roots(
             target_state.path(),
             target_media.path(),
+            Some(private_payloads.clone()),
             NetworkPolicy::LoopbackOnly,
         )
         .unwrap();
@@ -159,13 +226,14 @@ fn controlled_loopback_formats_selection_promotion_and_restart() {
         drop(restored);
         drop(seed);
         std::fs::write(
-            target_media.path().join(&id.0).join(&movie.path),
+            private_payloads.join(&id.0).join(&movie.path),
             vec![0u8; data.len()],
         )
         .unwrap();
-        let damaged = Engine::open_with_network(
+        let damaged = Engine::open_roots(
             target_state.path(),
             target_media.path(),
+            Some(private_payloads),
             NetworkPolicy::LoopbackOnly,
         )
         .unwrap();

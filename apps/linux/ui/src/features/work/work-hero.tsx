@@ -1,12 +1,12 @@
 import type { WorkDetail } from "@nahhasio/api-contract";
-import { CalendarDays, Film, Heart, Play, Tv } from "lucide-react";
+import { CalendarDays, Download, Film, Heart, Play, Tv } from "lucide-react";
 
 import { Artwork } from "../../components/artwork";
 import { useCardNavigation } from "../../components/card-navigation";
 import { ScoreBadge } from "../../components/media-card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { requestWatch } from "../player/watch-request";
+import { requestDownload, requestWatch } from "../player/watch-request";
 import { entityLink } from "../shell/navigation";
 import { audienceLabels, statusLabels } from "./format";
 import type { WorkTracking } from "./use-work-tracking";
@@ -133,6 +133,18 @@ export function WorkHero({
             >
               <Play data-icon="inline-start" />
               تشغيل
+            </Button>
+            <Button
+              {...navigation}
+              size="lg"
+              variant="outline"
+              disabled={!work.installments.some((item) => item.status !== "announced")}
+              onClick={() =>
+                requestDownload({ workId: work.id, title: work.titleAr || work.canonicalTitle })
+              }
+            >
+              <Download data-icon="inline-start" />
+              تنزيل
             </Button>
             {work.installments.length > 0 && (
               <Button

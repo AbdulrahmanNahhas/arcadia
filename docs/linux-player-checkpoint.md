@@ -11,8 +11,10 @@ devenv shell -- nahhasio-client
 
 Log in and press Watch on home, a work, an installment or an episode. The client opens
 the player, reads the authorized work metadata, rejects upcoming targets, resolves IMDb
-and episode identity, searches Torrentio and tries the first supported source. The visible
-source picker supports retry/another source and explicit file selection for ambiguous packs.
+and episode identity, and searches Torrentio. Nothing starts until an explicit source choice.
+The visible source picker supports retry/another source and explicit file selection for ambiguous packs.
+Download buttons on cards, work pages and released episodes use the same picker with download
+intent: the native `media.download` command retains the selected file without attaching mpv.
 No source response, no peers or an unsupported mapping produces an error rather than fake
 progress. A title carrying IMDb is not a guarantee that Torrentio supplies a working release.
 
@@ -30,8 +32,9 @@ ignored environment setup; never commit keys, include them in JavaScript or past
 
 Season numbering deliberately matches the old Tauri API: ordinal among season installments,
 excluding movies/specials, not raw installment position. Film IMDb falls back to the parent
-only when there is exactly one film. Unknown/missing identifiers and noninteger episode
-mappings remain visible errors rather than guessed sources.
+only when there is exactly one film. Whole decimal episode numbers such as `3.00` map exactly
+to episode 3; fractional specials such as `12.50` remain unsupported, never rounded to another
+episode. Unknown/missing identifiers remain visible errors rather than guessed sources.
 
 Source discovery/resolution is isolated in native modules. A future debrid resolver can feed
 the same private loopback player path; AllDebrid/EasyDebrid are not connected in this checkpoint.
@@ -43,10 +46,21 @@ Kept-video root defaults to Linux's configured Videos directory plus `nahhasio`,
 `~/Videos/nahhasio`. `NAHHASIO_MEDIA_ROOT` can set an absolute root. Device job/resume state is
 under `$XDG_STATE_HOME/nahhasio` (default `~/.local/state/nahhasio`), not PostgreSQL.
 
-“Keep download” adds durable file interest to the existing torrent handle; it does not start
-another transfer or discard buffered pieces. Closing the player releases only its playback
-lease. Completed/partial files are hash-rechecked on restore. Changing an existing store's
-media root is refused instead of silently moving files. Payload deletion is not implemented.
+New torrent payloads live privately under `$XDG_STATE_HOME/nahhasio/payloads`, not Videos.
+“Keep download” adds durable file interest and an export intent to the existing handle; it does
+not start another transfer or discard buffered pieces. After the whole selected file is verified,
+a blocking export worker reads verified engine ranges and publishes an additional copy at
+`<Videos>/nahhasio/<canonical work title>/<original video filename>`. Unsafe title separators are
+sanitized; existing filenames are never overwritten. Export intent survives restart, transfers
+restore paused, and completion/export requires the app to remain open. A hidden `.partial` can
+exist during export. This interim design consumes extra disk space; cache eviction is not implemented.
+
+The additive device SQLite v3 upgrade records each job's payload root, preserving all legacy
+jobs/files in their original hash-named Videos folders. Reusing one of those legacy torrents
+still uses its old payload location; no files are silently moved or deleted. Changing the
+configured legacy Videos root is still refused. Closing the player releases only its playback
+lease; completed/partial payloads are hash-rechecked on restore. OpenSubtitles and automatic
+`.ar.srt` retrieval are not integrated; external subtitles can still be loaded manually.
 
 The download queue backend exists, but a complete downloads page, storage/cleanup controls,
 offline catalog packs, persisted playback resume/sync and automatic watched reconciliation
@@ -86,12 +100,72 @@ Full `pnpm check` passed lint but stopped on the unrelated formatter issue in
 independently verified against the family catalog/account; provider/peer availability can fail.
 
 NixOS's newer graphics ABI needs the process-local `bin/nahhasio-native-runtime` launcher.
-It removes inherited foreign library paths, uses the host ELF loader where available and
-selects the visually tested non-DMA-BUF WebKit fallback. Native video still uses hardware
-decode. Default accelerated WebKit composition remains problematic; font/accessibility and
-swapchain warnings remain. No system configuration or sandbox bypass was used.
+It removes inherited foreign library paths and uses the host ELF loader where available.
+The client now selects WebKit's shared-memory compositor before GTK starts: WebKit 2.52's
+Skia software backing store retained transparent updates, causing old pages and control trails.
+DMA-BUF remains off by default; native video still uses hardware decode. Font/accessibility
+and swapchain warnings remain. No system configuration or WebKit sandbox bypass was used.
 
 The opt-in `native-diagnostics` Cargo feature provides `--torrent-smoke` with a generated
 40-second local fixture (`NAHHASIO_PLAY_FILE`). Its peers are strictly loopback-only.
 Optional screenshot capture has a GTK timing race; the successful final smoke omitted capture.
-No commits were created; unrelated design/catalog changes were preserved.
+That earlier checkpoint did not create commits; unrelated design/catalog changes were preserved.
+
+## Playback bugfix verification — 2026-10-11
+
+- Fixed the radio menu's string-value callback to send actual numeric mpv track IDs (or `null`
+  for subtitles off); preserved the in-progress player UI design edits.
+- Added exact decimal episode-number tests and a browser audio/subtitle-selection regression.
+- Added `transparent_overlay` native regression: the previous compositor retained alpha
+  147/179/201 after removal; shared-memory composition cleared to zero, including while paused.
+- `devenv shell -- cargo test --workspace --locked`, `pnpm build`, `pnpm typecheck` and
+  `pnpm check:rust` passed. Lint passed. `pnpm check` remains blocked by unrelated formatting
+  in `packages/cli/scripts/check-viewer-parity.mts`.
+- Full player browser suite: six passed, three failed against the in-progress slider/selector
+  changes (preview slider disabled assertion, removed timeline selector, removed root selector).
+  Focused track/menu rerun: all three passed. These failures were not hidden or repaired by
+  reverting the UI edits.
+- Fresh packaged native `--player-smoke` passed pause/resume, seek, Arabic subtitles/style,
+  fullscreen and preview; 61 native renders in two seconds, decoder `vulkan-copy`.
+  Generated local media and isolated storage only; no live database or public torrents.
+- Frozen artifacts, exact bounded invocation, logs, hashes and inspected compositor capture:
+  ignored `target/native-render-regression/fresh-package-20261011/`. Native binary SHA-256
+  `52a4746ff3a4dadc61e99ddcd1ca712c3d94c3b787952275dba218f92d9b4556`,
+  packaged JS `index-DDTGWADq.js`. Window geometries observed: 708×841, 1424×841, 1440×900
+  logical pixels; CSS viewport/DPR not measured. Optional GTK capture omitted due its known
+  timing race; compositor capture succeeded. Physical input, other GPUs and live provider/peer
+  availability remain unverified.
+
+Fully quit/relaunch the client before retrying; a second launch can otherwise retain the old
+native process. No server restart or catalog database change is needed for these fixes.
+
+## Approved player and download pass — 2026-10-11
+
+- Compact RTL player header, footer transport, artwork-backed episode shelf, grouped/searchable
+  actual tracks, timing/style controls, speed presets, source Drawer and explicit keep-download.
+  Preserves Aqua's approved floating Drawer and other in-progress design edits.
+- Episode labels and score/source-size displays omit unnecessary decimal zeros without changing
+  stored catalog numbers. Native episode mapping accepts exact whole decimal strings only.
+- Private new-job storage, durable download selection, canonical-title export, no-clobber
+  publication and backward-compatible device-store migration implemented as described above.
+- `cargo test -p media-transfer --locked`: five passed, including generated loopback v1/v2/hybrid
+  transfers, no new Videos payload folders during watch, title export bytes, repeated export,
+  restart/corruption behavior, and legacy v2 job-location preservation.
+- `cargo clippy -p media-transfer -p nahhasio-linux --all-targets --locked -- -D warnings` passed.
+- `pnpm --filter @nahhasio/linux-ui test:e2e --config playwright.player.config.ts`: 15 passed,
+  including explicit download-source selection without `media.play`. The separate fixture-dev
+  config serves the player harness; ordinary production-preview tests cannot serve that HTML.
+- `pnpm exec vitest run apps/linux/ui/src/features/player/source-format.test.ts apps/linux/ui/src/features/work/format.test.ts`:
+  26 passed. Linux UI typecheck/build and native build passed; lint passed.
+- `pnpm check` remains blocked by unrelated formatting in
+  `packages/cli/scripts/check-viewer-parity.mts`; that file was not changed.
+- Fresh `target/debug/nahhasio-linux --player-smoke`, launched through the native runtime wrapper
+  with generated local H.264/AAC/Arabic-subtitle fixture and isolated state/Videos roots, passed:
+  two actual tracks, `vulkan-copy`, 60 native video renders in two seconds, pause/resume, seek,
+  fullscreen and honest preview. Requested width 1440; actual viewport/DPR was not measured.
+  Fixture server was unreachable loopback port 29999, not the live family server. Fontconfig,
+  accessibility-bus and swapchain warnings remain. No screenshot or narrow-native rerun in
+  this fast pass; browser tests do not certify physical GTK input or public torrent availability.
+- Export collision/disk-space problems currently surface as a generic native warning; a richer
+  export-status/recovery UI, legacy layout migration, automatic cache cleanup and subtitle
+  sidecar downloads remain follow-ups. No live catalog mutations or public torrent tests.

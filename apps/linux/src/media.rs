@@ -31,6 +31,8 @@ pub struct ResolvedTarget {
     pub episode_id: Option<String>,
     pub title: String,
     #[serde(skip_serializing)]
+    pub work_title: String,
+    #[serde(skip_serializing)]
     pub search: torrentio::Search,
 }
 #[derive(Deserialize)]
@@ -45,6 +47,12 @@ pub enum Command {
     Search { session_id: String, target: Target },
     #[serde(rename = "media.play")]
     Play {
+        session_id: String,
+        source_id: String,
+        file_index: Option<u32>,
+    },
+    #[serde(rename = "media.download")]
+    Download {
         session_id: String,
         source_id: String,
         file_index: Option<u32>,
@@ -67,6 +75,7 @@ impl Command {
         match self {
             Self::Search { session_id, .. }
             | Self::Play { session_id, .. }
+            | Self::Download { session_id, .. }
             | Self::Keep { session_id } => Some(session_id),
             _ => None,
         }
@@ -87,6 +96,9 @@ pub struct Media {
     sources: Mutex<BTreeMap<String, Source>>,
 }
 pub enum Ready {
+    Downloading {
+        target: ResolvedTarget,
+    },
     Choices {
         files: Vec<File>,
         target: ResolvedTarget,
@@ -114,10 +126,19 @@ impl Media {
         self.engine
             .get_or_try_init(|| async {
                 let roots = self.roots.clone();
-                tokio::task::spawn_blocking(move || Engine::open(roots.state, roots.videos))
-                    .await
-                    .map_err(|_| transfer_error())?
-                    .map_err(|_| transfer_error())
+                let engine = tokio::task::spawn_blocking(move || Engine::open_with_private_payloads(&roots.state, &roots.videos, &roots.state.join("payloads")))
+                    .await.map_err(|_| transfer_error())?.map_err(|_| transfer_error())?;
+                let exporter = engine.clone();
+                tokio::spawn(async move {
+                    loop {
+                        let engine = exporter.clone();
+                        if !matches!(tokio::task::spawn_blocking(move || engine.export_completed()).await, Ok(Ok(()))) {
+                            eprintln!("Download export pending: check destination permissions, space or filename collisions");
+                        }
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                    }
+                });
+                Ok::<_, Error>(engine)
             })
             .await
             .cloned()
@@ -150,11 +171,12 @@ impl Media {
             candidates: views,
         })
     }
-    pub async fn play(
+    pub async fn prepare(
         &self,
         session: &str,
         source_id: &str,
         explicit_file: Option<u32>,
+        download: bool,
     ) -> Result<Ready, Error> {
         let source = self
             .sources
@@ -248,6 +270,16 @@ impl Media {
                 target: resolved,
             });
         };
+        if download {
+            self.keep(id.clone(), file.index, resolved.work_title.clone())
+                .await?;
+            let starter = engine.clone();
+            tokio::task::spawn_blocking(move || starter.start(&id))
+                .await
+                .map_err(|_| transfer_error())?
+                .map_err(|_| transfer_error())?;
+            return Ok(Ready::Downloading { target: resolved });
+        }
         let lease_engine = engine.clone();
         let lease_id = id.clone();
         let index = file.index;
@@ -265,9 +297,10 @@ impl Media {
             target: resolved,
         })
     }
-    pub async fn keep(&self, id: TorrentId, file: u32) -> Result<(), Error> {
+    pub async fn keep(&self, id: TorrentId, file: u32, title: String) -> Result<(), Error> {
         let engine = self.engine().await?;
-        tokio::task::spawn_blocking(move || engine.keep_file(&id, file))
+        let videos = self.roots.videos.clone();
+        tokio::task::spawn_blocking(move || engine.keep_export(&id, file, &videos, &title))
             .await
             .map_err(|_| transfer_error())?
             .map_err(|_| transfer_error())
@@ -388,7 +421,7 @@ fn resolve_target(work: &Value, target: &Target) -> Result<ResolvedTarget, Error
         }
         let number = episode["number"]
             .as_str()
-            .and_then(|number| number.parse::<u32>().ok())
+            .and_then(standard_episode_number)
             .ok_or_else(|| {
                 Error::new(
                     "source_mapping",
@@ -446,9 +479,28 @@ fn resolve_target(work: &Value, target: &Target) -> Result<ResolvedTarget, Error
             .to_owned(),
         episode_id,
         title,
+        work_title: work["canonicalTitle"]
+            .as_str()
+            .filter(|title| !title.trim().is_empty())
+            .unwrap_or("Video")
+            .to_owned(),
         search,
     })
 }
+// PostgreSQL numeric episode numbers arrive as decimal strings (for example "3.00").
+// Accept only exact positive integers, never round fractional specials to another episode.
+fn standard_episode_number(number: &str) -> Option<u32> {
+    let (whole, fraction) = number.split_once('.').unwrap_or((number, "0"));
+    if whole.is_empty()
+        || !whole.bytes().all(|byte| byte.is_ascii_digit())
+        || fraction.is_empty()
+        || !fraction.bytes().all(|byte| byte == b'0')
+    {
+        return None;
+    }
+    whole.parse::<u32>().ok().filter(|number| *number > 0)
+}
+
 fn imdb(item: &Value) -> Result<&str, Error> {
     item["externalIds"]["imdbId"]
         .as_str()
@@ -501,7 +553,7 @@ mod tests {
             {"id":"season-one","kind":"season","position":2,"status":"completed","episodes":[]},
             {"id":"special","kind":"special","position":3,"status":"completed"},
             {"id":"season-two","kind":"season","position":4,"status":"airing","episodes":[
-                {"id":"released","number":"3","releaseState":"released"},{"id":"future","number":"4","releaseState":"upcoming"}]}
+                {"id":"released","number":"3.00","releaseState":"released"},{"id":"future","number":"4","releaseState":"upcoming"}]}
         ]});
         let mut selected = target();
         selected.installment_id = Some("season-two".into());
@@ -514,6 +566,39 @@ mod tests {
         selected.installment_id = Some("season-one".into());
         selected.episode_id = Some("released".into());
         assert!(resolve_target(&work, &selected).is_err());
+    }
+    #[test]
+    fn standard_episode_numbers_preserve_exact_decimal_identity() {
+        for number in ["3", "3.0", "3.00", "003.000"] {
+            assert_eq!(standard_episode_number(number), Some(3), "{number}");
+        }
+        assert_eq!(standard_episode_number("4294967295.00"), Some(u32::MAX));
+        for number in [
+            "",
+            "0",
+            "0.00",
+            "3.50",
+            "12.50",
+            "-3",
+            "+3",
+            "3.",
+            ".0",
+            "3.0.0",
+            "3e0",
+            "3.00 ",
+            "4294967296.00",
+            "NaN",
+        ] {
+            assert_eq!(standard_episode_number(number), None, "{number}");
+        }
+    }
+    #[test]
+    fn fractional_episodes_are_not_silently_mapped_to_standard_sources() {
+        let work = json!({"canonicalTitle":"Fixture","externalIds":{"imdbId":"tt1234567"},"installments":[
+            {"id":"season","kind":"season","position":0,"status":"completed","episodes":[
+                {"id":"special","number":"12.50","releaseState":"released"}]}
+        ]});
+        assert!(resolve_target(&work, &target()).is_err());
     }
     #[test]
     fn non_video_payloads_are_never_player_candidates() {

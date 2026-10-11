@@ -2,6 +2,7 @@ import type { WorkDetail } from "@nahhasio/api-contract";
 import { useId } from "react";
 
 import { criteria } from "../catalog/filter-model";
+import { episodeNumberLabel } from "./format";
 import { scoreProfile, scoreValue } from "./score-model";
 
 function radarPoint(index: number, value: number) {
@@ -27,7 +28,10 @@ export function ScoreFingerprint({ profile }: { profile: ReturnType<typeof score
         <title id={title}>بصمة المعايير الستة</title>
         <desc id={description}>
           {profile.criteria
-            .map((criterion) => `${criterion.label}: ${criterion.average?.toFixed(2)} من عشرة`)
+            .map(
+              (criterion) =>
+                `${criterion.label}: ${criterion.average === null ? "غير مقيّم" : episodeNumberLabel(criterion.average.toFixed(2))} من عشرة`,
+            )
             .join("، ")}
           . متوسط معايير الأجزاء المكتملة فقط؛ الحلقة الخارجية تساوي عشرة.
         </desc>
