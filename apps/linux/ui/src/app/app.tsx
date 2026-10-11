@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Login } from "../features/auth/login";
 import { Library } from "../features/library/library";
 import { PlayerHost, usePlayerSnapshot } from "../features/player";
 import type { PlayerEpisode } from "../features/player/episode-panel";
 import { openWatch } from "../features/player/playback";
+import { savedDownloadOptions } from "../features/player/saved-downloads";
 import {
   WatchTargetSchema,
   watchRequestEvent,
@@ -17,6 +18,7 @@ export function App() {
   const client = useQueryClient();
   const player = usePlayerSnapshot();
   const playerCommandAsync = player.commandAsync;
+  const requestGeneration = useRef(0);
   const [watchTarget, setWatchTarget] = useState<WatchTarget | null>(null);
   const playing = Boolean(player.snapshot?.active);
 
@@ -25,10 +27,15 @@ export function App() {
       if (!(event instanceof CustomEvent)) return;
       const parsed = WatchTargetSchema.safeParse(event.detail);
       if (!parsed.success) return;
-      setWatchTarget(parsed.data);
-      void openWatch(parsed.data, { commandAsync: playerCommandAsync }, client).catch(() => {
-        // Source errors live in the source query/native snapshot, not fake playback state.
-      });
+      const generation = ++requestGeneration.current;
+      setWatchTarget(null);
+      void openWatch(parsed.data, { commandAsync: playerCommandAsync }, client)
+        .finally(() => {
+          if (generation === requestGeneration.current) setWatchTarget(parsed.data);
+        })
+        .catch(() => {
+          // Source errors live in the source query/native snapshot, not fake playback state.
+        });
     };
     window.addEventListener(watchRequestEvent, watch);
     return () => window.removeEventListener(watchRequestEvent, watch);
@@ -56,12 +63,17 @@ export function App() {
     queryFn: ({ signal }) => gateway.session(signal),
   });
 
+  const saved = useQuery({
+    ...savedDownloadOptions(),
+    enabled: Boolean(session.data) && playing,
+    refetchInterval: 5000,
+  });
   const watchWork = useQuery({
     queryKey: ["work", player.snapshot?.workId ?? watchTarget?.workId],
     queryFn: ({ signal }) => gateway.work(player.snapshot?.workId ?? watchTarget!.workId, signal),
     enabled:
       playing &&
-      player.snapshot?.sourceKind !== "local" &&
+      (player.snapshot?.sourceKind !== "local" || Boolean(player.snapshot.workId)) &&
       Boolean(player.snapshot?.workId ?? watchTarget),
   });
   const selectedInstallment =
@@ -70,7 +82,7 @@ export function App() {
         installment.id === (player.snapshot?.installmentId ?? watchTarget?.installmentId),
     ) ?? watchWork.data?.installments[0];
   const episodes: PlayerEpisode[] | undefined =
-    player.snapshot?.sourceKind === "local"
+    player.snapshot?.sourceKind === "local" && !player.snapshot.workId
       ? undefined
       : selectedInstallment?.episodes
           .toSorted((a, b) => a.position - b.position)
@@ -88,6 +100,13 @@ export function App() {
                 pickArtwork(watchWork.data?.artwork ?? [], "banner"),
               summary: episode.summary,
               runtimeMinutes: episode.runtimeMinutes,
+              downloaded:
+                saved.data?.some(
+                  (file) =>
+                    file.available &&
+                    file.target.workId === watchWork.data?.id &&
+                    file.target.episodeId === episode.id,
+                ) ?? false,
               disabled: episode.releaseState === "upcoming",
               disabledReason:
                 episode.releaseState === "upcoming" ? "قادم" : "موعد الإصدار غير معروف",
@@ -111,12 +130,18 @@ export function App() {
           const title = `الحلقة ${number}${selectedEpisode.title ? ` · ${selectedEpisode.title}` : ""}`;
           const target = {
             ...watchTarget,
+            intent: "watch" as const,
             installmentId: selectedInstallment.id,
             episodeId: episode.id,
             title: `${watchWork.data?.titleAr || watchWork.data?.canonicalTitle} · ${title}`,
           };
-          setWatchTarget(target);
-          void openWatch(target, { commandAsync: playerCommandAsync }, client).catch(() => {});
+          const generation = ++requestGeneration.current;
+          setWatchTarget(null);
+          void openWatch(target, { commandAsync: playerCommandAsync }, client)
+            .finally(() => {
+              if (generation === requestGeneration.current) setWatchTarget(target);
+            })
+            .catch(() => {});
         }}
       />
     );

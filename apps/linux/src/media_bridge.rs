@@ -19,6 +19,27 @@ pub async fn execute(
     let pause_requested = matches!(&command, Command::Pause { .. });
     let download_requested = matches!(&command, Command::Download { .. });
     match command {
+        Command::Saved {} => runtime
+            .spawn(async move { media.saved().await })
+            .await
+            .map_err(|_| interrupted())?,
+        Command::DeleteCache {} => runtime
+            .spawn(async move { media.delete_cache().await })
+            .await
+            .map_err(|_| interrupted())?,
+        Command::Local { session_id, target } => {
+            let result = runtime
+                .spawn(async move { media.local(target).await })
+                .await
+                .map_err(|_| interrupted())??;
+            player.require_session(&session_id)?;
+            if let Some((path, target)) = result {
+                player.play_saved(&session_id, target, &path)?;
+                Ok(json!({"found":true,"snapshot":player.snapshot()}))
+            } else {
+                Ok(json!({"found":false}))
+            }
+        }
         Command::Search { session_id, target } => {
             let result = runtime
                 .spawn(async move {
@@ -54,6 +75,10 @@ pub async fn execute(
                 .map_err(|_| interrupted())?;
             player.require_session(&expected)?;
             match result {
+                Ok(Ready::Local { path, target }) => {
+                    player.play_saved(&expected, target, &path)?;
+                    Ok(json!({"mode":"playing","snapshot":player.snapshot()}))
+                }
                 Ok(Ready::Choices { files, target }) => {
                     player.loading(&expected, false, None)?;
                     player.set_target(&expected, target.clone())?;

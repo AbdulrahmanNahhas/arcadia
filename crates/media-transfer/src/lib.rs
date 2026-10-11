@@ -609,7 +609,7 @@ impl Owner {
         db.busy_timeout(Duration::from_secs(2))?;
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;")?;
         let version: i64 = db.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        if version > 3 {
+        if version > 4 {
             return Err(Error::Invalid("unsupported job store version".into()));
         }
         if version == 0 {
@@ -644,6 +644,9 @@ impl Owner {
             tx.execute("UPDATE jobs SET payload_root=?1", [&stored_root])?;
             tx.execute_batch("CREATE TABLE exports(id TEXT NOT NULL,file INTEGER NOT NULL,destination TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(id,file)); PRAGMA user_version=3;")?;
             tx.commit()?;
+        }
+        if version < 4 {
+            db.execute_batch("BEGIN IMMEDIATE; ALTER TABLE exports ADD COLUMN target TEXT NOT NULL DEFAULT ''; ALTER TABLE exports ADD COLUMN size INTEGER NOT NULL DEFAULT 0; PRAGMA user_version=4; COMMIT;")?;
         }
         let payload_root = payload_root.unwrap_or_else(|| root.clone());
         create_private_root(&payload_root)?;

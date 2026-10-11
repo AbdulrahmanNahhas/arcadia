@@ -3,6 +3,11 @@
     "enabled": false
   },
   "lsp": {
+    "clangd": {
+      "binary": {
+        "arguments": ["--query-driver=/nix/store/*/bin/g++,/nix/store/*/bin/clang++"]
+      }
+    },
     "oxlint": {
       "initialization_options": {
         "settings": {

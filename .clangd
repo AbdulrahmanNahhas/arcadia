@@ -1,0 +1,4 @@
+If:
+  PathMatch: crates/media-transfer/native/.*
+CompileFlags:
+  CompilationDatabase: target/media-transfer-clangd

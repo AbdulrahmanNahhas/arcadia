@@ -74,7 +74,13 @@ export function playerTime(seconds: number) {
 export function PlayerHost(props: PlayerHostProps) {
   const snapshot = props.player.snapshot;
   if (!snapshot?.active || !snapshot.sessionId) return null;
-  return <ActivePlayer key={snapshot.sessionId} {...props} snapshot={snapshot} />;
+  return (
+    <ActivePlayer
+      key={`${snapshot.sessionId}:${Boolean(props.sourceTarget || props.sourcePanel)}`}
+      {...props}
+      snapshot={snapshot}
+    />
+  );
 }
 
 function ActivePlayer({
@@ -90,6 +96,7 @@ function ActivePlayer({
   const [panel, setPanel] = useState<Panel | null>(
     !hasSource && (sourcePanel || sourceTarget) ? "source" : null,
   );
+
   const [idle, setIdle] = useState(false);
   const [focused, setFocused] = useState(false);
   const root = useRef<HTMLElement>(null);

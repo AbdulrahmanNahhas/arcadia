@@ -73,6 +73,12 @@ impl Engine {
                 if previous != destination {
                     return Err(Error::Invalid("export destination changed".into()));
                 }
+                if !Path::new(&destination).exists() {
+                    owner.db.execute(
+                        "UPDATE exports SET done=0 WHERE id=?1 AND file=?2",
+                        params![owned_id, file],
+                    )?;
+                }
             } else {
                 if Path::new(&destination).exists() {
                     return Err(Error::Invalid(
@@ -180,8 +186,12 @@ impl Engine {
             std::fs::File::open(parent)?.sync_all()?;
             self.call(move |owner| {
                 owner.db.execute(
-                    "UPDATE exports SET done=1 WHERE id=?1 AND file=?2",
-                    params![id, file],
+                    "UPDATE exports SET done=1,size=?3 WHERE id=?1 AND file=?2",
+                    params![
+                        id,
+                        file,
+                        i64::try_from(size).map_err(|_| Error::Invalid("file size".into()))?
+                    ],
                 )?;
                 Ok(())
             })
@@ -189,6 +199,146 @@ impl Engine {
         let _ = std::fs::remove_file(temp);
         result
     }
+}
+
+#[derive(Clone)]
+pub struct SavedFile {
+    pub id: String,
+    pub file: u32,
+    pub target: String,
+    pub path: PathBuf,
+    pub size: u64,
+    pub available: bool,
+}
+#[derive(Serialize)]
+pub struct CacheResult {
+    pub removed: usize,
+    pub skipped: usize,
+}
+impl Owner {
+    fn saved_files(&self) -> Result<Vec<SavedFile>> {
+        let mut stmt = self
+            .db
+            .prepare("SELECT id,file,target,destination,size,done FROM exports")?;
+        let files = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, u32>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, bool>(5)?,
+                ))
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(files
+            .into_iter()
+            .map(|(id, file, target, path, size, done)| {
+                let path = PathBuf::from(path);
+                let size = u64::try_from(size).unwrap_or(0);
+                let available = done
+                    && path.starts_with(&self.root)
+                    && reject_symlinks(&path).is_ok()
+                    && reject_hardlinks(&path).is_ok()
+                    && std::fs::metadata(&path)
+                        .is_ok_and(|meta| meta.is_file() && meta.len() == size);
+                SavedFile {
+                    id,
+                    file,
+                    target,
+                    path,
+                    size,
+                    available,
+                }
+            })
+            .collect())
+    }
+}
+impl Engine {
+    pub fn saved_files(&self) -> Result<Vec<SavedFile>> {
+        self.call(|owner| owner.saved_files())
+    }
+    pub fn set_export_target(&self, id: &TorrentId, file: u32, target: String) -> Result<()> {
+        let entry = self
+            .files(id)?
+            .into_iter()
+            .find(|entry| entry.index == file)
+            .ok_or_else(|| Error::Invalid("file".into()))?;
+        let id = id.0.clone();
+        self.call(move |owner| {
+            owner.db.execute(
+                "UPDATE exports SET target=?3,size=?4 WHERE id=?1 AND file=?2",
+                params![
+                    id,
+                    file,
+                    target,
+                    i64::try_from(entry.size).map_err(|_| Error::Invalid("file size".into()))?
+                ],
+            )?;
+            Ok(())
+        })
+    }
+    /// Only private, inactive jobs with no unfinished durable interest are eligible.
+    /// Published Videos files and their local-playback records are never removed.
+    pub fn delete_cache(&self) -> Result<CacheResult> {
+        if self.0.readers.load(Ordering::Acquire) != 0 {
+            return Err(Error::Invalid("playback/export reader is active".into()));
+        }
+        self.call(|owner| {
+            let saved = owner.saved_files()?;
+            let mut result = CacheResult {
+                removed: 0,
+                skipped: 0,
+            };
+            for job in owner.jobs()? {
+                let id = &job.id.0;
+                let root = owner.job_root(id)?;
+                if root == owner.root
+                    || owner.leases.values().any(|(leased, _)| leased == id)
+                    || saved
+                        .iter()
+                        .any(|saved| saved.id == *id && !saved.available)
+                    || !job.selected.iter().all(|file| {
+                        saved
+                            .iter()
+                            .any(|saved| saved.id == *id && saved.file == *file && saved.available)
+                    })
+                {
+                    result.skipped += 1;
+                    continue;
+                }
+                validate_path(id)?;
+                let path = root.join(id);
+                if path.exists() {
+                    validate_cache_tree(&path)?;
+                }
+                owner.native.pin_mut().remove(id)?;
+                if path.exists() {
+                    std::fs::remove_dir_all(&path)?;
+                }
+                owner.db.execute("DELETE FROM jobs WHERE id=?1", [id])?;
+                owner.errors.remove(id);
+                owner.recovery.remove(id);
+                result.removed += 1;
+            }
+            Ok(result)
+        })
+    }
+}
+fn validate_cache_tree(path: &Path) -> Result<()> {
+    reject_symlinks(path)?;
+    let meta = std::fs::symlink_metadata(path)?;
+    if meta.is_dir() {
+        for entry in std::fs::read_dir(path)? {
+            validate_cache_tree(&entry?.path())?;
+        }
+    } else if meta.is_file() {
+        reject_hardlinks(path)?;
+    } else {
+        return Err(Error::Invalid("unexpected cache entry".into()));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

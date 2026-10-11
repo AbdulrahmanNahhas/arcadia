@@ -1,5 +1,6 @@
 import { installmentRating } from "@arcadia/domain";
 import type { WorkDetail, ViewerUnitState } from "@nahhasio/api-contract";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowDownUp, ChevronDown, Download, Info, Play } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -17,6 +18,7 @@ import {
   DialogTrigger,
 } from "../../components/ui/dialog";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "../../components/ui/popover";
+import { savedDownloadOptions } from "../player/saved-downloads";
 import { requestDownload, requestWatch } from "../player/watch-request";
 import { replaceParams, useViewerRoute, workLink } from "../shell/navigation";
 import { ArtworkGallery, MediaFiles, References } from "./data-panel";
@@ -44,6 +46,7 @@ export function InstallmentsPanel({
   initial?: string;
   tracking: WorkTracking;
 }) {
+  const saved = useQuery({ ...savedDownloadOptions(), refetchInterval: 5000 });
   const route = useViewerRoute();
   const navigation = useCardNavigation();
   const [descending, setDescending] = useState(false);
@@ -183,6 +186,14 @@ export function InstallmentsPanel({
             <EpisodeCard
               key={episode.id}
               episode={episode}
+              downloaded={
+                saved.data?.some(
+                  (file) =>
+                    file.available &&
+                    file.target.workId === work.id &&
+                    file.target.episodeId === episode.id,
+                ) ?? false
+              }
               installment={item}
               work={work}
               tracking={tracking}
@@ -247,6 +258,7 @@ function InstallmentDetails({ item }: { item: Installment }) {
 
 function EpisodeCard({
   episode,
+  downloaded,
   installment,
   work,
   tracking,
@@ -254,6 +266,7 @@ function EpisodeCard({
   onOpenChange,
 }: {
   episode: Episode;
+  downloaded: boolean;
   installment: Installment;
   work: WorkDetail;
   tracking: WorkTracking;
@@ -325,6 +338,7 @@ function EpisodeCard({
                 <Badge variant="secondary">{episode.runtimeMinutes} د</Badge>
               )}
               {episode.releaseState === "upcoming" && <Badge variant="outline">قادم</Badge>}
+              {downloaded && <Badge variant="secondary">محمّلة</Badge>}
             </span>
           </span>
           <h3 className="min-w-0 text-lg leading-relaxed font-semibold transition-colors group-hover/episode:text-primary group-focus-visible/episode:text-primary md:text-xl motion-reduce:transition-none">
@@ -365,7 +379,11 @@ function EpisodeCard({
           <Button
             variant="outline"
             {...navigation}
-            disabled={episode.releaseState === "upcoming" || installment.status === "announced"}
+            disabled={
+              downloaded ||
+              episode.releaseState === "upcoming" ||
+              installment.status === "announced"
+            }
             aria-label={`تنزيل الحلقة ${number}`}
             onClick={() =>
               requestDownload({
@@ -377,7 +395,7 @@ function EpisodeCard({
             }
           >
             <Download data-icon="inline-start" />
-            تنزيل
+            {downloaded ? "محمّلة" : "تنزيل"}
           </Button>
           <DialogTrigger
             render={<Button {...navigation} variant="ghost" size="icon-sm" />}

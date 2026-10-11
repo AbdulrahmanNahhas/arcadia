@@ -127,6 +127,29 @@ export async function openWatch(
   if (!snapshot.sessionId) throw new Error("تعذّر فتح جلسة المشغّل.");
   const sessionId = snapshot.sessionId;
   if (client.getQueryData<PlayerSnapshot>(playerSnapshotKey)?.sessionId !== sessionId) return;
+  if (target.intent !== "download") {
+    const local = z
+      .discriminatedUnion("found", [
+        z.object({ found: z.literal(false) }),
+        z.object({ found: z.literal(true), snapshot: PlayerSnapshotSchema }),
+      ])
+      .parse(
+        await nativeCall("media.local", {
+          sessionId,
+          target: {
+            workId: target.workId,
+            installmentId: target.installmentId ?? null,
+            episodeId: target.episodeId ?? null,
+          },
+        }),
+      );
+    if (client.getQueryData<PlayerSnapshot>(playerSnapshotKey)?.sessionId !== sessionId) return;
+    if (local.found) {
+      if (local.snapshot.sessionId !== sessionId) throw new Error("وصل تحديث قديم للمشغّل.");
+      client.setQueryData(playerSnapshotKey, local.snapshot);
+      return;
+    }
+  }
   await client.fetchQuery(sourceOptions(sessionId, target));
   if (client.getQueryData<PlayerSnapshot>(playerSnapshotKey)?.sessionId !== sessionId) return;
   // Opening a work only previews it. media.play requires an explicit source/file choice.

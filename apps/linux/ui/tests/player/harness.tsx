@@ -9,6 +9,7 @@ import {
   usePlayerSnapshot,
   type PlayerEpisode,
 } from "../../src/features/player";
+import { CacheControl } from "../../src/features/player/cache-control";
 import { openWatch } from "../../src/features/player/playback";
 import { episodeNumberLabel } from "../../src/features/work/format";
 
@@ -76,11 +77,12 @@ function Harness() {
         sourceTarget={
           scenario === "download"
             ? { ...target, intent: "download" }
-            : scenario === "sources" || watchOpened
+            : scenario === "sources" || (watchOpened && player.snapshot?.sourceKind !== "local")
               ? target
               : null
         }
       />
+      {scenario === "cache" && <CacheControl />}
       {selected && <output aria-label="الحلقة المختارة">{selected}</output>}
       {!player.snapshot?.active && (
         <>
@@ -89,8 +91,9 @@ function Harness() {
           </button>
           <button
             onClick={() => {
-              setWatchOpened(true);
-              void openWatch(target, player, client).catch(() => {});
+              void openWatch(target, player, client)
+                .finally(() => setWatchOpened(true))
+                .catch(() => {});
             }}
           >
             Watch test work

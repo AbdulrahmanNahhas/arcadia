@@ -77,12 +77,74 @@ fn legacy_v2_jobs_keep_their_payload_location() {
     assert!(restored.jobs().unwrap()[0].recovery_error.is_none());
     assert!(videos.path().join(&id.0).exists());
     assert!(!private.join(&id.0).exists());
+    assert_eq!(
+        restored.delete_cache().unwrap().skipped,
+        1,
+        "legacy Videos directories must not be deleted"
+    );
     std::fs::write(fixture.path().join("fixture/movie.mp4"), [8_u8; 32768]).unwrap();
     let new = restored
         .import_torrent(ffi::fixture(fixture.path().to_str().unwrap(), 1).unwrap())
         .unwrap();
     assert!(private.join(&new.0).exists());
     assert!(!videos.path().join(&new.0).exists());
+}
+
+#[test]
+fn private_cache_cleanup_preserves_unfinished_downloads_and_rejects_symlinks() {
+    let state = tempfile::tempdir().unwrap();
+    let videos = tempfile::tempdir().unwrap();
+    let fixture = tempfile::tempdir().unwrap();
+    let fixture_dir = fixture.path().join("fixture");
+    std::fs::create_dir(&fixture_dir).unwrap();
+    std::fs::write(fixture_dir.join("movie.mp4"), [7_u8; 32768]).unwrap();
+    std::fs::write(fixture_dir.join("readme.txt"), [0_u8; 32]).unwrap();
+    let payloads = state.path().join("payloads");
+    let engine = Engine::open_roots(
+        state.path(),
+        videos.path(),
+        Some(payloads.clone()),
+        NetworkPolicy::LoopbackOnly,
+    )
+    .unwrap();
+    let meta = ffi::fixture(fixture.path().to_str().unwrap(), 1).unwrap();
+    let id = engine.import_torrent(meta.clone()).unwrap();
+    let movie = engine
+        .files(&id)
+        .unwrap()
+        .into_iter()
+        .find(|file| file.path.ends_with(".mp4"))
+        .unwrap();
+    engine
+        .keep_export(&id, movie.index, videos.path(), "Test work")
+        .unwrap();
+    assert_eq!(engine.delete_cache().unwrap().skipped, 1);
+    assert!(payloads.join(&id.0).exists());
+    engine.remove_download(&id).unwrap();
+    // Removing interest alone must not discard an unfinished durable export.
+    assert_eq!(engine.delete_cache().unwrap().skipped, 1);
+    let fresh_state = tempfile::tempdir().unwrap();
+    let fresh_payloads = fresh_state.path().join("payloads");
+    let fresh = Engine::open_roots(
+        fresh_state.path(),
+        videos.path(),
+        Some(fresh_payloads.clone()),
+        NetworkPolicy::LoopbackOnly,
+    )
+    .unwrap();
+    let fresh_id = fresh.import_torrent(meta).unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    std::fs::write(outside.path().join("keep.txt"), b"keep").unwrap();
+    let link = fresh_payloads.join(&fresh_id.0).join("unsafe-link");
+    std::os::unix::fs::symlink(outside.path(), &link).unwrap();
+    assert!(fresh.delete_cache().is_err());
+    assert_eq!(
+        std::fs::read(outside.path().join("keep.txt")).unwrap(),
+        b"keep"
+    );
+    std::fs::remove_file(link).unwrap();
+    assert_eq!(fresh.delete_cache().unwrap().removed, 1);
+    assert!(!fresh_payloads.join(&fresh_id.0).exists());
 }
 
 fn wait_complete(engine: &Engine, id: &TorrentId) {
@@ -154,6 +216,12 @@ fn controlled_loopback_formats_selection_promotion_and_restart() {
         assert!(private_payloads.join(&id.0).exists());
         let lease = target.playback_lease(&id, vec![movie.index]).unwrap();
         assert!(target.status(&id).unwrap().paused);
+        let cleanup = target.delete_cache().unwrap();
+        assert_eq!(cleanup.removed, 0);
+        assert_eq!(
+            cleanup.skipped, 1,
+            "active playback must survive cache cleanup"
+        );
         target.start(&id).unwrap();
         target
             .connect_loopback_peer(&id, seed.listen_port().unwrap())
@@ -179,7 +247,9 @@ fn controlled_loopback_formats_selection_promotion_and_restart() {
             .unwrap();
         drop(lease);
         wait_complete(&target, &id);
+        target.set_export_target(&id, movie.index, "{\"workId\":\"00000000-0000-4000-8000-000000000001\",\"installmentId\":\"00000000-0000-4000-8000-000000000002\",\"episodeId\":null}".into()).unwrap();
         target.export_completed().unwrap();
+        assert!(target.saved_files().unwrap()[0].available);
         let exported = target_media
             .path()
             .join("Frieren Beyond Journey's End/movie.mp4");
@@ -233,7 +303,7 @@ fn controlled_loopback_formats_selection_promotion_and_restart() {
         let damaged = Engine::open_roots(
             target_state.path(),
             target_media.path(),
-            Some(private_payloads),
+            Some(private_payloads.clone()),
             NetworkPolicy::LoopbackOnly,
         )
         .unwrap();
@@ -250,5 +320,26 @@ fn controlled_loopback_formats_selection_promotion_and_restart() {
             Err(Error::Timeout)
         ));
         assert!(!damaged.status(&id).unwrap().complete);
+        let cleanup = damaged.delete_cache().unwrap();
+        assert_eq!(cleanup.removed, 1);
+        assert!(!private_payloads.join(&id.0).exists());
+        assert!(damaged.jobs().unwrap().is_empty());
+        assert_eq!(std::fs::read(&exported).unwrap(), data);
+        assert!(damaged.saved_files().unwrap()[0].available);
+        drop(damaged);
+        let cleaned = Engine::open_roots(
+            target_state.path(),
+            target_media.path(),
+            Some(private_payloads),
+            NetworkPolicy::LoopbackOnly,
+        )
+        .unwrap();
+        assert!(cleaned.jobs().unwrap().is_empty());
+        assert!(cleaned.saved_files().unwrap()[0].available);
+        std::fs::remove_file(&exported).unwrap();
+        assert!(
+            !cleaned.saved_files().unwrap()[0].available,
+            "missing saved files must not be reported as downloaded"
+        );
     }
 }

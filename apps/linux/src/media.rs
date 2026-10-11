@@ -61,6 +61,12 @@ pub enum Command {
     Keep { session_id: String },
     #[serde(rename = "media.jobs")]
     Jobs {},
+    #[serde(rename = "media.saved")]
+    Saved {},
+    #[serde(rename = "media.deleteCache")]
+    DeleteCache {},
+    #[serde(rename = "media.local")]
+    Local { session_id: String, target: Target },
     #[serde(rename = "media.pause")]
     Pause { id: String },
     #[serde(rename = "media.resume")]
@@ -76,6 +82,7 @@ impl Command {
             Self::Search { session_id, .. }
             | Self::Play { session_id, .. }
             | Self::Download { session_id, .. }
+            | Self::Local { session_id, .. }
             | Self::Keep { session_id } => Some(session_id),
             _ => None,
         }
@@ -96,6 +103,10 @@ pub struct Media {
     sources: Mutex<BTreeMap<String, Source>>,
 }
 pub enum Ready {
+    Local {
+        path: std::path::PathBuf,
+        target: ResolvedTarget,
+    },
     Downloading {
         target: ResolvedTarget,
     },
@@ -142,6 +153,66 @@ impl Media {
             })
             .await
             .cloned()
+    }
+    pub async fn saved(&self) -> Result<Value, Error> {
+        let engine = self.engine().await?;
+        tokio::task::spawn_blocking(move || {
+            let files = engine.saved_files()?;
+            Ok::<_, media_transfer::Error>(Value::Array(
+                files
+                    .into_iter()
+                    .filter_map(|file| {
+                        let target = serde_json::from_str::<Target>(&file.target).ok()?;
+                        Some(json!({"target":target,"available":file.available}))
+                    })
+                    .collect(),
+            ))
+        })
+        .await
+        .map_err(|_| transfer_error())?
+        .map_err(|_| transfer_error())
+    }
+    pub async fn local(
+        &self,
+        target: Target,
+    ) -> Result<Option<(std::path::PathBuf, ResolvedTarget)>, Error> {
+        let resolved = self.resolve(&target).await?;
+        let engine = self.engine().await?;
+        let work = resolved.work_id.clone();
+        let installment = resolved.installment_id.clone();
+        let episode = resolved.episode_id.clone();
+        let file = tokio::task::spawn_blocking(move || {
+            Ok::<_, media_transfer::Error>(
+                engine
+                    .saved_files()?
+                    .into_iter()
+                    .find(|file| {
+                        file.available
+                            && serde_json::from_str::<Target>(&file.target).is_ok_and(|target| {
+                                target.work_id == work
+                                    && target.installment_id.as_ref() == Some(&installment)
+                                    && target.episode_id == episode
+                            })
+                    })
+                    .map(|file| file.path),
+            )
+        })
+        .await
+        .map_err(|_| transfer_error())?
+        .map_err(|_| transfer_error())?;
+        Ok(file.map(|file| (file, resolved)))
+    }
+    pub async fn delete_cache(&self) -> Result<Value, Error> {
+        let engine = self.engine().await?;
+        tokio::task::spawn_blocking(move || engine.delete_cache().map(|result| json!(result)))
+            .await
+            .map_err(|_| transfer_error())?
+            .map_err(|_| {
+                Error::new(
+                    "cache_busy",
+                    "تعذّر تنظيف الذاكرة المؤقتة. أوقف التشغيل أو انتظر اكتمال حفظ التنزيل.",
+                )
+            })
     }
     pub async fn search(&self, session: String, target: Target) -> Result<Sources, Error> {
         let resolved = self.resolve(&target).await?;
@@ -271,14 +342,53 @@ impl Media {
             });
         };
         if download {
-            self.keep(id.clone(), file.index, resolved.work_title.clone())
-                .await?;
+            self.keep(id.clone(), file.index, resolved.clone()).await?;
             let starter = engine.clone();
             tokio::task::spawn_blocking(move || starter.start(&id))
                 .await
                 .map_err(|_| transfer_error())?
                 .map_err(|_| transfer_error())?;
             return Ok(Ready::Downloading { target: resolved });
+        }
+        // Older exports have no catalog mapping. An explicit matching source/file choice
+        // can register them safely without guessing episode identity from filenames.
+        let local_engine = engine.clone();
+        let local_id = id.clone();
+        let local_file = file.index;
+        let local_target = Target {
+            work_id: resolved.work_id.clone(),
+            installment_id: Some(resolved.installment_id.clone()),
+            episode_id: resolved.episode_id.clone(),
+        };
+        let local = tokio::task::spawn_blocking(move || {
+            if local_engine.saved_files()?.iter().any(|saved| {
+                saved.id == local_id.0 && saved.file == local_file && saved.target.is_empty()
+            }) {
+                local_engine.set_export_target(
+                    &local_id,
+                    local_file,
+                    serde_json::to_string(&local_target)?,
+                )?;
+            }
+            Ok::<_, media_transfer::Error>(
+                local_engine
+                    .saved_files()?
+                    .into_iter()
+                    .find(|saved| {
+                        saved.id == local_id.0 && saved.file == local_file && saved.available
+                    })
+                    .map(|saved| saved.path),
+            )
+        })
+        .await
+        .map_err(|_| transfer_error())?
+        .map_err(|_| transfer_error())?;
+        if let Some(path) = local {
+            pause_unowned(engine, id).await;
+            return Ok(Ready::Local {
+                path,
+                target: resolved,
+            });
         }
         let lease_engine = engine.clone();
         let lease_id = id.clone();
@@ -297,13 +407,26 @@ impl Media {
             target: resolved,
         })
     }
-    pub async fn keep(&self, id: TorrentId, file: u32, title: String) -> Result<(), Error> {
+    pub async fn keep(
+        &self,
+        id: TorrentId,
+        file: u32,
+        resolved: ResolvedTarget,
+    ) -> Result<(), Error> {
         let engine = self.engine().await?;
         let videos = self.roots.videos.clone();
-        tokio::task::spawn_blocking(move || engine.keep_export(&id, file, &videos, &title))
-            .await
-            .map_err(|_| transfer_error())?
-            .map_err(|_| transfer_error())
+        tokio::task::spawn_blocking(move || {
+            engine.keep_export(&id, file, &videos, &resolved.work_title)?;
+            let target = Target {
+                work_id: resolved.work_id,
+                installment_id: Some(resolved.installment_id),
+                episode_id: resolved.episode_id,
+            };
+            engine.set_export_target(&id, file, serde_json::to_string(&target)?)
+        })
+        .await
+        .map_err(|_| transfer_error())?
+        .map_err(|_| transfer_error())
     }
     pub async fn jobs(&self) -> Result<Value, Error> {
         let engine = self.engine().await?;

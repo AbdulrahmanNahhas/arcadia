@@ -10,6 +10,8 @@ type TestRequest =
       payload: { sessionId: string; sourceId: string; fileIndex: number | null };
     }
   | { command: "media.keep"; payload: { sessionId: string } }
+  | { command: "media.local"; payload: { sessionId: string } }
+  | { command: "media.deleteCache"; payload: Record<string, never> }
   | { command: "artwork"; payload: { id: string } };
 
 declare global {
@@ -105,6 +107,35 @@ async function mock(page: Page, snapshot = initial, scenario = "") {
                 });
                 return;
               }
+              case "media.deleteCache":
+                window["__nahhasioReply"]?.({
+                  id: request.id,
+                  ok: true,
+                  result: { removed: 2, skipped: 1 },
+                });
+                return;
+              case "media.local":
+                if (window.location.search.includes("scenario=saved")) {
+                  state = {
+                    ...state,
+                    sourceKind: "local",
+                    buffering: false,
+                    duration: 120,
+                    workId: "00000000-0000-4000-8000-000000000001",
+                  };
+                  window["__nahhasioReply"]?.({
+                    id: request.id,
+                    ok: true,
+                    result: { found: true, snapshot: state },
+                  });
+                } else {
+                  window["__nahhasioReply"]?.({
+                    id: request.id,
+                    ok: true,
+                    result: { found: false },
+                  });
+                }
+                return;
               case "media.search":
                 window["__nahhasioReply"]?.({
                   id: request.id,
@@ -355,6 +386,24 @@ test("honest source, episode, subtitle and codec panels", async ({ page }) => {
   await page.getByRole("button", { name: "إعدادات التشغيل" }).click();
   await expect(page.getByText("h264")).toBeVisible();
   await expect(page.getByText("غير متاح", { exact: true })).toBeVisible();
+});
+
+test("saved video plays locally before any Torrentio lookup", async ({ page }) => {
+  await mock(page, { ...initial, active: false, sessionId: null }, "saved");
+  await page.getByRole("button", { name: "Watch test work" }).click();
+  await expect(page.getByRole("button", { name: "مصدر الفيديو", exact: true })).toBeVisible();
+  await expect.poll(async () => (await calls(page, "media.local")).length).toBe(1);
+  expect(await calls(page, "media.search")).toHaveLength(0);
+  expect(await calls(page, "media.play")).toHaveLength(0);
+});
+
+test("cache cleanup requires confirmation and reports skipped jobs", async ({ page }) => {
+  await mock(page, { ...initial, active: false, sessionId: null }, "cache");
+  await page.getByRole("button", { name: "حذف الذاكرة المؤقتة للتنزيلات" }).click();
+  expect(await calls(page, "media.deleteCache")).toHaveLength(0);
+  await page.getByRole("button", { name: "تأكيد حذف الذاكرة المؤقتة" }).click();
+  await expect(page.getByText("اكتمل التنظيف", { exact: true })).toBeVisible();
+  await expect.poll(async () => (await calls(page, "media.deleteCache")).length).toBe(1);
 });
 
 test("download intent chooses a torrent without starting playback", async ({ page }) => {

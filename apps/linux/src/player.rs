@@ -327,10 +327,26 @@ impl Player {
         }
         Ok(())
     }
+    pub fn play_saved(&self, id: &str, target: ResolvedTarget, path: &Path) -> Result<(), Error> {
+        self.require_session(id)?;
+        let player = NativePlayer::local(path).map_err(playback_error)?;
+        self.cancel_stream();
+        let overlay = self.overlay.upgrade().ok_or_else(interrupted)?;
+        overlay.set_child(Some(player.area()));
+        if let Some(session) = self.session.borrow_mut().as_mut() {
+            session.player = Some(player);
+            session.gateway = None;
+            session.title = target.title.clone();
+            session.target = Some(target);
+            session.pending = false;
+            session.error = None;
+        }
+        Ok(())
+    }
     pub fn download_target(
         &self,
         id: &str,
-    ) -> Result<(media_transfer::TorrentId, u32, String), Error> {
+    ) -> Result<(media_transfer::TorrentId, u32, ResolvedTarget), Error> {
         self.require_session(id)?;
         let session = self.session.borrow();
         let gateway = session
@@ -341,7 +357,6 @@ impl Player {
             .as_ref()
             .and_then(|session| session.target.as_ref())
             .ok_or_else(stale)?
-            .work_title
             .clone();
         Ok((gateway.id.clone(), gateway.file.index, title))
     }

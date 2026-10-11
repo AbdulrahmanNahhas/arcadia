@@ -10,7 +10,6 @@
 #include <libtorrent/create_torrent.hpp>
 #include <libtorrent/bencode.hpp>
 #include <libtorrent/ip_filter.hpp>
-#include <thread>
 #include <chrono>
 #include <set>
 #include <filesystem>
@@ -271,6 +270,32 @@ Status Session::status(rust::Str id) const {
     r.paused = bool(s.flags & lt::torrent_flags::paused);
     r.error = s.errc ? s.errc.message() : "";
     return r;
+}
+void Session::remove(rust::Str id) {
+  auto h = get(id);
+  engine.remove_torrent(h);
+  auto until = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+  while (std::chrono::steady_clock::now() < until) {
+    engine.wait_for_alert(std::chrono::milliseconds(50));
+    std::vector<lt::alert *> alerts;
+    engine.pop_alerts(&alerts);
+    for (auto alert : alerts) {
+      capture_resume(alert);
+      if (auto removed = lt::alert_cast<lt::torrent_removed_alert>(alert);
+          removed && removed->handle == h) {
+        auto key = std::string(id);
+        handles.erase(key);
+        selections.erase(key);
+        trackers.erase(key);
+        pending_saves.erase(key);
+        saved_resume.erase(key);
+        save_errors.erase(key);
+        return;
+      }
+    }
+  }
+  throw std::runtime_error(
+      "torrent removal deadline exceeded; cache preserved");
 }
 bool Session::file_complete(rust::Str id, uint32_t file) const {
   auto h = get(id);

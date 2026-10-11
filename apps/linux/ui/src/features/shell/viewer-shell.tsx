@@ -19,6 +19,7 @@ import { BrowsePage } from "../catalog/browse-page";
 import { HomePage } from "../home/home-page";
 import { PeoplePage } from "../people/people-page";
 import { PlanetsPage } from "../planets/planets-page";
+import { CacheControl } from "../player/cache-control";
 import { SearchPage } from "../search/search-page";
 import { StudiosPage } from "../studios/studios-page";
 import { WorkPage } from "../work/work-page";
@@ -247,6 +248,7 @@ export function ViewerShell({ user }: { user: User }) {
             <DialogDescription>{user.email}</DialogDescription>
           </DialogHeader>
           <p>مكتبة العائلة على هذا الخادم.</p>
+          <CacheControl />
           {logout.error && <p role="alert">{logout.error.message}</p>}
           <Button
             variant="outline"

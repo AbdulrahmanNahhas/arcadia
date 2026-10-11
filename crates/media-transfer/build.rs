@@ -15,6 +15,27 @@ fn main() {
     for (name, value) in lib.defines {
         build.define(&name, value.as_deref());
     }
+    // clangd needs the same Nix compiler flags and generated CXX include paths as Cargo.
+    let compiler = build.get_compiler();
+    let manifest = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let directory = manifest.join("../../target/media-transfer-clangd");
+    std::fs::create_dir_all(&directory).expect("create clangd database directory");
+    let file = manifest.join("native/engine.cc");
+    let mut arguments = vec![compiler.path().to_string_lossy().into_owned()];
+    arguments.extend(
+        compiler
+            .args()
+            .iter()
+            .map(|argument| argument.to_string_lossy().into_owned()),
+    );
+    arguments.extend(["-c".into(), file.to_string_lossy().into_owned()]);
+    let database =
+        serde_json::json!([{ "directory": manifest, "file": file, "arguments": arguments }]);
+    std::fs::write(
+        directory.join("compile_commands.json"),
+        database.to_string(),
+    )
+    .expect("write clangd compilation database");
     build.compile("media-transfer-native");
     println!("cargo:rerun-if-changed=src/bridge.rs");
     println!("cargo:rerun-if-changed=native/engine.h");

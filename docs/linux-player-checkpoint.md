@@ -169,3 +169,37 @@ native process. No server restart or catalog database change is needed for these
 - Export collision/disk-space problems currently surface as a generic native warning; a richer
   export-status/recovery UI, legacy layout migration, automatic cache cleanup and subtitle
   sidecar downloads remain follow-ups. No live catalog mutations or public torrent tests.
+
+## Cache cleanup and saved playback — 2026-10-11
+
+- Account dialog now offers confirmed **حذف الذاكرة المؤقتة للتنزيلات**. It removes only inactive
+  private torrent jobs/payloads. Active playback/readers, unfinished or missing durable exports,
+  symlinks/hardlinks and legacy Videos payloads are protected. Completed Videos copies and
+  their saved-playback records survive cleanup. This is cache cleanup, not deletion of saved videos.
+- Device SQLite v4 adds stable work/installment/episode mappings and expected export sizes.
+  Released episode cards and the player shelf show **محمّلة** only for a registered completed
+  file still present at its expected size. Missing files are not reported as downloaded.
+- Watch checks native saved storage before Torrentio; native attachment preserves the player
+  session and catalog identity. No caller-supplied filesystem path enters the bridge. A missing
+  saved file falls back to explicit source selection. Catalog authorization still applies;
+  fully offline catalog browsing is not implemented.
+- Earlier v3 exports lack episode mappings: explicitly choosing the same source/file once
+  registers/reuses the existing exported copy. No filename-based episode guesses or folder scan.
+- Fixed preview/source-query ordering so a normal Watch does not trigger Torrentio concurrently
+  with the local-file check. Episode selection explicitly restores watch intent, not download intent.
+- Zed errors addressed at their root: include the separate player Playwright config in the
+  TypeScript project; Cargo writes a private clangd compilation database with actual Nix flags
+  and generated CXX includes. `.clangd` and the project Zed query-driver setting use it. Rebuild
+  after cleaning target; restart language servers if stale editor errors remain.
+- Targeted checks: 17 player browser journeys and six transfer tests passed. Tests cover cache preservation,
+  local-record persistence, legacy-root protection and controlled loopback export/restart.
+  Linux UI/native builds, targeted all-target Clippy and lint passed. Fresh packaged native
+  `--player-smoke` additionally verifies saved-file attachment retains session/catalog identity;
+  pause/seek/subtitles/fullscreen/preview passed with 60 native renders in two seconds.
+  Same generated private fixture and isolated state as above; no public torrent/catalog writes.
+- No new narrow-native capture/physical-input verification. OpenSubtitles, saved-video deletion,
+  a full downloads queue and automatic cache eviction are not part of this focused step.
+- The original 23 Zed errors cleared. A later project-wide diagnostic refresh surfaced separate
+  missing Node test types in `packages/api-contract/tests/*.mts` during concurrent contract work;
+  those files/contract changes were not included in this commit. `pnpm check` still stops on
+  the pre-existing CLI formatter issue documented above.

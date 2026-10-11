@@ -17,6 +17,7 @@ export type PlayerEpisode = {
   image?: ArtworkAssignment | null;
   summary?: string | null;
   runtimeMinutes?: number | null;
+  downloaded?: boolean;
   disabled?: boolean;
   disabledReason?: string;
 };
@@ -199,6 +200,7 @@ function EpisodeCard({
           {episode.runtimeMinutes != null && episode.runtimeMinutes > 0 && (
             <span>{episode.runtimeMinutes} د</span>
           )}
+          {episode.downloaded && <Badge variant="secondary">محمّلة</Badge>}
           {episode.disabled && (
             <Badge variant="outline">{episode.disabledReason || "غير متاحة للمشاهدة"}</Badge>
           )}

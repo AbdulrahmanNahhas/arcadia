@@ -115,6 +115,41 @@ async fn run(
         state.tracks.len()
     );
     let id = state.session_id.ok_or("Missing native session")?;
+    if std::env::args().any(|arg| arg == "--player-smoke") {
+        let path = std::env::var_os("NAHHASIO_PLAY_FILE").ok_or("Missing local fixture")?;
+        player
+            .play_saved(
+                &id,
+                crate::media::ResolvedTarget {
+                    work_id: "00000000-0000-4000-8000-000000000001".into(),
+                    installment_id: "00000000-0000-4000-8000-000000000002".into(),
+                    episode_id: None,
+                    title: state.title,
+                    work_title: "Synthetic local fixture".into(),
+                    search: crate::torrentio::Search {
+                        imdb_id: "tt0000000".into(),
+                        kind: crate::torrentio::Kind::Movie,
+                        season: None,
+                        episode: None,
+                    },
+                },
+                std::path::Path::new(&path),
+            )
+            .map_err(|error| error.message)?;
+        let saved = wait(player, |state| {
+            state.position > 0.3 && state.work_id.is_some()
+        })
+        .await?;
+        if saved.session_id.as_deref() != Some(&id)
+            || !matches!(
+                saved.source_kind,
+                Some(crate::player_protocol::SourceKind::Local)
+            )
+        {
+            return Err("Saved playback lost session/catalog identity".into());
+        }
+        eprintln!("player-smoke: saved-file attachment preserves session/catalog identity");
+    }
     click(view, "إيقاف مؤقت").await?;
     wait(player, |state| state.paused).await?;
     let position = player.snapshot().position;
