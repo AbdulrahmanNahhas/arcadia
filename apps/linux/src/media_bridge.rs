@@ -17,7 +17,6 @@ pub async fn execute(
         player.require_session(id)?;
     }
     let pause_requested = matches!(&command, Command::Pause { .. });
-    let download_requested = matches!(&command, Command::Download { .. });
     match command {
         Command::Saved {} => runtime
             .spawn(async move { media.saved().await })
@@ -40,6 +39,34 @@ pub async fn execute(
                 Ok(json!({"found":false}))
             }
         }
+        Command::DownloadSearch { session_id, target } => runtime
+            .spawn(async move {
+                serde_json::to_value(media.search(session_id, target).await?)
+                    .map_err(|_| interrupted())
+            })
+            .await
+            .map_err(|_| interrupted())?,
+        Command::Download {
+            session_id,
+            source_id,
+            file_index,
+        } => {
+            let ready = runtime
+                .spawn(async move {
+                    media
+                        .prepare(&session_id, &source_id, file_index, true)
+                        .await
+                })
+                .await
+                .map_err(|_| interrupted())??;
+            match ready {
+                Ready::Choices { files, target } => {
+                    Ok(json!({"mode":"choose_file","files":files,"target":target}))
+                }
+                Ready::Downloading { target } => Ok(json!({"mode":"downloading","target":target})),
+                _ => Err(interrupted()),
+            }
+        }
         Command::Search { session_id, target } => {
             let result = runtime
                 .spawn(async move {
@@ -57,18 +84,13 @@ pub async fn execute(
             session_id,
             source_id,
             file_index,
-        }
-        | Command::Download {
-            session_id,
-            source_id,
-            file_index,
         } => {
             player.loading(&session_id, true, None)?;
             let expected = session_id.clone();
             let result = runtime
                 .spawn(async move {
                     media
-                        .prepare(&session_id, &source_id, file_index, download_requested)
+                        .prepare(&session_id, &source_id, file_index, false)
                         .await
                 })
                 .await

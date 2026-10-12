@@ -59,11 +59,12 @@ export function sourceOptions(sessionId: string, target: WatchTarget) {
       target.workId,
       target.installmentId ?? null,
       target.episodeId ?? null,
+      target.intent ?? "watch",
     ] as const,
     queryFn: async ({ signal }) =>
       SourcesSchema.parse(
         await nativeCall(
-          "media.search",
+          target.intent === "download" ? "media.downloadSearch" : "media.search",
           {
             sessionId,
             target: {
@@ -88,7 +89,10 @@ export async function playSource(
   fileIndex?: number,
   intent: "watch" | "download" = "watch",
 ) {
-  if (client.getQueryData<PlayerSnapshot>(playerSnapshotKey)?.sessionId !== sessionId) {
+  if (
+    intent === "watch" &&
+    client.getQueryData<PlayerSnapshot>(playerSnapshotKey)?.sessionId !== sessionId
+  ) {
     throw new Error("انتهت جلسة هذا الفيديو.");
   }
   const reply = PlaySchema.parse(
@@ -100,7 +104,8 @@ export async function playSource(
     ),
   );
   const current = client.getQueryData<PlayerSnapshot>(playerSnapshotKey);
-  if (current?.sessionId !== sessionId) throw new Error("انتهت جلسة هذا الفيديو.");
+  if (intent === "watch" && current?.sessionId !== sessionId)
+    throw new Error("انتهت جلسة هذا الفيديو.");
   if (reply.mode === "playing") {
     if (reply.snapshot.sessionId !== sessionId) throw new Error("وصل تحديث قديم للمشغّل.");
     client.removeQueries({ queryKey: choiceKey(sessionId), exact: true });
@@ -111,7 +116,8 @@ export async function playSource(
   } else {
     client.setQueryData<FileChoice>(choiceKey(sessionId), { ...reply, sourceId });
   }
-  await client.invalidateQueries({ queryKey: playerSnapshotKey, exact: true });
+  if (intent === "watch")
+    await client.invalidateQueries({ queryKey: playerSnapshotKey, exact: true });
   return reply;
 }
 

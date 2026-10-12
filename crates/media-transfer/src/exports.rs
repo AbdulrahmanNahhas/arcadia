@@ -114,7 +114,17 @@ impl Engine {
         })?;
         let mut failure = None;
         for (id, file, destination) in plans {
-            if let Err(error) = self.export_one(id, file, PathBuf::from(destination)) {
+            let result = self.export_one(id.clone(), file, PathBuf::from(destination));
+            let message = result.as_ref().err().map(ToString::to_string);
+            self.call(move |owner| {
+                if let Some(message) = message {
+                    owner.export_errors.insert((id, file), message);
+                } else {
+                    owner.export_errors.remove(&(id, file));
+                }
+                Ok(())
+            })?;
+            if let Err(error) = result {
                 failure = Some(error);
             }
         }
@@ -209,6 +219,8 @@ pub struct SavedFile {
     pub path: PathBuf,
     pub size: u64,
     pub available: bool,
+    pub published: bool,
+    pub error: Option<String>,
 }
 #[derive(Serialize)]
 pub struct CacheResult {
@@ -243,7 +255,10 @@ impl Owner {
                     && reject_hardlinks(&path).is_ok()
                     && std::fs::metadata(&path)
                         .is_ok_and(|meta| meta.is_file() && meta.len() == size);
+                let error = self.export_errors.get(&(id.clone(), file)).cloned();
                 SavedFile {
+                    published: done,
+                    error,
                     id,
                     file,
                     target,

@@ -20,6 +20,8 @@ pub(crate) mod ffi {
         error: String,
         metadata: bool,
         checking: bool,
+        download_rate: u64,
+        peers: u32,
     }
     unsafe extern "C++" {
         include!("native/engine.h");

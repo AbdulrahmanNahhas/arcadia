@@ -980,3 +980,9 @@
     transition: none;
   }
 }
+
+.download-progress {
+  height: 0.5rem;
+  accent-color: var(--primary);
+  border-radius: var(--radius);
+}

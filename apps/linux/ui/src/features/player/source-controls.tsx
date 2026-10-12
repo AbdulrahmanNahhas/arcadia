@@ -43,15 +43,29 @@ export function SourceControls({
   );
 }
 
+export function DownloadSources({
+  sessionId,
+  target,
+  onQueued,
+}: {
+  sessionId: string;
+  target: WatchTarget;
+  onQueued: () => void;
+}) {
+  return <SessionSources sessionId={sessionId} target={target} onQueued={onQueued} />;
+}
+
 function SessionSources({
   sessionId,
   target,
   player,
   onPlaybackStarted,
+  onQueued,
 }: {
   sessionId: string;
   target: WatchTarget | null;
-  player: PlayerController;
+  player?: PlayerController;
+  onQueued?: () => void;
   onPlaybackStarted?: () => void;
 }) {
   const client = useQueryClient();
@@ -79,11 +93,12 @@ function SessionSources({
       playSource(client, sessionId, sourceId, fileIndex, downloading ? "download" : "watch"),
     onSuccess: (reply) => {
       if (reply.mode === "playing") onPlaybackStarted?.();
+      if (reply.mode === "downloading") onQueued?.();
     },
     networkMode: "always",
     retry: false,
   });
-  const busy = sourcePending || player.pending || !sessionId;
+  const busy = sourcePending || player?.pending || !sessionId;
   const candidates = useMemo(
     () =>
       sources.data?.candidates.map((candidate) => ({
@@ -116,7 +131,7 @@ function SessionSources({
           ? "اختر التورنت والملف للتنزيل دون تشغيل. يُحفظ الفيديو المكتمل في مجلد العمل داخل Videos/nahhasio."
           : "اختر مصدرًا لبدء التشغيل. الجودة واللغات مبلّغ عنها من Torrentio؛ لا تثبت وجود دبلجة أو ترجمة. تظهر المسارات الفعلية بعد فتح الفيديو."}
       </p>
-      {(sources.isFetching || sourcePending || player.snapshot?.buffering) && (
+      {(sources.isFetching || sourcePending || player?.snapshot?.buffering) && (
         <p role="status" className="text-sm text-muted-foreground">
           {sourcePending
             ? "جارٍ فتح المصدر والتحقق من ملفات الفيديو…"

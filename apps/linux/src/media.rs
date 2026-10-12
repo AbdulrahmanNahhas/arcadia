@@ -45,6 +45,8 @@ pub struct ResolvedTarget {
 pub enum Command {
     #[serde(rename = "media.search")]
     Search { session_id: String, target: Target },
+    #[serde(rename = "media.downloadSearch")]
+    DownloadSearch { session_id: String, target: Target },
     #[serde(rename = "media.play")]
     Play {
         session_id: String,
@@ -81,7 +83,6 @@ impl Command {
         match self {
             Self::Search { session_id, .. }
             | Self::Play { session_id, .. }
-            | Self::Download { session_id, .. }
             | Self::Local { session_id, .. }
             | Self::Keep { session_id } => Some(session_id),
             _ => None,
@@ -100,7 +101,7 @@ pub struct Media {
     services: Services,
     roots: Roots,
     engine: OnceCell<Engine>,
-    sources: Mutex<BTreeMap<String, Source>>,
+    sources: Mutex<BTreeMap<(String, String), Source>>,
 }
 pub enum Ready {
     Local {
@@ -215,6 +216,14 @@ impl Media {
             })
     }
     pub async fn search(&self, session: String, target: Target) -> Result<Sources, Error> {
+        if session.is_empty()
+            || session.len() > 64
+            || !session
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        {
+            return Err(Error::new("bad_request", "Invalid source session"));
+        }
         let resolved = self.resolve(&target).await?;
         let candidates = torrentio::search(resolved.search.clone()).await?;
         let views = candidates
@@ -223,11 +232,22 @@ impl Media {
             .collect::<Result<Vec<_>, _>>()?;
         let mut sources = self.sources.lock().await;
         sources.retain(|_, source| {
-            source.session == session && source.created.elapsed() < Duration::from_secs(900)
+            source.created.elapsed() < Duration::from_secs(900) && source.session != session
         });
+        while sources.len() + candidates.len() > 800 {
+            let oldest = sources
+                .iter()
+                .min_by_key(|(_, source)| source.created)
+                .map(|(key, _)| key.clone());
+            if let Some(key) = oldest {
+                sources.remove(&key);
+            } else {
+                break;
+            }
+        }
         for candidate in candidates {
             sources.insert(
-                candidate.id.clone(),
+                (session.clone(), candidate.id.clone()),
                 Source {
                     session: session.clone(),
                     target: target.clone(),
@@ -253,7 +273,7 @@ impl Media {
             .sources
             .lock()
             .await
-            .get(source_id)
+            .get(&(session.to_owned(), source_id.to_owned()))
             .cloned()
             .filter(|source| {
                 source.session == session && source.created.elapsed() < Duration::from_secs(900)
@@ -329,6 +349,13 @@ impl Media {
             .into_iter()
             .filter(|file| is_video(&file.path))
             .collect();
+        if videos.is_empty() {
+            pause_unowned(engine, id).await;
+            return Err(Error::new(
+                "no_video",
+                "لا يحتوي هذا التورنت على ملف فيديو مدعوم. اختر مصدرًا آخر.",
+            ));
+        }
         let index = explicit_file
             .or(source.candidate.file_index)
             .or_else(|| (videos.len() == 1).then(|| videos[0].index));
@@ -342,7 +369,10 @@ impl Media {
             });
         };
         if download {
-            self.keep(id.clone(), file.index, resolved.clone()).await?;
+            if let Err(error) = self.keep(id.clone(), file.index, resolved.clone()).await {
+                pause_unowned(engine, id).await;
+                return Err(error);
+            }
             let starter = engine.clone();
             tokio::task::spawn_blocking(move || starter.start(&id))
                 .await
@@ -432,12 +462,16 @@ impl Media {
         let engine = self.engine().await?;
         tokio::task::spawn_blocking(move || {
             let jobs = engine.jobs()?;
+            let saved = engine.saved_files()?;
             let mut result = Vec::new();
             for job in jobs {
                 if !job.selected.is_empty() {
                     let status = engine.status(&job.id)?;
                     let files = engine.files(&job.id).unwrap_or_default();
-                    result.push(json!({"id":job.id.0,"files":files,"selected":job.selected,"status":status}));
+                    let exports: Vec<_> = saved.iter().filter(|file| file.id == job.id.0).map(|file| json!({"file":file.file,"path":file.path,"available":file.available,"published":file.published,"error":file.error})).collect();
+                    if !exports.is_empty() {
+                        result.push(json!({"id":job.id.0,"files":files,"selected":job.selected,"status":status,"exports":exports}));
+                    }
                 }
             }
             Ok::<_, media_transfer::Error>(Value::Array(result))

@@ -253,6 +253,8 @@ Status Session::status(rust::Str id) const {
     auto h = get(id);
     auto s = h.status();
     Status r; r.verified = 0; r.total = 0; r.complete = false;
+    r.download_rate = std::uint64_t(std::max(0, s.download_payload_rate));
+    r.peers = std::uint32_t(std::max(0, s.num_peers));
     auto ti = h.torrent_file();
     r.metadata = bool(ti);
     r.checking = s.state == lt::torrent_status::checking_files || s.state == lt::torrent_status::checking_resume_data;

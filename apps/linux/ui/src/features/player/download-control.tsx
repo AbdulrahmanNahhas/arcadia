@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { nativeCall } from "@/lib/bridge";
 
 import type { PlayerSnapshot } from "./bridge";
+import { DownloadQueue } from "./download-queue";
 import { PlayerPopover } from "./player-panels";
 
 const KeepReplySchema = z.object({ ok: z.literal(true) });
@@ -72,6 +73,7 @@ export function DownloadControl({
             يتابع التطبيق تنزيل الفيديو على هذا الجهاز.
           </p>
         )}
+        {keep.isSuccess && <DownloadQueue />}
         {keep.error && (
           <Alert variant="destructive">
             <AlertTitle>تعذّر الاحتفاظ بالتنزيل</AlertTitle>

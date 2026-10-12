@@ -203,3 +203,33 @@ native process. No server restart or catalog database change is needed for these
   missing Node test types in `packages/api-contract/tests/*.mts` during concurrent contract work;
   those files/contract changes were not included in this commit. `pnpm check` still stops on
   the pre-existing CLI formatter issue documented above.
+
+## Download dialog and transfer visibility — 2026-10-11
+
+Aqua authorized a fast, focused player/torrent/download reliability pass. Changes remain
+uncommitted for review.
+
+- Download requests open a standalone source/file dialog without creating or changing a player
+  session. Native download search/preparation keeps catalog authorization and source expiry.
+- The rail now opens the device download queue. It shows verified bytes/percentage, payload
+  speed, peers, estimated remaining minutes, pause/resume, destination and actionable errors.
+  Closing a dialog leaves the durable download running while the application is open.
+- Transfer completion, publication to Videos and missing/changed published files are distinct
+  states. Export errors reach the UI and existing automatic export retries remain active.
+- Source entries are keyed by session and candidate, with expiry and an 800-entry bound, so
+  separate download/playback searches do not overwrite one another's candidates.
+- Torrents without supported videos fail explicitly. Failed download preparation pauses a
+  transfer with no durable/playback interest. Existing private cache and publication guards remain.
+- Targeted Linux UI typecheck/build, lint, formatting, native build and all-target Clippy passed.
+  Three focused browser journeys passed (download dialog/progress/pause/close at desktop and
+  520px, saved-file playback, audio/subtitle selection). Download screenshots were inspected.
+- Fresh packaged native player smoke passed local playback, seeking, Arabic track, fullscreen,
+  60 live renders and preview, with generated media, unreachable fixture API and isolated storage.
+  Native download-dialog rendering, physical input and public torrents were not verified.
+- Five of six media-transfer checks passed. The controlled loopback fixture timed out during
+  seed verification before peer connection, both in and outside the sandbox; this is unresolved.
+  It is not evidence of working public torrent transfer or full production readiness.
+- The current devenv evaluation failed fetching nixpkgs because the ephemeral filesystem was
+  full. Checks used the already generated project devenv shell environment and installed tools.
+  Browser temporary files used a short symlink into ignored persistent preview storage.
+  No schema change, live catalog mutation or deployment was performed.

@@ -94,6 +94,8 @@ pub struct Status {
     pub paused: bool,
     pub error: Option<String>,
     pub state: TransferState,
+    pub download_rate: u64,
+    pub peers: u32,
 }
 #[derive(Clone, Default)]
 pub struct Cancellation {
@@ -146,6 +148,7 @@ struct Owner {
     next_lease: u64,
     errors: BTreeMap<String, String>,
     recovery: BTreeMap<String, TransferState>,
+    export_errors: BTreeMap<(String, u32), String>,
     stop: bool,
 }
 impl Engine {
@@ -315,6 +318,8 @@ impl Engine {
         self.call(move |owner| {
             if let Some(error) = owner.errors.get(&id) {
                 return Ok(Status {
+                    download_rate: 0,
+                    peers: 0,
                     verified: 0,
                     total: 0,
                     complete: false,
@@ -346,6 +351,8 @@ impl Engine {
                     TransferState::Downloading
                 });
             Ok(Status {
+                download_rate: s.download_rate,
+                peers: s.peers,
                 verified: s.verified,
                 total: s.total,
                 complete: s.complete,
@@ -661,6 +668,7 @@ impl Owner {
             next_lease: 1,
             errors: BTreeMap::new(),
             recovery: BTreeMap::new(),
+            export_errors: BTreeMap::new(),
             stop: false,
         };
         let entries = {

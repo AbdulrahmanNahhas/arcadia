@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Login } from "../features/auth/login";
 import { Library } from "../features/library/library";
 import { PlayerHost, usePlayerSnapshot } from "../features/player";
+import { DownloadDialog } from "../features/player/download-dialog";
 import type { PlayerEpisode } from "../features/player/episode-panel";
 import { openWatch } from "../features/player/playback";
 import { savedDownloadOptions } from "../features/player/saved-downloads";
@@ -20,6 +21,7 @@ export function App() {
   const playerCommandAsync = player.commandAsync;
   const requestGeneration = useRef(0);
   const [watchTarget, setWatchTarget] = useState<WatchTarget | null>(null);
+  const [download, setDownload] = useState<{ target: WatchTarget; sessionId: string } | null>(null);
   const playing = Boolean(player.snapshot?.active);
 
   useEffect(() => {
@@ -27,6 +29,10 @@ export function App() {
       if (!(event instanceof CustomEvent)) return;
       const parsed = WatchTargetSchema.safeParse(event.detail);
       if (!parsed.success) return;
+      if (parsed.data.intent === "download") {
+        setDownload({ target: parsed.data, sessionId: crypto.randomUUID() });
+        return;
+      }
       const generation = ++requestGeneration.current;
       setWatchTarget(null);
       void openWatch(parsed.data, { commandAsync: playerCommandAsync }, client)
@@ -52,6 +58,7 @@ export function App() {
       client.removeQueries({
         predicate: (query) => query.queryKey[0] !== "session" && query.queryKey[0] !== "native",
       });
+      setDownload(null);
       client.setQueryData(["session"], null);
     };
     window.addEventListener("nahhasio:signed-out", clear);
@@ -155,5 +162,17 @@ export function App() {
 
   if (!session.data) return <Login />;
 
-  return <Library user={session.data.user} />;
+  return (
+    <>
+      <Library user={session.data.user} />
+      {download && (
+        <DownloadDialog
+          key={download.sessionId}
+          target={download.target}
+          sessionId={download.sessionId}
+          onClose={() => setDownload(null)}
+        />
+      )}
+    </>
+  );
 }

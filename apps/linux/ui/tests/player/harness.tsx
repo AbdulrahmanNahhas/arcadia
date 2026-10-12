@@ -10,6 +10,7 @@ import {
   type PlayerEpisode,
 } from "../../src/features/player";
 import { CacheControl } from "../../src/features/player/cache-control";
+import { DownloadDialog } from "../../src/features/player/download-dialog";
 import { openWatch } from "../../src/features/player/playback";
 import { episodeNumberLabel } from "../../src/features/work/format";
 
@@ -65,23 +66,34 @@ function Harness() {
   const player = usePlayerSnapshot();
   const client = useQueryClient();
   const scenario = new URLSearchParams(window.location.search).get("scenario");
+  const [downloadOpen, setDownloadOpen] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [watchOpened, setWatchOpened] = useState(false);
   return (
     <>
-      <PlayerHost
-        player={player}
-        episodes={scenario === "episodes" ? episodes : undefined}
-        installmentTitle="الموسم الأول"
-        onSelectEpisode={(episode) => setSelected(episode.id)}
-        sourceTarget={
-          scenario === "download"
-            ? { ...target, intent: "download" }
-            : scenario === "sources" || (watchOpened && player.snapshot?.sourceKind !== "local")
-              ? target
-              : null
-        }
-      />
+      {scenario === "download" ? (
+        downloadOpen && (
+          <DownloadDialog
+            target={{ ...target, intent: "download" }}
+            sessionId="download-test"
+            onClose={() => setDownloadOpen(false)}
+          />
+        )
+      ) : (
+        <PlayerHost
+          player={player}
+          episodes={scenario === "episodes" ? episodes : undefined}
+          installmentTitle="الموسم الأول"
+          onSelectEpisode={(episode) => setSelected(episode.id)}
+          sourceTarget={
+            scenario === "download"
+              ? { ...target, intent: "download" }
+              : scenario === "sources" || (watchOpened && player.snapshot?.sourceKind !== "local")
+                ? target
+                : null
+          }
+        />
+      )}
       {scenario === "cache" && <CacheControl />}
       {selected && <output aria-label="الحلقة المختارة">{selected}</output>}
       {!player.snapshot?.active && (

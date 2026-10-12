@@ -4,11 +4,13 @@ import type { PlayerRequest, PlayerSnapshot } from "../../src/features/player/br
 
 type TestRequest =
   | PlayerRequest
-  | { command: "media.search"; payload: { sessionId: string } }
+  | { command: "media.search" | "media.downloadSearch"; payload: { sessionId: string } }
   | {
       command: "media.play" | "media.download";
       payload: { sessionId: string; sourceId: string; fileIndex: number | null };
     }
+  | { command: "media.jobs"; payload: Record<string, never> }
+  | { command: "media.pause" | "media.resume"; payload: { id: string } }
   | { command: "media.keep"; payload: { sessionId: string } }
   | { command: "media.local"; payload: { sessionId: string } }
   | { command: "media.deleteCache"; payload: Record<string, never> }
@@ -136,6 +138,7 @@ async function mock(page: Page, snapshot = initial, scenario = "") {
                   });
                 }
                 return;
+              case "media.downloadSearch":
               case "media.search":
                 window["__nahhasioReply"]?.({
                   id: request.id,
@@ -177,6 +180,42 @@ async function mock(page: Page, snapshot = initial, scenario = "") {
                     ],
                   },
                 });
+                return;
+              case "media.jobs":
+                window["__nahhasioReply"]?.({
+                  id: request.id,
+                  ok: true,
+                  result: [
+                    {
+                      id: "download-job",
+                      selected: [0],
+                      files: [{ index: 0, path: "Synthetic.mkv", size: 1000000 }],
+                      status: {
+                        verified: 250000,
+                        total: 1000000,
+                        complete: false,
+                        paused: false,
+                        error: null,
+                        state: "downloading",
+                        download_rate: 100000,
+                        peers: 4,
+                      },
+                      exports: [
+                        {
+                          file: 0,
+                          path: "Videos/nahhasio/Synthetic.mkv",
+                          available: false,
+                          published: false,
+                          error: null,
+                        },
+                      ],
+                    },
+                  ],
+                });
+                return;
+              case "media.pause":
+              case "media.resume":
+                window["__nahhasioReply"]?.({ id: request.id, ok: true, result: { ok: true } });
                 return;
               case "media.download":
                 window["__nahhasioReply"]?.({
@@ -300,7 +339,9 @@ async function mock(page: Page, snapshot = initial, scenario = "") {
     };
   }, snapshot);
   await page.goto(`/tests/player/?scenario=${scenario}`);
-  if (snapshot.active) await expect(page.locator(".player-title h1")).toHaveText(initial.title);
+  if (scenario === "download") await expect(page.getByRole("dialog")).toBeVisible();
+  else if (snapshot.active)
+    await expect(page.locator(".player-title h1")).toHaveText(initial.title);
   else await expect(page.getByRole("button", { name: "Watch test work" })).toBeVisible();
 }
 
@@ -409,13 +450,31 @@ test("cache cleanup requires confirmation and reports skipped jobs", async ({ pa
 test("download intent chooses a torrent without starting playback", async ({ page }) => {
   await mock(
     page,
-    { ...initial, sourceKind: null, duration: 0, tracks: [], seekable: false },
+    {
+      ...initial,
+      active: false,
+      sessionId: null,
+      sourceKind: null,
+      duration: 0,
+      tracks: [],
+      seekable: false,
+    },
     "download",
   );
   await expect(page.getByRole("button", { name: "تنزيل هذا المصدر" })).toHaveCount(2);
   expect(await calls(page, "media.download")).toHaveLength(0);
   await page.getByRole("button", { name: "تنزيل هذا المصدر" }).first().click();
-  await expect(page.getByText("أُضيف الفيديو إلى التنزيلات", { exact: true })).toBeVisible();
+  await expect(page.getByText("جارٍ التنزيل", { exact: true })).toBeVisible();
+  await expect(page.getByRole("progressbar")).toHaveAttribute("value", "25");
+  await page.screenshot({ path: test.info().outputPath("download-progress.png") });
+  await page.setViewportSize({ width: 520, height: 760 });
+  await expect(page.getByRole("progressbar")).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("download-progress-narrow.png") });
+  await page.getByRole("button", { name: "إيقاف مؤقت", exact: true }).click();
+  await expect.poll(async () => (await calls(page, "media.pause")).length).toBe(1);
+  expect(await calls(page, "player.preview")).toHaveLength(0);
+  await page.getByRole("button", { name: "إغلاق", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect.poll(async () => (await calls(page, "media.download")).length).toBe(1);
   expect(await calls(page, "media.play")).toHaveLength(0);
 });

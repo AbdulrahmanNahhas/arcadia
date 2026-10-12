@@ -30,6 +30,7 @@ import { BrowsePage } from "../catalog/browse-page";
 import { HomePage } from "../home/home-page";
 import { PeoplePage } from "../people/people-page";
 import { PlanetsPage } from "../planets/planets-page";
+import { DownloadQueueButton } from "../player/download-queue-button";
 import { CacheControl } from "../player/cache-control";
 import { ReleasesPage } from "../releases/releases-page";
 import { SearchPage } from "../search/search-page";
@@ -199,6 +200,7 @@ export function ViewerShell({ user }: { user: User }) {
           )}
         </div>
         <div className="mt-auto flex w-full shrink-0 flex-col items-center gap-1.5 mb-2 text-lg text-muted-foreground">
+          <DownloadQueueButton />
           <Button
             variant="ghost"
             size="icon-lg"
