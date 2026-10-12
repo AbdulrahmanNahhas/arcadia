@@ -305,7 +305,7 @@ function TrackOption({
   return (
     <Radio.Root
       value={value}
-      render={<button type="button" />}
+      render={<Button variant="ghost" type="button" />}
       nativeButton
       ref={buttonRef}
       className="player-track-option flex w-full items-center gap-3 rounded-lg px-3 py-2 text-start text-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-checked:bg-accent disabled:cursor-not-allowed disabled:opacity-50"

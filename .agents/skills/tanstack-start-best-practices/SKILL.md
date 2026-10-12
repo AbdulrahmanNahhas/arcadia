@@ -1,9 +1,11 @@
 ---
 name: tanstack-start-best-practices
-description: TanStack Start best practices for full-stack React applications. Server functions, middleware, SSR, authentication, and deployment patterns. Activate when building full-stack apps with TanStack Start.
+description: TanStack Start best practices for full-stack React applications. Server functions, middleware, SSR, authentication, and deployment patterns. Apply only to apps/web; excludes the Vite Linux client.
 ---
 
 # TanStack Start Best Practices
+
+Project scope: apps/web only. Linux uses Vite + Router + Query and a native Rust bridge.
 
 Comprehensive guidelines for implementing TanStack Start patterns in full-stack React applications. These rules cover server functions, middleware, SSR, authentication, and deployment.
 
@@ -26,7 +28,7 @@ Comprehensive guidelines for implementing TanStack Start patterns in full-stack 
 | HIGH | Middleware | 4 rules | Request/response handling |
 | HIGH | Authentication | 4 rules | Secure user sessions |
 | MEDIUM | API Routes | 1 rule | External endpoint patterns |
-| MEDIUM | SSR | 6 rules | Server rendering patterns |
+| MEDIUM | SSR | 5 rules | Server rendering patterns |
 | MEDIUM | Error Handling | 3 rules | Graceful failure handling |
 | MEDIUM | Environment | 1 rule | Configuration management |
 | LOW | File Organization | 3 rules | Maintainable code structure |

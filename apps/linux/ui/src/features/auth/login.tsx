@@ -2,6 +2,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Library, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { gateway, nativeAvailable } from "../../lib/bridge";
@@ -19,18 +22,14 @@ export function Login() {
   });
 
   const inputClass =
-    "h-12 min-w-0 rounded-full border border-white/10 bg-white/5 px-5 text-foreground placeholder:text-muted-foreground/60 transition-colors focus-visible:border-primary/60 focus-visible:bg-white/[0.08] focus-visible:ring-2 focus-visible:ring-ring";
+    "h-12 min-w-0 rounded-full border border-foreground/10 bg-foreground/5 px-5 text-foreground placeholder:text-muted-foreground/60 transition-colors focus-visible:border-primary/60 focus-visible:bg-foreground/8 focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
     <main className="relative isolate flex min-h-dvh w-full items-center justify-center overflow-hidden bg-black px-6 py-12">
       {/* ambient glow */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          background:
-            "radial-gradient(60% 50% at 15% 10%, color-mix(in oklab, var(--primary) 28%, transparent), transparent 70%), radial-gradient(40% 40% at 95% 5%, rgba(255,255,255,0.05), transparent 70%)",
-        }}
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_15%_10%,color-mix(in_oklab,var(--primary)_28%,transparent),transparent_70%),radial-gradient(40%_40%_at_95%_5%,color-mix(in_oklab,var(--foreground)_5%,transparent),transparent_70%)]"
       />
 
       <div className="flex w-full max-w-sm flex-col items-center text-center">
@@ -64,58 +63,58 @@ export function Login() {
             login.mutate({ email, password });
           }}
         >
-          <label className="px-2 text-xs text-foreground/70" htmlFor="email">
-            البريد الإلكتروني
-          </label>
-          <Input
-            id="email"
-            className={inputClass}
-            type="email"
-            dir="ltr"
-            autoComplete="username"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-
-          <label className="mt-1 px-2 text-xs text-foreground/70" htmlFor="password">
-            كلمة المرور
-          </label>
-          <Input
-            id="password"
-            className={inputClass}
-            type="password"
-            dir="ltr"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
+          <FieldGroup>
+            <Field>
+              <FieldLabel className="px-2 text-xs text-foreground/70" htmlFor="email">
+                البريد الإلكتروني
+              </FieldLabel>
+              <Input
+                id="email"
+                className={inputClass}
+                type="email"
+                dir="ltr"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel className="mt-1 px-2 text-xs text-foreground/70" htmlFor="password">
+                كلمة المرور
+              </FieldLabel>
+              <Input
+                id="password"
+                className={inputClass}
+                type="password"
+                dir="ltr"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </Field>
+          </FieldGroup>
 
           {!nativeAvailable() && (
-            <p
-              className="rounded-2xl border border-destructive/20 bg-destructive/10 p-3.5 text-sm leading-relaxed text-destructive"
-              role="alert"
-            >
-              افتح هذه الواجهة من تطبيق Linux للاتصال بالخادم.
-            </p>
+            <Alert variant="destructive">
+              <AlertDescription>افتح هذه الواجهة من تطبيق Linux للاتصال بالخادم.</AlertDescription>
+            </Alert>
           )}
           {login.error && (
-            <p
-              className="rounded-2xl border border-destructive/20 bg-destructive/10 p-3.5 text-sm leading-relaxed text-destructive"
-              role="alert"
-            >
-              {login.error.message}
-            </p>
+            <Alert variant="destructive">
+              <AlertDescription>{login.error.message}</AlertDescription>
+            </Alert>
           )}
 
           <Button
-            className="mt-4 flex h-12 items-center justify-center gap-3 rounded-full bg-primary px-8 font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 hover:shadow-primary/30 disabled:opacity-40"
+            size="lg"
+            className="mt-4 h-12 rounded-full"
             disabled={login.isPending || !nativeAvailable()}
             type="submit"
           >
             {login.isPending ? "جارٍ تسجيل الدخول…" : "دخول المكتبة"}
-            <ArrowLeft size={18} />
+            <ArrowLeft data-icon="inline-end" />
           </Button>
         </form>
 

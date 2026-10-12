@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Progress } from "@/components/ui/progress";
 import { nativeCall } from "@/lib/bridge";
 
 import { formatSourceSize } from "./source-format";
@@ -157,9 +158,9 @@ export function DownloadQueue() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex min-w-0 flex-col gap-3">
-              <progress
-                className="download-progress w-full"
-                value={status.total > 0 ? percent : undefined}
+              <Progress
+                className="download-progress h-2 accent-primary rounded-lg w-full"
+                value={status.total > 0 ? percent : null}
                 max={100}
                 aria-label="تقدم التنزيل"
               />

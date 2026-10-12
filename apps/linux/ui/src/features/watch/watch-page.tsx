@@ -82,10 +82,13 @@ export function WatchPage() {
       : null;
   const series = kind === "series";
   return (
-    <article className="watch-page" aria-label="صفحة المشاهدة المباشرة">
-      <header className="watch-page-header">
+    <article
+      className="watch-page max-w-380 mx-auto pt-12 px-10 pb-8 max-[720px]:py-7 max-[720px]:px-5"
+      aria-label="صفحة المشاهدة المباشرة"
+    >
+      <header className="watch-page-header flex items-start justify-between gap-5 mb-9 [&_h1]:font-display [&_h1]:text-[42px] [&_h1]:font-semibold [&_h1]:leading-[1.6] [&_h1]:mt-2 [&_p:not(.watch-eyebrow)]:max-w-162.5 [&_p:not(.watch-eyebrow)]:mt-2.5 [&_p:not(.watch-eyebrow)]:text-muted-foreground [&_p:not(.watch-eyebrow)]:text-sm [&_p:not(.watch-eyebrow)]:leading-[1.9] max-[720px]:flex-col max-[720px]:mb-6 max-[720px]:[&_h1]:text-[30px] max-[720px]:[&_p:not(.watch-eyebrow)]:text-xs">
         <div>
-          <p className="watch-eyebrow">
+          <p className="watch-eyebrow flex items-center gap-2 text-primary text-xs">
             <MonitorPlay className="size-4" aria-hidden="true" />
             المشاهدة المباشرة
           </p>
@@ -94,9 +97,12 @@ export function WatchPage() {
         </div>
         <Badge variant="outline">معاينة التصميم</Badge>
       </header>
-      <div className="watch-workspace">
-        <section className="watch-request" aria-label="تحديد ما تريد مشاهدته">
-          <div className="watch-request-heading">
+      <div className="watch-workspace grid grid-cols-[minmax(0,_0.85fr)_minmax(0,_1.15fr)] border border-border rounded-[24px] overflow-hidden mb-7 max-[1050px]:grid-cols-1">
+        <section
+          className="watch-request min-w-0 p-8 bg-card max-[720px]:p-5.5"
+          aria-label="تحديد ما تريد مشاهدته"
+        >
+          <div className="watch-request-heading flex items-center gap-3.5 mb-7.5 [&_span]:text-primary [&_span]:text-xl [&_span]:font-bold [&_span]:tracking-[-1px] [&_p]:text-[17px] [&_p]:font-semibold">
             <span>IMDb</span>
             <p>ابدأ بالعنوان</p>
           </div>
@@ -218,25 +224,32 @@ export function WatchPage() {
               </Button>
             </FieldGroup>
           </form>
-          <p className="watch-request-note">
+          <p className="watch-request-note mt-5 text-muted-foreground text-[11px] leading-[1.9]">
             اختيار فيلم أو مسلسل يدوي في هذه المعاينة؛ لم نتحقق من نوع العنوان بعد.
           </p>
         </section>
-        <section className="watch-stage" aria-label="معاينة طلب المشاهدة" aria-live="polite">
-          <div className="watch-stage-top">
+        <section
+          className="watch-stage flex min-w-0 flex-col bg-primary-foreground p-7 max-[720px]:p-5.5"
+          aria-label="معاينة طلب المشاهدة"
+          aria-live="polite"
+        >
+          <div className="watch-stage-top flex flex-wrap items-center justify-between gap-3 text-muted-foreground text-[11px] [&_>_span:first-child]:flex [&_>_span:first-child]:items-center [&_>_span:first-child]:gap-2">
             <span>
-              <span className="watch-stage-dot" />
+              <span className="watch-stage-dot w-1.25 h-1.25 rounded-full bg-primary" />
               {current ? "تم تحديد الطلب" : "بانتظار اختيارك"}
             </span>
             <span>IMDb → {series ? "حلقة" : "فيلم"}</span>
           </div>
-          <div className="watch-stage-body">
-            <span className="watch-stage-icon">
+          <div className="watch-stage-body flex min-h-87.5 [flex:1] flex-col items-center justify-center gap-4.5 py-7 px-3 text-center [&_h2]:font-display [&_h2]:text-[26px] [&_h2]:font-semibold [&_p:not(.watch-target-id)]:max-w-82.5 [&_p:not(.watch-target-id)]:text-muted-foreground [&_p:not(.watch-target-id)]:text-xs [&_p:not(.watch-target-id)]:leading-[2] max-[1050px]:min-h-70 max-[720px]:min-h-65">
+            <span className="watch-stage-icon grid w-21 h-21 place-items-center border border-border rounded-[24px] text-primary bg-card [&_svg]:w-8 [&_svg]:h-8 [&_svg]:[stroke-width:1.3]">
               {series ? <Tv aria-hidden="true" /> : <Film aria-hidden="true" />}
             </span>
             {current ? (
               <>
-                <p className="watch-target-id" dir="ltr">
+                <p
+                  className="watch-target-id max-w-full wrap-anywhere text-[32px] tabular-nums tracking-[-1px]"
+                  dir="ltr"
+                >
                   {current.id}
                 </p>
                 <h2>
@@ -261,17 +274,20 @@ export function WatchPage() {
               </>
             )}
           </div>
-          <div className="watch-stage-bottom">
+          <div className="watch-stage-bottom flex items-start gap-2.5 text-muted-foreground text-[11px] leading-[1.9] pt-4 border-t border-border [&_svg]:shrink-0 [&_svg]:mt-0.5">
             <ShieldCheck className="size-4" aria-hidden="true" />
             <span>لا يُضاف إلى المكتبة، ولا يبدأ تشغيلًا أو تنزيلًا تلقائيًا.</span>
           </div>
         </section>
       </div>
-      <section className="watch-tools" aria-label="المصادر والتنزيل والترجمة">
+      <section
+        className="watch-tools grid grid-cols-3 gap-4.5 max-[1050px]:grid-cols-1"
+        aria-label="المصادر والتنزيل والترجمة"
+      >
         <Card>
           <CardHeader>
             <CardTitle>
-              <h2 className="watch-tool-title">
+              <h2 className="watch-tool-title flex items-center gap-2.5 [&_svg]:w-4.5 [&_svg]:h-4.5 [&_svg]:text-primary">
                 <Waves aria-hidden="true" />
                 مصادر التورنت
               </h2>
@@ -302,7 +318,7 @@ export function WatchPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              <h2 className="watch-tool-title">
+              <h2 className="watch-tool-title flex items-center gap-2.5 [&_svg]:w-4.5 [&_svg]:h-4.5 [&_svg]:text-primary">
                 <Download aria-hidden="true" />
                 تنزيل إلى الجهاز
               </h2>
@@ -333,7 +349,7 @@ export function WatchPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              <h2 className="watch-tool-title">
+              <h2 className="watch-tool-title flex items-center gap-2.5 [&_svg]:w-4.5 [&_svg]:h-4.5 [&_svg]:text-primary">
                 <Subtitles aria-hidden="true" />
                 الترجمة
               </h2>
@@ -362,7 +378,7 @@ export function WatchPage() {
           </CardFooter>
         </Card>
       </section>
-      <footer className="watch-footer">
+      <footer className="watch-footer mt-7 pt-5 border-t border-border text-muted-foreground text-[11px] leading-[2]">
         هذه الصفحة لمعاينة الواجهة فقط. استخدم مصادر تملك حق الوصول إليها. العناوين خارج المكتبة لا
         تحمل تصنيف العائلة التحريري.
       </footer>

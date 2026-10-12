@@ -2,6 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Search, X } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { Failure, NoResults } from "../../components/status";
 import { Input } from "../../components/ui/input";
 import { gateway } from "../../lib/bridge";
@@ -12,24 +15,21 @@ function Glow() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-105"
-      style={{
-        background:
-          "radial-gradient(60% 70% at 85% 0%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 70%), radial-gradient(40% 50% at 5% 0%, rgba(255,255,255,0.04), transparent 70%)",
-      }}
+      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-105 bg-[radial-gradient(60%_70%_at_85%_0%,color-mix(in_oklab,var(--primary)_22%,transparent),transparent_70%),radial-gradient(40%_50%_at_5%_0%,color-mix(in_oklab,var(--foreground)_4%,transparent),transparent_70%)]"
     />
   );
 }
+
+const placeholders = Array.from({ length: 10 }, (_, index) => `planet-placeholder-${index}`);
 
 function PlanetsSkeleton() {
   return (
     <div role="status" aria-label="جارٍ تحميل الكواكب…">
       <span className="sr-only">جارٍ تحميل الكواكب…</span>
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {Array.from({ length: 10 }).map((_, index) => (
-          <div
-            // oxlint-disable-next-line react/no-array-index-key
-            key={index}
+        {placeholders.map((id) => (
+          <Skeleton
+            key={id}
             className="aspect-4/5 animate-pulse rounded-3xl border border-white/5 bg-white/4"
           />
         ))}
@@ -97,7 +97,7 @@ export function PlanetsPage({ id, params }: { id?: string; params: URLSearchPara
             <Search
               aria-hidden
               size={18}
-              className="pointer-events-none absolute inset-s-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
             <Input
               className="h-12 w-full rounded-full border border-white/10 bg-white/5 ps-11 pe-11 text-foreground placeholder:text-muted-foreground/60 transition-colors focus-visible:border-primary/60 focus-visible:bg-white/8 focus-visible:ring-2 focus-visible:ring-ring"
@@ -107,14 +107,15 @@ export function PlanetsPage({ id, params }: { id?: string; params: URLSearchPara
               onChange={(event) => setSearch(event.target.value)}
             />
             {search && (
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 aria-label="مسح البحث"
-                className="absolute inset-e-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+                className="absolute end-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
                 onClick={() => setSearch("")}
               >
                 <X size={16} />
-              </button>
+              </Button>
             )}
           </div>
         </header>

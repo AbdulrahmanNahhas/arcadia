@@ -22,6 +22,7 @@
     "skills-lock.json",
     "target/**",
     "apps/web/src/routeTree.gen.ts",
+    "apps/linux/ui/src/routeTree.gen.ts",
   ],
   "sortImports": true,
 }

@@ -26,11 +26,11 @@ Permission already given for the current step covers its necessary implementatio
 Do not create commits without Aqua's explicit confirmation for that checkpoint. Include the actual
 command in command-approval requests so Aqua can see what will run.
 
-Current checkpoint: repository cleanup authorized on 2026-10-12, including reference removal and
-a cleanup commit. Linux work-page, playback and device-download behavior already exist; see
+Current checkpoint: Linux UI foundation authorized on 2026-10-12: Vite + TanStack Router + Query,
+Tailwind throughout, skills revision and the full modern shadcn Base UI Nova component set.
+Repository cleanup is committed as `bb3496c`. Linux work-page, playback and device-download behavior already exist; see
 `docs/linux-work-page-checkpoint-2026-10-10.md` and `docs/linux-player-checkpoint.md` for evidence.
-Next: Tailwind/shadcn client foundation, then reviewed administration migration. No new features
-or admin migration during cleanup.
+Next: review the foundation result, then separately authorize administration migration.
 Preserve unrelated work.
 
 ## Rust learning ownership
@@ -107,7 +107,10 @@ visual language and server-enforced permissions; do not embed the website UI.
 
 Follow the `shadcn` skill and `docs/design-rules.md`. Components use the official `@shadcn`
 registry; retrieve current docs before composing them, inspect generated output, and install
-only components that have consumers. Do not hand-edit vendored primitives to fix caller errors.
+only components that have consumers in the dashboard. Aqua explicitly approved the full official
+component set for the desktop. Read the `nahhasio-desktop-ui` skill there; preserve its palette,
+static utility presentation and typed native boundary. Do not hand-edit vendored primitives to
+fix caller errors.
 
 - Use component variants/sizes and semantic theme tokens. Caller classes control layout.
 - Use Field/FieldGroup, full Card composition, and Empty/Alert/Badge for their respective roles.

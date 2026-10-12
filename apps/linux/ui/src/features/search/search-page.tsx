@@ -3,6 +3,8 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { ArrowUpLeft, Building2, LoaderCircle, Orbit, Search, Users, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { Label } from "@/components/ui/label";
+
 import {
   useCardNavigation,
   useContentEntry,
@@ -214,7 +216,7 @@ export function SearchPage({ params }: { params: URLSearchParams }) {
             </ToggleGroup>
           </div>
 
-          <label
+          <Label
             htmlFor="search-private"
             className="inline-flex items-center gap-2 cursor-pointer select-none text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
@@ -225,17 +227,18 @@ export function SearchPage({ params }: { params: URLSearchParams }) {
               className="size-4 rounded"
             />
             <span>تضمين الأعمال الخاصة</span>
-          </label>
+          </Label>
         </div>
       </div>
       {text.trim() && (
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={focusResults}
           className="sr-only focus:not-sr-only focus:mb-5 focus:rounded-lg focus:bg-primary focus:px-5 focus:py-3 focus:text-primary-foreground"
         >
           الانتقال إلى النتائج
-        </button>
+        </Button>
       )}
       {!text.trim() ? (
         <div className="mx-auto flex max-w-150 flex-col items-center gap-4 py-12 text-center sm:py-20">

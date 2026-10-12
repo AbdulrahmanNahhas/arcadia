@@ -18,7 +18,7 @@ and synchronized playback remain separate work.
 | -------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `apps/server`                                      | Rust/Axum/SQLx identity, catalog, personal state and guarded database administration |
 | `apps/linux`                                       | GTK shell, contained assets, native bridge, session/network ownership and playback   |
-| `apps/linux/ui`                                    | React/Vite/TypeScript interface, Tailwind 4 and shadcn Base UI Nova                  |
+| `apps/linux/ui`                                    | React/Vite/TypeScript, TanStack Router/Query, Tailwind 4 and shadcn Base UI Nova     |
 | `apps/web`                                         | Transitional TanStack Start administration dashboard                                 |
 | `apps/api`                                         | Legacy Hono API and provider/media/validation services still used by administration  |
 | `crates/native-player`                             | GTK/libmpv adapter and diagnostic examples                                           |

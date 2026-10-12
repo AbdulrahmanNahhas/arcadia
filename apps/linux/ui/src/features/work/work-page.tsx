@@ -78,7 +78,7 @@ export function WorkPage({ id, installmentId }: { id: string; installmentId?: st
   const work = result.data;
   return (
     <article className="relative isolate min-h-dvh pb-16" aria-label="صفحة العمل">
-      <div className="absolute inset-s-6 top-6 z-10 md:inset-s-10 lg:inset-s-14">
+      <div className="absolute start-6 top-6 z-10 md:start-10 lg:start-14">
         <Button ref={back} variant="ghost" onClick={onBack}>
           <ArrowRight data-icon="inline-start" />
           العودة إلى المكتبة

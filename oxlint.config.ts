@@ -3,6 +3,7 @@ import { defineConfig } from "oxlint";
 export default defineConfig({
   ignorePatterns: [
     "apps/web/src/routeTree.gen.ts",
+    "apps/linux/ui/src/routeTree.gen.ts",
     // Vendored shadcn output, replaced wholesale by the shadcn CLI — hand-edits would be lost.
     "apps/web/src/components/ui/**",
     "apps/linux/ui/src/components/ui/**",

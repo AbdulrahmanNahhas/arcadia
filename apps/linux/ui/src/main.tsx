@@ -1,24 +1,25 @@
 import { CSPProvider } from "@base-ui/react/csp-provider";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { App } from "./app/app";
+import { router, queryClient } from "./app/router";
+import { TooltipProvider } from "./components/ui/tooltip";
 
 import "./styles/tailwind.css";
 
-const client = new QueryClient({
-  defaultOptions: { queries: { retry: false, staleTime: 60000, refetchOnWindowFocus: false } },
-});
 const root = document.getElementById("root");
 if (!root) throw new Error("Application root is missing");
 createRoot(root).render(
   <StrictMode>
-    <QueryClientProvider client={client}>
+    <QueryClientProvider client={queryClient}>
       <CSPProvider disableStyleElements>
         <DirectionProvider direction="rtl">
-          <App />
+          <TooltipProvider>
+            <RouterProvider router={router} />
+          </TooltipProvider>
         </DirectionProvider>
       </CSPProvider>
     </QueryClientProvider>

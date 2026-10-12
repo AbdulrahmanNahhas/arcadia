@@ -7,6 +7,12 @@ description: TanStack Query (React Query) best practices for data fetching, cach
 
 Comprehensive guidelines for implementing TanStack Query (React Query) patterns in React applications. These rules optimize data fetching, caching, mutations, and server state synchronization.
 
+## Project context
+
+For apps/linux/ui follow the sibling nahhasio-desktop-ui skill: packaged hash routing, native
+transport, one Query cache and no SSR/Start runtime. Use official docs for current APIs. Adapt
+reference examples to the client; do not install unrelated SSR tooling.
+
 ## When to Apply
 
 - Creating new data fetching logic

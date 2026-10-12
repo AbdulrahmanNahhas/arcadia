@@ -465,7 +465,7 @@ test("download intent chooses a torrent without starting playback", async ({ pag
   expect(await calls(page, "media.download")).toHaveLength(0);
   await page.getByRole("button", { name: "تنزيل هذا المصدر" }).first().click();
   await expect(page.getByText("جارٍ التنزيل", { exact: true })).toBeVisible();
-  await expect(page.getByRole("progressbar")).toHaveAttribute("value", "25");
+  await expect(page.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "25");
   await page.screenshot({ path: test.info().outputPath("download-progress.png") });
   await page.setViewportSize({ width: 520, height: 760 });
   await expect(page.getByRole("progressbar")).toBeVisible();

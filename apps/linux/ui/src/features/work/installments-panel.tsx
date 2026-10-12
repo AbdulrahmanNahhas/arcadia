@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowDownUp, ChevronDown, Download, Info, Play } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { Progress } from "@/components/ui/progress";
+
 import { Artwork } from "../../components/artwork";
 import { useCardNavigation } from "../../components/card-navigation";
 import { ScoreBadge } from "../../components/media-card";
@@ -325,7 +327,7 @@ function EpisodeCard({
               <Artwork id={image?.id} alt="" className="block size-full object-cover" />
               <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t from-background/85 to-transparent" />
             </span>
-            <span className="absolute inset-s-3 top-3">
+            <span className="absolute start-3 top-3">
               <Badge variant="secondary">{number}</Badge>
             </span>
             <span className="pointer-events-none absolute inset-0 grid place-items-center">
@@ -333,7 +335,7 @@ function EpisodeCard({
                 <Play className="size-6" aria-hidden="true" />
               </span>
             </span>
-            <span className="absolute inset-s-3 bottom-3 flex gap-2">
+            <span className="absolute start-3 bottom-3 flex gap-2">
               {episode.runtimeMinutes && (
                 <Badge variant="secondary">{episode.runtimeMinutes} د</Badge>
               )}
@@ -350,7 +352,7 @@ function EpisodeCard({
             </p>
           )}
         </DialogTrigger>
-        <div className="absolute inset-e-3 top-3">
+        <div className="absolute end-3 top-3">
           <WatchedControl
             tracking={tracking}
             installmentId={installment.id}
@@ -405,7 +407,7 @@ function EpisodeCard({
           </DialogTrigger>
         </div>
         {state && state.positionSeconds > 0 && !state.isPlayed && state.durationSeconds && (
-          <progress
+          <Progress
             className="h-1 w-full accent-primary"
             value={state.positionSeconds}
             max={state.durationSeconds}

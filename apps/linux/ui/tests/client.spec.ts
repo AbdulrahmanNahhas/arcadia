@@ -890,7 +890,7 @@ test("hero has real metadata, manual selection, pause and a working details acti
   await page.clock.fastForward(9001);
   await expect(hero.getByRole("heading", { name: "رحلة في المكتبة" })).toBeVisible();
   await hero.getByRole("button", { name: "اعرض رحلة في المكتبة", exact: true }).click();
-  const details = hero.getByRole("button", { name: "عرض التفاصيل", exact: true });
+  const details = hero.getByRole("link", { name: "عرض التفاصيل", exact: true });
   await expect(details).toHaveAttribute("href", "#/titles/" + work.id);
   await details.click();
   await expect(page).toHaveURL(new RegExp("#/titles/" + work.id + "$"));

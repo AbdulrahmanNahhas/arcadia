@@ -43,8 +43,6 @@ import { PlayerControl, PlayerPopover } from "./player-panels";
 import { PlayerSlider } from "./player-slider";
 import { SourceControls } from "./source-controls";
 import { PlayerSetting, TrackPanel } from "./track-panel";
-
-import "./player.css";
 import type { PlayerController } from "./use-player-snapshot";
 import type { WatchTarget } from "./watch-request";
 
@@ -212,7 +210,7 @@ function ActivePlayer({
   return (
     <section
       ref={root}
-      className="player-host"
+      className="player-host fixed inset-0 text-foreground bg-transparent outline-none font-sans [&[data-controls-hidden=true]]:cursor-none [&[data-controls-hidden=true]_.player-top]:opacity-0 [&[data-controls-hidden=true]_.player-top]:pointer-events-none [&[data-controls-hidden=true]_.player-bottom]:opacity-0 [&[data-controls-hidden=true]_.player-bottom]:pointer-events-none"
       dir="rtl"
       tabIndex={-1}
       aria-label="مشغّل الفيديو"
@@ -227,12 +225,12 @@ function ActivePlayer({
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
       }}
     >
-      <header className="player-top">
-        <div className="player-title-group">
+      <header className="player-top absolute inset-x-0 px-7 transition-opacity duration-180 top-0 flex items-start justify-between gap-4 pt-4 pb-10 [background:linear-gradient(to_bottom,_var(--rail),_transparent)] max-[800px]:px-4 motion-reduce:animate-none motion-reduce:transition-none">
+        <div className="player-title-group flex min-w-0 items-center gap-[0.65rem]">
           <PlayerControl aria-label="إغلاق المشغّل" title="العودة إلى المكتبة" onClick={close}>
             <ArrowRight data-icon="inline-start" />
           </PlayerControl>
-          <div className="player-title">
+          <div className="player-title min-w-0 pt-[0.1rem] [&_h1]:m-0 [&_h1]:overflow-hidden [&_h1]:line-clamp-2 [&_h1]:text-base [&_h1]:leading-[1.6] [&_h1]:font-semibold [&_h1]:wrap-anywhere [&_p]:mt-[0.15rem] [&_p]:mx-0 [&_p]:mb-0 [&_p]:text-xs [&_p]:text-muted-foreground">
             <h1>{s.title || "فيديو محلي"}</h1>
             <p>{subtitle}</p>
           </div>
@@ -250,7 +248,7 @@ function ActivePlayer({
         </PlayerControl>
       </header>
       {!hasSource && !sources && (
-        <div className="player-message">
+        <div className="player-message absolute top-24 inset-x-6 max-w-128 mx-auto">
           <Alert>
             <AlertTitle>اختر مصدر الفيديو</AlertTitle>
             <AlertDescription>
@@ -260,7 +258,7 @@ function ActivePlayer({
         </div>
       )}
       {(s.error || player.error) && (
-        <div className="player-message">
+        <div className="player-message absolute top-24 inset-x-6 max-w-128 mx-auto">
           <Alert variant="destructive">
             <AlertTitle>تعذّر إكمال التشغيل</AlertTitle>
             <AlertDescription>{s.error ?? player.error?.message}</AlertDescription>
@@ -268,14 +266,20 @@ function ActivePlayer({
         </div>
       )}
       {s.buffering && !s.error && panel !== "source" && (
-        <div className="player-buffering" role="status">
+        <div
+          className="player-buffering absolute top-[45%] inset-x-0 flex flex-col items-center gap-3 text-[0.85rem] [&_svg]:w-8 [&_svg]:h-8"
+          role="status"
+        >
           <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
           <span>جارٍ تحميل الفيديو…</span>
         </div>
       )}
-      <footer ref={footer} className="player-bottom">
-        {s.ended && <p className="player-ended">انتهى الفيديو</p>}
-        <div className="player-timeline" dir="ltr">
+      <footer
+        ref={footer}
+        className="player-bottom absolute inset-x-0 px-7 transition-opacity duration-180 bottom-0 pt-0 pb-4 [background:linear-gradient(to_top,_var(--rail),_transparent)] max-[800px]:px-4 motion-reduce:animate-none motion-reduce:transition-none"
+      >
+        {s.ended && <p className="player-ended mb-2 text-[0.85rem]">انتهى الفيديو</p>}
+        <div className="player-timeline mb-0 py-2" dir="ltr">
           <PlayerSlider
             label="موضع التشغيل"
             value={s.position}
@@ -285,10 +289,13 @@ function ActivePlayer({
             commit={(seconds) => seek(seconds, false)}
           />
         </div>
-        <div className="player-controls">
-          <div className="player-transport" dir="ltr">
+        <div className="player-controls flex items-center gap-[0.35rem] flex-row-reverse flex-wrap justify-between gap-x-6 gap-y-2 max-[1000px]:gap-x-2 max-[800px]:justify-center">
+          <div
+            className="player-transport flex items-center gap-[0.35rem] flex-wrap max-[480px]:gap-[0.1rem]"
+            dir="ltr"
+          >
             <PlayerControl
-              className="player-play"
+              className="player-play w-12 h-12 [&_>_svg]:w-7 [&_>_svg]:h-7"
               aria-label={s.ended ? "إعادة التشغيل" : s.paused ? "تشغيل" : "إيقاف مؤقت"}
               disabled={!hasSource || (s.ended && !seekable)}
               onClick={pause}
@@ -306,7 +313,10 @@ function ActivePlayer({
               onClick={() => seek(-10, true)}
             >
               <RotateCcw data-icon="inline-start" />
-              <span className="player-seek-number" aria-hidden="true">
+              <span
+                className="player-seek-number absolute bottom-[0.45rem] start-1/2 [transform:translateX(-50%)] px-[0.1rem] font-sans text-[0.5rem] leading-none bg-primary-foreground pointer-events-none"
+                aria-hidden="true"
+              >
                 10
               </span>
             </PlayerControl>
@@ -317,7 +327,10 @@ function ActivePlayer({
               onClick={() => seek(10, true)}
             >
               <RotateCw data-icon="inline-start" />
-              <span className="player-seek-number" aria-hidden="true">
+              <span
+                className="player-seek-number absolute bottom-[0.45rem] start-1/2 [transform:translateX(-50%)] px-[0.1rem] font-sans text-[0.5rem] leading-none bg-primary-foreground pointer-events-none"
+                aria-hidden="true"
+              >
                 10
               </span>
             </PlayerControl>
@@ -332,7 +345,7 @@ function ActivePlayer({
                 <Volume2 data-icon="inline-start" />
               )}
             </PlayerControl>
-            <div className="player-volume">
+            <div className="player-volume w-20 px-[0.35rem] max-[1000px]:w-14 max-[480px]:w-12">
               <PlayerSlider
                 label="مستوى الصوت"
                 value={s.volume}
@@ -343,11 +356,14 @@ function ActivePlayer({
                 }
               />
             </div>
-            <span className="player-time">
+            <span className="player-time ms-2 text-[0.8rem] tabular-nums whitespace-nowrap max-[480px]:ms-1 max-[480px]:text-xs">
               {playerTime(s.position)} / {s.duration > 0 ? playerTime(s.duration) : "—"}
             </span>
           </div>
-          <nav className="player-tools" aria-label="خيارات التشغيل">
+          <nav
+            className="player-tools flex items-center gap-[0.35rem] flex-wrap max-[800px]:w-full max-[800px]:justify-center max-[480px]:gap-[0.1rem]"
+            aria-label="خيارات التشغيل"
+          >
             <PlayerPopover
               title="الحلقات"
               icon={<ListVideo data-icon="inline-start" />}
@@ -376,62 +392,68 @@ function ActivePlayer({
                 </Empty>
               )}
             </PlayerPopover>
-            <Drawer
-              swipeDirection="right"
-              open={panel === "source"}
-              onOpenChange={(open) => changePanel("source", open)}
-            >
-              <DrawerTrigger
-                render={
-                  <PlayerControl
-                    ref={sourceTrigger}
-                    aria-label="مصدر الفيديو"
-                    title="مصدر الفيديو"
-                  />
-                }
+            <DirectionProvider direction="ltr">
+              <Drawer
+                swipeDirection="right"
+                open={panel === "source"}
+                onOpenChange={(open) => changePanel("source", open)}
               >
-                <FolderOpen data-icon="inline-start" />
-              </DrawerTrigger>
-              <DrawerContent
-                finalFocus={sourceTrigger}
-                className="player-source-drawer w-full max-w-lg sm:max-w-lg"
-                dir="rtl"
-              >
-                <DrawerHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <DrawerTitle>مصدر الفيديو</DrawerTitle>
-                    <DrawerClose render={<PlayerControl aria-label="إغلاق مصادر الفيديو" />}>
-                      <X data-icon="inline-start" />
-                    </DrawerClose>
-                  </div>
-                  <DrawerDescription>{s.title}</DrawerDescription>
-                </DrawerHeader>
-                <Separator />
-                <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 pb-6">
-                  <Button
-                    variant="outline"
-                    disabled={player.pending}
-                    onClick={() => {
-                      void player
-                        .commandAsync({ command: "player.pickVideo", payload: {} })
-                        .then((next) => {
-                          if (next.sourceKind === "local") closeSource();
-                          return next;
-                        })
-                        .catch(() => {});
-                    }}
-                  >
-                    <FolderOpen data-icon="inline-start" />
-                    اختيار فيديو من جهازك
-                  </Button>
-                  {sources ?? (
-                    <p className="text-sm text-muted-foreground">
-                      مصادر الشبكة غير متاحة في هذا الإصدار.
-                    </p>
-                  )}
-                </div>
-              </DrawerContent>
-            </Drawer>
+                <DrawerTrigger
+                  render={
+                    <PlayerControl
+                      ref={sourceTrigger}
+                      aria-label="مصدر الفيديو"
+                      title="مصدر الفيديو"
+                    />
+                  }
+                >
+                  <FolderOpen data-icon="inline-start" />
+                </DrawerTrigger>
+                <DrawerContent
+                  finalFocus={sourceTrigger}
+                  className="player-source-drawer font-sans w-[calc(100vw_-_1rem)] max-w-lg sm:max-w-lg [--drawer-inset:--spacing(2)] [--drawer-bleed-background:transparent] rounded-3xl border shadow-xl"
+                  dir="ltr"
+                >
+                  <DirectionProvider direction="rtl">
+                    <div dir="rtl" className="flex min-h-0 flex-1 flex-col">
+                      <DrawerHeader>
+                        <div className="flex items-center justify-between gap-3">
+                          <DrawerTitle>مصدر الفيديو</DrawerTitle>
+                          <DrawerClose render={<PlayerControl aria-label="إغلاق مصادر الفيديو" />}>
+                            <X data-icon="inline-start" />
+                          </DrawerClose>
+                        </div>
+                        <DrawerDescription>{s.title}</DrawerDescription>
+                      </DrawerHeader>
+                      <Separator />
+                      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 pb-6">
+                        <Button
+                          variant="outline"
+                          disabled={player.pending}
+                          onClick={() => {
+                            void player
+                              .commandAsync({ command: "player.pickVideo", payload: {} })
+                              .then((next) => {
+                                if (next.sourceKind === "local") closeSource();
+                                return next;
+                              })
+                              .catch(() => {});
+                          }}
+                        >
+                          <FolderOpen data-icon="inline-start" />
+                          اختيار فيديو من جهازك
+                        </Button>
+                        {sources ?? (
+                          <p className="text-sm text-muted-foreground">
+                            مصادر الشبكة غير متاحة في هذا الإصدار.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </DirectionProvider>
+                </DrawerContent>
+              </Drawer>
+            </DirectionProvider>
             <DownloadControl
               snapshot={s}
               open={panel === "download"}

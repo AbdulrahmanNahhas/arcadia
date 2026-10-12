@@ -567,7 +567,7 @@ test("episode watched mutation has exact scope, preserves progress and handles f
   const card = episodeCard(page, 2);
   const watched = card.getByRole("button", { name: "تحديد الحلقة 2 كمُشاهَد" });
   await expect(card.getByRole("progressbar", { name: "تقدم الحلقة 2" })).toHaveAttribute(
-    "value",
+    "aria-valuenow",
     "120",
   );
   await watched.click();
@@ -607,7 +607,7 @@ test("episode watched mutation has exact scope, preserves progress and handles f
   });
   await card.getByRole("button", { name: "إلغاء مشاهدة الحلقة 2" }).click();
   await expect(watched).toHaveAttribute("aria-pressed", "false");
-  await expect(card.getByRole("progressbar")).toHaveAttribute("value", "120");
+  await expect(card.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "120");
   await expect(page.getByRole("alert")).toHaveCount(0);
   expect(await requests(page, "setWatched")).toEqual([
     { workId, installmentId: seasonId, episodeId: id(102), isPlayed: true },

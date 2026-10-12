@@ -1,6 +1,6 @@
 # Nahhasio client interface
 
-Independent React/Vite/TypeScript UI packaged by the GTK4/WebKitGTK shell. The client owns
+Independent React/Vite/TypeScript UI with TanStack Router and Query packaged by the GTK4/WebKitGTK shell. The client owns
 presentation; native Rust owns session secrets, HTTP, libmpv and device transfer/storage.
 Administration currently lives in `apps/web`; Aqua wants its workflows in an administrator-only
 client area after the Tailwind/shadcn foundation checkpoint.
@@ -15,12 +15,23 @@ See [the review queue](../../../docs/linux-ui-review-tasks.md) and
 
 Tailwind 4 and official shadcn Base UI Nova controls are installed. RTL uses DirectionProvider;
 CSPProvider disables injected style blocks. `src/styles/tailwind.css` owns imports, fonts and
-semantic tokens. It currently also contains legacy page selectors; `features/player/player.css`
-contains player selectors. The next foundation pass converts those consumers to utilities and
-reviewed components, preserving behavior. Do not claim the client already has no component CSS.
+semantic tokens. Page/player presentation uses static Tailwind utilities; the separate player
+stylesheet has been removed. Runtime planet palettes bind validated CSS variables. Native
+player sliders retain their draft/cancel behavior through Base UI.
 
+Aqua requested the full official Base UI Nova component set; it is available in `components/ui`.
 Add/update official components through the shadcn CLI. Both application/component utility aliases
 resolve to `@/lib/utils`. Do not hand-edit vendored primitives or weaken packaged CSP to fix callers.
+
+## Routes and skills
+
+`src/routes` owns small TanStack file routes, generated into `src/routeTree.gen.ts`; never edit
+the generated tree. Hash history preserves packaged navigation. Router context and
+QueryClientProvider share one QueryClient; features retain their typed bounded query factories.
+The Vite plugin splits route components automatically.
+
+Read `.agents/skills/nahhasio-desktop-ui/SKILL.md` from the repository root, then the shadcn and
+TanStack Router/Query guides. TanStack Start guidance applies only to `apps/web`.
 
 ## Native boundary
 

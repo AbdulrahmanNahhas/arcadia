@@ -7,6 +7,12 @@ description: TanStack Router best practices for type-safe routing, data loading,
 
 Comprehensive guidelines for implementing TanStack Router patterns in React applications. These rules optimize type safety, data loading, navigation, and code organization.
 
+## Project context
+
+For apps/linux/ui follow the sibling nahhasio-desktop-ui skill: packaged hash routing, native
+transport, one Query cache and no SSR/Start runtime. Use official docs for current APIs. Adapt
+reference examples to the client; do not install unrelated SSR tooling.
+
 ## When to Apply
 
 - Setting up application routing

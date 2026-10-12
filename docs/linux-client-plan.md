@@ -274,3 +274,12 @@ Full default devenv cold startup was verified after managed shutdown: PostgreSQL
 readiness passed and the GTK `client` process reported ready with zero restarts. `pnpm check`,
 `pnpm build` and all16safeRustworkspace tests passed on the completed source. The app is a local
 checkout bootstrap, not yet a Fedora installer/hosted release or a working torrent/Jellyfin player.
+
+## UI foundation decision — 2026-10-12
+
+Aqua selected Vite + TanStack Router + Query for the packaged client. Hash history preserves
+contained native navigation; the existing Rust bridge owns transport and secrets. Tailwind 4
+owns component presentation, and the complete official shadcn Base UI Nova component library
+is installed by explicit request. TanStack Start remains in apps/web during the administration
+transition. See [the foundation checkpoint](linux-ui-foundation-2026-10-12.md) for exact checks
+and native limitations.

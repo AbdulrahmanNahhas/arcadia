@@ -163,7 +163,8 @@ function EpisodeCard({
   return (
     <li className="flex w-64 max-w-full shrink-0 snap-start flex-col gap-3 sm:w-72">
       <article className="flex min-w-0 flex-col gap-3" aria-labelledby={titleId}>
-        <button
+        <Button
+          variant="ghost"
           type="button"
           ref={buttonRef}
           onFocus={onFocus}
@@ -176,7 +177,7 @@ function EpisodeCard({
             if (!episode.disabled) onSelectEpisode?.(episode);
           }}
           className={cn(
-            "group/episode relative block aspect-video w-full overflow-hidden rounded-xl border border-border bg-card text-start transition-[border-color,box-shadow] hover:border-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none",
+            "group/episode relative block h-auto aspect-video w-full overflow-hidden rounded-xl border border-border bg-card p-0 text-start transition-[border-color,box-shadow] hover:border-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none",
             episode.current && "border-primary ring-2 ring-primary",
           )}
         >
@@ -187,11 +188,11 @@ function EpisodeCard({
             className="block size-full object-cover"
           />
           {episode.current && (
-            <span className="absolute inset-s-3 bottom-3">
+            <span className="absolute start-3 bottom-3">
               <Badge>الحلقة الحالية</Badge>
             </span>
           )}
-        </button>
+        </Button>
         <div
           id={detailId}
           className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"

@@ -1,68 +1,23 @@
 ---
 name: tanstack-integration-best-practices
-description: Best practices for integrating TanStack Query with TanStack Router and TanStack Start. Patterns for full-stack data flow, SSR, and caching coordination.
+description: Integrate TanStack Router and Query in Nahhasio's Vite desktop UI, including typed route context, native bridge queries, cancellation, preloading and cache invalidation. Apply Start/SSR guidance only to apps/web.
 ---
 
-# TanStack Integration Best Practices
+# Router and Query integration
 
-Guidelines for integrating TanStack Query, Router, and Start together effectively. These patterns ensure optimal data flow, caching coordination, and type safety across the stack.
+For apps/linux/ui, read the sibling nahhasio-desktop-ui skill. The packaged client uses Vite,
+Router and Query; native Rust owns transport and secrets. No Start server functions, SSR
+hydration or direct browser fetch belong in the desktop. apps/web remains a separate Start app.
 
-## When to Apply
+- Pass one QueryClient to Router context and QueryClientProvider; Query owns remote caching.
+- Share typed feature query options between loaders/components. Include all filter and identity
+  dependencies in keys; forward cancellation to the native gateway and clear private data on logout.
+- Prefer intent preloading with defaultPreloadStaleTime: 0 so Query decides freshness.
+- Keep bounded queries, parsed mutations and targeted invalidation. Route guards never grant
+  administrative permission; the server enforces it.
+- Preserve hash URLs, native origin/CSP and scroll/focus restoration. Remove the parallel
+  hashchange implementation when Router history owns navigation.
 
-- Setting up a new TanStack Start project
-- Integrating TanStack Query with TanStack Router
-- Configuring SSR with query hydration
-- Coordinating caching between router and query
-- Setting up type-safe data fetching patterns
-
-## Rule Categories by Priority
-
-| Priority | Category | Rules | Impact |
-|----------|----------|-------|--------|
-| CRITICAL | Setup | 3 rules | Foundational configuration |
-| CRITICAL | SSR Integration | 1 rule | Router + Query SSR setup |
-| HIGH | Data Flow | 4 rules | Correct data fetching patterns |
-| MEDIUM | Caching | 3 rules | Performance optimization |
-| MEDIUM | SSR | 2 rules | Additional SSR patterns |
-
-## Quick Reference
-
-### Setup (Prefix: `setup-`)
-
-- `setup-query-client-context` — Pass QueryClient through router context
-- `setup-provider-wrapping` — Correctly wrap with QueryClientProvider
-- `setup-stale-time-coordination` — Coordinate staleTime between router and query
-
-### Data Flow (Prefix: `flow-`)
-
-- `flow-loader-query-pattern` — Use loaders with ensureQueryData
-- `flow-suspense-query-component` — Use useSuspenseQuery in components
-- `flow-mutations-invalidation` — Coordinate mutations with query invalidation
-- `flow-server-functions-queries` — Use server functions for query functions
-
-### Caching (Prefix: `cache-`)
-
-- `cache-single-source` — Let TanStack Query manage caching
-- `cache-preload-coordination` — Coordinate preloading between router and query
-- `cache-invalidation-patterns` — Unified invalidation patterns
-
-### SSR Integration (Prefix: `ssr-`)
-
-- `ssr-dehydrate-hydrate` — Use setupRouterSsrQueryIntegration for automatic SSR
-
-### Additional SSR (Prefix: `ssr-`)
-
-- `ssr-per-request-client` — Create QueryClient per request
-- `ssr-streaming-queries` — Handle streaming with queries
-
-## How to Use
-
-Each rule file in the `rules/` directory contains:
-1. **Explanation** — Why this pattern matters
-2. **Bad Example** — Anti-pattern to avoid
-3. **Good Example** — Recommended implementation
-4. **Context** — When to apply or skip this rule
-
-## Full Reference
-
-See individual rule files in `rules/` directory for detailed guidance and code examples.
+Read focused context/loader/cache examples in rules when working on those boundaries.
+Current APIs: https://tanstack.com/router/latest/docs/framework/react/guide/external-data-loading
+and https://tanstack.com/query/latest/docs/framework/react/guides/query-cancellation.

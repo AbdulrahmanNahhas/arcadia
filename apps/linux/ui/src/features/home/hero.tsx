@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Artwork } from "../../components/artwork";
 import { useCardNavigation } from "../../components/card-navigation";
 import { ScoreBadge } from "../../components/media-card";
-import { Button } from "../../components/ui/button";
+import { Button, buttonVariants } from "../../components/ui/button";
 import { gateway } from "../../lib/bridge";
 import { requestWatch } from "../player/watch-request";
 import { navigate, workLink } from "../shell/navigation";
@@ -118,10 +118,10 @@ export function Hero() {
           {work.summary}
         </p>
         <div className="flex flex-wrap items-center gap-2.5">
-          <Button size="lg" nativeButton={false} render={<a href={workLink(work.id)} />}>
+          <a className={buttonVariants({ size: "lg" })} href={workLink(work.id)}>
             <Info data-icon="inline-start" />
             عرض التفاصيل
-          </Button>
+          </a>
           <Button
             size="lg"
             variant="outline"
@@ -138,12 +138,13 @@ export function Hero() {
         </div>
       </div>
       <div
-        className="absolute inset-s-4 bottom-6 flex items-center gap-0.5 sm:inset-s-8.5 lg:inset-s-12"
+        className="absolute start-4 bottom-6 flex items-center gap-0.5 sm:start-8.5 lg:start-12"
         role="group"
         aria-label="التنقل بين الأعمال"
       >
         {items.map((item, n) => (
-          <button
+          <Button
+            variant="ghost"
             key={item.id}
             className="group/dot grid h-9 w-6 place-items-center rounded-lg bg-transparent"
             aria-label={`اعرض ${item.titleAr || item.canonicalTitle}`}
@@ -151,7 +152,7 @@ export function Hero() {
             onClick={() => setIndex(n)}
           >
             <span className="block size-1.5 rounded-full bg-muted-foreground transition-all group-aria-pressed/dot:w-4 group-aria-pressed/dot:bg-primary motion-reduce:transition-none" />
-          </button>
+          </Button>
         ))}
         <Button
           variant="ghost"

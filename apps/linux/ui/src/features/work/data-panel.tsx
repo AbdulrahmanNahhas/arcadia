@@ -9,6 +9,8 @@ import type {
 import { ArrowUpLeft, ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { planetPalette } from "@/lib/catalog-colors";
+
 import { Artwork } from "../../components/artwork";
 import { useCardNavigation } from "../../components/card-navigation";
 import { Badge } from "../../components/ui/badge";
@@ -253,9 +255,6 @@ function ExternalSources({ work }: { work: WorkDetail }) {
   );
 }
 
-const validPlanetColor = (value: string, fallback: string) =>
-  /^#[\da-f]{6}$/i.test(value) ? value : fallback;
-
 function WorkPlanetCard({ planet }: { planet: WorkDetail["planets"][number] }) {
   const navigation = useCardNavigation();
   return (
@@ -263,20 +262,16 @@ function WorkPlanetCard({ planet }: { planet: WorkDetail["planets"][number] }) {
       {...navigation}
       href={entityLink("planets", planet.slug)}
       aria-label={`أعمال كوكب ${planet.nameAr}`}
-      className="group relative flex min-h-52 min-w-0 flex-col gap-5 overflow-hidden rounded-3xl border p-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-      style={{
-        backgroundColor: validPlanetColor(planet.secondaryColor, "var(--panel)"),
-        borderColor: validPlanetColor(planet.primaryColor, "var(--line)"),
-        color: validPlanetColor(planet.primaryColor, "var(--accent)"),
-      }}
+      className="bg-(--planet-secondary) border-(--planet-border) text-(--planet) group relative flex min-h-52 min-w-0 flex-col gap-5 overflow-hidden rounded-3xl border p-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      style={planetPalette(planet.primaryColor, planet.secondaryColor)}
     >
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-12 -inset-e-8 size-44 rounded-full border border-current/20"
+        className="pointer-events-none absolute -bottom-12 -end-8 size-44 rounded-full border border-current/20"
       />
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-8 -inset-e-4 size-36 rounded-full border border-current/10"
+        className="pointer-events-none absolute -bottom-8 -end-4 size-36 rounded-full border border-current/10"
       />
       <div className="relative flex items-start justify-between gap-4">
         <span

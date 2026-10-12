@@ -1,5 +1,6 @@
 import type { User } from "@nahhasio/api-contract";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Outlet, useRouterState } from "@tanstack/react-router";
 import { cn } from "cn";
 import {
   Compass,
@@ -26,28 +27,21 @@ import {
   DialogDescription,
 } from "../../components/ui/dialog";
 import { gateway } from "../../lib/bridge";
-import { BrowsePage } from "../catalog/browse-page";
-import { HomePage } from "../home/home-page";
-import { PeoplePage } from "../people/people-page";
-import { PlanetsPage } from "../planets/planets-page";
 import { CacheControl } from "../player/cache-control";
 import { DownloadQueueButton } from "../player/download-queue-button";
-import { ReleasesPage } from "../releases/releases-page";
-import { SearchPage } from "../search/search-page";
-import { StudiosPage } from "../studios/studios-page";
-import { WatchPage } from "../watch/watch-page";
-import { WorkPage } from "../work/work-page";
 import { openSearch, useViewerRoute } from "./navigation";
 const navigationItemClass =
-  "relative flex min-h-15 w-full shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg px-0.5 py-2 text-center text-[10px] leading-normal text-muted-foreground hover:bg-card hover:text-foreground aria-[current=page]:bg-secondary aria-[current=page]:text-primary aria-[current=page]:before:absolute aria-[current=page]:before:inset-s-0 aria-[current=page]:before:inset-y-5 aria-[current=page]:before:w-0.75 aria-[current=page]:before:rounded-lg aria-[current=page]:before:bg-primary aria-[current=page]:before:content-[''] focus-visible:-outline-offset-2 max-[520px]:text-[9px]";
+  "relative flex min-h-15 w-full shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg px-0.5 py-2 text-center text-[10px] leading-normal text-muted-foreground hover:bg-card hover:text-foreground aria-[current=page]:bg-secondary aria-[current=page]:text-primary aria-[current=page]:before:absolute aria-[current=page]:before:start-0 aria-[current=page]:before:inset-y-5 aria-[current=page]:before:w-0.75 aria-[current=page]:before:rounded-lg aria-[current=page]:before:bg-primary aria-[current=page]:before:content-[''] focus-visible:-outline-offset-2 max-[520px]:text-[9px]";
 const scrollPositions = new Map<string, number>();
 export function ViewerShell({ user }: { user: User }) {
   const route = useViewerRoute();
 
   const [account, setAccount] = useState(false);
+  const resolvedPath = useRouterState({
+    select: (state) => state.resolvedLocation?.pathname ?? state.location.pathname,
+  });
   const main = useRef<HTMLElement>(null);
   const previous = useRef(route.path);
-  const shortcutSearchEntry = useRef(false);
   const client = useQueryClient();
   const logout = useMutation({
     mutationFn: gateway.logout,
@@ -66,8 +60,7 @@ export function ViewerShell({ user }: { user: User }) {
       ) {
         event.preventDefault();
         if (!event.repeat && !account) {
-          shortcutSearchEntry.current = true;
-          openSearch();
+          openSearch(true);
         }
       }
     };
@@ -99,18 +92,12 @@ export function ViewerShell({ user }: { user: User }) {
   useEffect(() => {
     if (main.current) {
       scrollPositions.set(previous.current, main.current.scrollTop);
-      main.current.scrollTop = scrollPositions.get(route.path) ?? 0;
+      main.current.scrollTop = scrollPositions.get(resolvedPath) ?? 0;
+      main.current.focus({ preventScroll: true });
     }
-    previous.current = route.path;
-  }, [route.path]);
-  useEffect(() => {
-    main.current?.focus({ preventScroll: true });
-    if (shortcutSearchEntry.current && route.path === "/search") {
-      window.dispatchEvent(new Event("nahhasio:focus-search"));
-    }
-    shortcutSearchEntry.current = false;
-  }, [route.path]);
-  const parts = route.path.split("/").filter(Boolean);
+    previous.current = resolvedPath;
+  }, [resolvedPath]);
+  const parts = route.path.split("/").slice(1);
   const home = parts[0] === "home" || !parts[0];
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
@@ -171,10 +158,11 @@ export function ViewerShell({ user }: { user: User }) {
             },
           ].map((item) =>
             item.href === "#/search" ? (
-              <button
+              <Button
+                variant="ghost"
                 key={item.href}
                 type="button"
-                onClick={openSearch}
+                onClick={() => openSearch()}
                 className={navigationItemClass}
                 aria-current={item.active ? "page" : undefined}
                 aria-label="البحث"
@@ -183,7 +171,7 @@ export function ViewerShell({ user }: { user: User }) {
               >
                 <Search className="size-6 stroke-[1.65]" aria-hidden="true" />
                 <span>البحث</span>
-              </button>
+              </Button>
             ) : (
               <a
                 key={item.href}
@@ -226,9 +214,10 @@ export function ViewerShell({ user }: { user: User }) {
             className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-p-4 [scrollbar-color:var(--line)_transparent] scrollbar-thin motion-reduce:scroll-auto **:data-card-navigation:scroll-m-2"
             id="main-content"
           >
-            <button
+            <Button
+              variant="ghost"
               type="button"
-              className="sr-only focus:not-sr-only focus:absolute focus:inset-s-4 focus:top-4 focus:z-20 focus:rounded-lg focus:bg-primary focus:px-5 focus:py-3 focus:text-primary-foreground"
+              className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-20 focus:rounded-lg focus:bg-primary focus:px-5 focus:py-3 focus:text-primary-foreground"
               onClick={() =>
                 window.dispatchEvent(
                   new Event(
@@ -242,32 +231,8 @@ export function ViewerShell({ user }: { user: User }) {
                 : parts[0] === "search"
                   ? "الانتقال إلى البحث"
                   : "الانتقال إلى المحتوى"}
-            </button>
-            {home ? (
-              <HomePage />
-            ) : parts[0] === "search" ? (
-              <SearchPage params={route.params} />
-            ) : parts[0] === "browse" ? (
-              <BrowsePage params={route.params} />
-            ) : parts[0] === "watch" ? (
-              <WatchPage />
-            ) : parts[0] === "releases" ? (
-              <ReleasesPage params={route.params} />
-            ) : parts[0] === "planets" ? (
-              <PlanetsPage key={parts[1] ?? "planets"} id={parts[1]} params={route.params} />
-            ) : parts[0] === "people" ? (
-              <PeoplePage key={parts[1] ?? "people"} id={parts[1]} params={route.params} />
-            ) : parts[0] === "studios" ? (
-              <StudiosPage key={parts[1] ?? "studios"} id={parts[1]} params={route.params} />
-            ) : parts[0] === "titles" && parts[1] ? (
-              <WorkPage
-                key={parts[1]}
-                id={parts[1]}
-                installmentId={route.params.get("installment") ?? undefined}
-              />
-            ) : (
-              <BrowsePage params={route.params} />
-            )}
+            </Button>
+            <Outlet />
           </main>
         </CardNavigationProvider>
       </div>

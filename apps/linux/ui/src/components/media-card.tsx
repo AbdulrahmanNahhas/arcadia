@@ -133,7 +133,7 @@ export function MediaCard({
           </span>
           {!minimal && showScore && score?.rating != null && (
             <span
-              className="absolute inset-s-0 top-0 flex items-center min-w-12 justify-items-center gap-0.5 rounded-ss-3xl rounded-ee-2xl bg-primary px-2.5 py-2 text-primary-foreground shadow-sm"
+              className="absolute start-0 top-0 flex items-center min-w-12 justify-items-center gap-0.5 rounded-ss-3xl rounded-ee-2xl bg-primary px-2.5 py-2 text-primary-foreground shadow-sm"
               title={`التقييم المحسوب · ${score.scored} من ${score.total} أجزاء مقيّمة`}
             >
               <Star className="size-4 fill-current" aria-hidden="true" />
@@ -143,19 +143,19 @@ export function MediaCard({
             </span>
           )}
           {!minimal && parent?.isPrivate && (
-            <span className="absolute inset-e-2.5 top-1">
+            <span className="absolute end-2.5 top-1">
               <Badge variant="secondary">خاص</Badge>
             </span>
           )}
           {!minimal && watched && (
-            <span className="absolute inset-e-3 bottom-3 rounded-full bg-background/90 p-1.5 text-success">
+            <span className="absolute end-3 bottom-3 rounded-full bg-background/90 p-1.5 text-success">
               <CheckCircle className="size-5" aria-label="تمّت مشاهدته" />
             </span>
           )}
           {!minimal &&
             showStatus &&
             (status === "announced" || status === "airing" || status === "completed") && (
-              <span className="absolute inset-s-3 bottom-3">
+              <span className="absolute start-3 bottom-3">
                 <Badge variant="secondary">
                   {status === "completed" ? (
                     <CheckCircle data-icon="inline-start" />
