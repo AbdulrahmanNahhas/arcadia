@@ -9,7 +9,7 @@ license.workspace = true
 native-diagnostics = ["media-transfer/test-fixtures", "dep:tempfile"]
 
 [dependencies]
-native_player = { package = "nahhasio-native-playback-proof", path = "native-playback-proof" }
+native_player = { package = "nahhasio-native-player", path = "../../crates/native-player" }
 sha2.workspace = true
 hex.workspace = true
 regex = "1"

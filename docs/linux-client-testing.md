@@ -8,6 +8,7 @@ start playback/download work or solve Aqua's Rust exercises as part of UI verifi
 ```sh
 devenv shell -- pnpm --filter @nahhasio/linux-ui test:e2e work-page.spec.ts
 devenv shell -- pnpm --filter @nahhasio/linux-ui test:e2e
+devenv shell -- pnpm --filter @nahhasio/linux-ui test:e2e:player
 devenv shell -- pnpm check
 devenv shell -- pnpm build
 devenv shell -- cargo test --workspace --locked

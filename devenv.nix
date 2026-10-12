@@ -32,6 +32,7 @@
     mpv
     ffmpeg
     chromium
+    python3
     noto-fonts-color-emoji
     gtk4
     libadwaita
@@ -81,10 +82,7 @@
   '';
   processes.client = {
     exec = "nahhasio-client";
-    after = [
-      "devenv:processes:server"
-      "devenv:processes:web"
-    ];
+    after = [ "devenv:processes:server" ];
   };
 
   # Optional local reference API for migration comparisons; no old desktop runtime.
@@ -97,7 +95,8 @@
     echo "Nahhasio environment ready"
     echo "Run: devenv up (PostgreSQL -> Rust API -> dashboard + GTK desktop)"
     echo "Desktop only: devenv shell -- nahhasio-client"
-    echo "Backend only: devenv up postgres server web"
+    echo "Backend only: devenv up postgres server"
+    echo "Dashboard: devenv up postgres server web"
     echo "Reference API: devenv --profile reference-api up"
   '';
 

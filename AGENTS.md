@@ -13,7 +13,8 @@ another phase until Aqua asks to continue. The old v0.3.5 plans are historical r
 Read `docs/linux-client-plan.md` for the latest decisions. It supersedes Kotlin/Compose plans.
 Read `docs/linux-ui-review-tasks.md` for Aqua's current design checklist and the one-task review queue.
 The Linux client will use a Rust GTK4/libadwaita shell, WebKitGTK, a separate React/Vite/TypeScript
-interface, and libmpv. The administration dashboard remains separate from the viewing client.
+interface, and libmpv. The website remains the current administration surface until its workflows move into an admin-only
+client area. Retain the Linux UI language; Tailwind/shadcn foundation work precedes that migration.
 Stremio's Linux shell and Aqua's screenshots are architectural/design references; inspect licenses
 and implementation boundaries before reusing source. Preserve Nahhasio's catalog/family logic.
 
@@ -25,10 +26,11 @@ Permission already given for the current step covers its necessary implementatio
 Do not create commits without Aqua's explicit confirmation for that checkpoint. Include the actual
 command in command-approval requests so Aqua can see what will run.
 
-Current checkpoint: Aqua approved the Linux work-page design on 2026-10-10, committed as
-`c80e1a8`. See `docs/linux-work-page-checkpoint-2026-10-10.md` for verification and limits.
-The GTK login/library baseline and Kotlin retirement are complete. Playback/torrents/downloads
-follow a separately authorized step; do not start them from the older bootstrap approval.
+Current checkpoint: repository cleanup authorized on 2026-10-12, including reference removal and
+a cleanup commit. Linux work-page, playback and device-download behavior already exist; see
+`docs/linux-work-page-checkpoint-2026-10-10.md` and `docs/linux-player-checkpoint.md` for evidence.
+Next: Tailwind/shadcn client foundation, then reviewed administration migration. No new features
+or admin migration during cleanup.
 Preserve unrelated work.
 
 ## Rust learning ownership
@@ -52,7 +54,9 @@ acceptance checks and reviews instead of automatically completing Aqua's client 
 
 - `apps/server`: Rust/Axum/Tokio/SQLx server, in the root Cargo workspace.
 - `apps/web`: dashboard-only TanStack Start/Vite application, TanStack Router/Query, Tailwind 4, shadcn Base UI Nova.
-- `reference/arcadia-web`: previous website, frozen outside active workspaces for porting reference.
+- Removed website/deployment references remain recoverable at `d77096f:reference/` in Git.
+- `crates/native-player`: isolated GTK/libmpv adapter and diagnostic examples.
+- `crates/media-transfer`: UI-independent torrent engine and durable device state.
 - `apps/api`: previous Hono API, kept until Rust endpoints pass behavior/data checks.
 - `packages/database`: existing PostgreSQL schema and the single migration history.
 - Other `packages/*`: existing contracts, domain rules, vocabulary, and database CLI.
@@ -98,7 +102,8 @@ activation can silently keep the old executable alive.
 These shadcn/TanStack composition rules apply to `apps/web`, the administration dashboard.
 The separate viewing-client UI uses its own reviewed design tokens/components and responsive
 layout. Preserve accessible labels, keyboard focus/navigation, RTL, reduced motion and typed
-HTTP/native-bridge boundaries there as well. No dashboard interface inside the viewing client.
+HTTP/native-bridge boundaries there as well. The future admin area uses the client
+visual language and server-enforced permissions; do not embed the website UI.
 
 Follow the `shadcn` skill and `docs/design-rules.md`. Components use the official `@shadcn`
 registry; retrieve current docs before composing them, inspect generated output, and install
@@ -119,7 +124,7 @@ only components that have consumers. Do not hand-edit vendored primitives to fix
 - Do not copy remote state into effect-driven local state. Do not introduce persistent state
   without deciding its owner, scope, migration, and invalidation.
 
-Do not hand-edit `routeTree.gen.ts` or `packages/contracts/src/generated.ts`.
+Do not hand-edit `routeTree.gen.ts` or `packages/api-contract/src/generated.ts`.
 Prefer workspace imports over cross-package relative imports. Use strongly typed TypeScript;
 parse untrusted HTTP/import data at boundaries rather than weakening internal types.
 
@@ -133,7 +138,8 @@ Changing data access to SQLx does not replace migration ownership or regenerate 
 Startup never runs migrations, seeds, imports, or cleanup jobs. Make schema changes additive,
 rehearse/backfill on restored copies, verify counts/content/constraints, and define rollback.
 Before a live cutover, secure a verified independent backup of both PostgreSQL and artwork.
-`data/arcadia.db` is a read-only v1 recovery source. Backups are private and never committed.
+`data/nahhasio.db` is a retained SQLite recovery candidate. Recovery tools require an explicit
+`ARCADIA_V1_DB_PATH`. Backups and recovery artwork are private and never committed.
 
 The existing CLI is `./bin/arcadia` and talks directly to PostgreSQL. Use the `arcadia-db` skill
 for live catalog reads/writes and the `arcadia-cataloging` skill for editorial classification.
@@ -159,10 +165,11 @@ are different workflows with different ownership and recovery behavior.
 
 ## Current product order
 
-Aqua explicitly prioritized the website as a dashboard only, with Database switching the entire
-sidebar context. Cover existing editorial/admin workflows, TMDB, Fanart, images, raw table
+Aqua now wants administration in the Linux client, retaining its UI language, then website
+retirement. The website remains the working dashboard until replacement parity is verified. Cover existing editorial/admin workflows, TMDB, Fanart, images, raw table
 inspection, JSON/bulk editing, maintenance, revisions, users/devices, and server operations.
 UI routes may be prepared before their services; pending actions must stay visibly disabled.
 Do not claim full database control from UI layouts. Connect authorization and transactional
-mutations before enabling them. The Linux work-page checkpoint is approved; torrent/Jellyfin
-playback and downloads follow separate authorization and review.
+mutations before enabling them. The Linux work page, torrent playback
+and device downloads are implemented with documented limits. Jellyfin/home-server jobs and admin
+migration follow their own authorization and review.

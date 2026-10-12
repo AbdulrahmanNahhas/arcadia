@@ -1,6 +1,6 @@
 # Linux client design checkpoints
 
-Updated 2026-10-10. This is Aqua's current UI request, alongside
+Updated 2026-10-10. Current cleanup/foundation sequence is in [phases.md](phases.md). This is Aqua's current UI request, alongside
 [the Linux client plan](./linux-client-plan.md). Complete one checkpoint, show the result and
 actual verification, then stop for Aqua's design and behavior review. Do not implement the
 whole checklist without those reviews. Keep commits focused and the working app runnable.
@@ -136,7 +136,7 @@ torrents and downloads require a separate authorization; stop after this checkpo
       avoid hijacking text-input/select keys. Verify held keys and reduced motion.
 - [ ] Keep the native title bar hidden only in fullscreen and verify F11 behavior on Shadow.
 
-## Checkpoint status
+## Historical home checkpoint status
 
 - Previous small polish pass preserved in commit `952ad3c` before this design pass.
 - H01 is approved. H01a is approved and committed as `14ea629`. Aqua authorized a faster combined logic pass for home/cards, a minimal work page and the Browse planet reset. This new pass remains uncommitted for review.

@@ -11,7 +11,6 @@ concurrency:
 
 env:
   DATABASE_URL: postgresql://postgres:postgres@localhost:23102/arcadia
-  VITE_API_URL: http://127.0.0.1:23101
   ARCADIA_MOCK_AUTH: "true"
   ARCADIA_SEED_DEMO_ACCOUNTS: "true"
   NODE_ENV: test
@@ -54,6 +53,11 @@ jobs:
         with:
           workspaces: .
 
+      - name: Install native development libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev libmpv-dev libtorrent-rasterbar-dev libboost-dev cmake
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -61,7 +65,7 @@ jobs:
         run: pnpm db:migrate
 
       # The API suites sign in as the seeded demo accounts and read seeded vocabularies
-      # (ARCADIA_SEED_DEMO_ACCOUNTS=true above), exactly like a fresh `devenv up` machine.
+      # (ARCADIA_SEED_DEMO_ACCOUNTS=true above). Local `devenv up` never seeds the catalog.
       - name: Seed the test database
         run: pnpm db:seed
 
@@ -86,3 +90,8 @@ jobs:
 
       - name: Website browser journeys
         run: pnpm test:e2e
+
+      - name: Linux browser journeys
+        run: |
+          pnpm --filter @nahhasio/linux-ui test:e2e
+          pnpm --filter @nahhasio/linux-ui test:e2e:player

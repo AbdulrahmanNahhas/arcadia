@@ -9,18 +9,15 @@ node_modules
 .direnv
 data
 *.log
-# Crash dumps from the Tauri shell (gitignored too) and the desktop crate's build output.
+# Crash dumps and native build output.
 **/core.*
 target
 # Editor/agent worktrees and state — never part of a server image.
 .delta
 .claude
 .git*
-# Root-level build output and the v1 SQLite source.
+# Root-level build output.
 dist
-data
 *.tsbuildinfo
 test-results
 playwright-report
-
-reference

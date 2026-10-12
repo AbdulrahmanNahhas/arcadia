@@ -19,8 +19,6 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@arcadia/contracts": "workspace:*",
-    "@arcadia/database": "workspace:*",
     "@arcadia/domain": "workspace:*",
     "postgres": "^3.4.7",
     "zod": "^4.4.3"

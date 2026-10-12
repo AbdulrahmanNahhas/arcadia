@@ -2,16 +2,17 @@
 
 Rust GTK4/libadwaita window with WebKitGTK hosting an independent React/Vite/TypeScript viewing UI.
 The rejected Kotlin prototype is recoverable at commit `28e3c72`; it is removed from active source.
-The server and administration dashboard remain separate.
+The Rust server remains separate. Administration currently lives in the website and will move
+into the client after its Tailwind/shadcn foundation checkpoint.
 
 ## First milestone
 
 Real owner login, native in-memory session, catalog shelves, discovery search/filter/sort with
-bounded paging, registered artwork and selected-work overview/family/data preview. Native tokens
+bounded paging, registered artwork and complete selected-work pages. Native tokens
 never cross into JavaScript. The UI checks generated OpenAPI schemas at its transport boundary.
 No startup catalog migration or seed. Native local/torrent playback and Torrentio Watch actions
 are now connected; see [the runnable player checkpoint](../../docs/linux-player-checkpoint.md)
-for commands, security boundaries, actual checks and unfinished download/resume features.
+for commands, security boundaries, actual checks and download/recovery behavior and remaining limits.
 Jellyfin is outside the client-media work.
 
 ## Organization
@@ -22,14 +23,16 @@ Jellyfin is outside the client-media work.
 - `src/assets.rs`: contained `nahhasio://app/` production bundle serving.
 - `src/smoke.rs`: explicit app-owned native UI verification using private stdin credentials.
 - `ui/src/app`: app/session composition.
-- `ui/src/features`: login, catalog and selected-work preview.
+- `ui/src/features`: login, discovery, work pages, release views, Watch and playback/download UI.
+- `../../crates/native-player`: GTK/libmpv adapter; examples are diagnostic.
+- `../../crates/media-transfer`: durable torrent jobs and device state.
 - `ui/src/lib/bridge.ts`: typed gateway and native reply parsing.
 - `ui/src/styles`: reviewed responsive client tokens and layout.
 
 Use the project devenv environment. Native builds use GTK4, libadwaita and WebKitGTK6 development
 libraries from the locked Nix environment. Build UI with `pnpm --filter @nahhasio/linux-ui build`,
 then native with `cargo build -p nahhasio-linux --locked -j 2`. Launch everything with `devenv up`, or just the desktop with
-`devenv shell -- nahhasio-client`. Backend only: `devenv up postgres server web`.
+`devenv shell -- nahhasio-client`. Backend only: `devenv up postgres server`; add `web` for the transitional dashboard.
 The production UI is served as `nahhasio://app/`; no unrestricted file access or remote app UI.
 
 For transport checks, `--bridge-smoke` accepts bounded JSONL commands on stdin. `--ui-smoke` accepts

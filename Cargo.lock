@@ -1522,7 +1522,7 @@ dependencies = [
  "hex",
  "libadwaita",
  "media-transfer",
- "nahhasio-native-playback-proof",
+ "nahhasio-native-player",
  "regex",
  "reqwest",
  "serde",
@@ -1537,7 +1537,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nahhasio-native-playback-proof"
+name = "nahhasio-native-player"
 version = "0.1.0"
 dependencies = [
  "gtk4",

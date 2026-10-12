@@ -700,7 +700,10 @@ test("planet navigation, private opt-in and native keyboard links", async ({ pag
   dialog = await openFilters(page);
   await dialog.getByRole("checkbox", { name: "مكتمل", exact: true }).check();
   await dialog.getByRole("tab", { name: /الحكاية والعالم/ }).click();
-  await dialog.getByRole("button", { name: "استبعاد", exact: true }).click();
+  await dialog
+    .getByRole("tabpanel", { name: /الحكاية والعالم/ })
+    .getByRole("button", { name: "استبعاد", exact: true })
+    .click();
   await dialog.getByRole("checkbox", { name: "تمثيل حي", exact: true }).check();
   await dialog.getByRole("button", { name: "تطبيق المرشحات" }).click();
   await expect(page.getByRole("link", { name: "تفاصيل رحلة في المكتبة" })).toBeVisible();
@@ -865,7 +868,7 @@ test("hero has real metadata, manual selection, pause and a working details acti
   await expect(hero).toContainText("2021");
   await expect(hero).toContainText("رسوم متحركة");
   await expect(hero).toContainText(work.summary);
-  await expect(hero.getByRole("button", { name: "المشاهدة قريبًا" })).toBeDisabled();
+  await expect(hero.getByRole("button", { name: "المشاهدة", exact: true })).toBeEnabled();
   await hero.getByRole("button", { name: "إيقاف التبديل التلقائي" }).click();
   await expect(hero.getByRole("button", { name: "تشغيل التبديل التلقائي" })).toBeVisible();
   await hero.getByRole("button", { name: "اعرض رحلة أخرى", exact: true }).click();
@@ -1002,9 +1005,33 @@ for (const width of [480, 1440]) {
           id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
           titleAr: `${seed.titleAr} ${index + 1}`,
         }));
-        if (request.command === "works") {
+        if (request.command === "works" || request.command === "browse") {
           const result = {
-            items: items.slice(0, request.payload.pageSize ?? 12),
+            items: items.slice(0, request.payload.pageSize ?? 12).map((item) =>
+              request.command === "browse"
+                ? {
+                    work: item,
+                    installment: null,
+                    classification: {
+                      audience: item.audience,
+                      age: item.age,
+                      sexualityRisk: "none",
+                      behavioralRisk: "low",
+                      theologyRisk: "medium",
+                    },
+                    status: "completed",
+                    watchState: "unwatched",
+                    criteria: {
+                      story: null,
+                      characters: null,
+                      depth: null,
+                      worldBuilding: null,
+                      originality: null,
+                      craft: null,
+                    },
+                  }
+                : item,
+            ),
             total: 12,
             page: 1,
             pageSize: request.payload.pageSize ?? 12,
@@ -1033,11 +1060,15 @@ for (const width of [480, 1440]) {
     expect(metrics.scroll).toBeLessThanOrEqual(metrics.width + 1);
     expect(new Set(metrics.tops).size).toBe(1);
     const hero = await page.getByRole("region", { name: "أحدث الأعمال" }).boundingBox();
-    expect(hero?.height).toBeLessThan(570);
+    expect(hero?.height).toBeLessThan(width < 600 ? 570 : 900);
     await page.getByRole("button", { name: "البحث", exact: true }).click();
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("button", { name: "البحث", exact: true })).toBeFocused();
+    await expect(page).toHaveURL(/#\/search$/);
+    await expect(page.getByRole("searchbox", { name: "ابحث في المكتبة" })).toBeVisible();
+    await expect(page.locator("#main-content")).toBeFocused();
+    await page.keyboard.press("Control+k");
+    await expect(page.getByRole("searchbox", { name: "ابحث في المكتبة" })).toBeFocused();
+    await rail.getByRole("link", { name: "الرئيسية", exact: true }).click();
+    await expect(page).toHaveURL(/#\/home$/);
   });
 }
 

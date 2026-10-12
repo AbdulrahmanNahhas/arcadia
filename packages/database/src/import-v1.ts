@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import postgres from "postgres";
 
+import { legacySourcePath } from "./legacy-source";
+
 type Row = Record<string, unknown>;
 type Report = {
   source: Record<string, number>;
@@ -18,10 +20,7 @@ type Report = {
 };
 
 const repositoryRoot = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
-const sourcePath = resolve(
-  process.env.ARCADIA_V1_DB_PATH ?? repositoryRoot,
-  process.env.ARCADIA_V1_DB_PATH ? "" : "data/arcadia.db",
-);
+const sourcePath = legacySourcePath();
 const reportPath = resolve(
   process.env.ARCADIA_IMPORT_REPORT ?? repositoryRoot,
   process.env.ARCADIA_IMPORT_REPORT ? "" : "migration-report.json",

@@ -1,81 +1,76 @@
 # Nahhasio
 
-A private family media hub: a Rust server for the catalog and home library, an Arabic-first
-administration dashboard, and a Rust GTK4/WebKitGTK viewing client.
-The Git repository remains Arcadia while the product is rewritten in reviewed phases.
+A private Arabic-first family media hub: Rust server, PostgreSQL catalog, and a Rust
+GTK4/libadwaita/WebKitGTK client. The Git repository remains Arcadia during the rewrite.
 
-**Current milestone: local server/client foundation.** The dashboard has real local catalog
-administration, structured and JSON editing, provider/artwork workflows, and schema inspection.
-Owner authentication and the client catalog API are implemented. The rejected Kotlin prototype
-has been retired for a GTK4/libadwaita/WebKitGTK shell with a React/Vite/TypeScript UI.
-The first client checkpoint covers login and catalog browsing; libmpv playback follows its own milestone. Torrent playback, durable downloads, offline saving, and deployment remain later
-checkpoints. See [the current Linux transition plan](docs/linux-client-plan.md) and [review milestones](docs/phases.md).
+The client includes authenticated discovery, work details, watched/favorite state, releases,
+local/torrent playback and device downloads. See the [player checkpoint](docs/linux-player-checkpoint.md)
+and [work-page checkpoint](docs/linux-work-page-checkpoint-2026-10-10.md) for actual evidence and limits.
+
+The TanStack Start website currently owns administration. Aqua wants those workflows inside an
+administrator-only Linux client area using its existing visual language, then the website retired.
+Tailwind/shadcn UI foundation work precedes administration. Jellyfin, home-server jobs, deployment
+and synchronized playback remain separate work.
 
 ## Workspace
 
-```text
-apps/server          Rust server (Axum, Tokio, SQLx/PostgreSQL)
-apps/web             TanStack Start administration dashboard (Base UI shadcn)
-apps/linux           Rust GTK4/libadwaita/WebKitGTK native shell
-apps/linux/ui        React/Vite/TypeScript viewing interface
-packages/api-contract OpenAPI and generated TypeScript schemas/client
-reference/arcadia-web      Previous website, isolated for migration/reference
-apps/api             Previous API, retained until Rust endpoint parity
-packages/database    Existing catalog schema and the single migration history
-packages/*           Existing catalog contracts, rules, vocabulary, and CLI
-```
+| Path                                               | Responsibility                                                                       |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `apps/server`                                      | Rust/Axum/SQLx identity, catalog, personal state and guarded database administration |
+| `apps/linux`                                       | GTK shell, contained assets, native bridge, session/network ownership and playback   |
+| `apps/linux/ui`                                    | React/Vite/TypeScript interface, Tailwind 4 and shadcn Base UI Nova                  |
+| `apps/web`                                         | Transitional TanStack Start administration dashboard                                 |
+| `apps/api`                                         | Legacy Hono API and provider/media/validation services still used by administration  |
+| `crates/native-player`                             | GTK/libmpv adapter and diagnostic examples                                           |
+| `crates/media-transfer`                            | Torrent engine, durable device jobs and recovery                                     |
+| `packages/api-contract`                            | Active OpenAPI source and generated validated client                                 |
+| `packages/contracts`                               | Legacy catalog/admin Zod schemas                                                     |
+| `packages/database`                                | PostgreSQL schema, single migration history and explicit recovery tools              |
+| `packages/domain`, `packages/i18n`, `packages/cli` | Catalog rules, editorial labels and command-line operations                          |
 
-This is one monorepo with pnpm/Cargo workspaces. The shared Rust media crate
-will join when torrent playback is introduced. PostgreSQL and existing catalog data remain.
+Frozen website/deployment references were removed; tracked source remains at `d77096f:reference/`
+in Git. Legacy Tauri media code is at `69a3cc1:src-tauri/src/`; Kotlin is recoverable at `28e3c72`.
 
-## Run locally
+## Development
 
-Use the project's Nix/devenv environment, targeting Node 26:
+Use the repository's Nix/devenv environment: Node 26, pnpm 11.11.0 and Rust.
 
 ```sh
-devenv up
+devenv up                              # PostgreSQL, Rust API, dashboard and GTK client
+devenv up postgres server               # Backend only
+devenv up postgres server web           # Backend and transitional dashboard
+devenv shell -- nahhasio-client          # Build and launch desktop
+devenv --profile reference-api up        # Optional legacy Hono API
 ```
 
-This starts PostgreSQL, the Rust server, the dashboard, and the Linux desktop client. Open
-[the website](http://127.0.0.1:23100). The Rust server uses port 23103 and the existing database
-uses port 23102. Startup does not migrate or seed the database.
-
-If the backend is already running, open just the desktop with `devenv shell -- nahhasio-client`.
-For backend/dashboard only, use `devenv up postgres server web`. Do not start duplicate copies
-on the same fixed ports; strict port checking deliberately reports the conflict.
-
-For backend only, use `devenv up postgres server web`. For the desktop separately, use
-`devenv shell -- nahhasio-client`. The launcher builds the owned UI bundle before opening GTK.
-
-The reference Hono API is available explicitly with `devenv --profile reference-api up`.
-See [the workspace map](docs/AGENT-CONTEXT.md) for individual commands and transition paths.
-
-## Quality and design
+Ports: PostgreSQL `23102`, Rust `23103`, dashboard `23100`, Hono `23101`, client UI dev `23110`.
+The desktop depends on Rust API readiness, not dashboard readiness. Startup never migrates,
+seeds or imports. Avoid duplicate processes on these ports.
 
 ```sh
 devenv shell -- pnpm check
 devenv shell -- pnpm build
 devenv shell -- cargo test --workspace --locked
+devenv shell -- pnpm --filter @nahhasio/linux-ui test
+devenv shell -- pnpm --filter @nahhasio/linux-ui test:e2e
+devenv shell -- pnpm --filter @nahhasio/linux-ui test:e2e:player
+devenv shell -- pnpm client:generate
 ```
 
-Oxlint, the existing anti-slop plugin, Oxfmt, and `@shadcn/lint` enforce the new code conventions.
-The dashboard uses TanStack Start server functions with route SSR disabled. Its private backend
-bridge stays on the server; playback belongs to the Linux client. Read [the design rules](docs/design-rules.md).
+Legacy integration suites require a disposable database. Never run them against the live catalog.
+See [desktop verification](docs/linux-client-testing.md) for native isolation and reporting.
 
-Database mutation tests require a disposable database. Never run migrations, imports, seeds,
-or cleanup jobs against the live family catalog just to get a test to pass.
-
-## Data and deployment
+## Preservation
 
 PostgreSQL owns the catalog; `packages/database/drizzle/` is the only migration history.
-The retained `data/arcadia.db` is a read-only v1 recovery source. Actual artwork and database
-backups are outside Git and must be preserved alongside the database.
+Backups, artwork and captures are private/ignored. `data/nahhasio.db` is a retained SQLite recovery
+candidate. Recovery tools require `ARCADIA_V1_DB_PATH` explicitly rather than guessing a filename.
+Old build artwork was preserved in `data/recovery/legacy-build-artwork` and has not been reconciled
+against the live catalog. Device job state uses `$XDG_STATE_HOME/nahhasio`; retained videos normally
+use `~/Videos/nahhasio`. Device storage is independent of PostgreSQL.
 
-Rootless Podman on Fedora Atomic is the intended home deployment. Previous Arcadia deployment recipes are archived under `reference/arcadia-deploy`; Rust/Jellyfin deployment is a later reviewed phase. The website's future
-**Download to home library** action will queue a persistent torrent job, verify/import the file,
-and refresh a real Jellyfin library. Client-side torrent streaming is a separate capability.
-
-Historical setup and feature documentation is preserved in
-[the Arcadia README snapshot](docs/archive/arcadia-readme.md).
+Native Rust owns secrets. The packaged UI uses `nahhasio://app/` and a bounded bridge;
+administrative permission must be enforced on the server. Read [the workspace map](docs/AGENT-CONTEXT.md)
+and [approved sequence](docs/phases.md). Complete a checkpoint and return for review.
 
 Licensed MIT. Catalog data and artwork are not distributed with the code.

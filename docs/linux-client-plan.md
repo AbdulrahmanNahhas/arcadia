@@ -9,7 +9,9 @@ are historical evidence, not the next implementation target.
 - Linux first. Rust GTK4/libadwaita shell, WebKitGTK, libmpv, and a separate **React + Vite +
   TypeScript** client interface. Electron and Kotlin/Compose are not the chosen implementation.
 - The Rust/Axum server, PostgreSQL, versioned OpenAPI and TanStack Start administration dashboard
-  remain. The viewing client has no administration dashboard.
+  remain during transition. Aqua selected Linux-only administration on 2026-10-11: build an
+  admin-only client area in its existing UI language, then retire the website after parity.
+  Tailwind/shadcn foundation work precedes migration; see [phases.md](phases.md).
 - V1 runs locally on Aqua's PC/Linux desktop. Later deploy the server on the family PC: Fedora
   Atomic, Podman and an existing Jellyfin. SSH/deployment follow a working local checkpoint.
 - Today the agent may write the implementation needed for the first runnable native shell,
@@ -34,7 +36,8 @@ as part of the client-media checkpoint. The concurrent design pass remains separ
 ## Product scope to preserve
 
 The server owns the curated catalog, identity, authorization, artwork, editorial records and
-synchronized state. The dashboard owns editing and server administration. Clients browse and watch.
+synchronized state. The dashboard currently owns editing/server administration; these workflows
+will move into an authorized client admin area after the UI foundation checkpoint.
 
 The viewing client must support:
 
@@ -229,7 +232,7 @@ of these before starting): [Rust + GTK4 book](https://gtk-rs.org/gtk4-rs/stable/
 [reqwest HTTP client](https://docs.rs/reqwest/latest/reqwest/). Select dependency versions against
 our locked Nix toolchain when implementing, rather than copying upstream version numbers.
 
-## Implemented bootstrap checkpoint
+## Historical bootstrap checkpoint
 
 Aqua approved one continuous pass after the planning review, including clean commits before and
 at completion. Initial commits `28e3c72` and `e8da773` preserved all earlier work and established a

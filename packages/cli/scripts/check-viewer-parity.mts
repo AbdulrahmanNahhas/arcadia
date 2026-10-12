@@ -5,12 +5,12 @@ import { ApiClient, LoginResponseSchema } from "@nahhasio/api-contract";
 import { z } from "zod";
 
 import { openDatabase, closeDatabase } from "../src/db";
-  const filter = (include: string[], exclude: string[]) =>
-    JSON.stringify({
-      facets: [{ key: "genres", include, exclude }],
-      minimumRating: 0,
-      minimumScores: {},
-    });
+const filter = (include: string[], exclude: string[]) =>
+  JSON.stringify({
+    facets: [{ key: "genres", include, exclude }],
+    minimumRating: 0,
+    minimumScores: {},
+  });
 
 let raw = "";
 for await (const chunk of process.stdin) {

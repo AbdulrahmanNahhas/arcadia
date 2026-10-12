@@ -1,7 +1,7 @@
 # Built from the repo root: docker build -f apps/api/Dockerfile .
 # (needs the whole workspace as build context — pnpm workspace deps are real source, not
-# published packages). CI publishes this as ghcr.io/abdulrahmannahhas/arcadia-api (see
-# .github/workflows/publish-images.yml); the Quadlet units under deploy/quadlet pull it.
+# published packages). This is an explicit legacy API image recipe, not the active Rust
+# server deployment. No image publishing or deployment workflow is enabled.
 
 FROM node:26-slim AS build
 # node:26 no longer ships corepack; pin the same pnpm the workspace declares (package.json packageManager).

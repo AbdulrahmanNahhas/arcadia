@@ -6,9 +6,11 @@ import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import postgres from "postgres";
 
+import { legacySourcePath } from "./legacy-source";
+
 type Row = Record<string, unknown>;
 const repositoryRoot = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
-const sourcePath = process.env.ARCADIA_V1_DB_PATH ?? resolve(repositoryRoot, "data/arcadia.db");
+const sourcePath = legacySourcePath();
 if (!existsSync(sourcePath)) throw new Error(`SQLite source not found: ${sourcePath}`);
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
 
