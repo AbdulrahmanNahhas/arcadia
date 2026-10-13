@@ -25,8 +25,8 @@ page, simple Episode filters and a commit of the reviewed work.
   after detection. People retain portrait defaults. Directory counts follow visibility.
 - Episodes has a compact filter row for watched/unwatched/all, text search and an
   admin-only hidden-work switch. The current feed includes dated released episodes
-  and movies, with banner episode cards and portrait movie cards in a responsive
-  masonry layout.
+  and movies, with banner episode cards and uncropped movie posters in an ordered
+  responsive grid, four columns at desktop widths.
   Page rows and totals use identical predicates. Undated/future releases are excluded.
 - Shared episode cards support direct playback targets, compact watched state,
   relative dates for the last 30 days and keyboard/touch/hover controls.

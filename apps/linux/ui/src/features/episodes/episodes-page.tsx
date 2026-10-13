@@ -123,25 +123,19 @@ export function EpisodesPage({ params }: { params: URLSearchParams }) {
       </div>
       {result.error && <Failure error={result.error} retry={() => void result.refetch()} />}
       <div
-        className="columns-2 gap-4 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6"
-        data-navigation-layout="masonry"
+        className="grid grid-cols-1 gap-x-4 gap-y-7 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+        aria-label="الحلقات والأفلام"
       >
         {items.map((item) => (
-          <div
+          <ViewingCard
             key={item.episodeId ?? item.installmentId}
-            className="mb-7 inline-block w-full break-inside-avoid align-top"
-          >
-            <ViewingCard item={item} portrait={!item.episodeId} />
-          </div>
+            item={item}
+            poster={!item.episodeId}
+          />
         ))}
         {(result.isLoading || result.isFetchingNextPage) &&
           Array.from({ length: result.isLoading ? 8 : 4 }, (_, index) => (
-            <div
-              key={index}
-              className="mb-7 break-inside-avoid space-y-3"
-              role="status"
-              aria-label="جارٍ تحميل الإصدارات"
-            >
+            <div key={index} className="space-y-3" role="status" aria-label="جارٍ تحميل الإصدارات">
               <Skeleton className="aspect-video rounded-2xl" />
               <Skeleton className="h-5 w-4/5" />
               <Skeleton className="h-4 w-2/3" />

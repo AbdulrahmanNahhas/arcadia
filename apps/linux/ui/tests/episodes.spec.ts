@@ -27,16 +27,38 @@ const items: HomeViewingItem[] = Array.from({ length: 12 }, (_, index) => ({
   episodeNumber: index % 3 === 0 ? null : String(index + 1),
   episodeTitle: index % 3 === 0 ? null : `حكاية ${index + 1}`,
   releaseDate: "2026-10-01",
-  artwork: null,
+  artwork: {
+    id: "00000000-0000-4000-8000-000000000099",
+    url: "/api/v1/artwork/00000000-0000-4000-8000-000000000099",
+    mimeType: "image/png",
+    width: 200,
+    height: 300,
+    byteSize: 1,
+    sha256: "fixture",
+    originalFilename: "fixture.png",
+    focalX: 50,
+    focalY: 50,
+  },
   positionSeconds: 0,
   durationSeconds: null,
   isPlayed: false,
 }));
 
 for (const width of [520, 1440]) {
-  test(`episodes masonry ${width}: portrait movies and landscape episodes`, async ({ page }) => {
+  test(`episodes grid ${width}: contained movie posters and ordered releases`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     await page.addInitScript((entries) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 200;
+      canvas.height = 300;
+      const context = canvas.getContext("2d")!;
+      context.fillStyle = "#544a87";
+      context.fillRect(0, 0, 200, 300);
+      context.fillStyle = "#dbb26b";
+      context.fillRect(30, 35, 140, 180);
+      context.fillStyle = "#19182b";
+      context.fillRect(65, 70, 70, 140);
+      const dataUrl = canvas.toDataURL("image/png");
       window.webkit = {
         messageHandlers: {
           nahhasio: {
@@ -61,6 +83,8 @@ for (const width of [520, 1440]) {
                 };
               } else if (request.command === "episodes") {
                 result = { items: entries, page: 1, pageSize: 36, total: entries.length };
+              } else if (request.command === "artwork") {
+                result = { dataUrl };
               } else {
                 window["__nahhasioReply"]?.({
                   id: request.id,
@@ -78,24 +102,42 @@ for (const width of [520, 1440]) {
       };
     }, items);
     await page.goto("/#/episodes");
-    const masonry = page.locator('[data-navigation-layout="masonry"]');
-    await expect(masonry.locator("article")).toHaveCount(items.length);
-    const movie = masonry
+    const grid = page.getByLabel("الحلقات والأفلام", { exact: true });
+    await expect(grid.locator("article")).toHaveCount(items.length);
+    const movie = grid
       .locator("article")
       .filter({ has: page.getByRole("heading", { name: "فيلم 1", exact: true }) });
     await expect(movie.getByRole("link")).toHaveText("مكتبة العائلة");
     await expect(movie.locator("button > span").filter({ hasText: /^فيلم 1$/ })).toHaveCount(0);
-    const ratios = await masonry.locator("article button").evaluateAll((buttons) =>
+    await expect(movie.locator("img")).toHaveCount(2);
+    await expect(movie.locator("img.object-contain")).toBeVisible();
+    expect(
+      await movie.locator("img.blur-xl").evaluate((element) => getComputedStyle(element).filter),
+    ).toContain("blur");
+    const bounds = await grid.locator("article").evaluateAll((cards) =>
+      cards.map((card) => {
+        const rect = card.getBoundingClientRect();
+        return { top: rect.top, left: rect.left };
+      }),
+    );
+    if (width === 1440) {
+      expect(bounds[0].top).toBe(bounds[3].top);
+      expect(bounds[0].left).toBeGreaterThan(bounds[1].left);
+      expect(bounds[4].top).toBeGreaterThan(bounds[0].top);
+    }
+    const ratios = await grid.locator("article button").evaluateAll((buttons) =>
       buttons.map((button) => {
         const rect = button.getBoundingClientRect();
         return rect.width / rect.height;
       }),
     );
-    expect(ratios[0]).toBeCloseTo(2 / 3, 1);
+    expect(ratios[0]).toBeCloseTo(16 / 9, 1);
     expect(ratios[1]).toBeCloseTo(16 / 9, 1);
-    expect(await masonry.evaluate((element) => getComputedStyle(element).columnCount)).toBe(
-      width === 520 ? "2" : "6",
-    );
+    expect(
+      await grid.evaluate(
+        (element) => getComputedStyle(element).gridTemplateColumns.split(" ").length,
+      ),
+    ).toBe(width === 520 ? 1 : 4);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -103,7 +145,7 @@ for (const width of [520, 1440]) {
     await play.focus();
     await play.press(width === 520 ? "ArrowDown" : "ArrowLeft");
     await expect(play).not.toBeFocused();
-    await expect(masonry.locator("button:focus, a:focus")).toHaveCount(1);
-    await page.screenshot({ path: test.info().outputPath("masonry.png"), fullPage: true });
+    await expect(grid.locator("button:focus, a:focus")).toHaveCount(1);
+    await page.screenshot({ path: test.info().outputPath("grid.png"), fullPage: true });
   });
 }

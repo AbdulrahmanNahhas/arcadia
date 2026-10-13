@@ -97,7 +97,6 @@ export function CardNavigationProvider({ children }: { children: ReactNode }) {
 
     // Only explicitly registered cards participate; inputs, dialogs and native controls stay native.
     const origin = event.currentTarget.getBoundingClientRect();
-    const masonry = event.currentTarget.closest('[data-navigation-layout="masonry"]');
     const panel = event.currentTarget.closest('[role="tabpanel"]');
     const header = panel ? null : event.currentTarget.closest("header");
     const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
@@ -116,19 +115,14 @@ export function CardNavigationProvider({ children }: { children: ReactNode }) {
       .map(({ card, rect }) => {
         const dx = rect.left + rect.width / 2 - centerX;
         const dy = rect.top - origin.top;
-        const overlapsVertically = rect.top < origin.bottom && rect.bottom > origin.top;
-        return { card, dx, dy, overlapsVertically };
+        return { card, dx, dy };
       })
-      .filter(({ dx, dy, overlapsVertically }) =>
-        horizontal
-          ? (masonry ? overlapsVertically : Math.abs(dy) < 4) && (forward ? dx > 1 : dx < -1)
-          : forward
-            ? dy > 4
-            : dy < -4,
+      .filter(({ dx, dy }) =>
+        horizontal ? Math.abs(dy) < 4 && (forward ? dx > 1 : dx < -1) : forward ? dy > 4 : dy < -4,
       )
       .toSorted((a, b) =>
         horizontal
-          ? Math.abs(a.dx) - Math.abs(b.dx) || Math.abs(a.dy) - Math.abs(b.dy)
+          ? Math.abs(a.dx) - Math.abs(b.dx)
           : Math.abs(a.dy) - Math.abs(b.dy) || Math.abs(a.dx) - Math.abs(b.dx),
       );
 

@@ -32,11 +32,11 @@ function durationLabel(seconds: number) {
 export function ViewingCard({
   item,
   resume = false,
-  portrait = false,
+  poster = false,
 }: {
   item: HomeViewingItem;
   resume?: boolean;
-  portrait?: boolean;
+  poster?: boolean;
 }) {
   const navigation = useCardNavigation();
   const title = item.work.titleAr || item.work.canonicalTitle;
@@ -60,18 +60,25 @@ export function ViewingCard({
           {...navigation}
           variant="ghost"
           aria-label={`${item.isPlayed ? "إعادة مشاهدة" : "مشاهدة"} ${title}، ${episode}`}
-          className={cn(
-            "group/play relative h-auto w-full overflow-hidden rounded-2xl p-0",
-            portrait ? "aspect-2/3" : "aspect-video",
-          )}
+          className="group/play relative aspect-video h-auto w-full overflow-hidden rounded-2xl p-0"
           onClick={watch}
         >
           <span className="absolute inset-0 transform-gpu overflow-hidden rounded-2xl">
+            {poster && item.artwork && (
+              <Artwork
+                id={item.artwork.id}
+                alt=""
+                className="absolute inset-0 size-full scale-110 object-cover opacity-60 blur-xl"
+              />
+            )}
             <Artwork
               id={item.artwork?.id}
               alt=""
               className={cn(
-                "absolute inset-0 size-full object-cover transition duration-200 group-hover/play:scale-105 group-focus-visible/play:scale-105 motion-reduce:transition-none",
+                "absolute inset-0 size-full transition duration-200 motion-reduce:transition-none",
+                poster
+                  ? "object-contain"
+                  : "object-cover group-hover/play:scale-105 group-focus-visible/play:scale-105",
                 item.isPlayed &&
                   "opacity-50 group-hover/play:opacity-100 group-focus-visible/play:opacity-100",
               )}
