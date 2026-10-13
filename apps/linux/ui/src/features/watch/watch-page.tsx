@@ -229,7 +229,7 @@ export function WatchPage() {
           </p>
         </section>
         <section
-          className="watch-stage flex min-w-0 flex-col bg-primary-foreground p-7 max-[720px]:p-5.5"
+          className="watch-stage flex min-w-0 flex-col bg-sidebar p-7 max-[720px]:p-5.5"
           aria-label="معاينة طلب المشاهدة"
           aria-live="polite"
         >

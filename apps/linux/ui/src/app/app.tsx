@@ -55,19 +55,30 @@ export function App() {
 
   useEffect(() => {
     const clear = () => {
-      client.removeQueries({
-        predicate: (query) => query.queryKey[0] !== "session" && query.queryKey[0] !== "native",
+      requestGeneration.current++;
+      setWatchTarget(null);
+      if (player.snapshot?.sessionId)
+        void playerCommandAsync({
+          command: "player.close",
+          payload: { sessionId: player.snapshot.sessionId },
+        }).catch(() => {});
+      void client.cancelQueries().then(() => {
+        client.removeQueries({
+          predicate: (query) => query.queryKey[0] !== "session" && query.queryKey[0] !== "native",
+        });
+        setDownload(null);
+        client.setQueryData(["session"], null);
+        return undefined;
       });
-      setDownload(null);
-      client.setQueryData(["session"], null);
     };
     window.addEventListener("nahhasio:signed-out", clear);
     return () => window.removeEventListener("nahhasio:signed-out", clear);
-  }, [client]);
+  }, [client, player.snapshot?.sessionId, playerCommandAsync]);
 
   const session = useQuery({
     queryKey: ["session"],
     queryFn: ({ signal }) => gateway.session(signal),
+    refetchInterval: 60000,
   });
 
   const saved = useQuery({
@@ -120,7 +131,7 @@ export function App() {
               current: episode.id === (player.snapshot?.episodeId ?? watchTarget?.episodeId),
             };
           });
-  if (playing)
+  if (playing && session.data)
     return (
       <PlayerHost
         player={player}

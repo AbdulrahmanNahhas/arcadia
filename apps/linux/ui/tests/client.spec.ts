@@ -85,7 +85,18 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(
     ({ work: fixtureWork, detail: fixtureDetail }) => {
       const session = {
-        user: { id: "test-owner", name: "العائلة", email: "fixture@example.test", role: "owner" },
+        user: {
+          id: "test-owner",
+          name: "العائلة",
+          email: "fixture@example.test",
+          role: "owner",
+          accountId: "00000000-0000-4000-8000-000000000001",
+          kind: "admin",
+          avatarKey: "nahhasio-library.svg",
+          bio: "",
+          isAdmin: true,
+          updatedAt: "2026-10-12T00:00:00.000000Z",
+        },
         expiresAt: "2099-10-09T00:00:00Z",
       };
       let signedIn = false;
@@ -529,7 +540,7 @@ for (const width of [480, 1440]) {
 }
 async function login(page: Page) {
   await page.getByLabel("البريد الإلكتروني").fill("fixture@example.test");
-  await page.getByLabel("كلمة المرور").fill("fixture-password");
+  await page.getByLabel("كلمة المرور", { exact: true }).fill("fixture-password");
   await page.getByRole("button", { name: "دخول المكتبة" }).click();
   await expect(page.getByRole("region", { name: "أحدث الأعمال" })).toBeVisible();
 }
@@ -603,7 +614,7 @@ test("real bridge states: reject login, browse details, family guide, search and
   page,
 }) => {
   await page.getByLabel("البريد الإلكتروني").fill("fixture@example.test");
-  await page.getByLabel("كلمة المرور").fill("wrong");
+  await page.getByLabel("كلمة المرور", { exact: true }).fill("wrong");
   await page.getByRole("button", { name: "دخول المكتبة" }).click();
   await expect(page.getByRole("alert")).toHaveText("بيانات الدخول غير صحيحة");
   await login(page);
@@ -640,7 +651,7 @@ test("real bridge states: reject login, browse details, family guide, search and
   await expect(page.getByText("لا توجد أعمال مطابقة", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/q=missing/);
   await page.getByRole("button", { name: "الملف والحساب" }).click();
-  await page.getByRole("button", { name: "تسجيل الخروج" }).click();
+  await page.getByRole("menuitem", { name: "تسجيل الخروج" }).click();
   await expect(page.getByRole("heading", { name: "ادخل إلى مكتبتك" })).toBeVisible();
 });
 for (const width of [480, 640, 1024, 1440])
@@ -844,7 +855,7 @@ for (const width of [480, 1440]) {
     await expect(page.getByRole("heading", { name: "مكتمل (2)", exact: true })).toBeVisible();
     await page.reload();
     await page.getByLabel("البريد الإلكتروني").fill("fixture@example.test");
-    await page.getByLabel("كلمة المرور").fill("fixture-password");
+    await page.getByLabel("كلمة المرور", { exact: true }).fill("fixture-password");
     await page.getByRole("button", { name: "دخول المكتبة" }).click();
     await expect(page.getByRole("heading", { name: "مكتمل (2)", exact: true })).toBeVisible();
     dialog = await openFilters(page);
@@ -1094,8 +1105,8 @@ for (const width of [360, 640, 1024, 1440]) {
     expect(mainBox?.height).toBe(720);
     expect(await page.evaluate(() => document.body.scrollWidth)).toBeLessThanOrEqual(width);
     await profile.click();
-    await expect(page.getByRole("dialog", { name: "العائلة" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "تسجيل الخروج" })).toBeVisible();
+    await expect(page.getByRole("menu", { name: "الحساب" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "تسجيل الخروج" })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(profile).toBeFocused();
     if (width === 1440)
@@ -1264,11 +1275,14 @@ test("sidebar search: full page, Ctrl+K, Arabic layout and history", async ({ pa
   await page.goBack();
   await expect(input).toHaveValue("رحلة");
   await home.click();
+  await expect(page).toHaveURL(/#\/home$/);
   await rail.getByRole("button", { name: "الملف والحساب" }).click();
   await page.keyboard.press("Control+k");
-  await expect(page.getByRole("dialog", { name: "العائلة" })).toBeVisible();
+  await expect(page.getByRole("menu", { name: "الحساب" })).toBeVisible();
   await expect(input).toHaveCount(0);
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu", { name: "الحساب" })).toBeHidden();
+  await expect(rail.getByRole("button", { name: "الملف والحساب" })).toBeFocused();
   await page.keyboard.press("Control+k");
   await expect(input).toBeFocused();
 });

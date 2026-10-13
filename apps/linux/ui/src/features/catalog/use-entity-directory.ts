@@ -2,10 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 
 import { gateway } from "../../lib/bridge";
 
-export function useEntityDirectory(key: "contributors" | "studios") {
+export function useEntityDirectory(
+  key: "contributors" | "studios" | "planets",
+  privacy: "public" | "all" = "public",
+) {
   const result = useQuery({
-    queryKey: ["catalog", "facets", "works", "public"],
-    queryFn: ({ signal }) => gateway.facets({ view: "works", privacy: "public" }, signal),
+    queryKey: ["catalog", "facets", "works", privacy],
+    queryFn: ({ signal }) => gateway.facets({ view: "works", privacy }, signal),
   });
   return {
     ...result,

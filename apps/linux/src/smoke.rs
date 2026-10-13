@@ -74,7 +74,7 @@ pub fn install(
             5=>"JSON.stringify({workReady:!!document.querySelector('article[aria-label=\"صفحة العمل\"] h1')&&Array.from(document.querySelectorAll('article[aria-label=\"صفحة العمل\"] header img')).every(image=>image.tagName==='IMG'?image.complete&&image.naturalWidth>0:!image.textContent.includes('جارٍ تحميل الصورة')),errors:document.querySelectorAll('[role=alert]').length})".into(),
             6=>"(()=>{document.querySelector('article[aria-label=\"صفحة العمل\"] button').click();return 'back';})()".into(),
             7=>"(()=>{document.querySelector('button[aria-label=\"الملف والحساب\"]').click();return 'account';})()".into(),
-            8=>"(()=>{document.querySelector('button[aria-label=\"تسجيل الخروج\"]').click();return 'logout';})()".into(),
+            8=>"(()=>{Array.from(document.querySelectorAll('[role=\"menuitem\"]')).find(item=>item.textContent.trim()==='تسجيل الخروج').click();return 'logout';})()".into(),
             _=>"JSON.stringify({signedOut:!!document.querySelector('#email')})".into(),
         };
         view.evaluate_javascript(

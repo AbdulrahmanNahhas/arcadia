@@ -10,14 +10,21 @@
 
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as IndexRouteImport } from "./routes/index";
+import { Route as AdminRouteImport } from "./routes/admin";
 import { Route as BrowseRouteImport } from "./routes/browse";
+import { Route as DownloadsRouteImport } from "./routes/downloads";
+import { Route as EpisodesRouteImport } from "./routes/episodes";
 import { Route as HomeRouteImport } from "./routes/home";
+import { Route as MoreRouteImport } from "./routes/more";
 import { Route as PeopleRouteImport } from "./routes/people";
 import { Route as PlanetsRouteImport } from "./routes/planets";
+import { Route as ProfileRouteImport } from "./routes/profile";
 import { Route as ReleasesRouteImport } from "./routes/releases";
 import { Route as SearchRouteImport } from "./routes/search";
 import { Route as StudiosRouteImport } from "./routes/studios";
 import { Route as WatchRouteImport } from "./routes/watch";
+import { Route as AdminIndexRouteImport } from "./routes/admin.index";
+import { Route as AdminSectionRouteImport } from "./routes/admin.$section";
 import { Route as PeopleIdRouteImport } from "./routes/people_.$id";
 import { Route as PlanetsIdRouteImport } from "./routes/planets_.$id";
 import { Route as StudiosIdRouteImport } from "./routes/studios_.$id";
@@ -28,14 +35,34 @@ const IndexRoute = IndexRouteImport.update({
   path: "/",
   getParentRoute: () => rootRouteImport,
 } as any);
+const AdminRoute = AdminRouteImport.update({
+  id: "/admin",
+  path: "/admin",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const BrowseRoute = BrowseRouteImport.update({
   id: "/browse",
   path: "/browse",
   getParentRoute: () => rootRouteImport,
 } as any);
+const DownloadsRoute = DownloadsRouteImport.update({
+  id: "/downloads",
+  path: "/downloads",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const EpisodesRoute = EpisodesRouteImport.update({
+  id: "/episodes",
+  path: "/episodes",
+  getParentRoute: () => rootRouteImport,
+} as any);
 const HomeRoute = HomeRouteImport.update({
   id: "/home",
   path: "/home",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const MoreRoute = MoreRouteImport.update({
+  id: "/more",
+  path: "/more",
   getParentRoute: () => rootRouteImport,
 } as any);
 const PeopleRoute = PeopleRouteImport.update({
@@ -46,6 +73,11 @@ const PeopleRoute = PeopleRouteImport.update({
 const PlanetsRoute = PlanetsRouteImport.update({
   id: "/planets",
   path: "/planets",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const ProfileRoute = ProfileRouteImport.update({
+  id: "/profile",
+  path: "/profile",
   getParentRoute: () => rootRouteImport,
 } as any);
 const ReleasesRoute = ReleasesRouteImport.update({
@@ -67,6 +99,16 @@ const WatchRoute = WatchRouteImport.update({
   id: "/watch",
   path: "/watch",
   getParentRoute: () => rootRouteImport,
+} as any);
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: "/",
+  path: "/",
+  getParentRoute: () => AdminRoute,
+} as any);
+const AdminSectionRoute = AdminSectionRouteImport.update({
+  id: "/$section",
+  path: "/$section",
+  getParentRoute: () => AdminRoute,
 } as any);
 const PeopleIdRoute = PeopleIdRouteImport.update({
   id: "/people_/$id",
@@ -91,104 +133,149 @@ const TitlesWorkIdRoute = TitlesWorkIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
+  "/admin": typeof AdminRouteWithChildren;
   "/browse": typeof BrowseRoute;
+  "/downloads": typeof DownloadsRoute;
+  "/episodes": typeof EpisodesRoute;
   "/home": typeof HomeRoute;
+  "/more": typeof MoreRoute;
   "/people": typeof PeopleRoute;
   "/planets": typeof PlanetsRoute;
+  "/profile": typeof ProfileRoute;
   "/releases": typeof ReleasesRoute;
   "/search": typeof SearchRoute;
   "/studios": typeof StudiosRoute;
   "/watch": typeof WatchRoute;
+  "/admin/$section": typeof AdminSectionRoute;
   "/people/$id": typeof PeopleIdRoute;
   "/planets/$id": typeof PlanetsIdRoute;
   "/studios/$id": typeof StudiosIdRoute;
   "/titles/$workId": typeof TitlesWorkIdRoute;
+  "/admin/": typeof AdminIndexRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
   "/browse": typeof BrowseRoute;
+  "/downloads": typeof DownloadsRoute;
+  "/episodes": typeof EpisodesRoute;
   "/home": typeof HomeRoute;
+  "/more": typeof MoreRoute;
   "/people": typeof PeopleRoute;
   "/planets": typeof PlanetsRoute;
+  "/profile": typeof ProfileRoute;
   "/releases": typeof ReleasesRoute;
   "/search": typeof SearchRoute;
   "/studios": typeof StudiosRoute;
   "/watch": typeof WatchRoute;
+  "/admin/$section": typeof AdminSectionRoute;
   "/people/$id": typeof PeopleIdRoute;
   "/planets/$id": typeof PlanetsIdRoute;
   "/studios/$id": typeof StudiosIdRoute;
   "/titles/$workId": typeof TitlesWorkIdRoute;
+  "/admin": typeof AdminIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
+  "/admin": typeof AdminRouteWithChildren;
   "/browse": typeof BrowseRoute;
+  "/downloads": typeof DownloadsRoute;
+  "/episodes": typeof EpisodesRoute;
   "/home": typeof HomeRoute;
+  "/more": typeof MoreRoute;
   "/people": typeof PeopleRoute;
   "/planets": typeof PlanetsRoute;
+  "/profile": typeof ProfileRoute;
   "/releases": typeof ReleasesRoute;
   "/search": typeof SearchRoute;
   "/studios": typeof StudiosRoute;
   "/watch": typeof WatchRoute;
+  "/admin/$section": typeof AdminSectionRoute;
   "/people_/$id": typeof PeopleIdRoute;
   "/planets_/$id": typeof PlanetsIdRoute;
   "/studios_/$id": typeof StudiosIdRoute;
   "/titles/$workId": typeof TitlesWorkIdRoute;
+  "/admin/": typeof AdminIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | "/"
+    | "/admin"
     | "/browse"
+    | "/downloads"
+    | "/episodes"
     | "/home"
+    | "/more"
     | "/people"
     | "/planets"
+    | "/profile"
     | "/releases"
     | "/search"
     | "/studios"
     | "/watch"
+    | "/admin/$section"
     | "/people/$id"
     | "/planets/$id"
     | "/studios/$id"
-    | "/titles/$workId";
+    | "/titles/$workId"
+    | "/admin/";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
     | "/browse"
+    | "/downloads"
+    | "/episodes"
     | "/home"
+    | "/more"
     | "/people"
     | "/planets"
+    | "/profile"
     | "/releases"
     | "/search"
     | "/studios"
     | "/watch"
+    | "/admin/$section"
     | "/people/$id"
     | "/planets/$id"
     | "/studios/$id"
-    | "/titles/$workId";
+    | "/titles/$workId"
+    | "/admin";
   id:
     | "__root__"
     | "/"
+    | "/admin"
     | "/browse"
+    | "/downloads"
+    | "/episodes"
     | "/home"
+    | "/more"
     | "/people"
     | "/planets"
+    | "/profile"
     | "/releases"
     | "/search"
     | "/studios"
     | "/watch"
+    | "/admin/$section"
     | "/people_/$id"
     | "/planets_/$id"
     | "/studios_/$id"
-    | "/titles/$workId";
+    | "/titles/$workId"
+    | "/admin/";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
+  AdminRoute: typeof AdminRouteWithChildren;
   BrowseRoute: typeof BrowseRoute;
+  DownloadsRoute: typeof DownloadsRoute;
+  EpisodesRoute: typeof EpisodesRoute;
   HomeRoute: typeof HomeRoute;
+  MoreRoute: typeof MoreRoute;
   PeopleRoute: typeof PeopleRoute;
   PlanetsRoute: typeof PlanetsRoute;
+  ProfileRoute: typeof ProfileRoute;
   ReleasesRoute: typeof ReleasesRoute;
   SearchRoute: typeof SearchRoute;
   StudiosRoute: typeof StudiosRoute;
@@ -208,6 +295,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof IndexRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/admin": {
+      id: "/admin";
+      path: "/admin";
+      fullPath: "/admin";
+      preLoaderRoute: typeof AdminRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     "/browse": {
       id: "/browse";
       path: "/browse";
@@ -215,11 +309,32 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof BrowseRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/downloads": {
+      id: "/downloads";
+      path: "/downloads";
+      fullPath: "/downloads";
+      preLoaderRoute: typeof DownloadsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/episodes": {
+      id: "/episodes";
+      path: "/episodes";
+      fullPath: "/episodes";
+      preLoaderRoute: typeof EpisodesRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     "/home": {
       id: "/home";
       path: "/home";
       fullPath: "/home";
       preLoaderRoute: typeof HomeRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/more": {
+      id: "/more";
+      path: "/more";
+      fullPath: "/more";
+      preLoaderRoute: typeof MoreRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/people": {
@@ -234,6 +349,13 @@ declare module "@tanstack/react-router" {
       path: "/planets";
       fullPath: "/planets";
       preLoaderRoute: typeof PlanetsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/profile": {
+      id: "/profile";
+      path: "/profile";
+      fullPath: "/profile";
+      preLoaderRoute: typeof ProfileRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/releases": {
@@ -263,6 +385,20 @@ declare module "@tanstack/react-router" {
       fullPath: "/watch";
       preLoaderRoute: typeof WatchRouteImport;
       parentRoute: typeof rootRouteImport;
+    };
+    "/admin/": {
+      id: "/admin/";
+      path: "/";
+      fullPath: "/admin/";
+      preLoaderRoute: typeof AdminIndexRouteImport;
+      parentRoute: typeof AdminRoute;
+    };
+    "/admin/$section": {
+      id: "/admin/$section";
+      path: "/$section";
+      fullPath: "/admin/$section";
+      preLoaderRoute: typeof AdminSectionRouteImport;
+      parentRoute: typeof AdminRoute;
     };
     "/people_/$id": {
       id: "/people_/$id";
@@ -295,12 +431,29 @@ declare module "@tanstack/react-router" {
   }
 }
 
+interface AdminRouteChildren {
+  AdminSectionRoute: typeof AdminSectionRoute;
+  AdminIndexRoute: typeof AdminIndexRoute;
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminSectionRoute: AdminSectionRoute,
+  AdminIndexRoute: AdminIndexRoute,
+};
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren);
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   BrowseRoute: BrowseRoute,
+  DownloadsRoute: DownloadsRoute,
+  EpisodesRoute: EpisodesRoute,
   HomeRoute: HomeRoute,
+  MoreRoute: MoreRoute,
   PeopleRoute: PeopleRoute,
   PlanetsRoute: PlanetsRoute,
+  ProfileRoute: ProfileRoute,
   ReleasesRoute: ReleasesRoute,
   SearchRoute: SearchRoute,
   StudiosRoute: StudiosRoute,

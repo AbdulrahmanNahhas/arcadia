@@ -385,6 +385,12 @@ async function installBridge(page: Page) {
                       name: "العائلة",
                       email: "fixture@example.test",
                       role: "owner",
+                      accountId: "00000000-0000-4000-8000-000000000001",
+                      kind: "admin",
+                      avatarKey: "nahhasio-library.svg",
+                      bio: "",
+                      isAdmin: true,
+                      updatedAt: "2026-10-12T00:00:00.000000Z",
                     },
                     expiresAt: "2099-10-09T00:00:00Z",
                   });

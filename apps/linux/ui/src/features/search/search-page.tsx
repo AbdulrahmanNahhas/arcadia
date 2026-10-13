@@ -22,6 +22,7 @@ import {
 } from "../../components/ui/input-group";
 import { ToggleGroup, ToggleGroupItem } from "../../components/ui/toggle-group";
 import { gateway } from "../../lib/bridge";
+import { useIsAdmin } from "../account/use-is-admin";
 import { entityLink, replaceParams } from "../shell/navigation";
 import { parseSearchType, searchCatalogOptions, searchTypes } from "./search-model";
 import type { SearchType } from "./search-model";
@@ -92,7 +93,8 @@ export function SearchPage({ params }: { params: URLSearchParams }) {
   const input = useRef<HTMLInputElement>(null);
   const text = (params.get("q") ?? "").slice(0, 200);
   const type = parseSearchType(params.get("type"));
-  const includePrivate = params.get("privacy") === "all";
+  const isAdmin = useIsAdmin();
+  const includePrivate = isAdmin && params.get("privacy") === "all";
   const [q, setQ] = useState(text.trim());
   const update = (key: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -123,7 +125,7 @@ export function SearchPage({ params }: { params: URLSearchParams }) {
   const entities = matchingEntities(facets.data, q, type);
   const entries = works.data?.pages.flatMap((page) => page.items) ?? [];
   const total =
-    (showWorks ? (works.data?.pages[0].total ?? 0) : 0) + (showEntities ? entities.length : 0);
+    (showWorks ? (works.data?.pages[0]?.total ?? 0) : 0) + (showEntities ? entities.length : 0);
   const waiting =
     text.trim() !== q || (showWorks && works.isLoading) || (showEntities && facets.isLoading);
   const error =
@@ -216,18 +218,20 @@ export function SearchPage({ params }: { params: URLSearchParams }) {
             </ToggleGroup>
           </div>
 
-          <Label
-            htmlFor="search-private"
-            className="inline-flex items-center gap-2 cursor-pointer select-none text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Checkbox
-              id="search-private"
-              checked={includePrivate}
-              onCheckedChange={(checked) => update("privacy", checked ? "all" : "")}
-              className="size-4 rounded"
-            />
-            <span>تضمين الأعمال الخاصة</span>
-          </Label>
+          {isAdmin && (
+            <Label
+              htmlFor="search-private"
+              className="inline-flex items-center gap-2 cursor-pointer select-none text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Checkbox
+                id="search-private"
+                checked={includePrivate}
+                onCheckedChange={(checked) => update("privacy", checked ? "all" : "")}
+                className="size-4 rounded"
+              />
+              <span>تضمين الأعمال الخاصة</span>
+            </Label>
+          )}
         </div>
       </div>
       {text.trim() && (
@@ -296,7 +300,7 @@ export function SearchPage({ params }: { params: URLSearchParams }) {
                   {type === "installments" ? "الأجزاء" : "الأعمال"}
                 </h2>
                 <span className="text-xs text-muted-foreground">
-                  {works.data?.pages[0].total} نتيجة
+                  {works.data?.pages[0]?.total} نتيجة
                 </span>
               </header>
               <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">

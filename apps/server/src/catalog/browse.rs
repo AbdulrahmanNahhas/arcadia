@@ -52,6 +52,7 @@ pub(super) struct Input {
     page_size: Option<i64>,
     q: Option<String>,
     sort: Option<String>,
+    group: Option<String>,
     view: Option<String>,
     privacy: Option<String>,
     filters: Option<String>,
@@ -79,6 +80,10 @@ impl Input {
             || !(1..=100).contains(&size)
             || !matches!(view, "works" | "installments")
             || !matches!(privacy, "public" | "all" | "private")
+            || !matches!(
+                self.group.as_deref().unwrap_or("none"),
+                "none" | "year" | "format" | "audience" | "status" | "watchState"
+            )
             || self.q.as_ref().is_some_and(|v| v.chars().count() > 200)
             || self.filters.as_ref().is_some_and(|v| v.len() > 8000)
             || self.year_from.is_some_and(|v| !(1..=9999).contains(&v))
@@ -93,6 +98,7 @@ impl Input {
             "year-asc" => "release_sort asc nulls last,sort_title,id,unit_id",
             "score-desc" => "rating desc nulls last,sort_title,id,unit_id",
             "updated-desc" => "updated_at desc,id,unit_id",
+            "latest-released-desc" => "latest_released_sort desc nulls last,sort_title,id,unit_id",
             "added-desc" => "created_at desc,id,unit_id",
             _ => return Err(invalid()),
         };
@@ -135,6 +141,9 @@ impl Input {
         Ok((page, size, view, privacy, order, filters))
     }
 }
+// A work remains eligible when it has released installments alongside upcoming ones.
+const RELEASED_INSTALLMENT: &str =
+    "(x.release_date<=current_date or (x.release_date is null and x.status='completed'))";
 fn facets() -> Vec<(&'static str, &'static str, String)> {
     let mut list=vec![
         ("kinds","النوع","array[case when i.id is null then case when exists(select 1 from installments x where x.title_id=t.id and x.kind='season') then t.format::text||'-series' else t.format::text||'-movie' end else t.format::text||case when i.kind='season' then '-series' else '-movie' end end]".into()),
@@ -154,6 +163,7 @@ fn facets() -> Vec<(&'static str, &'static str, String)> {
         ("watchStates","حالة المشاهدة","array[watch_state]".into()),
         ("favoriteStates","المفضلة","array[case when exists(select 1 from account_title_states ats join accounts a on a.id=ats.account_id where ats.title_id=t.id and a.auth_user_id=$1 and ats.is_favorite) then 'favorite' else 'other' end]".into()),
     ];
+    list.push(("releaseStates", "توفر إصدارات", format!("array[case when exists(select 1 from installments x where x.title_id=t.id and (i.id is null or x.id=i.id) and {RELEASED_INSTALLMENT}) then 'released' else 'unreleased' end]")));
     for (key, label, table) in [
         ("genres", "الأنواع الفنية", "genres"),
         ("tones", "الطابع", "tones"),
@@ -187,12 +197,13 @@ fn base() -> String {
         r#"select t.id,i.id unit_id,t.sort_title,t.updated_at,t.created_at,
 coalesce(i.release_date::text,t.release_year::text||'-01-01') release_sort,
 coalesce(extract(year from i.release_date)::integer,t.release_year) as catalog_year,
+(select max(coalesce(x.release_date::text,t.release_year::text||'-01-01')) from installments x where x.title_id=t.id and (i.id is null or x.id=i.id) and {RELEASED_INSTALLMENT}) latest_released_sort,
 coalesce(i.title,'') unit_title,t.canonical_title,t.title_ar,
 jsonb_build_object('work',({work}),'installment',case when i.id is null then null else jsonb_build_object(
 'id',i.id,'workId',t.id,'workTitle',t.canonical_title,'workTitleAr',t.title_ar,'title',i.title,'kind',i.kind,'releaseDate',i.release_date,'runtimeMinutes',i.runtime_minutes,
 'episodeCount',(select count(*) from episodes where installment_id=i.id),'poster',coalesce((select {art} from media_asset_assignments m join media_assets a on a.id=m.asset_id where m.installment_id=i.id and m.role='poster' order by m.is_primary desc,m.id limit 1),({work})->'poster'),'score',score_value) end,
 'classification',jsonb_build_object('audience',coalesce(i.audience_override,t.audience),'age',coalesce(i.age_override,t.age),'sexualityRisk',coalesce(i.sexuality_risk_override,t.sexuality_risk),'behavioralRisk',coalesce(i.behavioral_risk_override,t.behavioral_risk),'theologyRisk',coalesce(i.theology_risk_override,t.theology_risk)),
-'status',case when i.id is null then coalesce((select case when bool_or(x.status='airing') then 'airing' when bool_or(x.status='announced') then 'announced' when bool_and(x.status='completed') then 'completed' else 'unknown' end from installments x where x.title_id=t.id),'unknown') else i.status::text end,'watchState',watch_state,'criteria',jsonb_build_object({criteria})) entry,
+'watchProgress',jsonb_build_object('releasedUnits',tracking.total,'watchedReleasedUnits',tracking.played),'status',case when i.id is null then coalesce((select case when bool_or(x.status='airing') then 'airing' when bool_or(x.status='announced') then 'announced' when bool_and(x.status='completed') then 'completed' else 'unknown' end from installments x where x.title_id=t.id),'unknown') else i.status::text end,'watchState',watch_state,'criteria',jsonb_build_object({criteria})) entry,
 jsonb_build_object({facts}) facts,rating,jsonb_build_object({criteria}) criteria
 from titles t left join installments i on i.title_id=t.id and $2='installments'
 left join installment_scores s on s.installment_id=i.id
@@ -232,8 +243,14 @@ pub(super) async fn browse(
     Query(input): Query<Input>,
 ) -> ApiResult<Json<Value>> {
     let (page, size, view, privacy, order, filters) = input.validated()?;
+    let (group_key, group_rank) = grouping(input.group.as_deref().unwrap_or("none"));
+    let order = if input.group.as_deref().unwrap_or("none") == "none" {
+        order.to_owned()
+    } else {
+        format!("{group_rank} asc nulls last,{group_key},{order}")
+    };
     let query = format!(
-        "with base as ({base}), filtered as (select * from base where {condition}), page as (select entry,row_number() over(order by {order}) ord from filtered order by {order} limit $8 offset $9) select jsonb_build_object('items',coalesce((select jsonb_agg(entry order by ord) from page),'[]'::jsonb),'total',(select count(*) from filtered),'page',{page},'pageSize',{size})",
+        "with base as ({base}), filtered as (select * from base where {condition}), group_counts as (select {group_key} key,count(*) count,min({group_rank}) rank from filtered group by {group_key}), page as (select entry || jsonb_build_object('contributionRoles',coalesce((select jsonb_agg(jsonb_build_object('entityId',entity_id,'value',role_slug,'label',role_label) order by role_label,role_slug,entity_id) from (select distinct c.entity_id entity_id,r.slug role_slug,coalesce(nullif(r.label_ar,''),r.label_en,r.slug) role_label from contributions c join roles r on r.id=c.role_id where c.title_id=filtered.id) work_roles),'[]'::jsonb)) entry,row_number() over(order by {order}) ord from filtered order by {order} limit $8 offset $9) select jsonb_build_object('items',coalesce((select jsonb_agg(entry order by ord) from page),'[]'::jsonb),'total',(select count(*) from filtered),'groups',coalesce((select jsonb_agg(jsonb_build_object('key',key,'count',count) order by rank nulls last,key) from group_counts),'[]'::jsonb),'page',{page},'pageSize',{size})",
         base = base(),
         condition = condition()
     );
@@ -251,6 +268,28 @@ pub(super) async fn browse(
         .await?;
     Ok(Json(value.0))
 }
+fn grouping(group: &str) -> (&'static str, &'static str) {
+    match group {
+        "year" => ("coalesce(catalog_year::text,'unknown')", "-catalog_year"),
+        "format" => (
+            "entry#>>'{work,format}'",
+            "case entry#>>'{work,format}' when 'animated' then 0 when 'live-action' then 1 else 2 end",
+        ),
+        "audience" => (
+            "entry#>>'{classification,audience}'",
+            "case entry#>>'{classification,audience}' when 'adult' then 0 when 'young-adult' then 1 when 'teen' then 2 when 'general' then 3 else 4 end",
+        ),
+        "status" => (
+            "entry->>'status'",
+            "case entry->>'status' when 'airing' then 0 when 'announced' then 1 when 'completed' then 2 else 3 end",
+        ),
+        "watchState" => (
+            "entry->>'watchState'",
+            "case entry->>'watchState' when 'in-progress' then 0 when 'unwatched' then 1 when 'watched' then 2 else 3 end",
+        ),
+        _ => ("'all'::text", "0"),
+    }
+}
 fn entity_artwork() -> &'static str {
     // Organization images in the existing catalog may use profile instead of logo.
     "case when key in ('contributors','studios') then (select m.asset_id from media_asset_assignments m join media_assets a on a.id=m.asset_id where m.entity_id::text=value and m.role in ('profile','logo') and a.mime_type in ('image/png','image/jpeg','image/webp','image/gif') order by case when key='contributors' and m.role='profile' or key='studios' and m.role='logo' then 0 else 1 end,m.is_primary desc,m.id limit 1) else null end"
@@ -266,7 +305,7 @@ pub(super) async fn options(
     let labels = r#"case when key in('genres','tones','tags','countries') then coalesce((select coalesce(label_ar,label_en) from (select 'genres' vocab,slug,label_ar,label_en from genres union all select 'tones',slug,label_ar,label_en from tones union all select 'tags',slug,label_ar,label_en from tags union all select 'countries',slug,label_ar,label_en from countries) vocabulary where vocab=key and slug=value limit 1),value) when key in('contributors','studios') then coalesce((select name from entities where id::text=value),value) when key='planets' then coalesce((select icon||' '||name_ar from planets where slug=value),value) else value end"#;
     let artwork = entity_artwork();
     let query = format!(
-        "with base as ({base}), options as ({groups}), labelled as (select *,{labels} display from options), grouped as(select key,label,jsonb_agg(jsonb_build_object('value',value,'label',display,'count',count,'artworkId',({artwork})) order by count desc,value) options from labelled group by key,label) select jsonb_build_object('groups',coalesce((select jsonb_agg(jsonb_build_object('key',key,'label',label,'options',options) order by key) from grouped),'[]'::jsonb),'yearMin',(select min(catalog_year) from base),'yearMax',(select max(catalog_year) from base))",
+        "with base as ({base}), options as ({groups}), labelled as (select *,{labels} display from options), grouped as(select key,label,jsonb_agg(jsonb_build_object('value',value,'label',display,'count',count,'artworkId',({artwork})) || case when key in ('studios','contributors') then jsonb_build_object('roles',coalesce((select jsonb_agg(jsonb_build_object('value',role_slug,'label',role_label) order by role_label,role_slug) from (select distinct r.slug role_slug,coalesce(r.label_ar,r.label_en,r.slug) role_label from contributions c join roles r on r.id=c.role_id where c.entity_id::text=labelled.value and exists(select 1 from base b where b.id=c.title_id)) entity_roles),'[]'::jsonb)) else '{{}}'::jsonb end order by count desc,value) options from labelled group by key,label) select jsonb_build_object('groups',coalesce((select jsonb_agg(jsonb_build_object('key',key,'label',label,'options',options) order by key) from grouped),'[]'::jsonb),'yearMin',(select min(catalog_year) from base),'yearMax',(select max(catalog_year) from base))",
         base = base()
     );
     let value = sqlx::query_scalar::<_, SqlJson<Value>>(AssertSqlSafe(query))

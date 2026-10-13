@@ -1,7 +1,4 @@
 import {
-  Grid2X2,
-  Grid3X3,
-  LayoutGrid,
   List,
   RectangleHorizontal,
   RectangleVertical,
@@ -54,9 +51,14 @@ const layouts = [
   { value: "table", label: "جدول", icon: List },
 ] as const;
 const sizes = [
-  { value: "compact", label: "بطاقات صغيرة", icon: Grid3X3 },
-  { value: "normal", label: "بطاقات متوسطة", icon: LayoutGrid },
-  { value: "comfortable", label: "بطاقات كبيرة", icon: Grid2X2 },
+  { value: "comfortable", label: "5 بطاقات في الصف", columns: 5 },
+  { value: "normal", label: "6 بطاقات في الصف", columns: 6 },
+  { value: "compact", label: "7 بطاقات في الصف", columns: 7 },
+] as const;
+const bannerSizes = [
+  { value: "compact", label: "5 بطاقات في الصف", columns: 5 },
+  { value: "normal", label: "4 بطاقات في الصف", columns: 4 },
+  { value: "comfortable", label: "3 بطاقات في الصف", columns: 3 },
 ] as const;
 
 export function DisplaySettings({
@@ -67,12 +69,13 @@ export function DisplaySettings({
   onChange: (value: DisplayPreferences) => void;
 }) {
   const table = value.layout === "table";
+  const sizeChoices = value.layout === "banner" ? bannerSizes : sizes;
   return (
     <TooltipProvider delay={350}>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
         <ToggleGroup
           variant="outline"
-          spacing={1}
+          spacing={0}
           value={[value.layout]}
           aria-label="طريقة العرض"
           onValueChange={(values) => {
@@ -91,80 +94,84 @@ export function DisplaySettings({
             </Tooltip>
           ))}
         </ToggleGroup>
-        <Separator orientation="vertical" className="h-6 max-[520px]:hidden" />
         <ToggleGroup
           variant="outline"
-          spacing={1}
+          spacing={0}
           value={[value.size]}
           disabled={table}
           aria-label="حجم البطاقات"
           onValueChange={(values) => {
-            const next = sizes.find((item) => item.value === values[0]);
+            const next = sizeChoices.find((item) => item.value === values[0]);
             if (next) onChange({ ...value, size: next.value });
           }}
         >
-          {sizes.map((item) => (
+          {sizeChoices.map((item) => (
             <Tooltip key={item.value}>
               <TooltipTrigger
                 render={<ToggleGroupItem value={item.value} aria-label={item.label} />}
               >
-                <item.icon aria-hidden="true" />
+                {item.columns}
               </TooltipTrigger>
               <TooltipContent>{item.label}</TooltipContent>
             </Tooltip>
           ))}
         </ToggleGroup>
         <Popover>
-          <PopoverTrigger
-            render={
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="إعدادات العرض"
-                title="إعدادات العرض"
-              />
-            }
-          >
-            <Settings2 aria-hidden="true" />
+          <PopoverTrigger render={<Button variant="outline" size="sm" aria-label="تخصيص العرض" />}>
+            <Settings2 data-icon="inline-start" aria-hidden="true" />
+            تخصيص
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 max-w-full">
+          <PopoverContent align="end" className="w-72 max-w-full gap-3">
             <PopoverHeader>
-              <PopoverTitle>إعدادات العرض</PopoverTitle>
-              <PopoverDescription>خصص البطاقات في هذه الصفحة.</PopoverDescription>
+              <PopoverTitle>تفاصيل البطاقات</PopoverTitle>
+              <PopoverDescription>
+                {table
+                  ? "اختر عرض البطاقات لتخصيص تفاصيلها."
+                  : value.minimal
+                    ? "أوقف الصور فقط لإظهار التفاصيل."
+                    : "اختر التفاصيل التي تظهر على البطاقة."}
+              </PopoverDescription>
             </PopoverHeader>
-            <FieldGroup>
+            <FieldGroup className="gap-3">
               {(
                 [
-                  { key: "minimal", label: "الصور فقط، بلا تفاصيل", disabled: table },
-                  { key: "showScore", label: "إظهار التقييم", disabled: table || value.minimal },
+                  { key: "minimal", label: "صور فقط", disabled: table },
+                  { key: "showScore", label: "التقييم المحسوب", disabled: table || value.minimal },
                   {
                     key: "showStatus",
-                    label: "إظهار حالة الإصدار",
+                    label: "حالة الإصدار",
                     disabled: table || value.minimal,
                   },
                   {
                     key: "borderless",
-                    label: "شعارات بلا إطار أو خلفية",
+                    label: "الشعار دون إطار أو خلفية",
                     disabled: value.layout !== "logo",
                   },
                 ] as const
-              ).map((item) => (
-                <Field key={item.key} orientation="horizontal" data-disabled={item.disabled}>
-                  <Checkbox
-                    id={`display-${item.key}`}
-                    checked={value[item.key]}
-                    disabled={item.disabled}
-                    onCheckedChange={(checked) =>
-                      onChange({ ...value, [item.key]: checked === true })
-                    }
-                  />
-                  <FieldLabel htmlFor={`display-${item.key}`}>{item.label}</FieldLabel>
-                </Field>
-              ))}
+              )
+                .filter((item) => item.key !== "borderless" || value.layout === "logo")
+                .map((item) => (
+                  <Field key={item.key} orientation="horizontal" data-disabled={item.disabled}>
+                    <Checkbox
+                      id={`display-${item.key}`}
+                      checked={value[item.key]}
+                      disabled={item.disabled}
+                      onCheckedChange={(checked) =>
+                        onChange({ ...value, [item.key]: checked === true })
+                      }
+                    />
+                    <FieldLabel htmlFor={`display-${item.key}`}>{item.label}</FieldLabel>
+                  </Field>
+                ))}
             </FieldGroup>
             <Separator />
-            <Button variant="ghost" onClick={() => onChange(displayDefaults)}>
-              <RotateCcw data-icon="inline-start" /> استعادة العرض الافتراضي
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => onChange(displayDefaults)}
+            >
+              <RotateCcw data-icon="inline-start" /> استعادة الافتراضي
             </Button>
           </PopoverContent>
         </Popover>

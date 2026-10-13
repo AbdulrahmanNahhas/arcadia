@@ -1,55 +1,38 @@
 import type { User } from "@nahhasio/api-contract";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Outlet, useRouterState } from "@tanstack/react-router";
 import { cn } from "cn";
-import {
-  Compass,
-  Home,
-  Search,
-  LogOut,
-  Library,
-  Orbit,
-  Users,
-  Building2,
-  CalendarDays,
-  MonitorPlay,
-} from "lucide-react";
+import { Compass, Home, Search, Library, Ellipsis, CalendarDays, MonitorPlay } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
 import { CardNavigationProvider } from "../../components/card-navigation";
-import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "../../components/ui/dialog";
-import { gateway } from "../../lib/bridge";
-import { CacheControl } from "../player/cache-control";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../../components/ui/tooltip";
+import { AccountMenu } from "../account/account-menu";
+import { AdminNavigation } from "../admin/admin-navigation";
 import { DownloadQueueButton } from "../player/download-queue-button";
 import { openSearch, useViewerRoute } from "./navigation";
 const navigationItemClass =
-  "relative flex min-h-15 w-full shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg px-0.5 py-2 text-center text-[10px] leading-normal text-muted-foreground hover:bg-card hover:text-foreground aria-[current=page]:bg-secondary aria-[current=page]:text-primary aria-[current=page]:before:absolute aria-[current=page]:before:start-0 aria-[current=page]:before:inset-y-5 aria-[current=page]:before:w-0.75 aria-[current=page]:before:rounded-lg aria-[current=page]:before:bg-primary aria-[current=page]:before:content-[''] focus-visible:-outline-offset-2 max-[520px]:text-[9px]";
+  "relative flex size-12 shrink-0 items-center justify-center rounded-xl text-muted-foreground outline-none hover:bg-card hover:text-foreground aria-[current=page]:bg-secondary aria-[current=page]:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 const scrollPositions = new Map<string, number>();
 export function ViewerShell({ user }: { user: User }) {
   const route = useViewerRoute();
 
   const [account, setAccount] = useState(false);
+  const accountOpen = useRef(false);
+  const changeAccountOpen = (open: boolean) => {
+    accountOpen.current = open;
+    setAccount(open);
+  };
   const resolvedPath = useRouterState({
     select: (state) => state.resolvedLocation?.pathname ?? state.location.pathname,
   });
   const main = useRef<HTMLElement>(null);
   const previous = useRef(route.path);
-  const client = useQueryClient();
-  const logout = useMutation({
-    mutationFn: gateway.logout,
-    onSettled: () => {
-      client.removeQueries({ predicate: (query) => query.queryKey[0] !== "session" });
-      client.setQueryData(["session"], null);
-    },
-  });
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if (
@@ -59,14 +42,14 @@ export function ViewerShell({ user }: { user: User }) {
         (event.code === "KeyK" || event.key.toLowerCase() === "k")
       ) {
         event.preventDefault();
-        if (!event.repeat && !account) {
+        if (!event.repeat && !accountOpen.current) {
           openSearch(true);
         }
       }
     };
     window.addEventListener("keydown", shortcut);
     return () => window.removeEventListener("keydown", shortcut);
-  }, [account]);
+  }, []);
   useEffect(() => {
     let enterPath: string | undefined;
     const press = (event: KeyboardEvent) => {
@@ -98,165 +81,156 @@ export function ViewerShell({ user }: { user: User }) {
     previous.current = resolvedPath;
   }, [resolvedPath]);
   const parts = route.path.split("/").slice(1);
+  const adminArea = parts[0] === "admin" && user.isAdmin;
   const home = parts[0] === "home" || !parts[0];
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
-      <nav
-        className={cn(
-          "flex w-24 shrink-0 flex-col items-center gap-4 border-e border-border bg-primary-foreground px-2 pt-5 pb-4 max-[800px]:w-20 max-[800px]:px-1.5 max-[520px]:w-18 max-[520px]:gap-3 max-[520px]:px-1 max-[520px]:pt-4 max-[520px]:pb-3",
-          parts[0] === "titles" && "rounded-3xl border w-22 my-2 mr-1",
-        )}
-        aria-label="التنقل الرئيسي"
-        onKeyDown={(event) => {
-          if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    <TooltipProvider delay={250}>
+      <div className="flex h-dvh overflow-hidden bg-background">
+        <nav
+          className={cn(
+            "flex w-20 shrink-0 flex-col items-center gap-6 border-e border-border bg-sidebar px-2 pt-5 pb-4 max-[520px]:w-16 max-[520px]:gap-4 max-[520px]:px-1",
+            adminArea && "w-56 gap-5 pt-4 pb-3 max-[800px]:w-20",
+          )}
+          aria-label={adminArea ? "التنقل الإداري" : "التنقل الرئيسي"}
+          onKeyDown={(event) => {
+            if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 
-          if (event.key === "ArrowLeft") {
-            event.preventDefault();
-            window.dispatchEvent(new Event("nahhasio:focus-content"));
-          }
-        }}
-      >
-        <a
-          href="#/home"
-          className="flex shrink-0 flex-col items-center gap-1.5 text-xs font-semibold text-primary"
-          aria-label="نحّاسيو الرئيسية"
-          title="نحّاسيو"
+            if (event.key === "ArrowLeft") {
+              event.preventDefault();
+              window.dispatchEvent(new Event("nahhasio:focus-content"));
+            }
+          }}
         >
-          <Library className="size-8" aria-hidden="true" />
-          <span>نحّاسيو</span>
-        </a>
+          {adminArea ? (
+            <a
+              href="#/home"
+              className="flex w-full shrink-0 items-center gap-2 px-2 text-xs font-semibold text-primary max-[800px]:justify-center max-[800px]:gap-1 max-[800px]:px-0"
+              aria-label="نحّاسيو الرئيسية"
+            >
+              <Library className="size-4 shrink-0" aria-hidden="true" />
+              <span>نحّاسيو</span>
+            </a>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <a
+                    href="#/home"
+                    className="flex size-12 shrink-0 items-center justify-center rounded-xl text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="نحّاسيو الرئيسية"
+                  />
+                }
+              >
+                <Library className="size-7" aria-hidden="true" />
+              </TooltipTrigger>
+              <TooltipContent side="left">نحّاسيو</TooltipContent>
+            </Tooltip>
+          )}
 
-        <div className="flex min-h-0 w-full flex-col items-center gap-2 overflow-y-auto p-1 [scrollbar-color:var(--line)_transparent] scrollbar-thin max-[520px]:gap-1">
-          {[
-            { href: "#/home", label: "الرئيسية", icon: Home, active: home },
-            { href: "#/search", label: "البحث", icon: Search, active: parts[0] === "search" },
-            {
-              href: "#/browse",
-              label: "تصفّح المكتبة",
-              icon: Compass,
-              active: parts[0] === "browse",
-            },
-            {
-              href: "#/releases",
-              label: "الإصدارات",
-              icon: CalendarDays,
-              active: parts[0] === "releases",
-            },
-            {
-              href: "#/watch",
-              label: "مشاهدة مباشرة",
-              icon: MonitorPlay,
-              active: parts[0] === "watch",
-            },
-            { href: "#/planets", label: "الكواكب", icon: Orbit, active: parts[0] === "planets" },
-            { href: "#/people", label: "الصنّاع", icon: Users, active: parts[0] === "people" },
-            {
-              href: "#/studios",
-              label: "الاستوديوهات",
-              icon: Building2,
-              active: parts[0] === "studios",
-            },
-          ].map((item) =>
-            item.href === "#/search" ? (
+          {adminArea ? (
+            <AdminNavigation />
+          ) : (
+            <div className="flex min-h-0 w-full flex-col items-center gap-2 overflow-y-auto py-1 scrollbar-thin">
+              {[
+                { href: "#/home", label: "الرئيسية", icon: Home, active: home },
+                { href: "#/search", label: "البحث", icon: Search, active: parts[0] === "search" },
+                {
+                  href: "#/browse",
+                  label: "تصفّح المكتبة",
+                  icon: Compass,
+                  active: parts[0] === "browse",
+                },
+                {
+                  href: "#/watch",
+                  label: "مشاهدة مباشرة",
+                  icon: MonitorPlay,
+                  active: parts[0] === "watch",
+                },
+                {
+                  href: "#/releases",
+                  label: "التقويم",
+                  icon: CalendarDays,
+                  active: parts[0] === "releases",
+                },
+                {
+                  href: "#/more",
+                  label: "المزيد",
+                  icon: Ellipsis,
+                  active: ["more", "planets", "people", "studios", "profile", "downloads"].includes(
+                    parts[0],
+                  ),
+                },
+              ].map((item) => (
+                <Tooltip key={item.href}>
+                  <TooltipTrigger
+                    render={
+                      item.href === "#/search" ? (
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          onClick={() => openSearch()}
+                          className={navigationItemClass}
+                          aria-current={item.active ? "page" : undefined}
+                          aria-label={item.label}
+                          aria-keyshortcuts="Control+k Meta+k"
+                        />
+                      ) : (
+                        <a
+                          href={item.href}
+                          className={navigationItemClass}
+                          aria-current={item.active ? "page" : undefined}
+                          aria-label={item.label}
+                        />
+                      )
+                    }
+                  >
+                    <item.icon className="size-6 stroke-[1.65]" aria-hidden="true" />
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    {item.href === "#/search" ? "البحث (Ctrl+K)" : item.label}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          )}
+          {!adminArea && (
+            <div className="mt-auto flex w-full shrink-0 flex-col items-center gap-2">
+              <DownloadQueueButton />
+              <AccountMenu user={user} open={account} onOpenChange={changeAccountOpen} />
+            </div>
+          )}
+        </nav>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <CardNavigationProvider key={route.path}>
+            <main
+              ref={main}
+              tabIndex={-1}
+              className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-p-4 [scrollbar-color:var(--line)_transparent] scrollbar-thin motion-reduce:scroll-auto **:data-card-navigation:scroll-m-2"
+              id="main-content"
+            >
               <Button
                 variant="ghost"
-                key={item.href}
                 type="button"
-                onClick={() => openSearch()}
-                className={navigationItemClass}
-                aria-current={item.active ? "page" : undefined}
-                aria-label="البحث"
-                aria-keyshortcuts="Control+k Meta+k"
-                title="البحث (Ctrl+K)"
+                className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-20 focus:rounded-lg focus:bg-primary focus:px-5 focus:py-3 focus:text-primary-foreground"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new Event(
+                      parts[0] === "search" ? "nahhasio:focus-search" : "nahhasio:focus-content",
+                    ),
+                  )
+                }
               >
-                <Search className="size-6 stroke-[1.65]" aria-hidden="true" />
-                <span>البحث</span>
+                {home
+                  ? "الانتقال إلى العرض الرئيسي"
+                  : parts[0] === "search"
+                    ? "الانتقال إلى البحث"
+                    : "الانتقال إلى المحتوى"}
               </Button>
-            ) : (
-              <a
-                key={item.href}
-                href={item.href}
-                className={navigationItemClass}
-                aria-current={item.active ? "page" : undefined}
-                aria-label={item.label}
-                title={item.label}
-              >
-                <item.icon className="size-6 stroke-[1.65]" aria-hidden="true" />
-                <span>{item.label}</span>
-              </a>
-            ),
-          )}
+              <Outlet />
+            </main>
+          </CardNavigationProvider>
         </div>
-        <div className="mt-auto flex w-full shrink-0 flex-col items-center gap-1.5 mb-2 text-lg text-muted-foreground">
-          <DownloadQueueButton />
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            aria-label="الملف والحساب"
-            aria-haspopup="dialog"
-            aria-expanded={account}
-            title={user.name}
-            onClick={() => setAccount(true)}
-          >
-            <Avatar className={"size-14 rounded-lg!"}>
-              <AvatarFallback className={" text-lg rounded-lg border-0!"}>
-                {user.name.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-          </Button>
-        </div>
-      </nav>
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <CardNavigationProvider key={route.path}>
-          <main
-            ref={main}
-            tabIndex={-1}
-            className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-p-4 [scrollbar-color:var(--line)_transparent] scrollbar-thin motion-reduce:scroll-auto **:data-card-navigation:scroll-m-2"
-            id="main-content"
-          >
-            <Button
-              variant="ghost"
-              type="button"
-              className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-20 focus:rounded-lg focus:bg-primary focus:px-5 focus:py-3 focus:text-primary-foreground"
-              onClick={() =>
-                window.dispatchEvent(
-                  new Event(
-                    parts[0] === "search" ? "nahhasio:focus-search" : "nahhasio:focus-content",
-                  ),
-                )
-              }
-            >
-              {home
-                ? "الانتقال إلى العرض الرئيسي"
-                : parts[0] === "search"
-                  ? "الانتقال إلى البحث"
-                  : "الانتقال إلى المحتوى"}
-            </Button>
-            <Outlet />
-          </main>
-        </CardNavigationProvider>
       </div>
-
-      <Dialog open={account} onOpenChange={setAccount}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{user.name}</DialogTitle>
-            <DialogDescription>{user.email}</DialogDescription>
-          </DialogHeader>
-          <p>مكتبة العائلة على هذا الخادم.</p>
-          <CacheControl />
-          {logout.error && <p role="alert">{logout.error.message}</p>}
-          <Button
-            variant="outline"
-            aria-label="تسجيل الخروج"
-            disabled={logout.isPending}
-            onClick={() => logout.mutate()}
-          >
-            <LogOut data-icon="inline-start" />
-            تسجيل الخروج
-          </Button>
-        </DialogContent>
-      </Dialog>
-    </div>
+    </TooltipProvider>
   );
 }

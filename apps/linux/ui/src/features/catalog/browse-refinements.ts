@@ -4,6 +4,11 @@ import type { CatalogQuery } from "../../lib/bridge";
 import { criteria, emptyFilters, filterCount, optionLabel } from "./filter-model";
 
 export const sortChoices = [
+  {
+    value: "latest-released-desc",
+    label: "أحدث إصدار متاح",
+    description: "حسب أحدث موسم أو إصدار صدر لكل عمل",
+  },
   { value: "year-desc", label: "الأحدث إصدارًا", description: "الإصدارات الأحدث أولًا" },
   { value: "year-asc", label: "الأقدم إصدارًا", description: "من البداية إلى اليوم" },
   { value: "score-desc", label: "الأعلى تقييمًا", description: "حسب تقييم المكتبة المحسوب" },
@@ -17,6 +22,7 @@ export const groupChoices = [
   { value: "format", label: "الصيغة" },
   { value: "audience", label: "الجمهور" },
   { value: "status", label: "حالة الإصدار" },
+  { value: "watchState", label: "حالة المشاهدة" },
 ] as const;
 export type SortOrder = (typeof sortChoices)[number]["value"];
 export type BrowseGroup = (typeof groupChoices)[number]["value"];
@@ -90,6 +96,7 @@ export function refinementQuery(
     q: q || undefined,
     privacy: value.privacy,
     sort: value.sort,
+    group: value.group === "none" ? undefined : value.group,
     filters: JSON.stringify(value.filters),
     yearFrom: value.from ? Number(value.from) : undefined,
     yearTo: value.to ? Number(value.to) : undefined,
@@ -111,18 +118,23 @@ export function removeFacet(filters: BrowseFilters, key: string, value: string) 
       .filter((facet) => facet.include.length || facet.exclude.length),
   };
 }
-export function groupLabel(value: BrowseGroup, item: CatalogEntry) {
+export function groupKey(value: BrowseGroup, item: CatalogEntry) {
   if (value === "year")
-    return String(
-      item.installment
-        ? (item.installment.releaseDate?.slice(0, 4) ?? "غير معروف")
-        : (item.work.releaseYear ?? "غير معروف"),
-    );
-  if (value === "format") return item.work.format === "animated" ? "رسوم متحركة" : "تمثيل حي";
-  if (value === "audience")
-    return optionLabel(item.classification.audience, item.classification.audience);
-  if (value === "status") return optionLabel(item.status, "غير معروف");
+    return String(item.installment?.releaseDate?.slice(0, 4) ?? item.work.releaseYear ?? "unknown");
+  if (value === "format") return item.work.format;
+  if (value === "audience") return item.classification.audience;
+  if (value === "status") return item.status;
+  if (value === "watchState") return item.watchState;
   return "all";
+}
+
+export function groupTitle(group: BrowseGroup, key: string) {
+  if (group === "format") return key === "animated" ? "رسوم متحركة" : "تمثيل حي";
+  return optionLabel(key, key === "unknown" ? "غير معروف" : key);
+}
+
+export function groupLabel(value: BrowseGroup, item: CatalogEntry) {
+  return groupTitle(value, groupKey(value, item));
 }
 
 export function scoreLabel(key: string) {

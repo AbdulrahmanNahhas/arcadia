@@ -11,17 +11,32 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { DownloadQueue } from "./download-queue";
 
 export function DownloadQueueButton() {
   return (
     <Dialog>
-      <DialogTrigger
-        render={<Button variant="ghost" size="icon-lg" aria-label="التنزيلات" title="التنزيلات" />}
-      >
-        <Download data-icon="inline-start" />
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <DialogTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-lg"
+                  className="size-12 rounded-xl text-muted-foreground outline-none hover:bg-card hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  aria-label="التنزيلات"
+                />
+              }
+            />
+          }
+        >
+          <Download className="size-6 stroke-[1.65]" data-icon="inline-start" aria-hidden="true" />
+        </TooltipTrigger>
+        <TooltipContent side="left">التنزيلات على هذا الجهاز</TooltipContent>
+      </Tooltip>
       <DialogContent
         className="flex max-h-5/6 w-11/12 flex-col sm:max-w-2xl"
         showCloseButton={false}

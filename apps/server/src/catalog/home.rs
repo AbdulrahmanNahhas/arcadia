@@ -1,11 +1,15 @@
 //! Bounded, read-only home feeds. The enclosing catalog router requires owner authentication.
 use super::{ApiResult, queries};
-use axum::{Json, extract::State};
+use crate::auth::User;
+use axum::{Extension, Json, extract::State};
 use serde_json::{Value, json};
 use sqlx::{AssertSqlSafe, PgPool, types::Json as SqlJson};
 
-pub(super) async fn feed(State(pool): State<PgPool>) -> ApiResult<Json<Value>> {
-    // Keep the two feeds in one read-only snapshot and retain the existing discoverability rule.
+pub(super) async fn feed(
+    State(pool): State<PgPool>,
+    Extension(user): Extension<User>,
+) -> ApiResult<Json<Value>> {
+    // Keep the feeds in one read-only snapshot and retain the existing discoverability rule.
     let mut transaction = pool.begin().await?;
     sqlx::query("set transaction isolation level repeatable read read only")
         .execute(&mut *transaction)
@@ -47,6 +51,67 @@ order by i.release_date asc nulls last,t.sort_title,i.position,i.id limit 10) en
         .fetch_one(&mut *transaction)
         .await?
         .0;
+    let viewing_item = viewing_item(false);
+    let recent_sql = format!(
+        r#"select coalesce(jsonb_agg(item order by release_date desc nulls last,created_at desc,id),'[]'::jsonb) from (
+select e.id,e.release_date,e.created_at,{viewing_item} item from episodes e
+join installments i on i.id=e.installment_id join titles t on t.id=i.title_id
+left join account_playback_states ps on ps.account_id=(select id from accounts where auth_user_id=$1 and status='active') and ps.installment_id=i.id and ps.episode_id=e.id
+where not t.is_private and e.release_date<=current_date
+order by e.release_date desc nulls last,e.created_at desc,e.id limit 12) episodes"#
+    );
+    let recent = sqlx::query_scalar::<_, SqlJson<Value>>(AssertSqlSafe(recent_sql))
+        .bind(&user.id)
+        .fetch_one(&mut *transaction)
+        .await?
+        .0;
+    let resume_sql = format!(
+        r#"select coalesce(jsonb_agg(item order by updated_at desc,id),'[]'::jsonb) from (
+select ps.id,ps.updated_at,{viewing_item} item from account_playback_states ps
+join accounts account on account.id=ps.account_id join installments i on i.id=ps.installment_id
+join titles t on t.id=i.title_id left join episodes e on e.id=ps.episode_id and e.installment_id=i.id
+where account.auth_user_id=$1 and account.status='active' and not t.is_private and not ps.is_played and ps.position_seconds>0
+and ((e.id is not null and (e.release_date<=current_date or (e.release_date is null and i.status='completed')))
+or (ps.episode_id is null and i.kind in ('movie','special') and (i.release_date<=current_date or (i.release_date is null and i.status='completed'))))
+order by ps.updated_at desc,ps.id limit 12) resumed"#
+    );
+    let resume = sqlx::query_scalar::<_, SqlJson<Value>>(AssertSqlSafe(resume_sql))
+        .bind(&user.id)
+        .fetch_one(&mut *transaction)
+        .await?
+        .0;
+    let featured_sql = format!(
+        r#"select coalesce(jsonb_agg(item order by release_date desc nulls last,sort_title,id),'[]'::jsonb) from (
+select t.id,t.sort_title,coalesce((select max(x.release_date) from installments x where x.title_id=t.id),make_date(t.release_year,1,1)) release_date,({summary}) item
+from titles t where not t.is_private and exists(select 1 from media_asset_assignments m join media_assets a on a.id=m.asset_id where m.title_id=t.id and m.role='banner')
+order by release_date desc nulls last,t.sort_title,t.id limit 10) featured"#,
+        summary = queries::summary()
+    );
+    let featured = sqlx::query_scalar::<_, SqlJson<Value>>(AssertSqlSafe(featured_sql))
+        .fetch_one(&mut *transaction)
+        .await?
+        .0;
     transaction.commit().await?;
-    Ok(Json(json!({"comments":comments,"upcoming":upcoming})))
+    Ok(Json(
+        json!({"comments":comments,"upcoming":upcoming,"recentEpisodes":recent,"resume":resume,"featured":featured}),
+    ))
+}
+
+pub(super) fn viewing_item(poster_installments: bool) -> String {
+    let installment_role = if poster_installments {
+        "case when e.id is null then 'poster' else 'banner' end"
+    } else {
+        "'banner'"
+    };
+    format!(
+        r#"jsonb_build_object('work',({summary}),'installmentId',i.id,'installmentTitle',i.title,
+'episodeId',e.id,'episodeNumber',e.number::text,'episodeTitle',e.title,
+'releaseDate',case when e.id is null then i.release_date else e.release_date end,'positionSeconds',coalesce(ps.position_seconds,0),
+'durationSeconds',ps.duration_seconds,'isPlayed',coalesce(ps.is_played,false),
+'artwork',coalesce((select {artwork} from media_asset_assignments m join media_assets a on a.id=m.asset_id
+where (m.episode_id=e.id and m.role='banner') or (m.installment_id=i.id and m.role=({installment_role})::media_asset_role)
+order by case when m.episode_id=e.id then 0 else 1 end,m.is_primary desc,m.id limit 1),nullif(({summary})->({installment_role}),'null'::jsonb),nullif(({summary})->'poster','null'::jsonb)))"#,
+        summary = queries::summary(),
+        artwork = queries::ARTWORK,
+    )
 }

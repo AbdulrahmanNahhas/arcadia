@@ -23,11 +23,18 @@ struct Login {
     password: String,
 }
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct User {
     id: String,
     name: String,
     email: String,
     role: String,
+    account_id: String,
+    kind: String,
+    avatar_key: String,
+    bio: String,
+    is_admin: bool,
+    updated_at: String,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -116,6 +123,8 @@ struct CatalogQuery {
     #[serde(skip_serializing_if = "Option::is_none")]
     sort: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    group: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     view: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     privacy: Option<String>,
@@ -125,6 +134,21 @@ struct CatalogQuery {
     year_from: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     year_to: Option<u32>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct EpisodesQuery {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page_size: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    watch_state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    include_private: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    q: Option<String>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -267,12 +291,14 @@ impl Services {
                     400 | 422 => "bad_request",
                     403 => "forbidden",
                     404 => "not_found",
+                    409 => "conflict",
                     _ => "server",
                 },
                 match response.status().as_u16() {
                     400 | 422 => "The request or watched target is invalid.",
                     403 => "Your account cannot perform this operation.",
                     404 => "The work or selected target is no longer available.",
+                    409 => "تغيّرت البيانات. أعد تحميل الصفحة قبل الحفظ.",
                     429 => "Too many attempts. Try again shortly.",
                     _ => "The server could not complete this request.",
                 },
@@ -392,6 +418,74 @@ impl Services {
                 }
                 self.json(response).await
             }
+            "profile" | "adminAccess" => {
+                let path = if request.command == "profile" {
+                    "api/v1/me"
+                } else {
+                    "api/v1/admin/access"
+                };
+                let response = self
+                    .authorized(Method::GET, path)
+                    .await?
+                    .send()
+                    .await
+                    .map_err(network)?;
+                self.json(response).await
+            }
+            "updateProfile" | "updatePassword" => {
+                let (method, path) = if request.command == "updateProfile" {
+                    (Method::PATCH, "api/v1/me")
+                } else {
+                    (Method::POST, "api/v1/me/password")
+                };
+                // Fixed destinations only. Rust/server validate fields; no role or URL commands.
+                if !request.payload.is_object() {
+                    return Err(Error::new("bad_request", "Invalid account request"));
+                }
+                let response = self
+                    .authorized(method, path)
+                    .await?
+                    .json(&request.payload)
+                    .send()
+                    .await
+                    .map_err(network)?;
+                self.json(response).await
+            }
+            "avatar" => {
+                #[derive(Deserialize)]
+                #[serde(deny_unknown_fields)]
+                struct Avatar {
+                    key: String,
+                }
+                let input: Avatar = parse(request.payload)?;
+                if !matches!(
+                    input.key.as_str(),
+                    "nahhasio-library.svg" | "nahhasio-orbit.svg"
+                ) {
+                    return Err(Error::new("bad_request", "Invalid avatar"));
+                }
+                let response = self
+                    .authorized(Method::GET, &format!("api/v1/auth/avatars/{}", input.key))
+                    .await?
+                    .send()
+                    .await
+                    .map_err(network)?;
+                if !response.status().is_success() {
+                    return self.json(response).await;
+                }
+                if response
+                    .headers()
+                    .get("content-type")
+                    .and_then(|v| v.to_str().ok())
+                    != Some("image/svg+xml")
+                {
+                    return Err(Error::new("response", "Invalid avatar response"));
+                }
+                let bytes = self.body(response, 16384).await?;
+                Ok(
+                    json!({"dataUrl":format!("data:image/svg+xml;base64,{}",STANDARD.encode(bytes))}),
+                )
+            }
             "workState" => {
                 let input: Resource = parse(request.payload)?;
                 if !valid_id(&input.id) {
@@ -481,6 +575,12 @@ impl Services {
                     || input.page.is_some_and(|n| n == 0 || n > 100_000)
                     || input.q.as_ref().is_some_and(|v| v.chars().count() > 200)
                     || input.filters.as_ref().is_some_and(|v| v.len() > 8000)
+                    || input.group.as_deref().is_some_and(|v| {
+                        !matches!(
+                            v,
+                            "none" | "year" | "format" | "audience" | "status" | "watchState"
+                        )
+                    })
                 {
                     return Err(Error::new("bad_request", "Invalid catalog query"));
                 }
@@ -499,6 +599,27 @@ impl Services {
                 self.json(response).await
             }
 
+            "episodes" => {
+                let input: EpisodesQuery = parse(request.payload)?;
+                if input.page.is_some_and(|n| !(1..=100_000).contains(&n))
+                    || input.page_size.is_some_and(|n| !(1..=100).contains(&n))
+                    || input
+                        .watch_state
+                        .as_deref()
+                        .is_some_and(|v| !matches!(v, "all" | "watched" | "unwatched"))
+                    || input.q.as_ref().is_some_and(|q| q.chars().count() > 200)
+                {
+                    return Err(Error::new("bad_request", "Invalid episode pagination"));
+                }
+                let response = self
+                    .authorized(Method::GET, "api/v1/catalog/episodes")
+                    .await?
+                    .query(&input)
+                    .send()
+                    .await
+                    .map_err(network)?;
+                self.json(response).await
+            }
             "filters" | "home" => {
                 let response = self
                     .authorized(
@@ -928,7 +1049,7 @@ mod tests {
             for (status, body) in [
                 (
                     "200 OK",
-                    r#"{"token":"fixture-only-token","user":{"id":"owner","name":"Test","email":"test@example.invalid","role":"owner"},"expiresAt":"2030-01-01T00:00:00Z"}"#,
+                    r#"{"token":"fixture-only-token","user":{"id":"owner","name":"Test","email":"test@example.invalid","role":"owner","accountId":"00000000-0000-4000-8000-000000000001","kind":"admin","avatarKey":"nahhasio-library.svg","bio":"","isAdmin":true,"updatedAt":"2026-10-12T00:00:00.000000Z"},"expiresAt":"2030-01-01T00:00:00Z"}"#,
                 ),
                 ("401 Unauthorized", r#"{"message":"expired"}"#),
             ] {

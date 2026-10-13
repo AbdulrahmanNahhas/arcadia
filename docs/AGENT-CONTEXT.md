@@ -1,13 +1,13 @@
 # Nahhasio workspace map
 
-Updated 2026-10-12. Read [phases.md](phases.md) for current authorization and review boundaries.
+Updated 2026-10-13. Read [phases.md](phases.md) for current authorization and review boundaries.
 The repository remains Arcadia; the product and active Rust/client packages are Nahhasio.
 
 ## Responsibilities
 
 | Path                               | Owner                                                                                    |
 | ---------------------------------- | ---------------------------------------------------------------------------------------- |
-| `apps/server/src/auth`             | Existing credential compatibility, owner login and native bearer sessions                |
+| `apps/server/src/auth`             | Credential compatibility, viewer/admin login, own profiles and native bearer sessions    |
 | `apps/server/src/catalog`          | Bounded discovery, details, artwork, releases and personal state                         |
 | `apps/server/src/database.rs`      | Guarded transactional administration and audit recovery                                  |
 | `apps/linux/src`                   | GTK lifecycle, contained assets, bridge, native session/network, player and device media |
@@ -60,7 +60,7 @@ PostgreSQL is canonical. Preserve IDs, ownership, credentials, notes, scores, ar
 state. `packages/database/drizzle/` is the single migration history. Rust sessions default read-only;
 authorized mutations explicitly enter read-write transactions. Cleanup never changes the schema.
 
-Current Rust auth is owner-only. Local generic administration requires a debug server, loopback,
+Current Rust auth supports active owner/admin/member identities with database-backed accounts. Local generic administration requires a debug server, loopback,
 `NAHHASIO_LOCAL_ADMIN=true` and a private token; dashboard calls also require an owner session.
 Future viewer/admin separation must be enforced by the server. Never expose private tokens,
 bearer secrets, database credentials or arbitrary native commands to the interface.
@@ -80,3 +80,17 @@ Do not equate layout parity with implemented operations.
 Removed references: `d77096f:reference/`. Tauri media: `69a3cc1:src-tauri/src/`. Kotlin: `28e3c72`.
 Historical roadmap: [archive/nahhasio-roadmap.md](archive/nahhasio-roadmap.md).
 Previous workspace/phase descriptions remain in Git. Historical approvals do not authorize new work.
+
+## Accounts and client administration checkpoint
+
+See [linux-accounts-checkpoint-2026-10-12.md](linux-accounts-checkpoint-2026-10-12.md).
+The desktop has database-backed admin/member accounts, profile/password/avatar operations and
+31 guarded empty admin sections. Only two requested local identities remain active; obsolete
+demo identities are suspended with their ownership/history preserved. No administrative editing
+workflow has moved yet. Restricted family policies fail closed pending server filtering.
+
+## Reviewed discovery UI
+
+See [linux-discovery-checkpoint-2026-10-13.md](linux-discovery-checkpoint-2026-10-13.md)
+for Home/Search/Browse/Planet/People/Studio/Episodes, the Maia theme, Episode filters,
+code cleanup, actual checks and the deferred Profile/Downloads/Calendar/Watch work.

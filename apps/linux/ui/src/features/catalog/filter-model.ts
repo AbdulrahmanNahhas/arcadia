@@ -46,6 +46,8 @@ const labels = new Map<string, string>([
   ["animated-movie", "فيلم رسوم متحركة"],
   ["live-action-series", "مسلسل واقعي"],
   ["live-action-movie", "فيلم واقعي"],
+  ["released", "لديه إصدارات صادرة"],
+  ["unreleased", "لم يصدر بعد"],
   ["announced", "قادم"],
   ["airing", "يعرض الآن"],
   ["completed", "مكتمل"],

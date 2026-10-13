@@ -10,11 +10,12 @@
     "test:e2e": "playwright test",
     "test": "vitest run src",
     "test:e2e:player": "playwright test --config playwright.player.config.ts",
-    "routes:generate": "tsr generate"
+    "routes:generate": "node scripts/generate-routes.mjs generate"
   },
   "dependencies": {
     "@arcadia/domain": "workspace:*",
     "@base-ui/react": "^1.7.0",
+    "@fontsource-variable/noto-sans": "^5.3.0",
     "@fontsource-variable/noto-sans-arabic": "^5.3.0",
     "@nahhasio/api-contract": "workspace:*",
     "@shadcn/react": "^0.3.1",
@@ -32,7 +33,7 @@
     "react-dom": "^19.2.0",
     "react-resizable-panels": "^4.14.4",
     "recharts": "3.8.0",
-    "shadcn": "^4.21.3",
+    "shadcn": "^4.21.4",
     "tw-animate-css": "^1.4.0",
     "zod": "^4.4.3"
   },

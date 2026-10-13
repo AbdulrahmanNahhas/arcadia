@@ -3,7 +3,7 @@
   "info": {
     "title": "Nahhasio local client API",
     "version": "1.0.0",
-    "description": "Initial local owner API. Ordinary family accounts require policy enforcement and are not accepted yet. Playback/download endpoints are not implemented."
+    "description": "Database-backed viewer and administrator sessions, self-service profiles and bounded catalog operations. Native clients retain bearer secrets; restricted family policies fail closed until filtered catalogs are implemented."
   },
   "servers": [
     {
@@ -825,6 +825,41 @@
         }
       }
     },
+    "/api/v1/catalog/episodes": {
+      "get": {
+        "operationId": "getEpisodes",
+        "parameters": [
+          {
+            "name": "watchState",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["all", "watched", "unwatched"] }
+          },
+          { "name": "includePrivate", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "q", "in": "query", "schema": { "type": "string", "maxLength": 200 } },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100000 }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dated episodes and movie installments released through today, newest first. Account-scoped viewing filters, admin-only private inclusion, text search, and bounded pagination.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/EpisodesPage" } }
+            }
+          },
+          "400": { "description": "Invalid pagination" },
+          "401": { "description": "Authentication required" },
+          "503": { "description": "Catalog temporarily unavailable" }
+        }
+      }
+    },
     "/api/v1/catalog/home": {
       "get": {
         "operationId": "getHomeFeed",
@@ -875,6 +910,15 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "description": "Order complete groups before pagination; sort applies within each group.",
+            "schema": {
+              "type": "string",
+              "enum": ["none", "year", "format", "audience", "status", "watchState"]
             }
           },
           {
@@ -1005,6 +1049,128 @@
           },
           "401": {
             "description": "Owner authentication required"
+          }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "operationId": "getProfile",
+        "responses": {
+          "200": {
+            "description": "Authorized account response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "409": {
+            "description": "Concurrent update"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateProfile",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized account response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "409": {
+            "description": "Concurrent update"
+          }
+        }
+      }
+    },
+    "/api/v1/me/password": {
+      "post": {
+        "operationId": "updatePassword",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized account response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountMessage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "409": {
+            "description": "Concurrent update"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/access": {
+      "get": {
+        "operationId": "getAdminAccess",
+        "responses": {
+          "200": {
+            "description": "Authorized account response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "409": {
+            "description": "Concurrent update"
           }
         }
       }
@@ -1170,7 +1336,18 @@
       "User": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "name", "email", "role"],
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role",
+          "accountId",
+          "kind",
+          "avatarKey",
+          "bio",
+          "isAdmin",
+          "updatedAt"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -1184,8 +1361,17 @@
           },
           "role": {
             "type": "string",
-            "enum": ["owner"]
-          }
+            "enum": ["owner", "admin", "member"]
+          },
+          "accountId": { "type": "string", "format": "uuid" },
+          "kind": {
+            "type": "string",
+            "enum": ["admin", "family", "personal"]
+          },
+          "avatarKey": { "type": "string" },
+          "bio": { "type": "string" },
+          "isAdmin": { "type": "boolean" },
+          "updatedAt": { "type": "string" }
         }
       },
       "LoginRequest": {
@@ -2757,10 +2943,58 @@
           }
         }
       },
+      "HomeViewingItem": {
+        "type": "object",
+        "required": [
+          "work",
+          "installmentId",
+          "installmentTitle",
+          "episodeId",
+          "episodeNumber",
+          "episodeTitle",
+          "releaseDate",
+          "artwork",
+          "positionSeconds",
+          "durationSeconds",
+          "isPlayed"
+        ],
+        "properties": {
+          "work": { "$ref": "#/components/schemas/WorkSummary" },
+          "installmentId": { "type": "string", "format": "uuid" },
+          "installmentTitle": { "type": "string" },
+          "episodeId": { "type": "string", "format": "uuid", "nullable": true },
+          "episodeNumber": { "type": "string", "nullable": true },
+          "episodeTitle": { "type": "string", "nullable": true },
+          "releaseDate": { "type": "string", "nullable": true },
+          "artwork": { "allOf": [{ "$ref": "#/components/schemas/Artwork" }], "nullable": true },
+          "positionSeconds": { "type": "integer", "minimum": 0 },
+          "durationSeconds": { "type": "integer", "nullable": true },
+          "isPlayed": { "type": "boolean" }
+        }
+      },
+      "EpisodesPage": {
+        "type": "object",
+        "required": ["items", "total", "page", "pageSize"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/HomeViewingItem" } },
+          "total": { "type": "integer", "minimum": 0 },
+          "page": { "type": "integer", "minimum": 1 },
+          "pageSize": { "type": "integer", "minimum": 1 }
+        }
+      },
       "HomeFeed": {
         "type": "object",
         "required": ["comments", "upcoming"],
         "properties": {
+          "featured": { "type": "array", "items": { "$ref": "#/components/schemas/WorkSummary" } },
+          "recentEpisodes": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/HomeViewingItem" }
+          },
+          "resume": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/HomeViewingItem" }
+          },
           "comments": {
             "type": "array",
             "items": {
@@ -2805,10 +3039,27 @@
           }
         }
       },
+      "EntityContributionRole": {
+        "type": "object",
+        "required": ["entityId", "value", "label"],
+        "properties": {
+          "entityId": { "type": "string", "format": "uuid" },
+          "value": { "type": "string" },
+          "label": { "type": "string" }
+        }
+      },
       "CatalogEntry": {
         "type": "object",
         "required": ["work", "installment", "classification", "status", "watchState", "criteria"],
         "properties": {
+          "watchProgress": {
+            "type": "object",
+            "required": ["releasedUnits", "watchedReleasedUnits"],
+            "properties": {
+              "releasedUnits": { "type": "integer", "minimum": 0 },
+              "watchedReleasedUnits": { "type": "integer", "minimum": 0 }
+            }
+          },
           "work": {
             "$ref": "#/components/schemas/WorkSummary"
           },
@@ -2831,6 +3082,11 @@
           },
           "criteria": {
             "$ref": "#/components/schemas/CatalogCriteria"
+          },
+          "contributionRoles": {
+            "type": "array",
+            "description": "Entity contribution roles for this work, with catalog labels. Omitted by older servers.",
+            "items": { "$ref": "#/components/schemas/EntityContributionRole" }
           }
         }
       },
@@ -2838,6 +3094,15 @@
         "type": "object",
         "required": ["items", "total", "page", "pageSize"],
         "properties": {
+          "groups": {
+            "type": "array",
+            "description": "Filtered group totals in pagination order, before page limits.",
+            "items": {
+              "type": "object",
+              "required": ["key", "count"],
+              "properties": { "key": { "type": "string" }, "count": { "type": "integer" } }
+            }
+          },
           "items": {
             "type": "array",
             "items": {
@@ -2873,6 +3138,18 @@
           },
           "count": {
             "type": "integer"
+          },
+          "roles": {
+            "type": "array",
+            "description": "Contribution roles for this entity in the visible catalog; omitted by older servers.",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "properties": {
+                "value": { "type": "string" },
+                "label": { "type": "string" }
+              }
+            }
           }
         }
       },
@@ -2988,6 +3265,52 @@
             "type": "string",
             "enum": ["related", "personal", "editorial"]
           }
+        }
+      },
+      "ProfileUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "bio", "avatarKey", "updatedAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "bio": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "avatarKey": {
+            "type": "string",
+            "enum": ["nahhasio-library.svg", "nahhasio-orbit.svg"]
+          },
+          "updatedAt": { "type": "string" }
+        }
+      },
+      "PasswordUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["currentPassword", "newPassword"],
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 128
+          }
+        }
+      },
+      "AccountMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["message"],
+        "properties": {
+          "message": { "type": "string" }
         }
       }
     }

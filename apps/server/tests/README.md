@@ -59,3 +59,20 @@ not detail bodies, credentials or connection strings. No login/session is needed
 Black Clover was also the largest JSONB detail candidate. All measured payloads were below the
 native 2,097,152-byte response limit. These are metadata payload measurements, not artwork bytes,
 native rendering performance or a permanent upper bound as the catalog grows.
+
+## Account/authentication checkpoint
+
+`accounts-smoke.mjs` is an explicit opt-in suite. Restore a private dump into a new loopback
+PostgreSQL database named `nahhasio_accounts_<hex>_test`, then provision the two local identities
+on that copy with `packages/database/scripts/provision-local-accounts.ts`. Build the Rust server
+before running the suite. Supply `DATABASE_URL`, `NAHHASIO_RUN_ACCOUNT_CHECK=1` and the private
+`NAHHASIO_LOCAL_ACCOUNT_PASSWORD` through the environment, then run:
+
+```sh
+node apps/server/tests/accounts-smoke.mjs
+```
+
+The suite rejects other database names and non-loopback hosts, spawns its own bounded Rust API,
+and checks real profile/password/session/admin/public-catalog behavior. It intentionally changes
+passwords, roles and statuses on the disposable copy. Remove that database after verification.
+It must never run against the family catalog and is not part of startup or the default test command.

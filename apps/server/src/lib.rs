@@ -32,7 +32,7 @@ pub fn router_with_admin(pool: PgPool, token: Option<String>) -> Router {
     let catalog = database::routes(pool.clone(), token);
     let client = catalog::routes(pool.clone()).route_layer(axum::middleware::from_fn_with_state(
         pool.clone(),
-        auth::require_owner,
+        auth::require_viewer,
     ));
     let auth = auth::routes(pool.clone());
     Router::new()

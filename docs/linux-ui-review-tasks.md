@@ -5,6 +5,13 @@ Updated 2026-10-10. Current cleanup/foundation sequence is in [phases.md](phases
 actual verification, then stop for Aqua's design and behavior review. Do not implement the
 whole checklist without those reviews. Keep commits focused and the working app runnable.
 
+## Discovery review, 2026-10-13
+
+The latest discovery checkpoint is
+[linux-discovery-checkpoint-2026-10-13.md](linux-discovery-checkpoint-2026-10-13.md).
+It supersedes the historical Home ordering and discovery layouts below. Current theme
+is Maia/Mist/Sky. Profile, Downloads, Calendar and Watch redesigns remain deferred.
+
 ## Latest review checkpoint
 
 Aqua approved the work-page design on 2026-10-10, committed as `c80e1a8`.

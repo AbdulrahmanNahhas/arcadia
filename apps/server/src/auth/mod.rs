@@ -1,5 +1,7 @@
-//! Minimal owner authentication using the existing identity and session tables.
+//! Database-backed viewer/admin authentication using the existing identity and session tables.
 //! Passwords match Better Auth 1.6.29 / @better-auth/utils 0.5.0 exactly.
+mod profile;
+
 use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
@@ -35,7 +37,11 @@ pub fn routes(pool: PgPool) -> Router {
         .route("/api/v1/auth/login", post(login))
         .route("/api/v1/auth/session", get(session))
         .route("/api/v1/auth/logout", post(logout))
-        .layer(DefaultBodyLimit::max(2048))
+        .route("/api/v1/me", get(profile::get).patch(profile::update))
+        .route("/api/v1/me/password", post(profile::password))
+        .route("/api/v1/auth/avatars/{key}", get(profile::avatar))
+        .route("/api/v1/admin/access", get(profile::admin_access))
+        .layer(DefaultBodyLimit::max(4096))
         .layer(axum::middleware::from_fn(no_store))
         .with_state(AuthState {
             pool,
@@ -53,11 +59,20 @@ async fn no_store(request: Request, next: Next) -> Response {
 }
 
 #[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: String,
     pub name: String,
     pub email: String,
     pub role: String,
+    pub account_id: String,
+    pub kind: String,
+    pub avatar_key: String,
+    pub bio: String,
+    pub is_admin: bool,
+    pub updated_at: String,
+    #[serde(skip)]
+    pub unrestricted: bool,
 }
 
 #[derive(Serialize)]
@@ -92,7 +107,13 @@ impl IntoResponse for AuthError {
 fn unauthorized() -> AuthError {
     AuthError(StatusCode::UNAUTHORIZED, "Authentication required")
 }
-fn unavailable(_: sqlx::Error) -> AuthError {
+fn unavailable(error: sqlx::Error) -> AuthError {
+    if let Some(database) = error.as_database_error() {
+        tracing::warn!(
+            code = database.code().as_deref().unwrap_or("unknown"),
+            "authentication query failed"
+        );
+    }
     AuthError(
         StatusCode::SERVICE_UNAVAILABLE,
         "Authentication temporarily unavailable",
@@ -104,6 +125,13 @@ fn user(row: &sqlx::postgres::PgRow) -> User {
         name: row.get("name"),
         email: row.get("email"),
         role: row.get("role"),
+        account_id: row.get("account_id"),
+        kind: row.get("kind"),
+        avatar_key: row.get("avatar_key"),
+        bio: row.get("bio"),
+        is_admin: row.get("is_admin"),
+        updated_at: row.get("updated_at"),
+        unrestricted: row.get("unrestricted"),
     }
 }
 
@@ -181,7 +209,7 @@ async fn login(
         .clone()
         .try_acquire_owned()
         .map_err(|_| AuthError(StatusCode::TOO_MANY_REQUESTS, "Try again later"))?;
-    let row = sqlx::query("SELECT u.id, u.name, u.email, u.role, c.password FROM auth_users u JOIN auth_accounts c ON c.user_id=u.id AND c.provider_id='credential' JOIN accounts a ON a.auth_user_id=u.id WHERE lower(u.email)=lower($1) AND u.role='owner' AND a.status='active' AND (NOT u.banned OR u.ban_expires <= now()) LIMIT 1")
+    let row = sqlx::query("SELECT u.id, a.display_name AS name, u.email, u.role, a.id::text AS account_id, a.kind::text AS kind, a.avatar_key, a.bio, (u.role IN ('owner','admin') AND a.kind='admin') AS is_admin, to_char(a.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS updated_at, ((u.role IN ('owner','admin') AND a.kind='admin') OR EXISTS(SELECT 1 FROM account_content_policies p WHERE p.account_id=a.id AND p.audience='adult' AND p.age='18+' AND p.sexuality_risk='high' AND p.behavioral_risk='high' AND p.theology_risk='high' AND p.inclusion_filter IS NULL)) AS unrestricted, c.password FROM auth_users u JOIN auth_accounts c ON c.user_id=u.id AND c.provider_id='credential' JOIN accounts a ON a.auth_user_id=u.id WHERE lower(u.email)=lower($1) AND u.role IN ('owner','admin','member') AND a.status='active' AND (NOT u.banned OR u.ban_expires <= now()) LIMIT 1")
         .bind(input.email.trim()).fetch_optional(&state.pool).await.map_err(unavailable)?;
     let hash = row
         .as_ref()
@@ -218,7 +246,7 @@ async fn login(
         .map_err(unavailable)?;
     // Recheck account state after the slow password verification. Hash equality prevents a
     // concurrent password reset from issuing a session using the previous credential.
-    let expires_at: Option<String> = sqlx::query_scalar("INSERT INTO auth_sessions (id, token, user_id, expires_at) SELECT $1, $2, u.id, now()+interval '7 days' FROM auth_users u JOIN accounts a ON a.auth_user_id=u.id JOIN auth_accounts c ON c.user_id=u.id AND c.provider_id='credential' WHERE u.id=$3 AND u.role='owner' AND a.status='active' AND (NOT u.banned OR u.ban_expires <= now()) AND c.password=$4 RETURNING to_char(expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')")
+    let expires_at: Option<String> = sqlx::query_scalar("INSERT INTO auth_sessions (id, token, user_id, expires_at) SELECT $1, $2, u.id, now()+interval '7 days' FROM auth_users u JOIN accounts a ON a.auth_user_id=u.id JOIN auth_accounts c ON c.user_id=u.id AND c.provider_id='credential' WHERE u.id=$3 AND u.role IN ('owner','admin','member') AND a.status='active' AND (NOT u.banned OR u.ban_expires <= now()) AND c.password=$4 RETURNING to_char(expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')")
         .bind(format!("session:{key}")).bind(&key).bind(&user.id).bind(row.get::<Option<String>,_>("password"))
         .fetch_optional(&mut *transaction).await.map_err(unavailable)?;
     let expires_at = expires_at.ok_or_else(unauthorized)?;
@@ -232,7 +260,7 @@ async fn login(
 
 async fn lookup(pool: &PgPool, headers: &HeaderMap) -> Result<SessionResponse, AuthError> {
     let key = bearer(headers)?;
-    let row = sqlx::query("SELECT u.id, u.name, u.email, u.role, to_char(s.expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS expires_at FROM auth_sessions s JOIN auth_users u ON u.id=s.user_id JOIN accounts a ON a.auth_user_id=u.id WHERE s.token=$1 AND s.expires_at > now() AND u.role='owner' AND a.status='active' AND (NOT u.banned OR u.ban_expires <= now())")
+    let row = sqlx::query("SELECT u.id, a.display_name AS name, u.email, u.role, a.id::text AS account_id, a.kind::text AS kind, a.avatar_key, a.bio, (u.role IN ('owner','admin') AND a.kind='admin') AS is_admin, to_char(a.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS updated_at, ((u.role IN ('owner','admin') AND a.kind='admin') OR EXISTS(SELECT 1 FROM account_content_policies p WHERE p.account_id=a.id AND p.audience='adult' AND p.age='18+' AND p.sexuality_risk='high' AND p.behavioral_risk='high' AND p.theology_risk='high' AND p.inclusion_filter IS NULL)) AS unrestricted, to_char(s.expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS expires_at FROM auth_sessions s JOIN auth_users u ON u.id=s.user_id JOIN accounts a ON a.auth_user_id=u.id WHERE s.token=$1 AND s.expires_at > now() AND u.role IN ('owner','admin','member') AND a.status='active' AND (NOT u.banned OR u.ban_expires <= now())")
         .bind(key).fetch_optional(pool).await.map_err(unavailable)?.ok_or_else(unauthorized)?;
     Ok(SessionResponse {
         user: user(&row),
@@ -264,13 +292,55 @@ async fn logout(
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub async fn require_owner(
+/// Ordinary viewers may use the unrestricted public catalog. Restricted family policies stay
+/// fail-closed until their filtering is implemented; admin operations remain a separate guard.
+pub async fn require_viewer(
     State(pool): State<PgPool>,
     mut request: Request,
     next: Next,
 ) -> Result<Response, AuthError> {
-    let session = lookup(&pool, request.headers()).await?;
-    request.extensions_mut().insert(session.user);
+    let current = lookup(&pool, request.headers()).await?.user;
+    if !current.unrestricted {
+        return Err(AuthError(
+            StatusCode::FORBIDDEN,
+            "This account's content policy requires a restricted catalog",
+        ));
+    }
+    if !current.is_admin {
+        let params =
+            axum::extract::Query::<std::collections::HashMap<String, String>>::try_from_uri(
+                request.uri(),
+            )
+            .map_err(|_| AuthError(StatusCode::BAD_REQUEST, "Invalid catalog parameters"))?;
+        if params.get("privacy").is_some_and(|v| v != "public")
+            || params.get("includePrivate").is_some_and(|v| v != "false")
+        {
+            return Err(AuthError(
+                StatusCode::FORBIDDEN,
+                "Private catalog requires administrator permission",
+            ));
+        }
+        let parts: Vec<_> = request.uri().path().split('/').collect();
+        if parts.len() >= 5 && parts[3] == "works" {
+            let private: bool =
+                sqlx::query_scalar("SELECT is_private FROM titles WHERE id::text=$1")
+                    .bind(parts[4])
+                    .fetch_optional(&pool)
+                    .await
+                    .map_err(unavailable)?
+                    .unwrap_or(false);
+            if private {
+                return Err(AuthError(StatusCode::NOT_FOUND, "Work not found"));
+            }
+        }
+        if parts.len() == 5 && parts[3] == "artwork" {
+            let private: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM media_asset_assignments m LEFT JOIN installments i ON i.id=m.installment_id LEFT JOIN episodes e ON e.id=m.episode_id LEFT JOIN installments ei ON ei.id=e.installment_id JOIN titles t ON t.id=coalesce(m.title_id,i.title_id,ei.title_id) WHERE m.asset_id::text=$1 AND t.is_private)").bind(parts[4]).fetch_one(&pool).await.map_err(unavailable)?;
+            if private {
+                return Err(AuthError(StatusCode::NOT_FOUND, "Artwork not found"));
+            }
+        }
+    }
+    request.extensions_mut().insert(current);
     Ok(next.run(request).await)
 }
 

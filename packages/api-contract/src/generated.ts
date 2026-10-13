@@ -90,7 +90,13 @@ export const UserSchema = z.strictObject({
   id: z.string(),
   name: z.string(),
   email: z.string(),
-  role: z.enum(["owner"]),
+  role: z.enum(["owner", "admin", "member"]),
+  accountId: z.string().uuid(),
+  kind: z.enum(["admin", "family", "personal"]),
+  avatarKey: z.string(),
+  bio: z.string(),
+  isAdmin: z.boolean(),
+  updatedAt: z.string(),
 });
 export type User = z.infer<typeof UserSchema>;
 
@@ -528,7 +534,33 @@ export const UpcomingInstallmentSchema = z.strictObject({
 });
 export type UpcomingInstallment = z.infer<typeof UpcomingInstallmentSchema>;
 
+export const HomeViewingItemSchema = z.strictObject({
+  work: WorkSummarySchema,
+  installmentId: z.string().uuid(),
+  installmentTitle: z.string(),
+  episodeId: z.string().uuid().nullable(),
+  episodeNumber: z.string().nullable(),
+  episodeTitle: z.string().nullable(),
+  releaseDate: z.string().nullable(),
+  artwork: ArtworkSchema.nullable(),
+  positionSeconds: z.number().int().min(0),
+  durationSeconds: z.number().int().nullable(),
+  isPlayed: z.boolean(),
+});
+export type HomeViewingItem = z.infer<typeof HomeViewingItemSchema>;
+
+export const EpisodesPageSchema = z.strictObject({
+  items: z.array(HomeViewingItemSchema),
+  total: z.number().int().min(0),
+  page: z.number().int().min(1),
+  pageSize: z.number().int().min(1),
+});
+export type EpisodesPage = z.infer<typeof EpisodesPageSchema>;
+
 export const HomeFeedSchema = z.strictObject({
+  featured: z.array(WorkSummarySchema).optional(),
+  recentEpisodes: z.array(HomeViewingItemSchema).optional(),
+  resume: z.array(HomeViewingItemSchema).optional(),
   comments: z.array(FamilyActivitySchema),
   upcoming: z.array(UpcomingInstallmentSchema),
 });
@@ -544,17 +576,39 @@ export const CatalogCriteriaSchema = z.strictObject({
 });
 export type CatalogCriteria = z.infer<typeof CatalogCriteriaSchema>;
 
+export const EntityContributionRoleSchema = z.strictObject({
+  entityId: z.string().uuid(),
+  value: z.string(),
+  label: z.string(),
+});
+export type EntityContributionRole = z.infer<typeof EntityContributionRoleSchema>;
+
 export const CatalogEntrySchema = z.strictObject({
+  watchProgress: z
+    .strictObject({
+      releasedUnits: z.number().int().min(0),
+      watchedReleasedUnits: z.number().int().min(0),
+    })
+    .optional(),
   work: WorkSummarySchema,
   installment: UpcomingInstallmentSchema.nullable(),
   classification: ClassificationSchema,
   status: z.string(),
   watchState: z.string(),
   criteria: CatalogCriteriaSchema,
+  contributionRoles: z.array(EntityContributionRoleSchema).optional(),
 });
 export type CatalogEntry = z.infer<typeof CatalogEntrySchema>;
 
 export const CatalogPageSchema = z.strictObject({
+  groups: z
+    .array(
+      z.strictObject({
+        key: z.string(),
+        count: z.number().int(),
+      }),
+    )
+    .optional(),
   items: z.array(CatalogEntrySchema),
   total: z.number().int(),
   page: z.number().int(),
@@ -567,6 +621,14 @@ export const FacetOptionSchema = z.strictObject({
   value: z.string(),
   label: z.string(),
   count: z.number().int(),
+  roles: z
+    .array(
+      z.strictObject({
+        value: z.string(),
+        label: z.string(),
+      }),
+    )
+    .optional(),
 });
 export type FacetOption = z.infer<typeof FacetOptionSchema>;
 
@@ -611,6 +673,25 @@ export const RecommendationPageSchema = z.strictObject({
 });
 export type RecommendationPage = z.infer<typeof RecommendationPageSchema>;
 
+export const ProfileUpdateSchema = z.strictObject({
+  name: z.string().min(1).max(80),
+  bio: z.string().max(500),
+  avatarKey: z.enum(["nahhasio-library.svg", "nahhasio-orbit.svg"]),
+  updatedAt: z.string(),
+});
+export type ProfileUpdate = z.infer<typeof ProfileUpdateSchema>;
+
+export const PasswordUpdateSchema = z.strictObject({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: z.string().min(6).max(128),
+});
+export type PasswordUpdate = z.infer<typeof PasswordUpdateSchema>;
+
+export const AccountMessageSchema = z.strictObject({
+  message: z.string(),
+});
+export type AccountMessage = z.infer<typeof AccountMessageSchema>;
+
 export class ApiClient {
   private readonly baseUrl: string;
   private readonly token: () => string | null;
@@ -621,7 +702,7 @@ export class ApiClient {
   private async request(
     path: string,
     method: string,
-    body?: FavoriteRequest | LoginRequest | WatchedRequest,
+    body?: FavoriteRequest | LoginRequest | PasswordUpdate | ProfileUpdate | WatchedRequest,
     signal?: AbortSignal,
   ): Promise<Response> {
     const headers = new Headers();
@@ -764,6 +845,27 @@ export class ApiClient {
     const response = await this.request("/api/v1/catalog/filters", "GET", undefined, signal);
     return CatalogFiltersSchema.parse(await response.json());
   }
+  async getEpisodes(
+    query: {
+      watchState?: "all" | "watched" | "unwatched";
+      includePrivate?: boolean;
+      q?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+    signal?: AbortSignal,
+  ): Promise<EpisodesPage> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value !== undefined) params.set(key, String(value));
+    const response = await this.request(
+      "/api/v1/catalog/episodes" + (params.size ? `?${params}` : ""),
+      "GET",
+      undefined,
+      signal,
+    );
+    return EpisodesPageSchema.parse(await response.json());
+  }
   async getHomeFeed(signal?: AbortSignal): Promise<HomeFeed> {
     const response = await this.request("/api/v1/catalog/home", "GET", undefined, signal);
     return HomeFeedSchema.parse(await response.json());
@@ -774,6 +876,7 @@ export class ApiClient {
       pageSize?: number;
       q?: string;
       sort?: string;
+      group?: "none" | "year" | "format" | "audience" | "status" | "watchState";
       view?: "works" | "installments";
       privacy?: "public" | "all" | "private";
       filters?: string;
@@ -822,5 +925,21 @@ export class ApiClient {
       signal,
     );
     return RecommendationPageSchema.parse(await response.json());
+  }
+  async getProfile(signal?: AbortSignal): Promise<User> {
+    const response = await this.request("/api/v1/me", "GET", undefined, signal);
+    return UserSchema.parse(await response.json());
+  }
+  async updateProfile(body: ProfileUpdate, signal?: AbortSignal): Promise<User> {
+    const response = await this.request("/api/v1/me", "PATCH", body, signal);
+    return UserSchema.parse(await response.json());
+  }
+  async updatePassword(body: PasswordUpdate, signal?: AbortSignal): Promise<AccountMessage> {
+    const response = await this.request("/api/v1/me/password", "POST", body, signal);
+    return AccountMessageSchema.parse(await response.json());
+  }
+  async getAdminAccess(signal?: AbortSignal): Promise<User> {
+    const response = await this.request("/api/v1/admin/access", "GET", undefined, signal);
+    return UserSchema.parse(await response.json());
   }
 }

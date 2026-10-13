@@ -12,13 +12,13 @@ import { navigate, workLink } from "../shell/navigation";
 export function Hero() {
   const navigation = useCardNavigation();
   const result = useQuery({
-    queryKey: ["home", "hero"],
-    queryFn: ({ signal }) => gateway.works({ sort: "added-desc", pageSize: 10 }, signal),
+    queryKey: ["catalog", "home"],
+    queryFn: ({ signal }) => gateway.home(signal),
   });
   const [index, setIndex] = useState(0);
   const [pause, setPause] = useState(false);
   const [stopped, setStopped] = useState(false);
-  const items = result.data?.items ?? [];
+  const items = result.data?.featured ?? [];
   useEffect(() => {
     if (
       pause ||
@@ -80,20 +80,20 @@ export function Hero() {
       }}
     >
       <Artwork
-        id={work.banner?.id ?? work.poster?.id}
+        id={work.banner?.id}
         alt=""
         className="absolute inset-0 h-full w-full object-cover object-center"
         priority
       />
       <div className="pointer-events-none absolute inset-0 bg-linear-to-l from-background/90 via-background/45 to-transparent" />
       <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background via-background/20 to-transparent" />
-      <div className="relative flex w-full max-w-190 flex-col items-start gap-5 px-4 pt-20 pb-24 sm:w-4/5 sm:gap-6 sm:px-8.5 sm:pt-28 sm:pb-28 lg:w-3/5 lg:px-12">
+      <div className="relative flex w-full max-w-190 flex-col items-start gap-5 px-4 pt-12 pb-20 sm:w-4/5 sm:gap-6 sm:px-8.5 sm:pt-16 sm:pb-20 lg:w-3/5 lg:px-12">
         {work.logo ? (
           <h1 className="w-full text-4xl leading-normal font-semibold sm:text-5xl lg:text-6xl">
             <Artwork
               id={work.logo.id}
               alt={work.titleAr || work.canonicalTitle}
-              className="block h-32 w-full max-w-lg object-contain object-bottom-right sm:h-40 lg:h-48"
+              className="block h-24 w-full max-w-lg object-contain object-bottom-right sm:h-28 lg:h-32"
               priority
             />
           </h1>
@@ -112,19 +112,21 @@ export function Hero() {
           <span dir="auto">{work.age}</span>
         </div>
         <p
-          className="line-clamp-3 max-w-150 text-sm leading-loose text-foreground/80 sm:text-base"
+          className="line-clamp-2 max-w-150 text-sm leading-loose text-foreground/80 sm:text-base"
           dir="auto"
         >
           {work.summary}
         </p>
         <div className="flex flex-wrap items-center gap-2.5">
-          <a className={buttonVariants({ size: "lg" })} href={workLink(work.id)}>
+          <a
+            className={buttonVariants({ size: "lg", variant: "outline" })}
+            href={workLink(work.id)}
+          >
             <Info data-icon="inline-start" />
             عرض التفاصيل
           </a>
           <Button
             size="lg"
-            variant="outline"
             onClick={() =>
               requestWatch({
                 workId: work.id,

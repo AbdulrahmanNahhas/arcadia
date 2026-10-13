@@ -1,20 +1,29 @@
 import type { CatalogEntry } from "@nahhasio/api-contract";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
-import { SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useCardNavigation, useLoadMoreNavigation } from "../../components/card-navigation";
 import { MediaCard, ScoreBadge } from "../../components/media-card";
 import { Failure, NoResults } from "../../components/status";
+import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { InputGroup, InputGroupInput } from "../../components/ui/input-group";
+import { Drawer, DrawerTrigger } from "../../components/ui/drawer";
+import {
+  InputGroup,
+  InputGroupInput,
+  InputGroupAddon,
+  InputGroupButton,
+} from "../../components/ui/input-group";
 import { ToggleGroup, ToggleGroupItem } from "../../components/ui/toggle-group";
 import { gateway } from "../../lib/bridge";
+import { useIsAdmin } from "../account/use-is-admin";
 import { replaceParams, workLink } from "../shell/navigation";
 import { AppliedFilters } from "./applied-filters";
 import {
-  groupLabel,
+  groupKey,
+  groupTitle,
   parseGroup,
   parseSort,
   refinementCount,
@@ -23,7 +32,7 @@ import {
 } from "./browse-refinements";
 import type { BrowseRefinements } from "./browse-refinements";
 import { DisplaySettings, displayDefaults } from "./display-settings";
-import { FilterDialog } from "./filter-dialog";
+import { FilterDrawer } from "./filter-drawer";
 import { parseFilters, optionLabel } from "./filter-model";
 import { OrganizationControls } from "./organization-controls";
 export function BrowsePage({
@@ -42,8 +51,10 @@ export function BrowsePage({
   const loadMore = useLoadMoreNavigation();
   const filters = withPreset(parseFilters(params.get("filters")), preset);
   const view = params.get("view") === "installments" ? "installments" : "works";
-  const privacy =
-    params.get("privacy") === "all"
+  const isAdmin = useIsAdmin();
+  const privacy = !isAdmin
+    ? "public"
+    : params.get("privacy") === "all"
       ? "all"
       : params.get("privacy") === "private"
         ? "private"
@@ -51,6 +62,7 @@ export function BrowsePage({
   const sort = parseSort(params.get("sort"));
   const q = params.get("q") || "";
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersMounted, setFiltersMounted] = useState(false);
   const filterTrigger = useRef<HTMLButtonElement>(null);
   const [display, setDisplay] = useState(displayDefaults);
   const { layout, size } = display;
@@ -101,203 +113,270 @@ export function BrowsePage({
   const items = result.data?.pages.flatMap((page) => page.items) ?? [];
   const groups = new Map<string, CatalogEntry[]>();
   for (const item of items) {
-    const key = groupLabel(group, item);
+    const key = groupKey(group, item);
     const entries = groups.get(key) ?? [];
     entries.push(item);
     groups.set(key, entries);
   }
+  const totals = new Map(
+    (result.data?.pages[0]?.groups ?? []).map((item) => [item.key, item.count]),
+  );
+  const groupOrder = result.data?.pages[0]?.groups?.map((item) => item.key) ?? [...groups.keys()];
+  const groupedEntries = groupOrder.flatMap((key) => {
+    const entries = groups.get(key);
+    return entries ? [{ key, entries }] : [];
+  });
+  const lastGroup = groupedEntries.at(-1);
+  const moreLabel =
+    group !== "none" && lastGroup
+      ? lastGroup.entries.length < (totals.get(lastGroup.key) ?? lastGroup.entries.length)
+        ? `تحميل المزيد من ${groupTitle(group, lastGroup.key)}`
+        : "تحميل المجموعة التالية"
+      : "تحميل المزيد";
 
   return (
-    <section className="mx-auto max-w-[1600px] px-[clamp(20px,4vw,64px)] py-10" aria-label={title}>
-      <header className="mb-8 flex items-center justify-between gap-6 max-[750px]:flex-col max-[750px]:items-start max-[750px]:gap-3.5">
-        <div>
-          <p className="mb-1.25 text-[13px] leading-[1.8] text-muted-foreground">
-            كل الحكايات، من مكان واحد
-          </p>
-          <h1 className="text-[clamp(28px,3vw,42px)] leading-[1.7] font-bold">{title}</h1>
-        </div>
-        <p className="text-[13px] leading-[1.8] text-muted-foreground">
-          {result.data?.pages[0].total ?? "…"} {view === "works" ? "عمل" : "موسم وإصدار"}
-        </p>
-      </header>
-      <div className="mb-5.5 flex flex-wrap items-center gap-3">
-        <InputGroup className="min-w-0 flex-1 max-[750px]:basis-full">
-          <InputGroupInput
-            aria-label="البحث في المكتبة"
-            value={q}
-            placeholder="عنوان، موسم، اسم بديل، استوديو أو صانع…"
-            onChange={(e) => update([["q", e.target.value]])}
-          />
-        </InputGroup>
-        <ToggleGroup
-          className="max-[750px]:max-w-full max-[750px]:overflow-auto"
-          value={[view]}
-          onValueChange={(v) => {
-            if (v[0]) update([["view", v[0]]]);
-          }}
-          aria-label="مستوى عرض الكتالوج"
-        >
-          <ToggleGroupItem value="works">العناوين</ToggleGroupItem>
-          <ToggleGroupItem value="installments">المواسم والإصدارات</ToggleGroupItem>
-        </ToggleGroup>
-        <Button ref={filterTrigger} variant="outline" onClick={() => setFiltersOpen(true)}>
-          <SlidersHorizontal data-icon="inline-start" />
-          المرشحات{" "}
-          {refinementCount(refinements, preset) > 0 && `(${refinementCount(refinements, preset)})`}
-        </Button>
-      </div>
-      <div className="mb-5.5 flex flex-wrap items-center gap-3">
-        <OrganizationControls
-          sort={sort}
-          group={group}
-          onSort={(next) => apply({ ...refinements, sort: next })}
-          onGroup={(next) => apply({ ...refinements, group: next })}
-        />
-        <DisplaySettings value={display} onChange={setDisplay} />
-      </div>
-      <AppliedFilters value={refinements} options={options.data} locked={preset} onChange={apply} />
-      {group !== "none" && (
-        <p className="mb-4 text-sm text-muted-foreground">
-          التجميع يشمل {items.length} نتيجة محمّلة من {result.data?.pages[0].total ?? "…"}. حمّل
-          المزيد لإكمال المجموعات.
-        </p>
-      )}
-      {result.error && <Failure error={result.error} retry={() => void result.refetch()} />}
-      {result.isLoading && <p role="status">جارٍ تحميل الكتالوج…</p>}
-      {items.length === 0 && !result.isLoading && !result.error && <NoResults />}
-      {Array.from(groups, ([key, entries]) => (
-        <section key={key}>
-          {key !== "all" && (
-            <h2 className="border-b border-border py-5 text-[23px] font-semibold">
-              {key} <span className="text-sm text-muted-foreground">({entries.length})</span>
-            </h2>
-          )}
-          {layout === "table" ? (
-            <div className="my-6.5 overflow-x-auto rounded-2xl border border-border">
-              <table className="w-full text-start text-[13px]">
-                <thead>
-                  <tr>
-                    <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
-                      العمل
-                    </th>
-                    <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
-                      الإصدار
-                    </th>
-                    <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
-                      التقييم
-                    </th>
-                    <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
-                      الجمهور
-                    </th>
-                    <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
-                      المشاهدة
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {entries.map((item) => (
-                    <tr key={item.installment?.id ?? item.work.id}>
-                      <td className="border-b border-border px-4.5 py-3.75 text-start">
-                        <a
-                          {...navigation}
-                          className="font-semibold"
-                          href={workLink(item.work.id, item.installment?.id)}
-                        >
-                          {item.work.titleAr || item.work.canonicalTitle}
-                        </a>
-                      </td>
-                      <td className="border-b border-border px-4.5 py-3.75 text-start">
-                        {item.installment?.title ?? item.work.releaseYear}
-                      </td>
-                      <td className="border-b border-border px-4.5 py-3.75 text-start">
-                        {item.status === "announced" &&
-                        (item.installment?.score ?? item.work.score).rating === null ? (
-                          "—"
-                        ) : (
-                          <ScoreBadge score={item.installment?.score ?? item.work.score} />
-                        )}
-                      </td>
-                      <td className="border-b border-border px-4.5 py-3.75 text-start">
-                        {optionLabel(item.classification.audience, item.classification.audience)}
-                      </td>
-                      <td className="border-b border-border px-4.5 py-3.75 text-start">
-                        {optionLabel(item.watchState, item.watchState)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div
-              className={cn(
-                "my-7 grid gap-x-5.5 gap-y-7.5 max-[750px]:gap-x-3.5 max-[750px]:gap-y-6",
-                layout === "banner" || layout === "logo"
-                  ? cn(
-                      "max-[750px]:grid-cols-1",
-                      size === "compact"
-                        ? "grid-cols-[repeat(auto-fill,minmax(220px,1fr))]"
-                        : size === "comfortable"
-                          ? "grid-cols-[repeat(auto-fill,minmax(360px,1fr))]"
-                          : "grid-cols-[repeat(auto-fill,minmax(280px,1fr))]",
-                    )
-                  : cn(
-                      "max-[750px]:grid-cols-2",
-                      size === "compact"
-                        ? "grid-cols-[repeat(auto-fill,minmax(140px,1fr))]"
-                        : size === "comfortable"
-                          ? "grid-cols-[repeat(auto-fill,minmax(240px,1fr))]"
-                          : "grid-cols-[repeat(auto-fill,minmax(185px,1fr))]",
-                    ),
+    <Drawer
+      swipeDirection="right"
+      open={filtersOpen}
+      onOpenChange={(open) => {
+        if (open) setFiltersMounted(true);
+        setFiltersOpen(open);
+      }}
+      onOpenChangeComplete={(open) => {
+        if (!open) setFiltersMounted(false);
+      }}
+    >
+      <section
+        className="mx-auto max-w-400 px-10 py-8 max-[720px]:px-5 max-[720px]:py-6"
+        aria-label={title}
+      >
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="font-display text-3xl leading-relaxed font-semibold">{title}</h1>
+            <Badge variant="secondary" aria-live="polite">
+              {result.data?.pages[0]?.total ?? "…"} {view === "works" ? "عمل" : "موسم وإصدار"}
+            </Badge>
+          </div>
+          <ToggleGroup
+            variant="outline"
+            spacing={0}
+            value={[view]}
+            onValueChange={(values) => {
+              if (values[0] === "works" || values[0] === "installments")
+                update([["view", values[0]]]);
+            }}
+            aria-label="مستوى عرض الكتالوج"
+          >
+            <ToggleGroupItem value="works">الأعمال</ToggleGroupItem>
+            <ToggleGroupItem value="installments">المواسم والإصدارات</ToggleGroupItem>
+          </ToggleGroup>
+        </header>
+        <div className="mb-5 flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-card p-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <InputGroup className="h-10 min-w-0 flex-1">
+              <InputGroupInput
+                aria-label="البحث في المكتبة"
+                value={q}
+                placeholder="ابحث بعنوان، اسم بديل، صانع أو استوديو…"
+                onChange={(event) => update([["q", event.target.value]])}
+              />
+              <InputGroupAddon>
+                <Search />
+              </InputGroupAddon>
+              {q && (
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-sm"
+                    aria-label="مسح البحث"
+                    onClick={() => update([["q", ""]])}
+                  >
+                    <X />
+                  </InputGroupButton>
+                </InputGroupAddon>
               )}
-            >
-              {entries.map((item) => (
-                <MediaCard
-                  key={item.installment?.id ?? item.work.id}
-                  entry={item}
-                  layout={layout}
-                  minimal={display.minimal}
-                  borderless={display.borderless}
-                  showScore={display.showScore}
-                  showStatus={display.showStatus}
+            </InputGroup>
+            <DrawerTrigger
+              render={
+                <Button
+                  ref={filterTrigger}
+                  variant={refinementCount(refinements, preset) > 0 ? "secondary" : "outline"}
+                  className="h-10"
                 />
-              ))}
-            </div>
-          )}
-        </section>
-      ))}
-      {result.hasNextPage && (
-        <Button
-          {...navigation}
-          className="mx-auto mt-8 flex"
-          variant="outline"
-          aria-disabled={result.isFetchingNextPage}
-          onClick={(event) => {
-            if (result.isFetchingNextPage) return;
-            if (loadMore)
-              void loadMore(event.currentTarget, async () => {
-                await result.fetchNextPage();
-              });
-            else void result.fetchNextPage();
-          }}
-        >
-          {result.isFetchingNextPage ? "جارٍ التحميل…" : "تحميل المزيد"}
-        </Button>
-      )}
-      {filtersOpen && (
-        <FilterDialog
+              }
+            >
+              <SlidersHorizontal data-icon="inline-start" />
+              المرشحات
+              {refinementCount(refinements, preset) > 0 && (
+                <Badge variant="secondary">{refinementCount(refinements, preset)}</Badge>
+              )}
+            </DrawerTrigger>
+          </div>
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-border pt-3">
+            <OrganizationControls
+              sort={sort}
+              group={group}
+              onSort={(next) => apply({ ...refinements, sort: next })}
+              onGroup={(next) => apply({ ...refinements, group: next })}
+            />
+            <DisplaySettings value={display} onChange={setDisplay} />
+          </div>
+        </div>
+        <AppliedFilters
           value={refinements}
-          view={view}
-          q={q}
+          options={options.data}
           locked={preset}
-          returnFocus={filterTrigger}
-          onClose={() => setFiltersOpen(false)}
-          onApply={(value) => {
-            apply(value);
-            setFiltersOpen(false);
-          }}
+          onChange={apply}
         />
-      )}
-    </section>
+        {group !== "none" && (
+          <p className="mb-4 text-sm text-muted-foreground">
+            تُحمّل المجموعات بالترتيب، ويُطبّق ترتيب الأعمال داخل كل مجموعة.
+          </p>
+        )}
+        {result.error && <Failure error={result.error} retry={() => void result.refetch()} />}
+        {result.isLoading && <p role="status">جارٍ تحميل الكتالوج…</p>}
+        {items.length === 0 && !result.isLoading && !result.error && <NoResults />}
+        {groupedEntries.map(({ key, entries }) => (
+          <section key={key}>
+            {key !== "all" && (
+              <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border py-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-semibold">{groupTitle(group, key)}</h2>
+                  <Badge variant="secondary">{totals.get(key) ?? entries.length}</Badge>
+                </div>
+                {totals.has(key) && entries.length < totals.get(key)! && (
+                  <p className="text-xs text-muted-foreground">
+                    {entries.length} من {totals.get(key)} محمّلة
+                  </p>
+                )}
+              </header>
+            )}
+            {layout === "table" ? (
+              <div className="my-6.5 overflow-x-auto rounded-2xl border border-border">
+                <table className="w-full text-start text-[13px]">
+                  <thead>
+                    <tr>
+                      <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
+                        العمل
+                      </th>
+                      <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
+                        الإصدار
+                      </th>
+                      <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
+                        التقييم
+                      </th>
+                      <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
+                        الجمهور
+                      </th>
+                      <th className="border-b border-border px-4.5 py-3.75 text-start font-normal text-muted-foreground">
+                        المشاهدة
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map((item) => (
+                      <tr key={item.installment?.id ?? item.work.id}>
+                        <td className="border-b border-border px-4.5 py-3.75 text-start">
+                          <a
+                            {...navigation}
+                            className="font-semibold"
+                            href={workLink(item.work.id, item.installment?.id)}
+                          >
+                            {item.work.titleAr || item.work.canonicalTitle}
+                          </a>
+                        </td>
+                        <td className="border-b border-border px-4.5 py-3.75 text-start">
+                          {item.installment?.title ?? item.work.releaseYear}
+                        </td>
+                        <td className="border-b border-border px-4.5 py-3.75 text-start">
+                          {item.status === "announced" &&
+                          (item.installment?.score ?? item.work.score).rating === null ? (
+                            "—"
+                          ) : (
+                            <ScoreBadge score={item.installment?.score ?? item.work.score} />
+                          )}
+                        </td>
+                        <td className="border-b border-border px-4.5 py-3.75 text-start">
+                          {optionLabel(item.classification.audience, item.classification.audience)}
+                        </td>
+                        <td className="border-b border-border px-4.5 py-3.75 text-start">
+                          {optionLabel(item.watchState, item.watchState)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  "grid",
+                  layout === "banner"
+                    ? cn(
+                        "max-[900px]:grid-cols-3 max-[600px]:grid-cols-2 max-[450px]:grid-cols-1",
+                        size === "compact"
+                          ? "grid-cols-5"
+                          : size === "comfortable"
+                            ? "grid-cols-3"
+                            : "grid-cols-4",
+                      )
+                    : cn(
+                        "max-[1100px]:grid-cols-5 max-[800px]:grid-cols-4 max-[600px]:grid-cols-3 max-[450px]:grid-cols-2",
+                        size === "compact"
+                          ? "grid-cols-7"
+                          : size === "comfortable"
+                            ? "grid-cols-5"
+                            : "grid-cols-6",
+                      ),
+                  "my-7 gap-x-5 gap-y-7 max-[600px]:gap-x-3 max-[600px]:gap-y-5",
+                )}
+              >
+                {entries.map((item) => (
+                  <MediaCard
+                    key={item.installment?.id ?? item.work.id}
+                    entry={item}
+                    layout={layout}
+                    minimal={display.minimal}
+                    borderless={display.borderless}
+                    showScore={display.showScore}
+                    showStatus={display.showStatus}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        ))}
+        {result.hasNextPage && (
+          <Button
+            {...navigation}
+            className="mx-auto mt-8 flex"
+            variant="outline"
+            aria-disabled={result.isFetchingNextPage}
+            onClick={(event) => {
+              if (result.isFetchingNextPage) return;
+              if (loadMore)
+                void loadMore(event.currentTarget, async () => {
+                  await result.fetchNextPage();
+                });
+              else void result.fetchNextPage();
+            }}
+          >
+            {result.isFetchingNextPage ? "جارٍ التحميل…" : moreLabel}
+          </Button>
+        )}
+        {filtersMounted && (
+          <FilterDrawer
+            value={refinements}
+            view={view}
+            q={q}
+            locked={preset}
+            returnFocus={filterTrigger}
+            onApply={(value) => {
+              apply(value);
+              setFiltersOpen(false);
+            }}
+          />
+        )}
+      </section>
+    </Drawer>
   );
 }

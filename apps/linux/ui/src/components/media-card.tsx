@@ -62,11 +62,14 @@ export function MediaCard({
   const workId = parent?.id ?? unit?.workId ?? "";
   const title = unit?.title ?? (parent?.titleAr || parent?.canonicalTitle || "");
   const poster = unit?.poster ?? parent?.poster;
+  const bareLogo = borderless && layout === "logo";
   const image =
     layout === "banner"
       ? (parent?.banner ?? poster)
       : layout === "logo"
-        ? (parent?.logo ?? poster)
+        ? bareLogo && minimal
+          ? parent?.logo
+          : (parent?.logo ?? poster)
         : poster;
   const score = unit?.score ?? parent?.score;
   const year = unit ? unit.releaseDate?.slice(0, 4) : parent?.releaseYear;
@@ -111,25 +114,46 @@ export function MediaCard({
       >
         <span
           className={cn(
-            "relative block aspect-2/3 rounded-3xl border transition-[box-shadow,border-color] duration-200 group-hover/card:border-foreground/60 group-hover/card:shadow-lg group-focus-visible/card:ring-4 group-focus-visible/card:ring-offset-2 group-focus-visible/card:ring-offset-background group-data-[layout=banner]/media:aspect-video group-data-[layout=logo]/media:aspect-video motion-reduce:transition-none",
-            borderless && layout === "logo"
-              ? "border-transparent bg-transparent"
-              : "border-border bg-card",
+            "relative block aspect-2/3 rounded-3xl transition-[box-shadow,border-color] duration-200 group-focus-visible/card:ring-4 group-focus-visible/card:ring-offset-2 group-focus-visible/card:ring-offset-background group-data-[layout=banner]/media:aspect-video group-data-[layout=logo]/media:aspect-video motion-reduce:transition-none",
+            bareLogo
+              ? "rounded-none border-0 bg-transparent"
+              : "border border-border bg-card group-hover/card:border-foreground/60 group-hover/card:shadow-lg",
             watched === true
               ? "group-focus-visible/card:ring-success"
               : "group-focus-visible/card:ring-foreground",
           )}
         >
           <span className="absolute inset-0 overflow-hidden rounded-[inherit]">
-            <Artwork
-              id={image?.id}
-              alt=""
-              className={cn(
-                "block size-full object-cover",
-                layout === "logo" && parent?.logo && "object-contain p-6",
-              )}
-            />
-            <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t from-background/85 to-transparent opacity-0 transition-opacity group-hover/card:opacity-100 group-focus-visible/card:opacity-100 motion-reduce:transition-none" />
+            {bareLogo && minimal && !image ? (
+              <span
+                className="flex size-full items-center justify-center text-center font-display text-lg font-semibold"
+                dir="auto"
+              >
+                {title}
+              </span>
+            ) : (
+              <Artwork
+                id={image?.id}
+                alt=""
+                transparentFallback={bareLogo && minimal}
+                fallback={
+                  bareLogo && minimal ? (
+                    <span className="font-display text-lg font-semibold" dir="auto">
+                      {title}
+                    </span>
+                  ) : undefined
+                }
+                className={cn(
+                  "block size-full object-cover",
+                  layout === "logo" &&
+                    parent?.logo &&
+                    (bareLogo && minimal ? "object-contain" : "object-contain p-6"),
+                )}
+              />
+            )}
+            {!bareLogo && (
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t from-background/85 to-transparent opacity-0 transition-opacity group-hover/card:opacity-100 group-focus-visible/card:opacity-100 motion-reduce:transition-none" />
+            )}
           </span>
           {!minimal && showScore && score?.rating != null && (
             <span

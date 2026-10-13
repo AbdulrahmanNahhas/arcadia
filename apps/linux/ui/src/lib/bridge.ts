@@ -1,8 +1,13 @@
 import {
+  UserSchema,
+  ProfileUpdateSchema,
+  PasswordUpdateSchema,
+  AccountMessageSchema,
   CatalogFiltersSchema,
   CatalogPageSchema,
   FacetCatalogSchema,
   HomeFeedSchema,
+  EpisodesPageSchema,
   ReleasesPageSchema,
   SessionSchema,
   WorkDetailSchema,
@@ -19,6 +24,7 @@ export type WatchedSelection = Pick<WatchedRequest, "isPlayed"> & {
 };
 import { z } from "zod";
 export type CatalogQuery = NonNullable<Parameters<ApiClient["browseCatalog"]>[0]>;
+export type EpisodesQuery = NonNullable<Parameters<ApiClient["getEpisodes"]>[0]>;
 export type ReleasesQuery = NonNullable<Parameters<ApiClient["getReleases"]>[0]>;
 export type LibraryQuery = NonNullable<Parameters<ApiClient["listWorks"]>[0]>;
 const ReplySchema = z.discriminatedUnion("ok", [
@@ -58,7 +64,7 @@ export async function nativeCall(
   timeoutMs = 25000,
 ) {
   const handler = window.webkit?.messageHandlers?.nahhasio;
-  if (!handler) throw new Error("افتح نهّاسيو من تطبيق Linux للاتصال بمكتبتك.");
+  if (!handler) throw new Error("افتح نحّاسيو من تطبيق Linux للاتصال بمكتبتك.");
   if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
   const id = crypto.randomUUID();
   let timer: ReturnType<typeof setTimeout>;
@@ -94,12 +100,52 @@ export async function nativeCall(
   if (!response.ok) {
     if (response.error.code === "unauthorized" && command !== "login")
       window.dispatchEvent(new Event("nahhasio:signed-out"));
-    throw new Error(response.error.message);
+    if (response.error.message === "Unknown desktop command") {
+      throw new Error("أعد تشغيل تطبيق نحّاسيو بالكامل لتفعيل هذه الصفحة، ثم أعد المحاولة.");
+    }
+    const errors = {
+      unauthorized:
+        command === "login"
+          ? "البريد الإلكتروني أو كلمة المرور غير صحيحة."
+          : "انتهت جلسة الاتصال. سجّل الدخول مرة أخرى.",
+      forbidden: "لا يملك حسابك صلاحية تنفيذ هذه العملية.",
+      conflict: "تغيّرت البيانات. أعد تحميل الصفحة قبل الحفظ.",
+      bad_request:
+        command === "updatePassword"
+          ? "تحقق من البيانات وكلمة المرور الحالية ثم أعد المحاولة."
+          : "تعذّر تنفيذ الطلب. تحقق من البيانات ثم أعد المحاولة.",
+      server: "تعذّر إكمال الطلب. تحقق من الخادم ثم أعد المحاولة.",
+      network: "تعذّر الاتصال بخادم المكتبة.",
+    };
+    throw new Error(
+      /[\u0600-\u06ff]/.test(response.error.message)
+        ? response.error.message
+        : z
+              .enum(["unauthorized", "forbidden", "conflict", "bad_request", "server", "network"])
+              .safeParse(response.error.code).data
+          ? errors[
+              z
+                .enum(["unauthorized", "forbidden", "conflict", "bad_request", "server", "network"])
+                .parse(response.error.code)
+            ]
+          : response.error.message,
+    );
   }
   return response.result;
 }
 const call = nativeCall;
 export const gateway = {
+  avatar: async (key: string, signal?: AbortSignal) =>
+    z
+      .object({ dataUrl: z.string().startsWith("data:image/svg+xml;base64,") })
+      .parse(await call("avatar", { key }, signal)).dataUrl,
+  profile: async (signal?: AbortSignal) => UserSchema.parse(await call("profile", {}, signal)),
+  adminAccess: async (signal?: AbortSignal) =>
+    UserSchema.parse(await call("adminAccess", {}, signal)),
+  updateProfile: async (input: z.input<typeof ProfileUpdateSchema>) =>
+    UserSchema.parse(await call("updateProfile", ProfileUpdateSchema.parse(input))),
+  updatePassword: async (input: z.input<typeof PasswordUpdateSchema>) =>
+    AccountMessageSchema.parse(await call("updatePassword", PasswordUpdateSchema.parse(input))),
   session: async (signal?: AbortSignal) =>
     SessionSchema.nullable().parse(await call("session", {}, signal)),
   login: async (payload: LoginRequest) => SessionSchema.parse(await call("login", payload)),
@@ -115,6 +161,8 @@ export const gateway = {
 
   releases: async (query: ReleasesQuery, signal?: AbortSignal) =>
     ReleasesPageSchema.parse(await call("releases", query, signal)),
+  episodes: async (query: EpisodesQuery, signal?: AbortSignal) =>
+    EpisodesPageSchema.parse(await call("episodes", query, signal)),
   home: async (signal?: AbortSignal) => HomeFeedSchema.parse(await call("home", {}, signal)),
   filters: async (signal?: AbortSignal) =>
     CatalogFiltersSchema.parse(await call("filters", {}, signal)),

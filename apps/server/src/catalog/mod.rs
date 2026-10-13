@@ -1,5 +1,6 @@
 mod artwork;
 mod browse;
+mod episodes;
 mod home;
 mod queries;
 mod recommendations;
@@ -18,8 +19,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use sqlx::{AssertSqlSafe, PgPool, types::Json as SqlJson};
 
-// The caller must install owner authentication on this entire router. Member access needs
-// account content-policy enforcement before it can be enabled.
+// The caller installs database-backed viewer authentication and private/policy guards.
 pub fn routes(pool: PgPool) -> Router {
     Router::new()
         .route("/api/v1/works", get(works))
@@ -33,6 +33,7 @@ pub fn routes(pool: PgPool) -> Router {
         .route("/api/v1/works/{id}", get(work))
         .route("/api/v1/catalog/filters", get(filters))
         .route("/api/v1/catalog/home", get(home::feed))
+        .route("/api/v1/catalog/episodes", get(episodes::list))
         .route("/api/v1/artwork/{id}", get(artwork::serve))
         .merge(viewer_state::routes())
         .with_state(pool)

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Failure, NoResults } from "../../components/status";
 import { Input } from "../../components/ui/input";
 import { gateway } from "../../lib/bridge";
-import { BrowsePage } from "../catalog/browse-page";
+import { EntityWorksPage } from "../catalog/entity-works-page";
 import { PlanetCards } from "./planet-cards";
 
 function Glow() {
@@ -45,28 +45,8 @@ export function PlanetsPage({ id, params }: { id?: string; params: URLSearchPara
   });
   const [search, setSearch] = useState("");
   const planets = result.data?.planets ?? [];
-  const selected = planets.find((planet) => planet.slug === id);
 
-  if (id)
-    return (
-      <div className="relative isolate">
-        <Glow />
-        <a
-          className="mx-6 mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-foreground/80 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-foreground sm:mx-10"
-          href="#/planets"
-        >
-          <ArrowRight size={16} />
-          العودة إلى الكواكب
-        </a>
-        <BrowsePage
-          key={id}
-          title={selected?.nameAr ?? "أعمال الكوكب"}
-          path={`/planets/${id}`}
-          params={params}
-          preset={{ key: "planets", value: id }}
-        />
-      </div>
-    );
+  if (id) return <EntityWorksPage type="planets" id={id} params={params} />;
 
   const matches = planets.filter((planet) =>
     `${planet.nameAr} ${planet.nameEn}`
