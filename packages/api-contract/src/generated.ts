@@ -696,6 +696,942 @@ export const AccountMessageSchema = z.strictObject({
 });
 export type AccountMessage = z.infer<typeof AccountMessageSchema>;
 
+export const AdminWorkSchema = z.strictObject({
+  id: z.string().uuid(),
+  canonicalTitle: z.string(),
+  titleAr: z.string().nullable(),
+  releaseYear: z.number().int().nullable(),
+  format: z.enum(["animated", "live-action"]),
+  workflow: z.enum(["draft", "in_review", "approved", "published", "archived"]),
+  isPrivate: z.boolean(),
+  updatedAt: z.string(),
+  verifiedAt: z.string().nullable(),
+  isSeries: z.boolean(),
+  installmentCount: z.number().int().min(0),
+  episodeCount: z.number().int().min(0),
+  posterId: z.string().uuid().nullable(),
+});
+export type AdminWork = z.infer<typeof AdminWorkSchema>;
+
+export const AdminWorksPageSchema = z.strictObject({
+  items: z.array(AdminWorkSchema),
+  total: z.number().int().min(0),
+  page: z.number().int().min(1).max(100000),
+  pageSize: z.number().int().min(1).max(100),
+});
+export type AdminWorksPage = z.infer<typeof AdminWorksPageSchema>;
+
+export const WorkFieldsSchema = z.strictObject({
+  canonicalTitle: z.string().min(1).max(1000),
+  sortTitle: z.string().min(1).max(1000),
+  titleAr: z.string().max(1000).nullable(),
+  summary: z.string().max(100000),
+  contentWarnings: z.string().max(100000).nullable(),
+  analysisNotes: z.string().max(100000).nullable(),
+  curatorNotes: z.string().max(100000),
+  releaseYear: z.number().int().min(1).max(9999).nullable(),
+  format: z.enum(["animated", "live-action"]),
+  workflow: z.enum(["draft", "in_review", "approved", "published", "archived"]),
+  audience: z.enum(["general", "teen", "young-adult", "adult"]),
+  age: z.enum(["all", "7+", "10+", "13+", "16+", "18+"]),
+  sexualityRisk: z.enum(["none", "low", "medium", "high"]),
+  behavioralRisk: z.enum(["none", "low", "medium", "high"]),
+  theologyRisk: z.enum(["none", "low", "medium", "high"]),
+  isPrivate: z.boolean(),
+});
+export type WorkFields = z.infer<typeof WorkFieldsSchema>;
+
+export const WorkDraftSchema = z.strictObject({
+  id: z.string().uuid(),
+  revision: z.string().min(64).max(64),
+  fields: WorkFieldsSchema,
+});
+export type WorkDraft = z.infer<typeof WorkDraftSchema>;
+
+export const WorkDocumentSchema = z.strictObject({
+  id: z.string().uuid(),
+  revision: z.string().min(64).max(64),
+  fields: WorkFieldsSchema,
+  posterId: z.string().uuid().nullable(),
+  installmentCount: z.number().int().min(0),
+  episodeCount: z.number().int().min(0),
+});
+export type WorkDocument = z.infer<typeof WorkDocumentSchema>;
+
+export const WorkDocumentsSchema = z.strictObject({
+  documents: z.array(WorkDocumentSchema),
+});
+export type WorkDocuments = z.infer<typeof WorkDocumentsSchema>;
+
+export const WorkReadRequestSchema = z.strictObject({
+  ids: z.array(z.string().uuid()),
+});
+export type WorkReadRequest = z.infer<typeof WorkReadRequestSchema>;
+
+export const WorkReviewRequestSchema = z.strictObject({
+  documents: z.array(WorkDraftSchema),
+});
+export type WorkReviewRequest = z.infer<typeof WorkReviewRequestSchema>;
+
+export const WorkSaveRequestSchema = z.strictObject({
+  documents: z.array(WorkDraftSchema),
+  ticket: z.string().max(100),
+});
+export type WorkSaveRequest = z.infer<typeof WorkSaveRequestSchema>;
+
+export const WorkChangeSchema = z.strictObject({
+  field: z.enum([
+    "canonicalTitle",
+    "sortTitle",
+    "titleAr",
+    "summary",
+    "contentWarnings",
+    "analysisNotes",
+    "curatorNotes",
+    "releaseYear",
+    "format",
+    "workflow",
+    "audience",
+    "age",
+    "sexualityRisk",
+    "behavioralRisk",
+    "theologyRisk",
+    "isPrivate",
+  ]),
+  before: z.string(),
+  after: z.string(),
+});
+export type WorkChange = z.infer<typeof WorkChangeSchema>;
+
+export const ReviewedWorkSchema = z.strictObject({
+  id: z.string().uuid(),
+  revision: z.string().min(64).max(64),
+  fields: WorkFieldsSchema,
+  changes: z.array(WorkChangeSchema),
+});
+export type ReviewedWork = z.infer<typeof ReviewedWorkSchema>;
+
+export const WorkReviewSchema = z.strictObject({
+  documents: z.array(ReviewedWorkSchema),
+  ticket: z.string().max(100),
+  expiresAt: z.number().int().min(0),
+});
+export type WorkReview = z.infer<typeof WorkReviewSchema>;
+
+export const WorkSavedSchema = z.strictObject({
+  saved: z.number().int().min(0),
+  documents: z.array(WorkDocumentSchema),
+});
+export type WorkSaved = z.infer<typeof WorkSavedSchema>;
+
+export const CatalogSnapshotSchema = z.strictObject({
+  document: z.strictObject({
+    id: z.string().uuid().optional(),
+    canonicalTitle: z.string().min(1),
+    sortTitle: z.string().optional(),
+    titleAr: z.union([z.string(), z.null()]).optional(),
+    summary: z.string().optional(),
+    contentWarnings: z.union([z.string(), z.null()]).optional(),
+    analysisNotes: z.union([z.string(), z.null()]).optional(),
+    curatorNotes: z.string().optional(),
+    releaseYear: z.union([z.number().int().min(1800).max(2200), z.null()]).optional(),
+    format: z.enum(["animated", "live-action"]).optional(),
+    isPrivate: z.boolean().optional(),
+    workflowStatus: z.enum(["draft", "in_review", "approved", "published", "archived"]).optional(),
+    qualityScore: z.number().int().min(0).max(9007199254740991).optional(),
+    audience: z.enum(["general", "teen", "young-adult", "adult"]).optional(),
+    age: z.enum(["all", "7+", "10+", "13+", "16+", "18+"]).optional(),
+    sexualityRisk: z.enum(["none", "low", "medium", "high"]).optional(),
+    behavioralRisk: z.enum(["none", "low", "medium", "high"]).optional(),
+    theologyRisk: z.enum(["none", "low", "medium", "high"]).optional(),
+    tmdbId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+    imdbId: z.union([z.string(), z.null()]).optional(),
+    anilistId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+    malId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+    aliases: z.array(z.string().min(1)).optional(),
+    trivia: z.array(z.string().min(1)).optional(),
+    genres: z.array(z.string().min(1)).optional(),
+    tones: z.array(z.string().min(1)).optional(),
+    tags: z.array(z.string().min(1)).optional(),
+    countries: z.array(z.string().min(1)).optional(),
+    planets: z.array(z.string().min(1)).optional(),
+    credits: z
+      .array(
+        z.strictObject({
+          entity: z.string().min(1),
+          role: z.string().min(1),
+          isPrimary: z.boolean().optional(),
+          position: z.number().int().min(0).max(9007199254740991).optional(),
+        }),
+      )
+      .optional(),
+    externalIds: z
+      .array(
+        z.strictObject({
+          provider: z.string().min(1),
+          externalId: z.string().min(1),
+          url: z.union([z.string(), z.null()]).optional(),
+        }),
+      )
+      .optional(),
+    relations: z
+      .array(
+        z.strictObject({
+          target: z.string().min(1),
+          kind: z.enum([
+            "sequel",
+            "adaptation",
+            "spin-off",
+            "side-story",
+            "compilation",
+            "alternative",
+            "related",
+          ]),
+          notes: z.string().optional(),
+        }),
+      )
+      .optional(),
+    media: z.record(z.string(), z.union([z.string(), z.null()])).optional(),
+    installments: z
+      .array(
+        z.strictObject({
+          id: z.string().uuid().optional(),
+          kind: z.enum(["season", "movie", "special"]).optional(),
+          position: z.number().int().min(0).max(9007199254740991).optional(),
+          title: z.string().min(1),
+          summary: z.string().optional(),
+          status: z.enum(["announced", "airing", "completed", "unknown"]).optional(),
+          releaseDate: z.union([z.string(), z.null()]).optional(),
+          runtimeMinutes: z
+            .union([z.number().int().min(0).max(9007199254740991), z.null()])
+            .optional(),
+          audienceOverride: z.union([z.string(), z.null()]).optional(),
+          ageOverride: z.union([z.string(), z.null()]).optional(),
+          sexualityRiskOverride: z.union([z.string(), z.null()]).optional(),
+          behavioralRiskOverride: z.union([z.string(), z.null()]).optional(),
+          theologyRiskOverride: z.union([z.string(), z.null()]).optional(),
+          tmdbId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+          imdbId: z.union([z.string(), z.null()]).optional(),
+          anilistId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+          malId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+          score: z
+            .strictObject({
+              story: z.union([z.number().min(0).max(10), z.null()]).optional(),
+              characters: z.union([z.number().min(0).max(10), z.null()]).optional(),
+              depth: z.union([z.number().min(0).max(10), z.null()]).optional(),
+              worldBuilding: z.union([z.number().min(0).max(10), z.null()]).optional(),
+              originality: z.union([z.number().min(0).max(10), z.null()]).optional(),
+              craft: z.union([z.number().min(0).max(10), z.null()]).optional(),
+            })
+            .optional(),
+          media: z.record(z.string(), z.union([z.string(), z.null()])).optional(),
+          episodes: z
+            .array(
+              z.strictObject({
+                id: z.string().uuid().optional(),
+                number: z.number(),
+                position: z.number().int().min(0).max(9007199254740991).optional(),
+                title: z.union([z.string(), z.null()]).optional(),
+                summary: z.string().optional(),
+                releaseDate: z.union([z.string(), z.null()]).optional(),
+                runtimeMinutes: z
+                  .union([z.number().int().min(0).max(9007199254740991), z.null()])
+                  .optional(),
+              }),
+            )
+            .optional(),
+        }),
+      )
+      .optional(),
+    awards: z
+      .array(
+        z.strictObject({
+          id: z.string().uuid().optional(),
+          ceremonyId: z.union([z.string().uuid(), z.null()]).optional(),
+          position: z.number().int().min(0).max(9007199254740991).optional(),
+          organization: z.string().min(1),
+          category: z.string().min(1),
+          year: z.union([z.number().int().min(1900).max(2100), z.null()]).optional(),
+          result: z.enum(["winner", "nominee"]),
+          installment: z
+            .union([
+              z.union([z.number().int().min(-9007199254740991).max(9007199254740991), z.string()]),
+              z.null(),
+            ])
+            .optional(),
+          isFeatured: z.boolean().optional(),
+          sourceUrl: z.union([z.string(), z.null()]).optional(),
+          notes: z.union([z.string(), z.null()]).optional(),
+        }),
+      )
+      .optional(),
+  }),
+  revision: z.string(),
+});
+export type CatalogSnapshot = z.infer<typeof CatalogSnapshotSchema>;
+
+export const CatalogReadInputSchema = z.strictObject({
+  ids: z.array(z.string().uuid()),
+});
+export type CatalogReadInput = z.infer<typeof CatalogReadInputSchema>;
+
+export const CatalogReadCallSchema = z.strictObject({
+  operation: z.enum(["read"]),
+  data: CatalogReadInputSchema,
+});
+export type CatalogReadCall = z.infer<typeof CatalogReadCallSchema>;
+
+export const CatalogReviewInputSchema = z.strictObject({
+  json: z.string().max(4000000),
+  originals: z.array(
+    z.strictObject({
+      id: z.string().uuid(),
+      revision: z.string().min(64).max(64),
+    }),
+  ),
+});
+export type CatalogReviewInput = z.infer<typeof CatalogReviewInputSchema>;
+
+export const CatalogReviewCallSchema = z.strictObject({
+  operation: z.enum(["review"]),
+  data: CatalogReviewInputSchema,
+});
+export type CatalogReviewCall = z.infer<typeof CatalogReviewCallSchema>;
+
+export const CatalogSaveInputSchema = z.strictObject({
+  ticket: z.string().max(8000000),
+});
+export type CatalogSaveInput = z.infer<typeof CatalogSaveInputSchema>;
+
+export const CatalogSaveCallSchema = z.strictObject({
+  operation: z.enum(["save"]),
+  data: CatalogSaveInputSchema,
+});
+export type CatalogSaveCall = z.infer<typeof CatalogSaveCallSchema>;
+
+export const CatalogCreateInputSchema = z.strictObject({
+  json: z.string().max(4000000),
+});
+export type CatalogCreateInput = z.infer<typeof CatalogCreateInputSchema>;
+
+export const CatalogCreateCallSchema = z.strictObject({
+  operation: z.enum(["create"]),
+  data: CatalogCreateInputSchema,
+});
+export type CatalogCreateCall = z.infer<typeof CatalogCreateCallSchema>;
+
+export const CatalogParseInputSchema = z.strictObject({
+  json: z.string().max(4000000),
+});
+export type CatalogParseInput = z.infer<typeof CatalogParseInputSchema>;
+
+export const CatalogParseCallSchema = z.strictObject({
+  operation: z.enum(["parse"]),
+  data: CatalogParseInputSchema,
+});
+export type CatalogParseCall = z.infer<typeof CatalogParseCallSchema>;
+
+export const CatalogLinksInputSchema = z.strictObject({
+  workId: z.string().uuid(),
+  episodeId: z.string().uuid(),
+});
+export type CatalogLinksInput = z.infer<typeof CatalogLinksInputSchema>;
+
+export const CatalogLinksCallSchema = z.strictObject({
+  operation: z.enum(["links"]),
+  data: CatalogLinksInputSchema,
+});
+export type CatalogLinksCall = z.infer<typeof CatalogLinksCallSchema>;
+
+export const CatalogRefsInputSchema = z.strictObject({
+  table: z.enum([
+    "genres",
+    "tones",
+    "tags",
+    "countries",
+    "planets",
+    "entities",
+    "roles",
+    "titles",
+    "award_organizations",
+    "award_categories",
+    "award_ceremonies",
+    "media_assets",
+  ]),
+  search: z.string().max(300),
+  offset: z.number().int().min(0).max(1000000).optional(),
+  filters: z.record(z.string(), z.json()).optional(),
+});
+export type CatalogRefsInput = z.infer<typeof CatalogRefsInputSchema>;
+
+export const CatalogRefsCallSchema = z.strictObject({
+  operation: z.enum(["refs"]),
+  data: CatalogRefsInputSchema,
+});
+export type CatalogRefsCall = z.infer<typeof CatalogRefsCallSchema>;
+
+export const CatalogSchemaInputSchema = z.strictObject({});
+export type CatalogSchemaInput = z.infer<typeof CatalogSchemaInputSchema>;
+
+export const CatalogSchemaCallSchema = z.strictObject({
+  operation: z.enum(["schema"]),
+  data: CatalogSchemaInputSchema,
+});
+export type CatalogSchemaCall = z.infer<typeof CatalogSchemaCallSchema>;
+
+export const CatalogVocabularyInputSchema = z.strictObject({
+  tables: z.array(z.enum(["genres", "tones", "tags", "countries", "planets", "roles"])),
+});
+export type CatalogVocabularyInput = z.infer<typeof CatalogVocabularyInputSchema>;
+
+export const CatalogVocabularyCallSchema = z.strictObject({
+  operation: z.enum(["vocabulary"]),
+  data: CatalogVocabularyInputSchema,
+});
+export type CatalogVocabularyCall = z.infer<typeof CatalogVocabularyCallSchema>;
+
+export const CatalogMediaInputSchema = z.strictObject({
+  path: z.string().max(1000),
+});
+export type CatalogMediaInput = z.infer<typeof CatalogMediaInputSchema>;
+
+export const CatalogMediaCallSchema = z.strictObject({
+  operation: z.enum(["media"]),
+  data: CatalogMediaInputSchema,
+});
+export type CatalogMediaCall = z.infer<typeof CatalogMediaCallSchema>;
+
+export const CatalogSearchInputSchema = z.strictObject({
+  title: z.string().min(1).max(200),
+  seriesTitle: z.string().min(1).max(200).optional(),
+  year: z.number().int().min(1850).max(2100).optional(),
+  kind: z
+    .enum(["animated-movie", "animated-series", "live-action-movie", "live-action-series"])
+    .optional(),
+  role: z.enum(["poster", "banner", "logo"]),
+  tmdbId: z.number().int().max(9007199254740991).optional(),
+  anilistId: z.number().int().max(9007199254740991).optional(),
+  season: z.number().int().min(0).max(9007199254740991).optional(),
+});
+export type CatalogSearchInput = z.infer<typeof CatalogSearchInputSchema>;
+
+export const CatalogSearchCallSchema = z.strictObject({
+  operation: z.enum(["search"]),
+  data: CatalogSearchInputSchema,
+});
+export type CatalogSearchCall = z.infer<typeof CatalogSearchCallSchema>;
+
+export const CatalogSeasonInputSchema = z.strictObject({
+  tmdbId: z.number().int().max(9007199254740991),
+  season: z.number().int().min(0).max(9007199254740991),
+});
+export type CatalogSeasonInput = z.infer<typeof CatalogSeasonInputSchema>;
+
+export const CatalogSeasonCallSchema = z.strictObject({
+  operation: z.enum(["season"]),
+  data: CatalogSeasonInputSchema,
+});
+export type CatalogSeasonCall = z.infer<typeof CatalogSeasonCallSchema>;
+
+export const CatalogIngestInputSchema = z.strictObject({
+  url: z.string(),
+  role: z.enum(["poster", "banner", "logo"]),
+  ownerName: z.string().min(1).max(200),
+});
+export type CatalogIngestInput = z.infer<typeof CatalogIngestInputSchema>;
+
+export const CatalogIngestCallSchema = z.strictObject({
+  operation: z.enum(["ingest"]),
+  data: CatalogIngestInputSchema,
+});
+export type CatalogIngestCall = z.infer<typeof CatalogIngestCallSchema>;
+
+export const CatalogUploadInputSchema = z.strictObject({
+  dataUrl: z.string().max(14000000),
+  fileName: z.string().min(1).max(250),
+  role: z.enum(["poster", "banner", "logo", "profile"]),
+  ownerName: z.string().min(1).max(200),
+});
+export type CatalogUploadInput = z.infer<typeof CatalogUploadInputSchema>;
+
+export const CatalogUploadCallSchema = z.strictObject({
+  operation: z.enum(["upload"]),
+  data: CatalogUploadInputSchema,
+});
+export type CatalogUploadCall = z.infer<typeof CatalogUploadCallSchema>;
+
+export const CatalogPreviewInputSchema = z.strictObject({
+  url: z.string(),
+});
+export type CatalogPreviewInput = z.infer<typeof CatalogPreviewInputSchema>;
+
+export const CatalogPreviewCallSchema = z.strictObject({
+  operation: z.enum(["preview"]),
+  data: CatalogPreviewInputSchema,
+});
+export type CatalogPreviewCall = z.infer<typeof CatalogPreviewCallSchema>;
+
+export const CatalogReadResultSchema = z.array(
+  z.strictObject({
+    document: z.strictObject({
+      id: z.string().uuid().optional(),
+      canonicalTitle: z.string().min(1),
+      sortTitle: z.string().optional(),
+      titleAr: z.union([z.string(), z.null()]).optional(),
+      summary: z.string().optional(),
+      contentWarnings: z.union([z.string(), z.null()]).optional(),
+      analysisNotes: z.union([z.string(), z.null()]).optional(),
+      curatorNotes: z.string().optional(),
+      releaseYear: z.union([z.number().int().min(1800).max(2200), z.null()]).optional(),
+      format: z.enum(["animated", "live-action"]).optional(),
+      isPrivate: z.boolean().optional(),
+      workflowStatus: z
+        .enum(["draft", "in_review", "approved", "published", "archived"])
+        .optional(),
+      qualityScore: z.number().int().min(0).max(9007199254740991).optional(),
+      audience: z.enum(["general", "teen", "young-adult", "adult"]).optional(),
+      age: z.enum(["all", "7+", "10+", "13+", "16+", "18+"]).optional(),
+      sexualityRisk: z.enum(["none", "low", "medium", "high"]).optional(),
+      behavioralRisk: z.enum(["none", "low", "medium", "high"]).optional(),
+      theologyRisk: z.enum(["none", "low", "medium", "high"]).optional(),
+      tmdbId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+      imdbId: z.union([z.string(), z.null()]).optional(),
+      anilistId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+      malId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+      aliases: z.array(z.string().min(1)).optional(),
+      trivia: z.array(z.string().min(1)).optional(),
+      genres: z.array(z.string().min(1)).optional(),
+      tones: z.array(z.string().min(1)).optional(),
+      tags: z.array(z.string().min(1)).optional(),
+      countries: z.array(z.string().min(1)).optional(),
+      planets: z.array(z.string().min(1)).optional(),
+      credits: z
+        .array(
+          z.strictObject({
+            entity: z.string().min(1),
+            role: z.string().min(1),
+            isPrimary: z.boolean().optional(),
+            position: z.number().int().min(0).max(9007199254740991).optional(),
+          }),
+        )
+        .optional(),
+      externalIds: z
+        .array(
+          z.strictObject({
+            provider: z.string().min(1),
+            externalId: z.string().min(1),
+            url: z.union([z.string(), z.null()]).optional(),
+          }),
+        )
+        .optional(),
+      relations: z
+        .array(
+          z.strictObject({
+            target: z.string().min(1),
+            kind: z.enum([
+              "sequel",
+              "adaptation",
+              "spin-off",
+              "side-story",
+              "compilation",
+              "alternative",
+              "related",
+            ]),
+            notes: z.string().optional(),
+          }),
+        )
+        .optional(),
+      media: z.record(z.string(), z.union([z.string(), z.null()])).optional(),
+      installments: z
+        .array(
+          z.strictObject({
+            id: z.string().uuid().optional(),
+            kind: z.enum(["season", "movie", "special"]).optional(),
+            position: z.number().int().min(0).max(9007199254740991).optional(),
+            title: z.string().min(1),
+            summary: z.string().optional(),
+            status: z.enum(["announced", "airing", "completed", "unknown"]).optional(),
+            releaseDate: z.union([z.string(), z.null()]).optional(),
+            runtimeMinutes: z
+              .union([z.number().int().min(0).max(9007199254740991), z.null()])
+              .optional(),
+            audienceOverride: z.union([z.string(), z.null()]).optional(),
+            ageOverride: z.union([z.string(), z.null()]).optional(),
+            sexualityRiskOverride: z.union([z.string(), z.null()]).optional(),
+            behavioralRiskOverride: z.union([z.string(), z.null()]).optional(),
+            theologyRiskOverride: z.union([z.string(), z.null()]).optional(),
+            tmdbId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+            imdbId: z.union([z.string(), z.null()]).optional(),
+            anilistId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+            malId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+            score: z
+              .strictObject({
+                story: z.union([z.number().min(0).max(10), z.null()]).optional(),
+                characters: z.union([z.number().min(0).max(10), z.null()]).optional(),
+                depth: z.union([z.number().min(0).max(10), z.null()]).optional(),
+                worldBuilding: z.union([z.number().min(0).max(10), z.null()]).optional(),
+                originality: z.union([z.number().min(0).max(10), z.null()]).optional(),
+                craft: z.union([z.number().min(0).max(10), z.null()]).optional(),
+              })
+              .optional(),
+            media: z.record(z.string(), z.union([z.string(), z.null()])).optional(),
+            episodes: z
+              .array(
+                z.strictObject({
+                  id: z.string().uuid().optional(),
+                  number: z.number(),
+                  position: z.number().int().min(0).max(9007199254740991).optional(),
+                  title: z.union([z.string(), z.null()]).optional(),
+                  summary: z.string().optional(),
+                  releaseDate: z.union([z.string(), z.null()]).optional(),
+                  runtimeMinutes: z
+                    .union([z.number().int().min(0).max(9007199254740991), z.null()])
+                    .optional(),
+                }),
+              )
+              .optional(),
+          }),
+        )
+        .optional(),
+      awards: z
+        .array(
+          z.strictObject({
+            id: z.string().uuid().optional(),
+            ceremonyId: z.union([z.string().uuid(), z.null()]).optional(),
+            position: z.number().int().min(0).max(9007199254740991).optional(),
+            organization: z.string().min(1),
+            category: z.string().min(1),
+            year: z.union([z.number().int().min(1900).max(2100), z.null()]).optional(),
+            result: z.enum(["winner", "nominee"]),
+            installment: z
+              .union([
+                z.union([
+                  z.number().int().min(-9007199254740991).max(9007199254740991),
+                  z.string(),
+                ]),
+                z.null(),
+              ])
+              .optional(),
+            isFeatured: z.boolean().optional(),
+            sourceUrl: z.union([z.string(), z.null()]).optional(),
+            notes: z.union([z.string(), z.null()]).optional(),
+          }),
+        )
+        .optional(),
+    }),
+    revision: z.string(),
+  }),
+);
+export type CatalogReadResult = z.infer<typeof CatalogReadResultSchema>;
+
+export const CatalogReviewResultSchema = z.strictObject({
+  ticket: z.string(),
+  expiresAt: z.number(),
+  records: z.array(
+    z.strictObject({
+      id: z.string(),
+      name: z.string(),
+      changes: z.array(
+        z.strictObject({
+          path: z.string(),
+          before: z.union([z.json(), z.null()]),
+          after: z.union([z.json(), z.null()]),
+        }),
+      ),
+    }),
+  ),
+});
+export type CatalogReviewResult = z.infer<typeof CatalogReviewResultSchema>;
+
+export const CatalogSaveResultSchema = z.strictObject({
+  saved: z.number(),
+  createdId: z.union([z.string(), z.null()]),
+});
+export type CatalogSaveResult = z.infer<typeof CatalogSaveResultSchema>;
+
+export const CatalogCreateResultSchema = z.strictObject({
+  ticket: z.string(),
+  expiresAt: z.number(),
+  records: z.array(
+    z.strictObject({
+      id: z.string(),
+      name: z.string(),
+      changes: z.array(
+        z.strictObject({
+          path: z.string(),
+          before: z.union([z.json(), z.null()]),
+          after: z.union([z.json(), z.null()]),
+        }),
+      ),
+    }),
+  ),
+});
+export type CatalogCreateResult = z.infer<typeof CatalogCreateResultSchema>;
+
+export const CatalogParseResultSchema = z.strictObject({
+  id: z.string().uuid().optional(),
+  canonicalTitle: z.string().min(1),
+  sortTitle: z.string().optional(),
+  titleAr: z.union([z.string(), z.null()]).optional(),
+  summary: z.string().optional(),
+  contentWarnings: z.union([z.string(), z.null()]).optional(),
+  analysisNotes: z.union([z.string(), z.null()]).optional(),
+  curatorNotes: z.string().optional(),
+  releaseYear: z.union([z.number().int().min(1800).max(2200), z.null()]).optional(),
+  format: z.enum(["animated", "live-action"]).optional(),
+  isPrivate: z.boolean().optional(),
+  workflowStatus: z.enum(["draft", "in_review", "approved", "published", "archived"]).optional(),
+  qualityScore: z.number().int().min(0).max(9007199254740991).optional(),
+  audience: z.enum(["general", "teen", "young-adult", "adult"]).optional(),
+  age: z.enum(["all", "7+", "10+", "13+", "16+", "18+"]).optional(),
+  sexualityRisk: z.enum(["none", "low", "medium", "high"]).optional(),
+  behavioralRisk: z.enum(["none", "low", "medium", "high"]).optional(),
+  theologyRisk: z.enum(["none", "low", "medium", "high"]).optional(),
+  tmdbId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+  imdbId: z.union([z.string(), z.null()]).optional(),
+  anilistId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+  malId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+  aliases: z.array(z.string().min(1)).optional(),
+  trivia: z.array(z.string().min(1)).optional(),
+  genres: z.array(z.string().min(1)).optional(),
+  tones: z.array(z.string().min(1)).optional(),
+  tags: z.array(z.string().min(1)).optional(),
+  countries: z.array(z.string().min(1)).optional(),
+  planets: z.array(z.string().min(1)).optional(),
+  credits: z
+    .array(
+      z.strictObject({
+        entity: z.string().min(1),
+        role: z.string().min(1),
+        isPrimary: z.boolean().optional(),
+        position: z.number().int().min(0).max(9007199254740991).optional(),
+      }),
+    )
+    .optional(),
+  externalIds: z
+    .array(
+      z.strictObject({
+        provider: z.string().min(1),
+        externalId: z.string().min(1),
+        url: z.union([z.string(), z.null()]).optional(),
+      }),
+    )
+    .optional(),
+  relations: z
+    .array(
+      z.strictObject({
+        target: z.string().min(1),
+        kind: z.enum([
+          "sequel",
+          "adaptation",
+          "spin-off",
+          "side-story",
+          "compilation",
+          "alternative",
+          "related",
+        ]),
+        notes: z.string().optional(),
+      }),
+    )
+    .optional(),
+  media: z.record(z.string(), z.union([z.string(), z.null()])).optional(),
+  installments: z
+    .array(
+      z.strictObject({
+        id: z.string().uuid().optional(),
+        kind: z.enum(["season", "movie", "special"]).optional(),
+        position: z.number().int().min(0).max(9007199254740991).optional(),
+        title: z.string().min(1),
+        summary: z.string().optional(),
+        status: z.enum(["announced", "airing", "completed", "unknown"]).optional(),
+        releaseDate: z.union([z.string(), z.null()]).optional(),
+        runtimeMinutes: z
+          .union([z.number().int().min(0).max(9007199254740991), z.null()])
+          .optional(),
+        audienceOverride: z.union([z.string(), z.null()]).optional(),
+        ageOverride: z.union([z.string(), z.null()]).optional(),
+        sexualityRiskOverride: z.union([z.string(), z.null()]).optional(),
+        behavioralRiskOverride: z.union([z.string(), z.null()]).optional(),
+        theologyRiskOverride: z.union([z.string(), z.null()]).optional(),
+        tmdbId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+        imdbId: z.union([z.string(), z.null()]).optional(),
+        anilistId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+        malId: z.union([z.number().int().max(9007199254740991), z.null()]).optional(),
+        score: z
+          .strictObject({
+            story: z.union([z.number().min(0).max(10), z.null()]).optional(),
+            characters: z.union([z.number().min(0).max(10), z.null()]).optional(),
+            depth: z.union([z.number().min(0).max(10), z.null()]).optional(),
+            worldBuilding: z.union([z.number().min(0).max(10), z.null()]).optional(),
+            originality: z.union([z.number().min(0).max(10), z.null()]).optional(),
+            craft: z.union([z.number().min(0).max(10), z.null()]).optional(),
+          })
+          .optional(),
+        media: z.record(z.string(), z.union([z.string(), z.null()])).optional(),
+        episodes: z
+          .array(
+            z.strictObject({
+              id: z.string().uuid().optional(),
+              number: z.number(),
+              position: z.number().int().min(0).max(9007199254740991).optional(),
+              title: z.union([z.string(), z.null()]).optional(),
+              summary: z.string().optional(),
+              releaseDate: z.union([z.string(), z.null()]).optional(),
+              runtimeMinutes: z
+                .union([z.number().int().min(0).max(9007199254740991), z.null()])
+                .optional(),
+            }),
+          )
+          .optional(),
+      }),
+    )
+    .optional(),
+  awards: z
+    .array(
+      z.strictObject({
+        id: z.string().uuid().optional(),
+        ceremonyId: z.union([z.string().uuid(), z.null()]).optional(),
+        position: z.number().int().min(0).max(9007199254740991).optional(),
+        organization: z.string().min(1),
+        category: z.string().min(1),
+        year: z.union([z.number().int().min(1900).max(2100), z.null()]).optional(),
+        result: z.enum(["winner", "nominee"]),
+        installment: z
+          .union([
+            z.union([z.number().int().min(-9007199254740991).max(9007199254740991), z.string()]),
+            z.null(),
+          ])
+          .optional(),
+        isFeatured: z.boolean().optional(),
+        sourceUrl: z.union([z.string(), z.null()]).optional(),
+        notes: z.union([z.string(), z.null()]).optional(),
+      }),
+    )
+    .optional(),
+});
+export type CatalogParseResult = z.infer<typeof CatalogParseResultSchema>;
+
+export const CatalogLinksResultSchema = z.array(
+  z.strictObject({
+    table: z.string(),
+    count: z.number(),
+  }),
+);
+export type CatalogLinksResult = z.infer<typeof CatalogLinksResultSchema>;
+
+export const CatalogRefsResultSchema = z.strictObject({
+  rows: z.array(z.record(z.string(), z.json())),
+  offset: z.number(),
+  total: z.number(),
+});
+export type CatalogRefsResult = z.infer<typeof CatalogRefsResultSchema>;
+
+export const CatalogSchemaResultSchema = z.array(
+  z.strictObject({
+    name: z.string(),
+    writable: z.boolean(),
+    columns: z.array(
+      z.strictObject({
+        name: z.string(),
+        data_type: z.string(),
+        nullable: z.boolean(),
+        primary: z.boolean(),
+        generated: z.boolean(),
+        default_value: z.union([z.string(), z.null()]),
+        enum_values: z.array(z.string()),
+      }),
+    ),
+  }),
+);
+export type CatalogSchemaResult = z.infer<typeof CatalogSchemaResultSchema>;
+
+export const CatalogVocabularyResultSchema = z.array(
+  z.strictObject({
+    table: z.string(),
+    options: z.array(
+      z.strictObject({
+        value: z.string(),
+        label: z.string(),
+      }),
+    ),
+  }),
+);
+export type CatalogVocabularyResult = z.infer<typeof CatalogVocabularyResultSchema>;
+
+export const CatalogMediaResultSchema = z.strictObject({
+  id: z.string().uuid(),
+});
+export type CatalogMediaResult = z.infer<typeof CatalogMediaResultSchema>;
+
+export const CatalogSearchResultSchema = z.strictObject({
+  candidates: z.array(
+    z.strictObject({
+      provider: z.enum(["tmdb", "anilist", "fanart"]),
+      externalId: z.string().min(1),
+      role: z.enum(["poster", "banner", "logo"]),
+      previewUrl: z.string(),
+      downloadUrl: z.string(),
+      width: z.union([z.number().int().max(9007199254740991), z.null()]),
+      height: z.union([z.number().int().max(9007199254740991), z.null()]),
+      language: z.union([z.string(), z.null()]),
+      matchLabel: z.string(),
+    }),
+  ),
+  warnings: z.array(z.string()),
+});
+export type CatalogSearchResult = z.infer<typeof CatalogSearchResultSchema>;
+
+export const CatalogSeasonResultSchema = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.null(),
+  z.array(z.json()),
+  z.record(z.string(), z.json()),
+]);
+export type CatalogSeasonResult = z.infer<typeof CatalogSeasonResultSchema>;
+
+export const CatalogIngestResultSchema = z.strictObject({
+  id: z.string().uuid(),
+  path: z.string(),
+});
+export type CatalogIngestResult = z.infer<typeof CatalogIngestResultSchema>;
+
+export const CatalogUploadResultSchema = z.strictObject({
+  id: z.string().uuid(),
+  path: z.string(),
+});
+export type CatalogUploadResult = z.infer<typeof CatalogUploadResultSchema>;
+
+export const CatalogPreviewResultSchema = z.strictObject({
+  dataUrl: z.string(),
+});
+export type CatalogPreviewResult = z.infer<typeof CatalogPreviewResultSchema>;
+
+export const CatalogEditorCallSchema = z.union([
+  CatalogReadCallSchema,
+  CatalogReviewCallSchema,
+  CatalogSaveCallSchema,
+  CatalogCreateCallSchema,
+  CatalogParseCallSchema,
+  CatalogLinksCallSchema,
+  CatalogRefsCallSchema,
+  CatalogSchemaCallSchema,
+  CatalogVocabularyCallSchema,
+  CatalogMediaCallSchema,
+  CatalogSearchCallSchema,
+  CatalogSeasonCallSchema,
+  CatalogIngestCallSchema,
+  CatalogUploadCallSchema,
+  CatalogPreviewCallSchema,
+]);
+export type CatalogEditorCall = z.infer<typeof CatalogEditorCallSchema>;
+
+export const CatalogEditorReplySchema = z.strictObject({
+  result: z.json(),
+});
+export type CatalogEditorReply = z.infer<typeof CatalogEditorReplySchema>;
+
 export class ApiClient {
   private readonly baseUrl: string;
   private readonly token: () => string | null;
@@ -706,7 +1642,16 @@ export class ApiClient {
   private async request(
     path: string,
     method: string,
-    body?: FavoriteRequest | LoginRequest | PasswordUpdate | ProfileUpdate | WatchedRequest,
+    body?:
+      | CatalogEditorCall
+      | FavoriteRequest
+      | LoginRequest
+      | PasswordUpdate
+      | ProfileUpdate
+      | WatchedRequest
+      | WorkReadRequest
+      | WorkReviewRequest
+      | WorkSaveRequest,
     signal?: AbortSignal,
   ): Promise<Response> {
     const headers = new Headers();
@@ -852,8 +1797,11 @@ export class ApiClient {
   }
   async getEpisodes(
     query: {
+      kind?: "episodes" | "movies" | "all";
+      visibility?: "public" | "private" | "all";
       watchState?: "all" | "watched" | "unwatched";
       includePrivate?: boolean;
+      includeMovies?: boolean;
       q?: string;
       page?: number;
       pageSize?: number;
@@ -946,5 +1894,58 @@ export class ApiClient {
   async getAdminAccess(signal?: AbortSignal): Promise<User> {
     const response = await this.request("/api/v1/admin/access", "GET", undefined, signal);
     return UserSchema.parse(await response.json());
+  }
+  async getAdminWorks(
+    query: {
+      page?: number;
+      pageSize?: number;
+      q?: string;
+      format?: "animated" | "live-action";
+      structure?: "movie" | "series";
+      workflow?: "draft" | "in_review" | "approved" | "published" | "archived";
+      visibility?: "public" | "private";
+      gap?: "poster" | "summary" | "arabic-name" | "structure";
+      sort?: "updated" | "title" | "year-desc" | "year-asc";
+    } = {},
+    signal?: AbortSignal,
+  ): Promise<AdminWorksPage> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value !== undefined) params.set(key, String(value));
+    const response = await this.request(
+      "/api/v1/admin/works" + (params.size ? `?${params}` : ""),
+      "GET",
+      undefined,
+      signal,
+    );
+    return AdminWorksPageSchema.parse(await response.json());
+  }
+  async getWorkDocument(id: string, signal?: AbortSignal): Promise<WorkDocument> {
+    const response = await this.request(
+      `/api/v1/admin/works/${encodeURIComponent(id)}`,
+      "GET",
+      undefined,
+      signal,
+    );
+    return WorkDocumentSchema.parse(await response.json());
+  }
+  async readWorkDocuments(body: WorkReadRequest, signal?: AbortSignal): Promise<WorkDocuments> {
+    const response = await this.request("/api/v1/admin/works/read", "POST", body, signal);
+    return WorkDocumentsSchema.parse(await response.json());
+  }
+  async reviewWorkDocuments(body: WorkReviewRequest, signal?: AbortSignal): Promise<WorkReview> {
+    const response = await this.request("/api/v1/admin/works/review", "POST", body, signal);
+    return WorkReviewSchema.parse(await response.json());
+  }
+  async saveWorkDocuments(body: WorkSaveRequest, signal?: AbortSignal): Promise<WorkSaved> {
+    const response = await this.request("/api/v1/admin/works/save", "POST", body, signal);
+    return WorkSavedSchema.parse(await response.json());
+  }
+  async callCatalogEditor(
+    body: CatalogEditorCall,
+    signal?: AbortSignal,
+  ): Promise<CatalogEditorReply> {
+    const response = await this.request("/api/v1/admin/editor", "POST", body, signal);
+    return CatalogEditorReplySchema.parse(await response.json());
   }
 }

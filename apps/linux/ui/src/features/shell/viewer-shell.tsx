@@ -101,16 +101,7 @@ export function ViewerShell({ user }: { user: User }) {
             }
           }}
         >
-          {adminArea ? (
-            <a
-              href="#/home"
-              className="flex w-full shrink-0 items-center gap-2 px-2 text-xs font-semibold text-primary max-[800px]:justify-center max-[800px]:gap-1 max-[800px]:px-0"
-              aria-label="نحّاسيو الرئيسية"
-            >
-              <Library className="size-4 shrink-0" aria-hidden="true" />
-              <span>نحّاسيو</span>
-            </a>
-          ) : (
+          {!adminArea && (
             <Tooltip>
               <TooltipTrigger
                 render={

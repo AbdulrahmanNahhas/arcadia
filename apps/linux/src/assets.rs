@@ -81,6 +81,16 @@ pub fn install(context: &webkit6::WebContext, root: PathBuf) {
             if bytes.len() as u64 > LIMIT {
                 return Err("Packaged asset exceeds the size limit".to_owned());
             }
+            // Authorize only trusted editor style modules, with a fresh nonce for each HTML load.
+            // Script/origin restrictions remain unchanged; no unsafe-inline policy is added.
+            if mime.starts_with("text/html") {
+                let mut random = [0u8; 32];
+                getrandom::fill(&mut random).map_err(|_| "Cannot initialize editor style nonce")?;
+                let html = String::from_utf8(bytes).map_err(|_| "Invalid packaged HTML")?;
+                bytes = html
+                    .replace("NAHHASIO_STYLE_NONCE", &hex::encode(random))
+                    .into_bytes();
+            }
             let length = bytes.len() as i64;
             let stream = gio::MemoryInputStream::from_bytes(&glib::Bytes::from_owned(bytes));
             request.finish(&stream, length, Some(mime));

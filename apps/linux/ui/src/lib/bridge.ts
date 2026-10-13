@@ -1,4 +1,14 @@
 import {
+  CatalogEditorCallSchema,
+  CatalogEditorReplySchema,
+  WorkDocumentSchema,
+  WorkDocumentsSchema,
+  WorkReviewSchema,
+  WorkSavedSchema,
+  WorkReadRequestSchema,
+  WorkReviewRequestSchema,
+  WorkSaveRequestSchema,
+  AdminWorksPageSchema,
   UserSchema,
   ProfileUpdateSchema,
   PasswordUpdateSchema,
@@ -23,6 +33,7 @@ export type WatchedSelection = Pick<WatchedRequest, "isPlayed"> & {
   episodeId?: string | null;
 };
 import { z } from "zod";
+export type AdminWorksQuery = NonNullable<Parameters<ApiClient["getAdminWorks"]>[0]>;
 export type CatalogQuery = NonNullable<Parameters<ApiClient["browseCatalog"]>[0]>;
 export type EpisodesQuery = NonNullable<Parameters<ApiClient["getEpisodes"]>[0]>;
 export type ReleasesQuery = NonNullable<Parameters<ApiClient["getReleases"]>[0]>;
@@ -140,6 +151,20 @@ export const gateway = {
       .object({ dataUrl: z.string().startsWith("data:image/svg+xml;base64,") })
       .parse(await call("avatar", { key }, signal)).dataUrl,
   profile: async (signal?: AbortSignal) => UserSchema.parse(await call("profile", {}, signal)),
+  editorCall: async (input: z.input<typeof CatalogEditorCallSchema>, signal?: AbortSignal) =>
+    CatalogEditorReplySchema.parse(
+      await call("editorCall", CatalogEditorCallSchema.parse(input), signal),
+    ).result,
+  workDocument: async (id: string, signal?: AbortSignal) =>
+    WorkDocumentSchema.parse(await call("workDocument", { id }, signal)),
+  workRead: async (input: z.input<typeof WorkReadRequestSchema>, signal?: AbortSignal) =>
+    WorkDocumentsSchema.parse(await call("workRead", WorkReadRequestSchema.parse(input), signal)),
+  workReview: async (input: z.input<typeof WorkReviewRequestSchema>) =>
+    WorkReviewSchema.parse(await call("workReview", WorkReviewRequestSchema.parse(input))),
+  workSave: async (input: z.input<typeof WorkSaveRequestSchema>) =>
+    WorkSavedSchema.parse(await call("workSave", WorkSaveRequestSchema.parse(input))),
+  adminWorks: async (query: AdminWorksQuery, signal?: AbortSignal) =>
+    AdminWorksPageSchema.parse(await call("adminWorks", query, signal)),
   adminAccess: async (signal?: AbortSignal) =>
     UserSchema.parse(await call("adminAccess", {}, signal)),
   updateProfile: async (input: z.input<typeof ProfileUpdateSchema>) =>

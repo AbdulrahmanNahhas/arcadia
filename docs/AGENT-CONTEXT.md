@@ -94,3 +94,18 @@ workflow has moved yet. Restricted family policies fail closed pending server fi
 See [linux-discovery-checkpoint-2026-10-13.md](linux-discovery-checkpoint-2026-10-13.md)
 for Home/Search/Browse/Planet/People/Studio/Episodes, the Maia theme, Episode filters,
 code cleanup, actual checks and the deferred Profile/Downloads/Calendar/Watch work.
+
+## Administration migration
+
+See [linux-admin-migration-2026-10-13.md](linux-admin-migration-2026-10-13.md).
+The first real client admin catalog uses `GET /api/v1/admin/works` and the fixed `adminWorks`
+native command. Shared server middleware checks current administrator sessions. The legacy
+private-token database bridge remains separate. Core title forms, selective bulk updates and validated JSON use shared actor-bound review and
+transactional save APIs. Structural/linked editing and other workflows are pending.
+Aqua requested lean static verification now, with a consolidated full regression after all six
+migration areas. Do not infer runtime acceptance from compilation.
+
+The complete desktop work editor uses the session-authorized `/api/v1/admin/editor` Rust facade
+and a private fixed Node/tsx worker over the shared CLI reconciliation service. No website process
+is required, but Node and the shared source/runtime dependencies remain necessary until a Rust
+port. See `linux-admin-migration-2026-10-13.md` for capabilities, deployment and actual check limits.

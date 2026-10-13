@@ -1,3 +1,4 @@
+mod admin;
 mod auth;
 mod catalog;
 mod database;
@@ -34,6 +35,7 @@ pub fn router_with_admin(pool: PgPool, token: Option<String>) -> Router {
         pool.clone(),
         auth::require_viewer,
     ));
+    let admin = admin::routes(pool.clone());
     let auth = auth::routes(pool.clone());
     Router::new()
         .route("/api/health/live", get(live))
@@ -43,6 +45,7 @@ pub fn router_with_admin(pool: PgPool, token: Option<String>) -> Router {
         .merge(catalog)
         .merge(client)
         .merge(auth)
+        .merge(admin)
 }
 
 #[derive(Serialize)]

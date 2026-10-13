@@ -53,13 +53,13 @@ export function AdminPage() {
     );
   return (
     <section className="flex min-h-full flex-col" aria-label="لوحة الإدارة">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-5">
+      {/*<header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-5">
         <div>
           <p className="text-sm text-muted-foreground">نحّاسيو</p>
           <h1 className="text-xl font-semibold">لوحة الإدارة</h1>
         </div>
         <Badge variant="secondary">المدير</Badge>
-      </header>
+      </header>*/}
       <Outlet />
     </section>
   );

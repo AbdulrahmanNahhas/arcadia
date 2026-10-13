@@ -32,6 +32,18 @@ the shared works page, and Episodes has simple server-backed filters. See
 [linux-discovery-checkpoint-2026-10-13.md](linux-discovery-checkpoint-2026-10-13.md).
 Profile, Downloads, Calendar and Watch redesigns remain explicitly deferred.
 
+## Administration migration in progress
+
+Aqua approved starting the shared admin foundation and real Works catalog on 2026-10-13.
+See [linux-admin-migration-2026-10-13.md](linux-admin-migration-2026-10-13.md).
+The catalog and complete six-tab work workspace are implemented, including structure, linked
+references, artwork/providers, awards and full bulk/JSON editing. The existing reconciliation
+service is shared behind the authenticated Rust facade via a private temporary Node worker;
+write/visual acceptance and the remaining admin workflows are still pending.
+Aqua requested compilation/static checks per slice and a consolidated full regression after the
+six migration areas, rather than repeated browser/native/integration suites for small changes.
+No live catalog mutation tests. Preserve concurrent release/calendar/episode work.
+
 ## After foundation: client administration
 
 1. Inventory working dashboard operations separately from disabled future services.

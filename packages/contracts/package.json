@@ -5,7 +5,11 @@
   "description": "Shared legacy catalog and administrative Zod schemas.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./work": "./src/work-document.ts",
+    "./editor": "./src/editor-model.ts",
+    "./projection": "./src/editor-projection.ts",
+    "./editor-rpc": "./src/editor-rpc.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",

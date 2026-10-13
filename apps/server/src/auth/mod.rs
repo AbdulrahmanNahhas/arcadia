@@ -168,7 +168,7 @@ fn session_key(token: &str) -> Option<String> {
         hex::encode(Sha256::digest(token.as_bytes()))
     ))
 }
-fn bearer(headers: &HeaderMap) -> Result<String, AuthError> {
+pub(crate) fn bearer(headers: &HeaderMap) -> Result<String, AuthError> {
     headers
         .get("authorization")
         .and_then(|v| v.to_str().ok())
@@ -342,6 +342,34 @@ pub async fn require_viewer(
     }
     request.extensions_mut().insert(current);
     Ok(next.run(request).await)
+}
+
+/// Rechecks identity, active account and session on every administrative request.
+pub async fn require_admin(
+    State(pool): State<PgPool>,
+    mut request: Request,
+    next: Next,
+) -> Result<Response, AuthError> {
+    let current = lookup(&pool, request.headers()).await?.user;
+    if !current.is_admin {
+        return Err(AuthError(
+            StatusCode::FORBIDDEN,
+            "Administrator access required",
+        ));
+    }
+    request.extensions_mut().insert(current);
+    Ok(next.run(request).await)
+}
+
+/// Mutation authorization is rechecked and locked inside the write transaction.
+pub(crate) async fn lock_admin_session(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    headers: &HeaderMap,
+) -> Result<String, AuthError> {
+    let key = bearer(headers)?;
+    sqlx::query_scalar("SELECT a.id::text FROM auth_sessions s JOIN auth_users u ON u.id=s.user_id JOIN accounts a ON a.auth_user_id=u.id WHERE s.token=$1 AND s.expires_at>now() AND u.role IN ('owner','admin') AND a.kind='admin' AND a.status='active' AND (NOT u.banned OR u.ban_expires<=now()) FOR UPDATE OF a,u,s")
+        .bind(key).fetch_optional(&mut **transaction).await.map_err(unavailable)?
+        .ok_or_else(unauthorized)
 }
 
 #[cfg(test)]

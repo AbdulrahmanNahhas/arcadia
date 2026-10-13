@@ -64,11 +64,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "all",
-                "installments",
-                "episodes"
-              ],
+              "enum": ["all", "installments", "episodes"],
               "default": "all"
             }
           },
@@ -77,11 +73,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "year",
-                "upcoming",
-                "undated"
-              ],
+              "enum": ["year", "upcoming", "undated"],
               "default": "year"
             }
           },
@@ -137,18 +129,29 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Account-scoped watched/favorite state; release completion is independent",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/WorkViewerState" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkViewerState"
+                }
+              }
             }
           },
-          "401": { "description": "Owner session required" },
-          "404": { "description": "Work not found" }
+          "401": {
+            "description": "Owner session required"
+          },
+          "404": {
+            "description": "Work not found"
+          }
         }
       }
     },
@@ -160,25 +163,42 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/FavoriteRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FavoriteRequest"
+              }
+            }
           }
         },
         "responses": {
           "200": {
             "description": "Committed viewer state; other personal fields are preserved",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/WorkViewerState" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkViewerState"
+                }
+              }
             }
           },
-          "400": { "description": "Invalid request" },
-          "401": { "description": "Owner session required" },
-          "404": { "description": "Work not found" }
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "404": {
+            "description": "Work not found"
+          }
         }
       }
     },
@@ -191,25 +211,42 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/WatchedRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchedRequest"
+              }
+            }
           }
         },
         "responses": {
           "200": {
             "description": "Committed viewer state including future manual choices",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/WorkViewerState" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkViewerState"
+                }
+              }
             }
           },
-          "400": { "description": "Invalid target or request" },
-          "401": { "description": "Owner session required" },
-          "404": { "description": "Work or target not found in its parent" }
+          "400": {
+            "description": "Invalid target or request"
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "404": {
+            "description": "Work or target not found in its parent"
+          }
         }
       }
     },
@@ -222,24 +259,42 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
           {
             "name": "page",
             "in": "query",
-            "schema": { "type": "integer", "minimum": 1, "maximum": 100000, "default": 1 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 1
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Bounded discussion page",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/WorkActivityPage" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkActivityPage"
+                }
+              }
             }
           },
-          "400": { "description": "Invalid page" },
-          "401": { "description": "Owner session required" },
-          "404": { "description": "Work not found" }
+          "400": {
+            "description": "Invalid page"
+          },
+          "401": {
+            "description": "Owner session required"
+          },
+          "404": {
+            "description": "Work not found"
+          }
         }
       }
     },
@@ -878,33 +933,93 @@
         "operationId": "getEpisodes",
         "parameters": [
           {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["episodes", "movies", "all"],
+              "default": "episodes"
+            }
+          },
+          {
+            "name": "visibility",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["public", "private", "all"],
+              "default": "public"
+            }
+          },
+          {
             "name": "watchState",
             "in": "query",
-            "schema": { "type": "string", "enum": ["all", "watched", "unwatched"] }
+            "schema": {
+              "type": "string",
+              "enum": ["all", "watched", "unwatched"]
+            }
           },
-          { "name": "includePrivate", "in": "query", "schema": { "type": "boolean" } },
-          { "name": "q", "in": "query", "schema": { "type": "string", "maxLength": 200 } },
+          {
+            "name": "includePrivate",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "includeMovies",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
           {
             "name": "page",
             "in": "query",
-            "schema": { "type": "integer", "minimum": 1, "maximum": 100000 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            }
           },
           {
             "name": "pageSize",
             "in": "query",
-            "schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Dated episodes and movie installments released through today, newest first. Account-scoped viewing filters, admin-only private inclusion, text search, and bounded pagination.",
+            "description": "Dated episodes released through today, newest first. Use kind=movies for movies only or kind=all for both. Legacy includeMovies=true selects both when kind is omitted. Visibility defaults to public; private/all require administrator permission. Account-scoped viewing filters, admin-only private inclusion, text search, and bounded pagination.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/EpisodesPage" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EpisodesPage"
+                }
+              }
             }
           },
-          "400": { "description": "Invalid pagination" },
-          "401": { "description": "Authentication required" },
-          "503": { "description": "Catalog temporarily unavailable" }
+          "400": {
+            "description": "Invalid pagination"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "503": {
+            "description": "Catalog temporarily unavailable"
+          }
         }
       }
     },
@@ -1222,6 +1337,576 @@
           }
         }
       }
+    },
+    "/api/v1/admin/works": {
+      "get": {
+        "operationId": "getAdminWorks",
+        "description": "Session-authorized administrative work listing. Requires active administrator identity/account. Includes public/private and all editorial workflow states by default. Bound pagination, literal text/alias search, structure/workflow/visibility/missing-data filters and stable sorts. Rows and totals share a single SQL snapshot. Read-only; no private local-admin token or startup migrations.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["animated", "live-action"]
+            }
+          },
+          {
+            "name": "structure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["movie", "series"]
+            }
+          },
+          {
+            "name": "workflow",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["draft", "in_review", "approved", "published", "archived"]
+            }
+          },
+          {
+            "name": "visibility",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["public", "private"]
+            }
+          },
+          {
+            "name": "gap",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["poster", "summary", "arabic-name", "structure"]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["updated", "title", "year-desc", "year-asc"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounded administrative catalog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminWorksPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Expired or missing session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/works/{id}": {
+      "get": {
+        "operationId": "getWorkDocument",
+        "description": "Active administrator session required. Core title fields only; relationships, provider identities and owned data are preserved. Maximum 30 documents. Review is read-only and actor-bound, expires in 10 minutes; save checks the signed exact draft and revisions, locks all records, writes and audits atomically.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/works/read": {
+      "post": {
+        "operationId": "readWorkDocuments",
+        "description": "Active administrator session required. Core title fields only; relationships, provider identities and owned data are preserved. Maximum 30 documents. Review is read-only and actor-bound, expires in 10 minutes; save checks the signed exact draft and revisions, locks all records, writes and audits atomically.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkDocuments"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkReadRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/works/review": {
+      "post": {
+        "operationId": "reviewWorkDocuments",
+        "description": "Active administrator session required. Core title fields only; relationships, provider identities and owned data are preserved. Maximum 30 documents. Review is read-only and actor-bound, expires in 10 minutes; save checks the signed exact draft and revisions, locks all records, writes and audits atomically.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkReview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkReviewRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/works/save": {
+      "post": {
+        "operationId": "saveWorkDocuments",
+        "description": "Active administrator session required. Core title fields only; relationships, provider identities and owned data are preserved. Maximum 30 documents. Review is read-only and actor-bound, expires in 10 minutes; save checks the signed exact draft and revisions, locks all records, writes and audits atomically.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkSaved"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Invalid request, permission, conflict, size or availability error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkSaveRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/editor": {
+      "post": {
+        "operationId": "callCatalogEditor",
+        "description": "Active administrator session; bounded server-owned catalog operations. Existing whole-document reconciliation via a private fixed worker. No website process, arbitrary SQL or client credentials. Actor-bound review and transactional save; registered artwork/provider operations.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogEditorCall"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operation result; validate with its matching Catalog operation result schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogEditorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator required"
+          },
+          "409": {
+            "description": "Stale document or invalid review"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1236,16 +1921,30 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["isFavorite"],
-        "properties": { "isFavorite": { "type": "boolean" } }
+        "properties": {
+          "isFavorite": {
+            "type": "boolean"
+          }
+        }
       },
       "WatchedRequest": {
         "type": "object",
         "additionalProperties": false,
         "required": ["installmentId", "episodeId", "isPlayed"],
         "properties": {
-          "installmentId": { "type": "string", "format": "uuid", "nullable": true },
-          "episodeId": { "type": "string", "format": "uuid", "nullable": true },
-          "isPlayed": { "type": "boolean" }
+          "installmentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "episodeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "isPlayed": {
+            "type": "boolean"
+          }
         }
       },
       "WatchSummary": {
@@ -1259,11 +1958,25 @@
           "watchState"
         ],
         "properties": {
-          "catalogUnits": { "type": "integer", "minimum": 0 },
-          "releasedUnits": { "type": "integer", "minimum": 0 },
-          "watchedReleasedUnits": { "type": "integer", "minimum": 0 },
-          "isFullyWatched": { "type": "boolean" },
-          "watchState": { "type": "string", "enum": ["unwatched", "in-progress", "watched"] }
+          "catalogUnits": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "releasedUnits": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "watchedReleasedUnits": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "isFullyWatched": {
+            "type": "boolean"
+          },
+          "watchState": {
+            "type": "string",
+            "enum": ["unwatched", "in-progress", "watched"]
+          }
         }
       },
       "ViewerUnitState": {
@@ -1283,17 +1996,50 @@
           "updatedAt"
         ],
         "properties": {
-          "stateId": { "type": "string", "format": "uuid", "nullable": true },
-          "installmentId": { "type": "string", "format": "uuid" },
-          "episodeId": { "type": "string", "format": "uuid", "nullable": true },
-          "isReleased": { "type": "boolean" },
-          "positionSeconds": { "type": "integer", "minimum": 0 },
-          "durationSeconds": { "type": "integer", "minimum": 0, "nullable": true },
-          "isPlayed": { "type": "boolean" },
-          "playedManually": { "type": "boolean" },
-          "playedAt": { "type": "string", "nullable": true },
-          "subtitleOffsetMs": { "type": "integer", "nullable": true },
-          "updatedAt": { "type": "string", "nullable": true }
+          "stateId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "installmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "episodeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "isReleased": {
+            "type": "boolean"
+          },
+          "positionSeconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "isPlayed": {
+            "type": "boolean"
+          },
+          "playedManually": {
+            "type": "boolean"
+          },
+          "playedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "subtitleOffsetMs": {
+            "type": "integer",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "nullable": true
+          }
         }
       },
       "InstallmentViewerState": {
@@ -1301,8 +2047,13 @@
         "additionalProperties": false,
         "required": ["installmentId", "summary"],
         "properties": {
-          "installmentId": { "type": "string", "format": "uuid" },
-          "summary": { "$ref": "#/components/schemas/WatchSummary" }
+          "installmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/WatchSummary"
+          }
         }
       },
       "WorkViewerState": {
@@ -1310,13 +2061,27 @@
         "additionalProperties": false,
         "required": ["workId", "isFavorite", "units", "summary", "installments"],
         "properties": {
-          "workId": { "type": "string", "format": "uuid" },
-          "isFavorite": { "type": "boolean" },
-          "units": { "type": "array", "items": { "$ref": "#/components/schemas/ViewerUnitState" } },
-          "summary": { "$ref": "#/components/schemas/WatchSummary" },
+          "workId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isFavorite": {
+            "type": "boolean"
+          },
+          "units": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewerUnitState"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/WatchSummary"
+          },
           "installments": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/InstallmentViewerState" }
+            "items": {
+              "$ref": "#/components/schemas/InstallmentViewerState"
+            }
           }
         }
       },
@@ -1325,9 +2090,16 @@
         "additionalProperties": false,
         "required": ["id", "displayName", "avatarKey"],
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "displayName": { "type": "string" },
-          "avatarKey": { "type": "string" }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarKey": {
+            "type": "string"
+          }
         }
       },
       "WorkActivityItem": {
@@ -1345,15 +2117,40 @@
           "updatedAt"
         ],
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "kind": { "type": "string", "enum": ["comment", "review"] },
-          "body": { "type": "string" },
-          "containsSpoilers": { "type": "boolean" },
-          "rating": { "type": "integer", "minimum": 1, "maximum": 5, "nullable": true },
-          "parentId": { "type": "string", "format": "uuid", "nullable": true },
-          "author": { "$ref": "#/components/schemas/ActivityAuthor" },
-          "createdAt": { "type": "string" },
-          "updatedAt": { "type": "string" }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["comment", "review"]
+          },
+          "body": {
+            "type": "string"
+          },
+          "containsSpoilers": {
+            "type": "boolean"
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "nullable": true
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "author": {
+            "$ref": "#/components/schemas/ActivityAuthor"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
         }
       },
       "WorkActivityPage": {
@@ -1361,14 +2158,28 @@
         "additionalProperties": false,
         "required": ["workId", "items", "total", "page", "pageSize"],
         "properties": {
-          "workId": { "type": "string", "format": "uuid" },
+          "workId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "items": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/WorkActivityItem" }
+            "items": {
+              "$ref": "#/components/schemas/WorkActivityItem"
+            }
           },
-          "total": { "type": "integer", "minimum": 0 },
-          "page": { "type": "integer", "minimum": 1 },
-          "pageSize": { "type": "integer", "minimum": 1 }
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       },
       "Error": {
@@ -1411,15 +2222,26 @@
             "type": "string",
             "enum": ["owner", "admin", "member"]
           },
-          "accountId": { "type": "string", "format": "uuid" },
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "kind": {
             "type": "string",
             "enum": ["admin", "family", "personal"]
           },
-          "avatarKey": { "type": "string" },
-          "bio": { "type": "string" },
-          "isAdmin": { "type": "boolean" },
-          "updatedAt": { "type": "string" }
+          "avatarKey": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
         }
       },
       "LoginRequest": {
@@ -1526,10 +2348,7 @@
           },
           "kind": {
             "type": "string",
-            "enum": [
-              "installment",
-              "episode"
-            ]
+            "enum": ["installment", "episode"]
           },
           "releaseDate": {
             "type": "string",
@@ -1575,15 +2394,7 @@
       "ReleasesPage": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "items",
-          "total",
-          "page",
-          "pageSize",
-          "years",
-          "days",
-          "asOf"
-        ],
+        "required": ["items", "total", "page", "pageSize", "years", "days", "asOf"],
         "properties": {
           "items": {
             "type": "array",
@@ -1618,10 +2429,7 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": [
-                "date",
-                "count"
-              ],
+              "required": ["date", "count"],
               "properties": {
                 "date": {
                   "type": "string",
@@ -3120,41 +3928,99 @@
           "isPlayed"
         ],
         "properties": {
-          "work": { "$ref": "#/components/schemas/WorkSummary" },
-          "installmentId": { "type": "string", "format": "uuid" },
-          "installmentTitle": { "type": "string" },
-          "episodeId": { "type": "string", "format": "uuid", "nullable": true },
-          "episodeNumber": { "type": "string", "nullable": true },
-          "episodeTitle": { "type": "string", "nullable": true },
-          "releaseDate": { "type": "string", "nullable": true },
-          "artwork": { "allOf": [{ "$ref": "#/components/schemas/Artwork" }], "nullable": true },
-          "positionSeconds": { "type": "integer", "minimum": 0 },
-          "durationSeconds": { "type": "integer", "nullable": true },
-          "isPlayed": { "type": "boolean" }
+          "work": {
+            "$ref": "#/components/schemas/WorkSummary"
+          },
+          "installmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "installmentTitle": {
+            "type": "string"
+          },
+          "episodeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "episodeNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "episodeTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "releaseDate": {
+            "type": "string",
+            "nullable": true
+          },
+          "artwork": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Artwork"
+              }
+            ],
+            "nullable": true
+          },
+          "positionSeconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "nullable": true
+          },
+          "isPlayed": {
+            "type": "boolean"
+          }
         }
       },
       "EpisodesPage": {
         "type": "object",
         "required": ["items", "total", "page", "pageSize"],
         "properties": {
-          "items": { "type": "array", "items": { "$ref": "#/components/schemas/HomeViewingItem" } },
-          "total": { "type": "integer", "minimum": 0 },
-          "page": { "type": "integer", "minimum": 1 },
-          "pageSize": { "type": "integer", "minimum": 1 }
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HomeViewingItem"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       },
       "HomeFeed": {
         "type": "object",
         "required": ["comments", "upcoming"],
         "properties": {
-          "featured": { "type": "array", "items": { "$ref": "#/components/schemas/WorkSummary" } },
+          "featured": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkSummary"
+            }
+          },
           "recentEpisodes": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/HomeViewingItem" }
+            "items": {
+              "$ref": "#/components/schemas/HomeViewingItem"
+            }
           },
           "resume": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/HomeViewingItem" }
+            "items": {
+              "$ref": "#/components/schemas/HomeViewingItem"
+            }
           },
           "comments": {
             "type": "array",
@@ -3204,9 +4070,16 @@
         "type": "object",
         "required": ["entityId", "value", "label"],
         "properties": {
-          "entityId": { "type": "string", "format": "uuid" },
-          "value": { "type": "string" },
-          "label": { "type": "string" }
+          "entityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "value": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
         }
       },
       "CatalogEntry": {
@@ -3217,8 +4090,14 @@
             "type": "object",
             "required": ["releasedUnits", "watchedReleasedUnits"],
             "properties": {
-              "releasedUnits": { "type": "integer", "minimum": 0 },
-              "watchedReleasedUnits": { "type": "integer", "minimum": 0 }
+              "releasedUnits": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "watchedReleasedUnits": {
+                "type": "integer",
+                "minimum": 0
+              }
             }
           },
           "work": {
@@ -3247,7 +4126,9 @@
           "contributionRoles": {
             "type": "array",
             "description": "Entity contribution roles for this work, with catalog labels. Omitted by older servers.",
-            "items": { "$ref": "#/components/schemas/EntityContributionRole" }
+            "items": {
+              "$ref": "#/components/schemas/EntityContributionRole"
+            }
           }
         }
       },
@@ -3261,7 +4142,14 @@
             "items": {
               "type": "object",
               "required": ["key", "count"],
-              "properties": { "key": { "type": "string" }, "count": { "type": "integer" } }
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              }
             }
           },
           "items": {
@@ -3307,8 +4195,12 @@
               "type": "object",
               "required": ["value", "label"],
               "properties": {
-                "value": { "type": "string" },
-                "label": { "type": "string" }
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
               }
             }
           }
@@ -3446,7 +4338,9 @@
             "type": "string",
             "enum": ["nahhasio-library.svg", "nahhasio-orbit.svg"]
           },
-          "updatedAt": { "type": "string" }
+          "updatedAt": {
+            "type": "string"
+          }
         }
       },
       "PasswordUpdate": {
@@ -3471,7 +4365,3498 @@
         "additionalProperties": false,
         "required": ["message"],
         "properties": {
-          "message": { "type": "string" }
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "AdminWork": {
+        "type": "object",
+        "required": [
+          "id",
+          "canonicalTitle",
+          "titleAr",
+          "releaseYear",
+          "format",
+          "workflow",
+          "isPrivate",
+          "updatedAt",
+          "verifiedAt",
+          "isSeries",
+          "installmentCount",
+          "episodeCount",
+          "posterId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "canonicalTitle": {
+            "type": "string"
+          },
+          "titleAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "releaseYear": {
+            "type": "integer",
+            "nullable": true
+          },
+          "format": {
+            "type": "string",
+            "enum": ["animated", "live-action"]
+          },
+          "workflow": {
+            "type": "string",
+            "enum": ["draft", "in_review", "approved", "published", "archived"]
+          },
+          "isPrivate": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "isSeries": {
+            "type": "boolean"
+          },
+          "installmentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "episodeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "posterId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "AdminWorksPage": {
+        "type": "object",
+        "required": ["items", "total", "page", "pageSize"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminWork"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      },
+      "WorkFields": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "canonicalTitle",
+          "sortTitle",
+          "titleAr",
+          "summary",
+          "contentWarnings",
+          "analysisNotes",
+          "curatorNotes",
+          "releaseYear",
+          "format",
+          "workflow",
+          "audience",
+          "age",
+          "sexualityRisk",
+          "behavioralRisk",
+          "theologyRisk",
+          "isPrivate"
+        ],
+        "properties": {
+          "canonicalTitle": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1
+          },
+          "sortTitle": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1
+          },
+          "titleAr": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1000
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 100000
+          },
+          "contentWarnings": {
+            "type": "string",
+            "maxLength": 100000,
+            "nullable": true
+          },
+          "analysisNotes": {
+            "type": "string",
+            "maxLength": 100000,
+            "nullable": true
+          },
+          "curatorNotes": {
+            "type": "string",
+            "maxLength": 100000
+          },
+          "releaseYear": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 9999
+          },
+          "format": {
+            "type": "string",
+            "enum": ["animated", "live-action"]
+          },
+          "workflow": {
+            "type": "string",
+            "enum": ["draft", "in_review", "approved", "published", "archived"]
+          },
+          "audience": {
+            "type": "string",
+            "enum": ["general", "teen", "young-adult", "adult"]
+          },
+          "age": {
+            "type": "string",
+            "enum": ["all", "7+", "10+", "13+", "16+", "18+"]
+          },
+          "sexualityRisk": {
+            "type": "string",
+            "enum": ["none", "low", "medium", "high"]
+          },
+          "behavioralRisk": {
+            "type": "string",
+            "enum": ["none", "low", "medium", "high"]
+          },
+          "theologyRisk": {
+            "type": "string",
+            "enum": ["none", "low", "medium", "high"]
+          },
+          "isPrivate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WorkDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "revision", "fields"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "fields": {
+            "$ref": "#/components/schemas/WorkFields"
+          }
+        }
+      },
+      "WorkDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "revision", "fields", "posterId", "installmentCount", "episodeCount"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "fields": {
+            "$ref": "#/components/schemas/WorkFields"
+          },
+          "posterId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "installmentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "episodeCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "WorkDocuments": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["documents"],
+        "properties": {
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkDocument"
+            }
+          }
+        }
+      },
+      "WorkReadRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ids"],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "WorkReviewRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["documents"],
+        "properties": {
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkDraft"
+            }
+          }
+        }
+      },
+      "WorkSaveRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["documents", "ticket"],
+        "properties": {
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkDraft"
+            }
+          },
+          "ticket": {
+            "type": "string",
+            "maxLength": 100
+          }
+        }
+      },
+      "WorkChange": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "before", "after"],
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "canonicalTitle",
+              "sortTitle",
+              "titleAr",
+              "summary",
+              "contentWarnings",
+              "analysisNotes",
+              "curatorNotes",
+              "releaseYear",
+              "format",
+              "workflow",
+              "audience",
+              "age",
+              "sexualityRisk",
+              "behavioralRisk",
+              "theologyRisk",
+              "isPrivate"
+            ]
+          },
+          "before": {
+            "type": "string"
+          },
+          "after": {
+            "type": "string"
+          }
+        }
+      },
+      "ReviewedWork": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "revision", "fields", "changes"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "fields": {
+            "$ref": "#/components/schemas/WorkFields"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkChange"
+            }
+          }
+        }
+      },
+      "WorkReview": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["documents", "ticket", "expiresAt"],
+        "properties": {
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewedWork"
+            }
+          },
+          "ticket": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "expiresAt": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "WorkSaved": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["saved", "documents"],
+        "properties": {
+          "saved": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkDocument"
+            }
+          }
+        }
+      },
+      "CatalogSnapshot": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "canonicalTitle": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sortTitle": {
+                "type": "string"
+              },
+              "titleAr": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "summary": {
+                "type": "string"
+              },
+              "contentWarnings": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "analysisNotes": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "curatorNotes": {
+                "type": "string"
+              },
+              "releaseYear": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1800,
+                    "maximum": 2200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "format": {
+                "type": "string",
+                "enum": ["animated", "live-action"]
+              },
+              "isPrivate": {
+                "type": "boolean"
+              },
+              "workflowStatus": {
+                "type": "string",
+                "enum": ["draft", "in_review", "approved", "published", "archived"]
+              },
+              "qualityScore": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "audience": {
+                "type": "string",
+                "enum": ["general", "teen", "young-adult", "adult"]
+              },
+              "age": {
+                "type": "string",
+                "enum": ["all", "7+", "10+", "13+", "16+", "18+"]
+              },
+              "sexualityRisk": {
+                "type": "string",
+                "enum": ["none", "low", "medium", "high"]
+              },
+              "behavioralRisk": {
+                "type": "string",
+                "enum": ["none", "low", "medium", "high"]
+              },
+              "theologyRisk": {
+                "type": "string",
+                "enum": ["none", "low", "medium", "high"]
+              },
+              "tmdbId": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "imdbId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^tt\\d{7,10}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "anilistId": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "malId": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "aliases": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "trivia": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "genres": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "tones": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "countries": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "planets": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "credits": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "entity": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "role": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "isPrimary": {
+                      "type": "boolean"
+                    },
+                    "position": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["entity", "role"]
+                }
+              },
+              "externalIds": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "externalId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "url": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["provider", "externalId"]
+                }
+              },
+              "relations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "target": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "sequel",
+                        "adaptation",
+                        "spin-off",
+                        "side-story",
+                        "compilation",
+                        "alternative",
+                        "related"
+                      ]
+                    },
+                    "notes": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["target", "kind"]
+                }
+              },
+              "media": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "installments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "kind": {
+                      "default": "season",
+                      "type": "string",
+                      "enum": ["season", "movie", "special"]
+                    },
+                    "position": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "summary": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["announced", "airing", "completed", "unknown"]
+                    },
+                    "releaseDate": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "runtimeMinutes": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "audienceOverride": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "ageOverride": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sexualityRiskOverride": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "behavioralRiskOverride": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "theologyRiskOverride": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "tmdbId": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "imdbId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^tt\\d{7,10}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "anilistId": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "malId": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "score": {
+                      "type": "object",
+                      "properties": {
+                        "story": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "characters": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "depth": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "worldBuilding": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "originality": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "craft": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "media": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "episodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "number": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "position": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "title": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "summary": {
+                            "type": "string"
+                          },
+                          "releaseDate": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "runtimeMinutes": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["number"]
+                      }
+                    }
+                  },
+                  "required": ["title"]
+                }
+              },
+              "awards": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "ceremonyId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "position": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "organization": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "category": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "year": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 1900,
+                          "maximum": 2100
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "result": {
+                      "type": "string",
+                      "enum": ["winner", "nominee"]
+                    },
+                    "installment": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "isFeatured": {
+                      "type": "boolean"
+                    },
+                    "sourceUrl": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "notes": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["organization", "category", "result"]
+                }
+              }
+            },
+            "required": ["canonicalTitle"]
+          },
+          "revision": {
+            "type": "string"
+          }
+        },
+        "required": ["document", "revision"]
+      },
+      "CatalogReadInput": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "minItems": 1,
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        },
+        "required": ["ids"],
+        "additionalProperties": false
+      },
+      "CatalogReadCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["read"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogReadInput"
+          }
+        }
+      },
+      "CatalogReviewInput": {
+        "type": "object",
+        "properties": {
+          "json": {
+            "type": "string",
+            "maxLength": 4000000
+          },
+          "originals": {
+            "minItems": 1,
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "revision": {
+                  "type": "string",
+                  "minLength": 64,
+                  "maxLength": 64
+                }
+              },
+              "required": ["id", "revision"]
+            }
+          }
+        },
+        "required": ["json", "originals"],
+        "additionalProperties": false
+      },
+      "CatalogReviewCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["review"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogReviewInput"
+          }
+        }
+      },
+      "CatalogSaveInput": {
+        "type": "object",
+        "properties": {
+          "ticket": {
+            "type": "string",
+            "maxLength": 8000000
+          }
+        },
+        "required": ["ticket"],
+        "additionalProperties": false
+      },
+      "CatalogSaveCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["save"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogSaveInput"
+          }
+        }
+      },
+      "CatalogCreateInput": {
+        "type": "object",
+        "properties": {
+          "json": {
+            "type": "string",
+            "maxLength": 4000000
+          }
+        },
+        "required": ["json"],
+        "additionalProperties": false
+      },
+      "CatalogCreateCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["create"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogCreateInput"
+          }
+        }
+      },
+      "CatalogParseInput": {
+        "type": "object",
+        "properties": {
+          "json": {
+            "type": "string",
+            "maxLength": 4000000
+          }
+        },
+        "required": ["json"],
+        "additionalProperties": false
+      },
+      "CatalogParseCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["parse"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogParseInput"
+          }
+        }
+      },
+      "CatalogLinksInput": {
+        "type": "object",
+        "properties": {
+          "workId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "episodeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["workId", "episodeId"],
+        "additionalProperties": false
+      },
+      "CatalogLinksCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["links"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogLinksInput"
+          }
+        }
+      },
+      "CatalogRefsInput": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string",
+            "enum": [
+              "genres",
+              "tones",
+              "tags",
+              "countries",
+              "planets",
+              "entities",
+              "roles",
+              "titles",
+              "award_organizations",
+              "award_categories",
+              "award_ceremonies",
+              "media_assets"
+            ]
+          },
+          "search": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "offset": {
+            "default": 0,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "filters": {
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "x-zod-json": true
+            }
+          }
+        },
+        "required": ["table", "search"],
+        "additionalProperties": false
+      },
+      "CatalogRefsCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["refs"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogRefsInput"
+          }
+        }
+      },
+      "CatalogSchemaInput": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "CatalogSchemaCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["schema"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogSchemaInput"
+          }
+        }
+      },
+      "CatalogVocabularyInput": {
+        "type": "object",
+        "properties": {
+          "tables": {
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["genres", "tones", "tags", "countries", "planets", "roles"]
+            }
+          }
+        },
+        "required": ["tables"],
+        "additionalProperties": false
+      },
+      "CatalogVocabularyCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["vocabulary"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogVocabularyInput"
+          }
+        }
+      },
+      "CatalogMediaInput": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 1000,
+            "pattern": "^\\/media\\/.*"
+          }
+        },
+        "required": ["path"],
+        "additionalProperties": false
+      },
+      "CatalogMediaCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["media"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogMediaInput"
+          }
+        }
+      },
+      "CatalogSearchInput": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "seriesTitle": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 1850,
+            "maximum": 2100
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["animated-movie", "animated-series", "live-action-movie", "live-action-series"]
+          },
+          "role": {
+            "type": "string",
+            "enum": ["poster", "banner", "logo"]
+          },
+          "tmdbId": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "anilistId": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "season": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["title", "role"]
+      },
+      "CatalogSearchCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["search"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogSearchInput"
+          }
+        }
+      },
+      "CatalogSeasonInput": {
+        "type": "object",
+        "properties": {
+          "tmdbId": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "season": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["tmdbId", "season"],
+        "additionalProperties": false
+      },
+      "CatalogSeasonCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["season"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogSeasonInput"
+          }
+        }
+      },
+      "CatalogIngestInput": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["poster", "banner", "logo"]
+          },
+          "ownerName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": ["url", "role", "ownerName"],
+        "additionalProperties": false
+      },
+      "CatalogIngestCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["ingest"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogIngestInput"
+          }
+        }
+      },
+      "CatalogUploadInput": {
+        "type": "object",
+        "properties": {
+          "dataUrl": {
+            "type": "string",
+            "maxLength": 14000000
+          },
+          "fileName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250
+          },
+          "role": {
+            "type": "string",
+            "enum": ["poster", "banner", "logo", "profile"]
+          },
+          "ownerName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": ["dataUrl", "fileName", "role", "ownerName"],
+        "additionalProperties": false
+      },
+      "CatalogUploadCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["upload"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogUploadInput"
+          }
+        }
+      },
+      "CatalogPreviewInput": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": ["url"],
+        "additionalProperties": false
+      },
+      "CatalogPreviewCall": {
+        "type": "object",
+        "required": ["operation", "data"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["preview"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogPreviewInput"
+          }
+        }
+      },
+      "CatalogReadResult": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "document": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "canonicalTitle": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sortTitle": {
+                  "type": "string"
+                },
+                "titleAr": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "contentWarnings": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "analysisNotes": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "curatorNotes": {
+                  "type": "string"
+                },
+                "releaseYear": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1800,
+                      "maximum": 2200
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "format": {
+                  "type": "string",
+                  "enum": ["animated", "live-action"]
+                },
+                "isPrivate": {
+                  "type": "boolean"
+                },
+                "workflowStatus": {
+                  "type": "string",
+                  "enum": ["draft", "in_review", "approved", "published", "archived"]
+                },
+                "qualityScore": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "audience": {
+                  "type": "string",
+                  "enum": ["general", "teen", "young-adult", "adult"]
+                },
+                "age": {
+                  "type": "string",
+                  "enum": ["all", "7+", "10+", "13+", "16+", "18+"]
+                },
+                "sexualityRisk": {
+                  "type": "string",
+                  "enum": ["none", "low", "medium", "high"]
+                },
+                "behavioralRisk": {
+                  "type": "string",
+                  "enum": ["none", "low", "medium", "high"]
+                },
+                "theologyRisk": {
+                  "type": "string",
+                  "enum": ["none", "low", "medium", "high"]
+                },
+                "tmdbId": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "imdbId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^tt\\d{7,10}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "anilistId": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "malId": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "aliases": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "trivia": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "genres": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "tones": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "countries": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "planets": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "credits": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "entity": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "role": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "isPrimary": {
+                        "type": "boolean"
+                      },
+                      "position": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": ["entity", "role"]
+                  }
+                },
+                "externalIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "externalId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["provider", "externalId"]
+                  }
+                },
+                "relations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "target": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "sequel",
+                          "adaptation",
+                          "spin-off",
+                          "side-story",
+                          "compilation",
+                          "alternative",
+                          "related"
+                        ]
+                      },
+                      "notes": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["target", "kind"]
+                  }
+                },
+                "media": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "installments": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "kind": {
+                        "default": "season",
+                        "type": "string",
+                        "enum": ["season", "movie", "special"]
+                      },
+                      "position": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "title": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "summary": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": ["announced", "airing", "completed", "unknown"]
+                      },
+                      "releaseDate": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "runtimeMinutes": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "audienceOverride": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ageOverride": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sexualityRiskOverride": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "behavioralRiskOverride": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "theologyRiskOverride": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tmdbId": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "imdbId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^tt\\d{7,10}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "anilistId": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "malId": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "score": {
+                        "type": "object",
+                        "properties": {
+                          "story": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 10
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "characters": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 10
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "depth": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 10
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "worldBuilding": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 10
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "originality": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 10
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "craft": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 10
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "media": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "episodes": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "number": {
+                              "type": "number",
+                              "exclusiveMinimum": 0
+                            },
+                            "position": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "title": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "summary": {
+                              "type": "string"
+                            },
+                            "releaseDate": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "runtimeMinutes": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["number"]
+                        }
+                      }
+                    },
+                    "required": ["title"]
+                  }
+                },
+                "awards": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "ceremonyId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "position": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "organization": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "category": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "year": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 1900,
+                            "maximum": 2100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "result": {
+                        "type": "string",
+                        "enum": ["winner", "nominee"]
+                      },
+                      "installment": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "isFeatured": {
+                        "type": "boolean"
+                      },
+                      "sourceUrl": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "notes": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["organization", "category", "result"]
+                  }
+                }
+              },
+              "required": ["canonicalTitle"]
+            },
+            "revision": {
+              "type": "string"
+            }
+          },
+          "required": ["document", "revision"]
+        }
+      },
+      "CatalogReviewResult": {
+        "type": "object",
+        "properties": {
+          "ticket": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "number"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "changes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "before": {
+                        "anyOf": [
+                          {
+                            "x-zod-json": true
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "after": {
+                        "anyOf": [
+                          {
+                            "x-zod-json": true
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["path", "before", "after"]
+                  }
+                }
+              },
+              "required": ["id", "name", "changes"]
+            }
+          }
+        },
+        "required": ["ticket", "expiresAt", "records"]
+      },
+      "CatalogSaveResult": {
+        "type": "object",
+        "properties": {
+          "saved": {
+            "type": "number"
+          },
+          "createdId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["saved", "createdId"]
+      },
+      "CatalogCreateResult": {
+        "type": "object",
+        "properties": {
+          "ticket": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "number"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "changes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "before": {
+                        "anyOf": [
+                          {
+                            "x-zod-json": true
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "after": {
+                        "anyOf": [
+                          {
+                            "x-zod-json": true
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["path", "before", "after"]
+                  }
+                }
+              },
+              "required": ["id", "name", "changes"]
+            }
+          }
+        },
+        "required": ["ticket", "expiresAt", "records"]
+      },
+      "CatalogParseResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "canonicalTitle": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sortTitle": {
+            "type": "string"
+          },
+          "titleAr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "contentWarnings": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "analysisNotes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "curatorNotes": {
+            "type": "string"
+          },
+          "releaseYear": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1800,
+                "maximum": 2200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": ["animated", "live-action"]
+          },
+          "isPrivate": {
+            "type": "boolean"
+          },
+          "workflowStatus": {
+            "type": "string",
+            "enum": ["draft", "in_review", "approved", "published", "archived"]
+          },
+          "qualityScore": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "audience": {
+            "type": "string",
+            "enum": ["general", "teen", "young-adult", "adult"]
+          },
+          "age": {
+            "type": "string",
+            "enum": ["all", "7+", "10+", "13+", "16+", "18+"]
+          },
+          "sexualityRisk": {
+            "type": "string",
+            "enum": ["none", "low", "medium", "high"]
+          },
+          "behavioralRisk": {
+            "type": "string",
+            "enum": ["none", "low", "medium", "high"]
+          },
+          "theologyRisk": {
+            "type": "string",
+            "enum": ["none", "low", "medium", "high"]
+          },
+          "tmdbId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "imdbId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^tt\\d{7,10}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "anilistId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "malId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "trivia": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "tones": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "countries": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "planets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "credits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "entity": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "role": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "isPrimary": {
+                  "type": "boolean"
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["entity", "role"]
+            }
+          },
+          "externalIds": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "provider": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "externalId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "url": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": ["provider", "externalId"]
+            }
+          },
+          "relations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "target": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "sequel",
+                    "adaptation",
+                    "spin-off",
+                    "side-story",
+                    "compilation",
+                    "alternative",
+                    "related"
+                  ]
+                },
+                "notes": {
+                  "type": "string"
+                }
+              },
+              "required": ["target", "kind"]
+            }
+          },
+          "media": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "installments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "kind": {
+                  "default": "season",
+                  "type": "string",
+                  "enum": ["season", "movie", "special"]
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["announced", "airing", "completed", "unknown"]
+                },
+                "releaseDate": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "runtimeMinutes": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "audienceOverride": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ageOverride": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sexualityRiskOverride": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "behavioralRiskOverride": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "theologyRiskOverride": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tmdbId": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "imdbId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^tt\\d{7,10}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "anilistId": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "malId": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "score": {
+                  "type": "object",
+                  "properties": {
+                    "story": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "characters": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "depth": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "worldBuilding": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "originality": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "craft": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "media": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "episodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "number": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "position": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "title": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "summary": {
+                        "type": "string"
+                      },
+                      "releaseDate": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "runtimeMinutes": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["number"]
+                  }
+                }
+              },
+              "required": ["title"]
+            }
+          },
+          "awards": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "ceremonyId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "organization": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "category": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "year": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1900,
+                      "maximum": 2100
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "result": {
+                  "type": "string",
+                  "enum": ["winner", "nominee"]
+                },
+                "installment": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "isFeatured": {
+                  "type": "boolean"
+                },
+                "sourceUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "notes": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": ["organization", "category", "result"]
+            }
+          }
+        },
+        "required": ["canonicalTitle"]
+      },
+      "CatalogLinksResult": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "table": {
+              "type": "string"
+            },
+            "count": {
+              "type": "number"
+            }
+          },
+          "required": ["table", "count"]
+        }
+      },
+      "CatalogRefsResult": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "x-zod-json": true
+              }
+            }
+          },
+          "offset": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": ["rows", "offset", "total"]
+      },
+      "CatalogSchemaResult": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "writable": {
+              "type": "boolean"
+            },
+            "columns": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "data_type": {
+                    "type": "string"
+                  },
+                  "nullable": {
+                    "type": "boolean"
+                  },
+                  "primary": {
+                    "type": "boolean"
+                  },
+                  "generated": {
+                    "type": "boolean"
+                  },
+                  "default_value": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "enum_values": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "data_type",
+                  "nullable",
+                  "primary",
+                  "generated",
+                  "default_value",
+                  "enum_values"
+                ]
+              }
+            }
+          },
+          "required": ["name", "writable", "columns"]
+        }
+      },
+      "CatalogVocabularyResult": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "table": {
+              "type": "string"
+            },
+            "options": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "required": ["value", "label"]
+              }
+            }
+          },
+          "required": ["table", "options"]
+        }
+      },
+      "CatalogMediaResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["id"]
+      },
+      "CatalogSearchResult": {
+        "type": "object",
+        "properties": {
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "provider": {
+                  "type": "string",
+                  "enum": ["tmdb", "anilist", "fanart"]
+                },
+                "externalId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "role": {
+                  "type": "string",
+                  "enum": ["poster", "banner", "logo"]
+                },
+                "previewUrl": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "downloadUrl": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "height": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "language": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "matchLabel": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "externalId",
+                "role",
+                "previewUrl",
+                "downloadUrl",
+                "width",
+                "height",
+                "language",
+                "matchLabel"
+              ]
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["candidates", "warnings"]
+      },
+      "CatalogSeasonResult": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "items": {
+              "x-zod-json": true
+            }
+          },
+          {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "x-zod-json": true
+            }
+          }
+        ]
+      },
+      "CatalogIngestResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "path"]
+      },
+      "CatalogUploadResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "path"]
+      },
+      "CatalogPreviewResult": {
+        "type": "object",
+        "properties": {
+          "dataUrl": {
+            "type": "string"
+          }
+        },
+        "required": ["dataUrl"]
+      },
+      "CatalogEditorCall": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CatalogReadCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogReviewCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogSaveCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogCreateCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogParseCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogLinksCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogRefsCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogSchemaCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogVocabularyCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogMediaCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogSearchCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogSeasonCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogIngestCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogUploadCall"
+          },
+          {
+            "$ref": "#/components/schemas/CatalogPreviewCall"
+          }
+        ]
+      },
+      "CatalogEditorReply": {
+        "type": "object",
+        "required": ["result"],
+        "properties": {
+          "result": {
+            "x-zod-json": true
+          }
         }
       }
     }

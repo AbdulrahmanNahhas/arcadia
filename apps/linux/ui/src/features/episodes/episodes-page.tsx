@@ -1,16 +1,33 @@
+import { Radio } from "@base-ui/react/radio";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { CalendarDays, LoaderCircle, Search, X } from "lucide-react";
+import {
+  CalendarDays,
+  Eye,
+  EyeOff,
+  Film,
+  Layers,
+  LoaderCircle,
+  ScanEye,
+  Search,
+  Tv,
+  X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useDeferredValue } from "react";
 
 import { useLoadMoreNavigation } from "../../components/card-navigation";
 import { Failure, NoResults } from "../../components/status";
 import { Badge } from "../../components/ui/badge";
 import { Button, buttonVariants } from "../../components/ui/button";
-import { Field, FieldLabel } from "../../components/ui/field";
-import { InputGroup, InputGroupInput, InputGroupAddon } from "../../components/ui/input-group";
+import { ButtonGroup } from "../../components/ui/button-group";
+import {
+  InputGroup,
+  InputGroupInput,
+  InputGroupAddon,
+  InputGroupButton,
+} from "../../components/ui/input-group";
+import { RadioGroup } from "../../components/ui/radio-group";
 import { Skeleton } from "../../components/ui/skeleton";
-import { Switch } from "../../components/ui/switch";
-import { ToggleGroup, ToggleGroupItem } from "../../components/ui/toggle-group";
 import type { EpisodesQuery } from "../../lib/bridge";
 import { gateway } from "../../lib/bridge";
 import { useIsAdmin } from "../account/use-is-admin";
@@ -24,17 +41,42 @@ export function EpisodesPage({ params }: { params: URLSearchParams }) {
     requestedWatchState === "watched" || requestedWatchState === "unwatched"
       ? requestedWatchState
       : "all";
-  const includePrivate = admin && params.get("includePrivate") === "true";
+  const requestedKind = params.get("kind");
+  const kind =
+    requestedKind === "movies" || requestedKind === "all"
+      ? requestedKind
+      : params.get("includeMovies") === "true"
+        ? "all"
+        : "episodes";
+  const requestedVisibility = params.get("visibility");
+  const visibility =
+    admin && (requestedVisibility === "private" || requestedVisibility === "all")
+      ? requestedVisibility
+      : admin && params.get("includePrivate") === "true"
+        ? "all"
+        : "public";
   const search = params.get("q") ?? "";
   const q = useDeferredValue(search.trim());
   const filters: EpisodesQuery = {};
   if (watchState !== "all") filters.watchState = watchState;
-  if (includePrivate) filters.includePrivate = true;
+  if (visibility !== "public") filters.visibility = visibility;
+  if (kind !== "episodes") filters.kind = kind;
   if (q) filters.q = q;
-  const hasFilters = watchState !== "all" || includePrivate || Boolean(search);
-  const update = (key: "watchState" | "includePrivate" | "q", value: string) => {
+  const hasFilters =
+    watchState !== "all" || visibility !== "public" || kind !== "episodes" || Boolean(search);
+  const update = (key: "watchState" | "visibility" | "kind" | "q", value: string) => {
     const next = new URLSearchParams(params);
-    if (value === "all" || value === "false" || value === "") next.delete(key);
+    if (key === "kind") next.delete("includeMovies");
+    if (key === "visibility") next.delete("includePrivate");
+    const defaultValue =
+      key === "watchState"
+        ? "all"
+        : key === "kind"
+          ? "episodes"
+          : key === "visibility"
+            ? "public"
+            : "";
+    if (value === defaultValue) next.delete(key);
     else next.set(key, value);
     replaceParams("/episodes", next);
   };
@@ -59,9 +101,19 @@ export function EpisodesPage({ params }: { params: URLSearchParams }) {
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-semibold">الحلقات</h1>
-            {total !== undefined && <Badge variant="secondary">{total} إصدار</Badge>}
+            {total !== undefined && (
+              <Badge variant="secondary">
+                {total} {kind === "episodes" ? "حلقة" : kind === "movies" ? "فيلم" : "إصدار"}
+              </Badge>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground">أحدث الحلقات والأفلام الصادرة في مكتبتك</p>
+          <p className="text-sm text-muted-foreground">
+            {kind === "all"
+              ? "أحدث الحلقات والأفلام الصادرة في مكتبتك"
+              : kind === "movies"
+                ? "أحدث الأفلام الصادرة في مكتبتك"
+                : "أحدث الحلقات الصادرة في مكتبتك"}
+          </p>
         </div>
         <a className={buttonVariants({ variant: "outline", size: "sm" })} href="#/releases">
           <CalendarDays data-icon="inline-start" />
@@ -81,44 +133,50 @@ export function EpisodesPage({ params }: { params: URLSearchParams }) {
               maxLength={200}
               onChange={(event) => update("q", event.target.value)}
             />
+            {search && (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label="مسح البحث"
+                  onClick={() => update("q", "")}
+                >
+                  <X />
+                </InputGroupButton>
+              </InputGroupAddon>
+            )}
           </InputGroup>
         </div>
-        <ToggleGroup
-          variant="outline"
-          size="sm"
-          spacing={0}
-          value={[watchState]}
-          aria-label="حالة مشاهدة الحلقات والأفلام"
-          onValueChange={(values) => {
-            if (values[0] === "all" || values[0] === "watched" || values[0] === "unwatched")
-              update("watchState", values[0]);
-          }}
-        >
-          <ToggleGroupItem value="all">الكل</ToggleGroupItem>
-          <ToggleGroupItem value="unwatched">غير مُشاهد</ToggleGroupItem>
-          <ToggleGroupItem value="watched">مُشاهد</ToggleGroupItem>
-        </ToggleGroup>
+        <EpisodeFilterGroup
+          label="حالة مشاهدة الحلقات والأفلام"
+          value={watchState}
+          onChange={(value) => update("watchState", value)}
+          options={[
+            { value: "all", label: "الكل" },
+            { value: "unwatched", label: "غير مُشاهد" },
+            { value: "watched", label: "مُشاهد" },
+          ]}
+        />
+        <EpisodeFilterGroup
+          label="نوع الإصدار"
+          value={kind}
+          onChange={(value) => update("kind", value)}
+          options={[
+            { value: "episodes", label: "الحلقات", icon: Tv },
+            { value: "movies", label: "الأفلام", icon: Film },
+            { value: "all", label: "الحلقات والأفلام", icon: Layers },
+          ]}
+        />
         {admin && (
-          <Field orientation="horizontal" className="w-auto">
-            <Switch
-              id="episodes-private"
-              size="sm"
-              checked={includePrivate}
-              onCheckedChange={(checked) => update("includePrivate", String(checked))}
-            />
-            <FieldLabel htmlFor="episodes-private">تضمين المخفية</FieldLabel>
-          </Field>
-        )}
-        {hasFilters && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="مسح تصفية الحلقات والأفلام"
-            title="مسح التصفية"
-            onClick={() => replaceParams("/episodes", new URLSearchParams())}
-          >
-            <X />
-          </Button>
+          <EpisodeFilterGroup
+            label="ظهور الأعمال"
+            value={visibility}
+            onChange={(value) => update("visibility", value)}
+            options={[
+              { value: "public", label: "الظاهرة", icon: Eye },
+              { value: "private", label: "المخفية", icon: EyeOff },
+              { value: "all", label: "الظاهرة والمخفية", icon: ScanEye },
+            ]}
+          />
         )}
       </div>
       {result.error && <Failure error={result.error} retry={() => void result.refetch()} />}
@@ -176,5 +234,51 @@ export function EpisodesPage({ params }: { params: URLSearchParams }) {
         </div>
       )}
     </div>
+  );
+}
+
+function EpisodeFilterGroup({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string; icon?: LucideIcon }[];
+}) {
+  return (
+    <RadioGroup
+      aria-label={label}
+      value={value}
+      onValueChange={(next) => {
+        const option = options.find((item) => item.value === next);
+        if (option) onChange(option.value);
+      }}
+      render={<ButtonGroup />}
+      className="flex w-auto gap-0"
+    >
+      {options.map((option) => {
+        const Icon = option.icon;
+        return (
+          <Radio.Root
+            key={option.value}
+            value={option.value}
+            nativeButton
+            aria-label={option.label}
+            title={option.label}
+            render={
+              <Button
+                variant={value === option.value ? "secondary" : "outline"}
+                size={Icon ? "icon-sm" : "sm"}
+              />
+            }
+          >
+            {Icon ? <Icon /> : option.label}
+          </Radio.Root>
+        );
+      })}
+    </RadioGroup>
   );
 }

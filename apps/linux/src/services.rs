@@ -85,6 +85,28 @@ struct ActivityCommand {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AdminWorksQuery {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page_size: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    q: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    format: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    structure: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    workflow: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    visibility: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    gap: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sort: Option<String>,
+}
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Browse {
     #[serde(skip_serializing_if = "Option::is_none")]
     page: Option<u32>,
@@ -139,6 +161,12 @@ struct CatalogQuery {
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct EpisodesQuery {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    visibility: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    include_movies: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     page: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -328,7 +356,10 @@ impl Services {
         Ok(bytes)
     }
     async fn json(&self, response: Response) -> Result<Value, Error> {
-        let body = self.body(response, 2 * 1024 * 1024).await?;
+        self.json_limit(response, 2 * 1024 * 1024).await
+    }
+    async fn json_limit(&self, response: Response, max: usize) -> Result<Value, Error> {
+        let body = self.body(response, max).await?;
         serde_json::from_slice(&body)
             .map_err(|_| Error::new("response", "The server sent an invalid response"))
     }
@@ -421,6 +452,73 @@ impl Services {
                     *self.token.lock().await = None;
                     return Ok(Value::Null);
                 }
+                self.json(response).await
+            }
+            "editorCall" => {
+                let response = self
+                    .authorized(Method::POST, "api/v1/admin/editor")
+                    .await?
+                    .timeout(Duration::from_secs(60))
+                    .json(&request.payload)
+                    .send()
+                    .await
+                    .map_err(network)?;
+                self.json_limit(response, 32 * 1024 * 1024).await
+            }
+            "workDocument" => {
+                let input: Resource = parse(request.payload)?;
+                if !valid_id(&input.id) {
+                    return Err(Error::new("bad_request", "Invalid work identifier"));
+                }
+                let response = self
+                    .authorized(Method::GET, &format!("api/v1/admin/works/{}", input.id))
+                    .await?
+                    .send()
+                    .await
+                    .map_err(network)?;
+                self.json_limit(response, 16 * 1024 * 1024).await
+            }
+            "workRead" | "workReview" | "workSave" => {
+                let path = match request.command.as_str() {
+                    "workRead" => "api/v1/admin/works/read",
+                    "workReview" => "api/v1/admin/works/review",
+                    _ => "api/v1/admin/works/save",
+                };
+                // Typed UI contracts and strict server schemas bound documents; destination is fixed.
+                let response = self
+                    .authorized(Method::POST, path)
+                    .await?
+                    .json(&request.payload)
+                    .send()
+                    .await
+                    .map_err(network)?;
+                self.json_limit(response, 16 * 1024 * 1024).await
+            }
+            "adminWorks" => {
+                let input: AdminWorksQuery = parse(request.payload)?;
+                if input.page.is_some_and(|v| !(1..=100_000).contains(&v))
+                    || input.page_size.is_some_and(|v| !(1..=100).contains(&v))
+                    || input.q.as_ref().is_some_and(|v| v.chars().count() > 200)
+                    || [
+                        &input.format,
+                        &input.structure,
+                        &input.workflow,
+                        &input.visibility,
+                        &input.gap,
+                        &input.sort,
+                    ]
+                    .iter()
+                    .any(|v| v.as_ref().is_some_and(|s| s.len() > 32))
+                {
+                    return Err(Error::new("bad_request", "Invalid administration query"));
+                }
+                let response = self
+                    .authorized(Method::GET, "api/v1/admin/works")
+                    .await?
+                    .query(&input)
+                    .send()
+                    .await
+                    .map_err(network)?;
                 self.json(response).await
             }
             "profile" | "adminAccess" => {

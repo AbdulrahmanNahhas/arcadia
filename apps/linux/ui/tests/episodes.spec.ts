@@ -82,7 +82,19 @@ for (const width of [520, 1440]) {
                   expiresAt: "2099-10-09T00:00:00Z",
                 };
               } else if (request.command === "episodes") {
-                result = { items: entries, page: 1, pageSize: 36, total: entries.length };
+                const kind =
+                  request.payload.kind ?? (request.payload.includeMovies ? "all" : "episodes");
+                let filtered = entries.filter(
+                  (item) =>
+                    kind === "all" ||
+                    (kind === "movies" ? item.episodeId === null : item.episodeId !== null),
+                );
+                if (request.payload.visibility === "private") filtered = [];
+                if (request.payload.q)
+                  filtered = filtered.filter((item) =>
+                    item.installmentTitle.includes(request.payload.q),
+                  );
+                result = { items: filtered, page: 1, pageSize: 36, total: filtered.length };
               } else if (request.command === "artwork") {
                 result = { dataUrl };
               } else {
@@ -102,7 +114,15 @@ for (const width of [520, 1440]) {
       };
     }, items);
     await page.goto("/#/episodes");
-    const grid = page.getByLabel("الحلقات والأفلام", { exact: true });
+    const grid = page.locator('div[aria-label="الحلقات والأفلام"]');
+    await expect(grid.locator("article")).toHaveCount(8);
+    const type = page.getByRole("radiogroup", { name: "نوع الإصدار" });
+    const movies = type.getByRole("radio", { name: "الحلقات والأفلام", exact: true });
+    await expect(movies).not.toBeChecked();
+    await expect(grid.getByRole("heading", { name: "فيلم 1", exact: true })).toHaveCount(0);
+    await movies.click();
+    await expect(movies).toBeChecked();
+    await expect(page).toHaveURL(/kind=all/);
     await expect(grid.locator("article")).toHaveCount(items.length);
     const movie = grid
       .locator("article")
@@ -147,5 +167,25 @@ for (const width of [520, 1440]) {
     await expect(play).not.toBeFocused();
     await expect(grid.locator("button:focus, a:focus")).toHaveCount(1);
     await page.screenshot({ path: test.info().outputPath("grid.png"), fullPage: true });
+    await type.getByRole("radio", { name: "الأفلام", exact: true }).click();
+    await expect(grid.locator("article")).toHaveCount(4);
+    const visibility = page.getByRole("radiogroup", { name: "ظهور الأعمال" });
+    await visibility.getByRole("radio", { name: "المخفية", exact: true }).click();
+    await expect(grid.locator("article")).toHaveCount(0);
+    await visibility.getByRole("radio", { name: "الظاهرة والمخفية", exact: true }).click();
+    await expect(grid.locator("article")).toHaveCount(4);
+    const search = page.getByRole("textbox", { name: "البحث باسم العمل أو الحلقة أو الفيلم" });
+    await search.fill("no match");
+    await expect(grid.locator("article")).toHaveCount(0);
+    await page.getByRole("button", { name: "مسح البحث", exact: true }).click();
+    await expect(search).toHaveValue("");
+    await expect(movies).not.toBeChecked();
+    await expect(type.getByRole("radio", { name: "الأفلام", exact: true })).toBeChecked();
+    await expect(
+      visibility.getByRole("radio", { name: "الظاهرة والمخفية", exact: true }),
+    ).toBeChecked();
+    await expect(grid.locator("article")).toHaveCount(4);
+    await type.getByRole("radio", { name: "الحلقات", exact: true }).click();
+    await expect(grid.locator("article")).toHaveCount(8);
   });
 }

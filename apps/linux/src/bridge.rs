@@ -15,11 +15,20 @@ fn empty_object() -> Value {
 }
 impl Request {
     pub fn parse(raw: &str) -> Result<Self, Error> {
-        if raw.len() > 16384 {
+        if raw.len() > 16 * 1024 * 1024 {
             return Err(Error::new("bad_request", "Request is too large"));
         }
         let request: Self = serde_json::from_str(raw)
             .map_err(|_| Error::new("bad_request", "Invalid bridge request"))?;
+        // Only bounded document writes have a larger payload; other commands retain 16 KiB.
+        if raw.len() > 16384
+            && !matches!(
+                request.command.as_str(),
+                "workReview" | "workSave" | "editorCall"
+            )
+        {
+            return Err(Error::new("bad_request", "Request is too large"));
+        }
         if request.id.is_empty()
             || request.id.len() > 64
             || !request

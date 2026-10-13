@@ -25,10 +25,15 @@ import { Route as StudiosRouteImport } from "./routes/studios";
 import { Route as WatchRouteImport } from "./routes/watch";
 import { Route as AdminIndexRouteImport } from "./routes/admin.index";
 import { Route as AdminSectionRouteImport } from "./routes/admin.$section";
+import { Route as AdminJsonRouteImport } from "./routes/admin.json";
+import { Route as AdminWorksRouteImport } from "./routes/admin.works";
 import { Route as PeopleIdRouteImport } from "./routes/people_.$id";
 import { Route as PlanetsIdRouteImport } from "./routes/planets_.$id";
 import { Route as StudiosIdRouteImport } from "./routes/studios_.$id";
 import { Route as TitlesWorkIdRouteImport } from "./routes/titles.$workId";
+import { Route as AdminWorksWorkIdRouteImport } from "./routes/admin.works_.$workId";
+import { Route as AdminWorksBulkRouteImport } from "./routes/admin.works_.bulk";
+import { Route as AdminWorksNewRouteImport } from "./routes/admin.works_.new";
 
 const IndexRoute = IndexRouteImport.update({
   id: "/",
@@ -110,6 +115,16 @@ const AdminSectionRoute = AdminSectionRouteImport.update({
   path: "/$section",
   getParentRoute: () => AdminRoute,
 } as any);
+const AdminJsonRoute = AdminJsonRouteImport.update({
+  id: "/json",
+  path: "/json",
+  getParentRoute: () => AdminRoute,
+} as any);
+const AdminWorksRoute = AdminWorksRouteImport.update({
+  id: "/works",
+  path: "/works",
+  getParentRoute: () => AdminRoute,
+} as any);
 const PeopleIdRoute = PeopleIdRouteImport.update({
   id: "/people_/$id",
   path: "/people/$id",
@@ -130,6 +145,21 @@ const TitlesWorkIdRoute = TitlesWorkIdRouteImport.update({
   path: "/titles/$workId",
   getParentRoute: () => rootRouteImport,
 } as any);
+const AdminWorksWorkIdRoute = AdminWorksWorkIdRouteImport.update({
+  id: "/works_/$workId",
+  path: "/works/$workId",
+  getParentRoute: () => AdminRoute,
+} as any);
+const AdminWorksBulkRoute = AdminWorksBulkRouteImport.update({
+  id: "/works_/bulk",
+  path: "/works/bulk",
+  getParentRoute: () => AdminRoute,
+} as any);
+const AdminWorksNewRoute = AdminWorksNewRouteImport.update({
+  id: "/works_/new",
+  path: "/works/new",
+  getParentRoute: () => AdminRoute,
+} as any);
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
@@ -147,11 +177,16 @@ export interface FileRoutesByFullPath {
   "/studios": typeof StudiosRoute;
   "/watch": typeof WatchRoute;
   "/admin/$section": typeof AdminSectionRoute;
+  "/admin/json": typeof AdminJsonRoute;
+  "/admin/works": typeof AdminWorksRoute;
   "/people/$id": typeof PeopleIdRoute;
   "/planets/$id": typeof PlanetsIdRoute;
   "/studios/$id": typeof StudiosIdRoute;
   "/titles/$workId": typeof TitlesWorkIdRoute;
   "/admin/": typeof AdminIndexRoute;
+  "/admin/works/$workId": typeof AdminWorksWorkIdRoute;
+  "/admin/works/bulk": typeof AdminWorksBulkRoute;
+  "/admin/works/new": typeof AdminWorksNewRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
@@ -168,11 +203,16 @@ export interface FileRoutesByTo {
   "/studios": typeof StudiosRoute;
   "/watch": typeof WatchRoute;
   "/admin/$section": typeof AdminSectionRoute;
+  "/admin/json": typeof AdminJsonRoute;
+  "/admin/works": typeof AdminWorksRoute;
   "/people/$id": typeof PeopleIdRoute;
   "/planets/$id": typeof PlanetsIdRoute;
   "/studios/$id": typeof StudiosIdRoute;
   "/titles/$workId": typeof TitlesWorkIdRoute;
   "/admin": typeof AdminIndexRoute;
+  "/admin/works/$workId": typeof AdminWorksWorkIdRoute;
+  "/admin/works/bulk": typeof AdminWorksBulkRoute;
+  "/admin/works/new": typeof AdminWorksNewRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -191,11 +231,16 @@ export interface FileRoutesById {
   "/studios": typeof StudiosRoute;
   "/watch": typeof WatchRoute;
   "/admin/$section": typeof AdminSectionRoute;
+  "/admin/json": typeof AdminJsonRoute;
+  "/admin/works": typeof AdminWorksRoute;
   "/people_/$id": typeof PeopleIdRoute;
   "/planets_/$id": typeof PlanetsIdRoute;
   "/studios_/$id": typeof StudiosIdRoute;
   "/titles/$workId": typeof TitlesWorkIdRoute;
   "/admin/": typeof AdminIndexRoute;
+  "/admin/works_/$workId": typeof AdminWorksWorkIdRoute;
+  "/admin/works_/bulk": typeof AdminWorksBulkRoute;
+  "/admin/works_/new": typeof AdminWorksNewRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -215,11 +260,16 @@ export interface FileRouteTypes {
     | "/studios"
     | "/watch"
     | "/admin/$section"
+    | "/admin/json"
+    | "/admin/works"
     | "/people/$id"
     | "/planets/$id"
     | "/studios/$id"
     | "/titles/$workId"
-    | "/admin/";
+    | "/admin/"
+    | "/admin/works/$workId"
+    | "/admin/works/bulk"
+    | "/admin/works/new";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
@@ -236,11 +286,16 @@ export interface FileRouteTypes {
     | "/studios"
     | "/watch"
     | "/admin/$section"
+    | "/admin/json"
+    | "/admin/works"
     | "/people/$id"
     | "/planets/$id"
     | "/studios/$id"
     | "/titles/$workId"
-    | "/admin";
+    | "/admin"
+    | "/admin/works/$workId"
+    | "/admin/works/bulk"
+    | "/admin/works/new";
   id:
     | "__root__"
     | "/"
@@ -258,11 +313,16 @@ export interface FileRouteTypes {
     | "/studios"
     | "/watch"
     | "/admin/$section"
+    | "/admin/json"
+    | "/admin/works"
     | "/people_/$id"
     | "/planets_/$id"
     | "/studios_/$id"
     | "/titles/$workId"
-    | "/admin/";
+    | "/admin/"
+    | "/admin/works_/$workId"
+    | "/admin/works_/bulk"
+    | "/admin/works_/new";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -400,6 +460,20 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminSectionRouteImport;
       parentRoute: typeof AdminRoute;
     };
+    "/admin/json": {
+      id: "/admin/json";
+      path: "/json";
+      fullPath: "/admin/json";
+      preLoaderRoute: typeof AdminJsonRouteImport;
+      parentRoute: typeof AdminRoute;
+    };
+    "/admin/works": {
+      id: "/admin/works";
+      path: "/works";
+      fullPath: "/admin/works";
+      preLoaderRoute: typeof AdminWorksRouteImport;
+      parentRoute: typeof AdminRoute;
+    };
     "/people_/$id": {
       id: "/people_/$id";
       path: "/people/$id";
@@ -428,17 +502,48 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof TitlesWorkIdRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/admin/works_/$workId": {
+      id: "/admin/works_/$workId";
+      path: "/works/$workId";
+      fullPath: "/admin/works/$workId";
+      preLoaderRoute: typeof AdminWorksWorkIdRouteImport;
+      parentRoute: typeof AdminRoute;
+    };
+    "/admin/works_/bulk": {
+      id: "/admin/works_/bulk";
+      path: "/works/bulk";
+      fullPath: "/admin/works/bulk";
+      preLoaderRoute: typeof AdminWorksBulkRouteImport;
+      parentRoute: typeof AdminRoute;
+    };
+    "/admin/works_/new": {
+      id: "/admin/works_/new";
+      path: "/works/new";
+      fullPath: "/admin/works/new";
+      preLoaderRoute: typeof AdminWorksNewRouteImport;
+      parentRoute: typeof AdminRoute;
+    };
   }
 }
 
 interface AdminRouteChildren {
   AdminSectionRoute: typeof AdminSectionRoute;
+  AdminJsonRoute: typeof AdminJsonRoute;
+  AdminWorksRoute: typeof AdminWorksRoute;
   AdminIndexRoute: typeof AdminIndexRoute;
+  AdminWorksWorkIdRoute: typeof AdminWorksWorkIdRoute;
+  AdminWorksBulkRoute: typeof AdminWorksBulkRoute;
+  AdminWorksNewRoute: typeof AdminWorksNewRoute;
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminSectionRoute: AdminSectionRoute,
+  AdminJsonRoute: AdminJsonRoute,
+  AdminWorksRoute: AdminWorksRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminWorksWorkIdRoute: AdminWorksWorkIdRoute,
+  AdminWorksBulkRoute: AdminWorksBulkRoute,
+  AdminWorksNewRoute: AdminWorksNewRoute,
 };
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren);

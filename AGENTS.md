@@ -26,12 +26,13 @@ Permission already given for the current step covers its necessary implementatio
 Do not create commits without Aqua's explicit confirmation for that checkpoint. Include the actual
 command in command-approval requests so Aqua can see what will run.
 
-Current checkpoint: Linux UI foundation authorized on 2026-10-12: Vite + TanStack Router + Query,
-Tailwind throughout, skills revision and the full modern shadcn Base UI Nova component set.
-Repository cleanup is committed as `bb3496c`. Linux work-page, playback and device-download behavior already exist; see
-`docs/linux-work-page-checkpoint-2026-10-10.md` and `docs/linux-player-checkpoint.md` for evidence.
-Next: review the foundation result, then separately authorize administration migration.
-Preserve unrelated work.
+Current checkpoint: Linux UI foundation was reviewed and committed as `b60c9ae`.
+Repository cleanup is committed as `bb3496c`. Aqua subsequently authorized database-backed
+admin/member accounts, profile/password/avatar flows, login/account-menu redesign and the
+admin sidebar/layout with empty pages. See `docs/linux-accounts-checkpoint-2026-10-12.md`.
+The website remains the working administration surface until each workflow has a verified
+client replacement. Next complete workflow: works management. Preserve unrelated work.
+Linux work-page/playback/device-download evidence remains in the existing checkpoint docs.
 
 ## Rust learning ownership
 

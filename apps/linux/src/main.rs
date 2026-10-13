@@ -473,13 +473,13 @@ fn smoke(runtime: &tokio::runtime::Runtime, service: &Services) -> glib::ExitCod
     let mut bytes = Vec::new();
     loop {
         bytes.clear();
-        let mut take = std::io::Read::take(&mut reader, 16385);
+        let mut take = std::io::Read::take(&mut reader, 16 * 1024 * 1024 + 1);
         match take.read_until(b'\n', &mut bytes) {
             Ok(0) => break,
             Ok(_) => {}
             Err(_) => return glib::ExitCode::FAILURE,
         };
-        if bytes.len() > 16384 {
+        if bytes.len() > 16 * 1024 * 1024 {
             return glib::ExitCode::FAILURE;
         }
         let Ok(raw) = std::str::from_utf8(&bytes) else {

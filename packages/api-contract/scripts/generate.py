@@ -48,6 +48,13 @@ schemas = ordered
 
 
 def validator(schema):
+    if schema.get("x-zod-json"):
+        return "z.json()"
+    if "anyOf" in schema or "oneOf" in schema:
+        members = schema.get("anyOf", schema.get("oneOf"))
+        return "z.union([" + ",".join(validator(member) for member in members) + "])"
+    if schema.get("type") == "null":
+        return "z.null()"
     if "$ref" in schema:
         result = schema["$ref"].split("/")[-1] + "Schema"
     elif "allOf" in schema:
@@ -56,6 +63,9 @@ def validator(schema):
         result = validator(schema["allOf"][0])
     elif schema["type"] == "array":
         result = f"z.array({validator(schema['items'])})"
+    elif schema["type"] == "object" and "properties" not in schema:
+        additional = schema.get("additionalProperties")
+        result = "z.record(z.string(), " + validator(additional) + ")" if isinstance(additional, dict) else "z.strictObject({})"
     elif schema["type"] == "object":
         required = schema.get("required", [])
         if not set(required).issubset(schema["properties"]):
@@ -118,8 +128,6 @@ typescript = [
     "",
 ]
 for name, schema in schemas.items():
-    if schema["type"] != "object":
-        raise ValueError(f"Unsupported model: {name}")
     typescript += [
         f"export const {name}Schema = {validator(schema)};",
         f"export type {name} = z.infer<typeof {name}Schema>;",

@@ -16,7 +16,7 @@ export default defineConfig({
       transformIndexHtml: (html) =>
         html.replace(
           "<head>",
-          `<head><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">`,
+          `<head><meta name="nahhasio-style-nonce" content="NAHHASIO_STYLE_NONCE"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'nonce-NAHHASIO_STYLE_NONCE'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">`,
         ),
     },
   ],
