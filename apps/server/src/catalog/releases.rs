@@ -1,7 +1,8 @@
 //! Public, recorded release dates only: no inferred episode schedule or media availability.
-use super::{ApiError, ApiResult, queries};
+use super::{ApiError, ApiResult, home, queries};
+use crate::auth::User;
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Query, State, rejection::QueryRejection},
     http::StatusCode,
 };
@@ -14,6 +15,7 @@ use sqlx::{AssertSqlSafe, PgPool, types::Json as SqlJson};
 pub(super) struct Input {
     year: Option<i32>,
     month: Option<i32>,
+    season: Option<i32>,
     day: Option<i32>,
     kind: Option<String>,
     scope: Option<String>,
@@ -33,6 +35,9 @@ impl Input {
             || !(1..=100).contains(&size)
             || self.year.is_some_and(|n| !(1..=9999).contains(&n))
             || self.month.is_some_and(|n| !(1..=12).contains(&n))
+            || self.season.is_some_and(|n| !(1..=4).contains(&n))
+            || (self.season.is_some()
+                && (scope != "year" || self.month.is_some() || self.day.is_some()))
             || self.day.is_some_and(|n| !(1..=31).contains(&n))
             || (self.day.is_some() && (scope != "year" || self.month.is_none()))
             || !matches!(kind, "all" | "installments" | "episodes")
@@ -61,6 +66,7 @@ and case $2
 when 'year' then extract(year from release_date)=coalesce($3::integer,extract(year from current_date)::integer)
     and ($4::integer is null or extract(month from release_date)=$4)
     and ($7::integer is null or extract(day from release_date)=$7)
+    and ($8::integer is null or extract(quarter from release_date)=$8)
 when 'upcoming' then release_date>=current_date
 when 'undated' then release_date is null and ((kind='installment' and status='announced') or (kind='episode' and status in ('announced','airing')))
 else false end
@@ -70,10 +76,10 @@ select release_date,count(*) count from filtered where release_date is not null 
 select * from filtered order by release_date asc nulls last,sort_title,installment_position,episode_position,kind,id
 limit $6::bigint offset (($5::bigint-1)*$6::bigint)
 )"#;
-fn query() -> String {
+// The same typed item projection is used for paginated cards and bounded calendar previews.
+fn item() -> String {
     format!(
-        r#"{ENTRIES}
-select jsonb_build_object('items',coalesce((select jsonb_agg(jsonb_build_object(
+        r#"jsonb_build_object(
 'id',p.id,'workId',t.id,'workTitle',t.canonical_title,'workTitleAr',t.title_ar,
 'installmentId',i.id,'installmentTitle',i.title,'installmentKind',i.kind,
 'episodeNumber',p.episode_number,'title',p.title,'kind',p.kind,
@@ -81,22 +87,42 @@ select jsonb_build_object('items',coalesce((select jsonb_agg(jsonb_build_object(
 'episodeCount',case when p.kind='installment' then (select count(*) from episodes e where e.installment_id=i.id) else null end,
 'poster',(select {artwork} from media_asset_assignments m join media_assets a on a.id=m.asset_id
 where m.role='poster' and (m.installment_id=i.id or m.title_id=t.id)
-order by (m.installment_id=i.id) desc nulls last,m.is_primary desc,m.id limit 1)
-) order by p.release_date asc nulls last,p.sort_title,p.installment_position,p.episode_position,p.kind,p.id)
-from page_entries p join titles t on t.id=p.work_id join installments i on i.id=p.installment_id),'[]'::jsonb),
+order by (m.installment_id=i.id) desc nulls last,m.is_primary desc,m.id limit 1))"#,
+        artwork = queries::ARTWORK
+    )
+}
+fn query() -> String {
+    let installment = format!(
+        r#"jsonb_build_object('id',i.id,'workId',t.id,'workTitle',t.canonical_title,'workTitleAr',t.title_ar,'title',i.title,'kind',i.kind,'releaseDate',to_char(i.release_date,'YYYY-MM-DD'),'runtimeMinutes',i.runtime_minutes,'episodeCount',(select count(*) from episodes where installment_id=i.id),'poster',({item})->'poster','score',(select jsonb_build_object('rating',floor(({score})*10+0.5)/10,'scored',case when ({score}) is null then 0 else 1 end,'total',1) from (select 1) unit left join installment_scores s on s.installment_id=i.id))"#,
+        item = item(),
+        score = queries::SCORE_VALUE
+    );
+    format!(
+        r#"{ENTRIES}
+select jsonb_build_object('items',coalesce((select jsonb_agg(({item}) || jsonb_build_object('work',({summary}),'installment',({installment}),'viewing',case when p.kind='episode' and $7::integer is not null then ({viewing}) else null end)
+order by p.release_date asc nulls last,p.sort_title,p.installment_position,p.episode_position,p.kind,p.id)
+from page_entries p join titles t on t.id=p.work_id join installments i on i.id=p.installment_id
+left join episodes e on e.id=p.id and p.kind='episode'
+left join account_playback_states ps on ps.account_id=(select id from accounts where auth_user_id=$9 and status='active') and ps.installment_id=i.id and ps.episode_id=e.id),'[]'::jsonb),
 'total',(select count(*) from filtered),'page',$5::bigint,'pageSize',$6::bigint,
-'days',coalesce((select jsonb_agg(jsonb_build_object('date',to_char(release_date,'YYYY-MM-DD'),'count',count)
-order by release_date) from day_counts),'[]'::jsonb),
+'days',coalesce((select jsonb_agg(jsonb_build_object('date',to_char(d.release_date,'YYYY-MM-DD'),'count',d.count,
+'previews',case when $4::integer is not null and $1='episodes' then coalesce((select jsonb_agg({item} order by p.sort_title,p.installment_position,p.episode_position,p.id)
+from (select * from (select distinct on (installment_id) * from filtered where release_date=d.release_date order by installment_id,episode_position,id) representatives order by sort_title,installment_position,episode_position,id limit 3) p
+join titles t on t.id=p.work_id join installments i on i.id=p.installment_id),'[]'::jsonb) else '[]'::jsonb end)
+order by d.release_date) from day_counts d),'[]'::jsonb),
 'years',coalesce((select jsonb_agg(known_year order by known_year) from
 (select distinct extract(year from release_date)::integer as known_year from entries where release_date is not null
 and extract(year from release_date) between 1 and 9999) known_years),'[]'::jsonb),
 'asOf',to_char(current_date,'YYYY-MM-DD'))"#,
-        artwork = queries::ARTWORK,
+        item = item(),
+        summary = queries::summary(),
+        viewing = home::viewing_item(false),
     )
 }
 
 pub(super) async fn releases(
     State(pool): State<PgPool>,
+    Extension(user): Extension<User>,
     input: Result<Query<Input>, QueryRejection>,
 ) -> ApiResult<Json<Value>> {
     let Query(input) = input.map_err(|_| invalid())?;
@@ -109,6 +135,8 @@ pub(super) async fn releases(
         .bind(page)
         .bind(size)
         .bind(input.day)
+        .bind(input.season)
+        .bind(&user.id)
         .fetch_one(&pool)
         .await?;
     Ok(Json(result.0))

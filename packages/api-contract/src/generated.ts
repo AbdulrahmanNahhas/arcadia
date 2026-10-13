@@ -133,6 +133,62 @@ export const ArtworkSchema = z.strictObject({
 });
 export type Artwork = z.infer<typeof ArtworkSchema>;
 
+export const ScoreSummarySchema = z.strictObject({
+  rating: z.number().nullable(),
+  scored: z.number().int(),
+  total: z.number().int(),
+});
+export type ScoreSummary = z.infer<typeof ScoreSummarySchema>;
+
+export const WorkSummarySchema = z.strictObject({
+  id: z.string().uuid(),
+  canonicalTitle: z.string(),
+  titleAr: z.string().nullable(),
+  summary: z.string(),
+  releaseYear: z.number().int().nullable(),
+  format: z.enum(["animated", "live-action"]),
+  audience: z.enum(["general", "teen", "young-adult", "adult"]),
+  age: z.string(),
+  poster: ArtworkSchema.nullable(),
+  installmentCount: z.number().int(),
+  episodeCount: z.number().int(),
+  isPrivate: z.boolean(),
+  score: ScoreSummarySchema,
+  banner: ArtworkSchema.nullable(),
+  logo: ArtworkSchema.nullable(),
+});
+export type WorkSummary = z.infer<typeof WorkSummarySchema>;
+
+export const UpcomingInstallmentSchema = z.strictObject({
+  id: z.string().uuid(),
+  workId: z.string().uuid(),
+  workTitle: z.string(),
+  workTitleAr: z.string().nullable(),
+  title: z.string(),
+  kind: z.enum(["season", "movie", "special"]),
+  releaseDate: z.string().nullable(),
+  runtimeMinutes: z.number().int().nullable(),
+  episodeCount: z.number().int(),
+  poster: ArtworkSchema.nullable(),
+  score: ScoreSummarySchema,
+});
+export type UpcomingInstallment = z.infer<typeof UpcomingInstallmentSchema>;
+
+export const HomeViewingItemSchema = z.strictObject({
+  work: WorkSummarySchema,
+  installmentId: z.string().uuid(),
+  installmentTitle: z.string(),
+  episodeId: z.string().uuid().nullable(),
+  episodeNumber: z.string().nullable(),
+  episodeTitle: z.string().nullable(),
+  releaseDate: z.string().nullable(),
+  artwork: ArtworkSchema.nullable(),
+  positionSeconds: z.number().int().min(0),
+  durationSeconds: z.number().int().nullable(),
+  isPlayed: z.boolean(),
+});
+export type HomeViewingItem = z.infer<typeof HomeViewingItemSchema>;
+
 export const ReleaseEntrySchema = z.strictObject({
   id: z.string().uuid(),
   workId: z.string().uuid(),
@@ -148,6 +204,9 @@ export const ReleaseEntrySchema = z.strictObject({
   status: z.string(),
   runtimeMinutes: z.number().int().nullable(),
   episodeCount: z.number().int().min(0).nullable(),
+  work: WorkSummarySchema.optional(),
+  installment: UpcomingInstallmentSchema.optional(),
+  viewing: HomeViewingItemSchema.nullable().optional(),
   poster: ArtworkSchema.nullable(),
 });
 export type ReleaseEntry = z.infer<typeof ReleaseEntrySchema>;
@@ -162,6 +221,7 @@ export const ReleasesPageSchema = z.strictObject({
     z.strictObject({
       date: z.iso.date(),
       count: z.number().int().min(1),
+      previews: z.array(ReleaseEntrySchema).optional(),
     }),
   ),
   asOf: z.iso.date(),
@@ -300,32 +360,6 @@ export const InstallmentSchema = z.strictObject({
   updatedAt: z.string(),
 });
 export type Installment = z.infer<typeof InstallmentSchema>;
-
-export const ScoreSummarySchema = z.strictObject({
-  rating: z.number().nullable(),
-  scored: z.number().int(),
-  total: z.number().int(),
-});
-export type ScoreSummary = z.infer<typeof ScoreSummarySchema>;
-
-export const WorkSummarySchema = z.strictObject({
-  id: z.string().uuid(),
-  canonicalTitle: z.string(),
-  titleAr: z.string().nullable(),
-  summary: z.string(),
-  releaseYear: z.number().int().nullable(),
-  format: z.enum(["animated", "live-action"]),
-  audience: z.enum(["general", "teen", "young-adult", "adult"]),
-  age: z.string(),
-  poster: ArtworkSchema.nullable(),
-  installmentCount: z.number().int(),
-  episodeCount: z.number().int(),
-  isPrivate: z.boolean(),
-  score: ScoreSummarySchema,
-  banner: ArtworkSchema.nullable(),
-  logo: ArtworkSchema.nullable(),
-});
-export type WorkSummary = z.infer<typeof WorkSummarySchema>;
 
 export const AliasSchema = z.strictObject({
   title: z.string(),
@@ -519,36 +553,6 @@ export const FamilyActivitySchema = z.strictObject({
 });
 export type FamilyActivity = z.infer<typeof FamilyActivitySchema>;
 
-export const UpcomingInstallmentSchema = z.strictObject({
-  id: z.string().uuid(),
-  workId: z.string().uuid(),
-  workTitle: z.string(),
-  workTitleAr: z.string().nullable(),
-  title: z.string(),
-  kind: z.enum(["season", "movie", "special"]),
-  releaseDate: z.string().nullable(),
-  runtimeMinutes: z.number().int().nullable(),
-  episodeCount: z.number().int(),
-  poster: ArtworkSchema.nullable(),
-  score: ScoreSummarySchema,
-});
-export type UpcomingInstallment = z.infer<typeof UpcomingInstallmentSchema>;
-
-export const HomeViewingItemSchema = z.strictObject({
-  work: WorkSummarySchema,
-  installmentId: z.string().uuid(),
-  installmentTitle: z.string(),
-  episodeId: z.string().uuid().nullable(),
-  episodeNumber: z.string().nullable(),
-  episodeTitle: z.string().nullable(),
-  releaseDate: z.string().nullable(),
-  artwork: ArtworkSchema.nullable(),
-  positionSeconds: z.number().int().min(0),
-  durationSeconds: z.number().int().nullable(),
-  isPlayed: z.boolean(),
-});
-export type HomeViewingItem = z.infer<typeof HomeViewingItemSchema>;
-
 export const EpisodesPageSchema = z.strictObject({
   items: z.array(HomeViewingItemSchema),
   total: z.number().int().min(0),
@@ -720,6 +724,7 @@ export class ApiClient {
   }
   async getReleases(
     query: {
+      season?: number;
       year?: number;
       month?: number;
       day?: number;

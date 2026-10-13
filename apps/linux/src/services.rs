@@ -159,6 +159,8 @@ struct ReleasesQuery {
     #[serde(skip_serializing_if = "Option::is_none")]
     month: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    season: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     day: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     kind: Option<String>,
@@ -174,6 +176,9 @@ impl ReleasesQuery {
         let scope = self.scope.as_deref().unwrap_or("year");
         if self.year.is_some_and(|n| !(1..=9999).contains(&n))
             || self.month.is_some_and(|n| !(1..=12).contains(&n))
+            || self.season.is_some_and(|n| !(1..=4).contains(&n))
+            || (self.season.is_some()
+                && (scope != "year" || self.month.is_some() || self.day.is_some()))
             || self.day.is_some_and(|n| !(1..=31).contains(&n))
             || (self.day.is_some() && (scope != "year" || self.month.is_none()))
             || self.page.is_some_and(|n| !(1..=100_000).contains(&n))
